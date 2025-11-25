@@ -10,9 +10,14 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.22.0",
+    "@qdrant/js-client-rest": "^1.16.0",
     "bullmq": "^5.64.1",
+    "dotenv": "^17.2.3",
+    "ioredis": "^5.8.2",
     "mongodb": "^7.0.0",
-    "@qdrant/qdrant-js": "^1.16.0"
+    "neo4j-driver": "^6.0.1",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

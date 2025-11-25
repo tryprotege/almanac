@@ -25,7 +25,6 @@ export class MCPClientManager {
    * Connect to an MCP server
    */
   async connect(config: MCPServerConfig): Promise<void> {
-    console.log("config", config);
     if (this.clients.has(config.name)) {
       console.error(`Client ${config.name} already connected`);
       return;

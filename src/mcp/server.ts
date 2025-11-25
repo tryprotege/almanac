@@ -13,6 +13,13 @@ import {
   MemgraphConnection,
 } from "../shared/database/memgraph.js";
 import { connectRedis, RedisConnection } from "../shared/database/redis.js";
+import { MongoRepository } from "../repositories/index.js";
+import { QdrantRepository } from "../repositories/index.js";
+import { MemgraphRepository } from "../repositories/index.js";
+import { ChunkerService } from "../services/indexing/chunker.js";
+import { EmbedderService } from "../services/indexing/embedder.js";
+import { IndexingService } from "../services/indexing/indexing.service.js";
+import { env } from "../env.js";
 
 interface ServiceConnections {
   mongo: MongoConnection;
@@ -231,6 +238,74 @@ const tools: Tool[] = [
       required: ["collectionName", "vector"],
     },
   },
+  {
+    name: "index_mcp_resource",
+    description:
+      "Index data from an external MCP tool result into ebee's search system",
+    inputSchema: {
+      type: "object",
+      properties: {
+        workspaceId: {
+          type: "string",
+          description: "Workspace identifier",
+        },
+        source: {
+          type: "object",
+          properties: {
+            type: {
+              type: "string",
+              enum: [
+                "notion",
+                "slack",
+                "calendar",
+                "fathom",
+                "whatsapp",
+                "codebase",
+                "asana",
+                "jira",
+                "google_drive",
+              ],
+              description: "Source type",
+            },
+            serverId: {
+              type: "string",
+              description: "MCP server identifier",
+            },
+          },
+          required: ["type", "serverId"],
+        },
+        toolCall: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "Name of the tool that was called",
+            },
+            arguments: {
+              type: "object",
+              description: "Arguments passed to the tool",
+            },
+          },
+          required: ["name", "arguments"],
+        },
+        toolResult: {
+          type: "object",
+          properties: {
+            content: {
+              type: "array",
+              description: "Content returned from the MCP tool",
+            },
+            isError: {
+              type: "boolean",
+              description: "Whether the result is an error",
+            },
+          },
+          required: ["content"],
+        },
+      },
+      required: ["workspaceId", "source", "toolCall", "toolResult"],
+    },
+  },
 ];
 
 // List tools handler
@@ -375,6 +450,56 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: JSON.stringify(results, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "index_mcp_resource": {
+        const { workspaceId, source, toolCall, toolResult } = args as any;
+
+        // Initialize indexing service
+        const mongoRepo = new MongoRepository(svc.mongo);
+        const qdrantRepo = new QdrantRepository(svc.qdrant);
+        const memgraphRepo = new MemgraphRepository(svc.memgraph);
+        const chunker = new ChunkerService();
+
+        // Create LLM client for embeddings
+        const { createLLMClient } = await import(
+          "../services/llm/providers.js"
+        );
+        const llmClient = createLLMClient(
+          env.LLM_PROVIDER,
+          env.LLM_API_KEY,
+          env.LLM_BASE_URL
+        );
+
+        const embedder = new EmbedderService({
+          client: llmClient,
+          model: env.LLM_EMBEDDING_MODEL,
+        });
+
+        const indexingService = new IndexingService(
+          mongoRepo,
+          qdrantRepo,
+          memgraphRepo,
+          chunker,
+          embedder
+        );
+
+        // Process the index request
+        const response = await indexingService.index({
+          workspaceId,
+          source,
+          toolCall,
+          toolResult,
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(response, null, 2),
             },
           ],
         };

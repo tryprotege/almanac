@@ -1,3 +1,8 @@
 // Shared utility functions
 
-export {};
+// Embedding utilities
+export {
+  getEmbeddingDimensions,
+  validateVectorDimensions,
+  DimensionMismatchError,
+} from "./embeddings.js";

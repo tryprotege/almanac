@@ -227,3 +227,15 @@ export function generateMongoId(
 ): string {
   return `${source}_${resourceId}`;
 }
+
+// ============================================
+// Graph Schema Types
+// ============================================
+
+export type {
+  GraphSchema,
+  EntityType,
+  RelationshipType,
+  ExtractionRules,
+} from "./graph-schema.js";
+export { DEFAULT_GRAPH_SCHEMA } from "./graph-schema.js";

@@ -1,48 +1,21 @@
 #!/usr/bin/env node
 import { Server } from "@modelcontextprotocol/sdk/server";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-  Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-
+import { createServer, IncomingMessage, ServerResponse } from "http";
+import { MCPClientManager } from "./services/connector/mcp-clients/client.js";
+import { loadProxyConfig, validateConfig } from "./mcp/config-loader.js";
+import { localTools, proxyTools } from "./mcp/tools.js";
+import { handleLocalTool, handleProxyTool } from "./mcp/handlers.js";
 import {
-  connectMemgraph,
-  MemgraphConnection,
-} from "./shared/database/memgraph.js";
-import { connectMongo, MongoConnection } from "./shared/database/mongo.js";
-import { connectQdrant, QdrantConnection } from "./shared/database/qdrant.js";
-import { connectRedis, RedisConnection } from "./shared/database/redis.js";
+  initializeServices,
+  initializeRemoteServers,
+  shutdownServices,
+} from "./mcp/initialization.js";
 
-interface ServiceConnections {
-  mongo: MongoConnection;
-  qdrant: QdrantConnection;
-  memgraph: MemgraphConnection;
-  redis: RedisConnection;
-}
-
-let services: ServiceConnections | null = null;
-
-// Initialize all services
-const initializeServices = async (): Promise<ServiceConnections> => {
-  if (services) {
-    return services;
-  }
-
-  console.error("🚀 Initializing eBee services...");
-
-  const [mongo, qdrant, memgraph, redis] = await Promise.all([
-    connectMongo(),
-    connectQdrant(),
-    connectMemgraph(),
-    connectRedis(),
-  ]);
-
-  services = { mongo, qdrant, memgraph, redis };
-  console.error("✅ All services initialized successfully!");
-  return services;
-};
+const mcpClientManager = new MCPClientManager();
 
 // Create MCP server
 const server = new Server(
@@ -57,333 +30,45 @@ const server = new Server(
   }
 );
 
-// Define available tools
-const tools: Tool[] = [
-  {
-    name: "mongo_query",
-    description: "Execute a MongoDB query on a collection",
-    inputSchema: {
-      type: "object",
-      properties: {
-        collection: {
-          type: "string",
-          description: "Name of the collection to query",
-        },
-        operation: {
-          type: "string",
-          enum: [
-            "find",
-            "findOne",
-            "insertOne",
-            "insertMany",
-            "updateOne",
-            "deleteOne",
-          ],
-          description: "MongoDB operation to perform",
-        },
-        query: {
-          type: "object",
-          description: "Query filter object",
-        },
-        data: {
-          type: "object",
-          description: "Data for insert/update operations",
-        },
-      },
-      required: ["collection", "operation"],
-    },
-  },
-  {
-    name: "redis_get",
-    description: "Get a value from Redis by key",
-    inputSchema: {
-      type: "object",
-      properties: {
-        key: {
-          type: "string",
-          description: "Redis key to retrieve",
-        },
-      },
-      required: ["key"],
-    },
-  },
-  {
-    name: "redis_set",
-    description: "Set a value in Redis",
-    inputSchema: {
-      type: "object",
-      properties: {
-        key: {
-          type: "string",
-          description: "Redis key",
-        },
-        value: {
-          type: "string",
-          description: "Value to store",
-        },
-        ttl: {
-          type: "number",
-          description: "Time to live in seconds (optional)",
-        },
-      },
-      required: ["key", "value"],
-    },
-  },
-  {
-    name: "memgraph_query",
-    description: "Execute a Cypher query on Memgraph",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "Cypher query to execute",
-        },
-        parameters: {
-          type: "object",
-          description: "Query parameters",
-        },
-      },
-      required: ["query"],
-    },
-  },
-  {
-    name: "qdrant_create_collection",
-    description: "Create a new Qdrant collection",
-    inputSchema: {
-      type: "object",
-      properties: {
-        collectionName: {
-          type: "string",
-          description: "Name of the collection",
-        },
-        vectorSize: {
-          type: "number",
-          description: "Size of the vectors",
-        },
-        distance: {
-          type: "string",
-          enum: ["Cosine", "Euclid", "Dot"],
-          description: "Distance metric to use",
-          default: "Cosine",
-        },
-      },
-      required: ["collectionName", "vectorSize"],
-    },
-  },
-  {
-    name: "qdrant_upsert",
-    description: "Upsert points into a Qdrant collection",
-    inputSchema: {
-      type: "object",
-      properties: {
-        collectionName: {
-          type: "string",
-          description: "Name of the collection",
-        },
-        points: {
-          type: "array",
-          description: "Array of points to upsert",
-          items: {
-            type: "object",
-            properties: {
-              id: {
-                type: ["string", "number"],
-                description: "Point ID",
-              },
-              vector: {
-                type: "array",
-                items: { type: "number" },
-                description: "Vector values",
-              },
-              payload: {
-                type: "object",
-                description: "Point metadata",
-              },
-            },
-            required: ["id", "vector"],
-          },
-        },
-      },
-      required: ["collectionName", "points"],
-    },
-  },
-  {
-    name: "qdrant_search",
-    description: "Search for similar vectors in a Qdrant collection",
-    inputSchema: {
-      type: "object",
-      properties: {
-        collectionName: {
-          type: "string",
-          description: "Name of the collection",
-        },
-        vector: {
-          type: "array",
-          items: { type: "number" },
-          description: "Query vector",
-        },
-        limit: {
-          type: "number",
-          description: "Maximum number of results",
-          default: 10,
-        },
-      },
-      required: ["collectionName", "vector"],
-    },
-  },
-];
-
-// List tools handler
+// List tools handler - combines local and remote tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return { tools };
+  const remoteToolsData = mcpClientManager.getAllTools();
+  const remoteTools = remoteToolsData.map((t) => t.tool);
+  const allTools = [...localTools, ...proxyTools, ...remoteTools];
+
+  return { tools: allTools };
 });
 
-// Call tool handler
+// Call tool handler - routes to local or remote handlers
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
-    // Initialize services if not already done
-    const svc = await initializeServices();
+    // Check if this is a proxied tool (prefixed with serverName__)
+    const proxyMatch = name.match(/^(.+?)__(.+)$/);
 
-    switch (name) {
-      case "mongo_query": {
-        const { collection, operation, query = {}, data } = args as any;
-        const col = svc.mongo.db.collection(collection);
+    if (proxyMatch) {
+      const [, serverName, actualToolName] = proxyMatch;
 
-        let result;
-        switch (operation) {
-          case "find":
-            result = await col.find(query).toArray();
-            break;
-          case "findOne":
-            result = await col.findOne(query);
-            break;
-          case "insertOne":
-            result = await col.insertOne(data);
-            break;
-          case "insertMany":
-            result = await col.insertMany(data);
-            break;
-          case "updateOne":
-            result = await col.updateOne(query, { $set: data });
-            break;
-          case "deleteOne":
-            result = await col.deleteOne(query);
-            break;
-          default:
-            throw new Error(`Unknown operation: ${operation}`);
-        }
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+      if (!mcpClientManager.isConnected(serverName)) {
+        throw new Error(`Server ${serverName} is not connected`);
       }
 
-      case "redis_get": {
-        const { key } = args as { key: string };
-        const value = await svc.redis.client.get(key);
-        return {
-          content: [
-            {
-              type: "text",
-              text: value || "null",
-            },
-          ],
-        };
-      }
-
-      case "redis_set": {
-        const { key, value, ttl } = args as {
-          key: string;
-          value: string;
-          ttl?: number;
-        };
-        if (ttl) {
-          await svc.redis.client.setex(key, ttl, value);
-        } else {
-          await svc.redis.client.set(key, value);
-        }
-        return {
-          content: [
-            {
-              type: "text",
-              text: "OK",
-            },
-          ],
-        };
-      }
-
-      case "memgraph_query": {
-        const { query, parameters } = args as {
-          query: string;
-          parameters?: Record<string, any>;
-        };
-        const result = await svc.memgraph.executeQuery(query, parameters);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      }
-
-      case "qdrant_create_collection": {
-        const { collectionName, vectorSize, distance = "Cosine" } = args as any;
-        await svc.qdrant.createCollection(collectionName, vectorSize, distance);
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Collection "${collectionName}" created successfully`,
-            },
-          ],
-        };
-      }
-
-      case "qdrant_upsert": {
-        const { collectionName, points } = args as any;
-        await svc.qdrant.client.upsert(collectionName, {
-          wait: true,
-          points,
-        });
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Upserted ${points.length} points to "${collectionName}"`,
-            },
-          ],
-        };
-      }
-
-      case "qdrant_search": {
-        const { collectionName, vector, limit = 10 } = args as any;
-        const results = await svc.qdrant.client.search(collectionName, {
-          vector,
-          limit,
-        });
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(results, null, 2),
-            },
-          ],
-        };
-      }
-
-      default:
-        throw new Error(`Unknown tool: ${name}`);
+      return await mcpClientManager.callTool(
+        serverName,
+        actualToolName,
+        args as Record<string, unknown>
+      );
     }
+
+    // Check if this is a proxy tool
+    if (name.startsWith("proxy_")) {
+      return await handleProxyTool(name, args, mcpClientManager);
+    }
+
+    // Handle local tools
+    const services = await initializeServices();
+    return await handleLocalTool(name, args, services);
   } catch (error) {
     return {
       content: [
@@ -399,25 +84,192 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
+// Helper to read request body
+const readBody = (req: IncomingMessage): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => resolve(body));
+    req.on("error", reject);
+  });
+};
+
 // Start server
 const runServer = async () => {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  await initializeServices();
-  console.error("eBee MCP server running on stdio");
+  const remoteServerConfigs = loadProxyConfig();
+
+  const validConfigs = remoteServerConfigs.filter((config) => {
+    const error = validateConfig(config);
+    if (error) {
+      console.error(`Invalid config for ${config.name}: ${error}`);
+      return false;
+    }
+    return true;
+  });
+
+  if (validConfigs.length > 0) {
+    await initializeRemoteServers(validConfigs, mcpClientManager);
+  } else {
+    console.error("ℹ️  No remote MCP servers configured");
+  }
+
+  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+  const HOST = process.env.HOST || "0.0.0.0";
+
+  // Create HTTP server with JSON-RPC
+  const httpServer = createServer(
+    async (req: IncomingMessage, res: ServerResponse) => {
+      // Handle CORS
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.setHeader(
+        "Access-Control-Allow-Headers",
+        "Content-Type, mcp-protocol-version"
+      );
+
+      if (req.method === "OPTIONS") {
+        res.writeHead(200);
+        res.end();
+        return;
+      }
+
+      // Health check endpoint
+      if (req.url === "/health") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: "ok", version: "0.1.0" }));
+        return;
+      }
+
+      // MCP JSON-RPC endpoint
+      if (req.url === "/mcp" && req.method === "POST") {
+        try {
+          const body = await readBody(req);
+          const request = JSON.parse(body);
+
+          let response;
+
+          // Handle initialize
+          if (request.method === "initialize") {
+            response = {
+              jsonrpc: "2.0",
+              id: request.id,
+              result: {
+                protocolVersion: "2024-11-05",
+                capabilities: {
+                  tools: {},
+                },
+                serverInfo: {
+                  name: "ebee-oss",
+                  version: "0.1.0",
+                },
+              },
+            };
+          }
+          // Handle notifications/initialized
+          else if (request.method === "notifications/initialized") {
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end();
+            return;
+          }
+          // Handle list tools
+          else if (request.method === "tools/list") {
+            const remoteToolsData = mcpClientManager.getAllTools();
+            const remoteTools = remoteToolsData.map((t) => t.tool);
+            const allTools = [...localTools, ...proxyTools, ...remoteTools];
+
+            response = {
+              jsonrpc: "2.0",
+              id: request.id,
+              result: { tools: allTools },
+            };
+          }
+          // Handle call tool
+          else if (request.method === "tools/call") {
+            const { name, arguments: args } = request.params;
+
+            // Check if proxied tool
+            const proxyMatch = name.match(/^(.+?)__(.+)$/);
+
+            let result;
+            if (proxyMatch) {
+              const [, serverName, actualToolName] = proxyMatch;
+              if (!mcpClientManager.isConnected(serverName)) {
+                throw new Error(`Server ${serverName} is not connected`);
+              }
+              result = await mcpClientManager.callTool(
+                serverName,
+                actualToolName,
+                args as Record<string, unknown>
+              );
+            } else if (name.startsWith("proxy_")) {
+              result = await handleProxyTool(name, args, mcpClientManager);
+            } else {
+              // Handle local tools by calling the handler directly
+              const mockRequest = {
+                method: "tools/call",
+                params: { name, arguments: args },
+              };
+
+              const handlers = (server as any)._requestHandlers;
+              const handler = handlers.get("tools/call");
+              if (!handler) {
+                throw new Error("Tool handler not found");
+              }
+
+              result = await handler(mockRequest);
+            }
+
+            response = {
+              jsonrpc: "2.0",
+              id: request.id,
+              result,
+            };
+          } else {
+            response = {
+              jsonrpc: "2.0",
+              id: request.id,
+              error: {
+                code: -32601,
+                message: "Method not found",
+              },
+            };
+          }
+
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(response));
+        } catch (error) {
+          const errorResponse = {
+            jsonrpc: "2.0",
+            id: null,
+            error: {
+              code: -32603,
+              message: error instanceof Error ? error.message : String(error),
+            },
+          };
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(errorResponse));
+        }
+        return;
+      }
+
+      // 404 for other routes
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Not found" }));
+    }
+  );
+
+  httpServer.listen(PORT, HOST, () => {
+    console.error(`🚀 eBee MCP server running on http://${HOST}:${PORT}`);
+    console.error(`📡 MCP endpoint: http://${HOST}:${PORT}/mcp`);
+    console.error(`💚 Health check: http://${HOST}:${PORT}/health`);
+  });
 };
 
 // Handle graceful shutdown
 process.on("SIGINT", async () => {
   console.error("Shutting down MCP server...");
-  if (services) {
-    await Promise.all([
-      services.mongo.close(),
-      services.qdrant.close(),
-      services.memgraph.close(),
-      services.redis.close(),
-    ]);
-  }
+  await mcpClientManager.disconnectAll();
+  await shutdownServices();
   process.exit(0);
 });
 

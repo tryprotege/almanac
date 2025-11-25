@@ -4,13 +4,8 @@
 // Types
 // ============================================
 
-export type SourceType =
-  | "notion"
-  | "slack"
-  | "calendar"
-  | "fathom"
-  | "whatsapp"
-  | "codebase";
+import type { SourceType } from "../types/index.js";
+export type { SourceType };
 
 export interface MCPToolDefinition {
   name: string;
@@ -98,6 +93,9 @@ export const SMART_SEARCH_TOOL: MCPToolDefinition = {
             "fathom",
             "whatsapp",
             "codebase",
+            "asana",
+            "jira",
+            "google_drive",
           ],
         },
         description: "Filter results to specific sources",

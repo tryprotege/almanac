@@ -1,0 +1,54 @@
+{
+  "remoteServers": [
+    {
+      "name": "playwright",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.38"
+      ],
+      "env": {
+        "CUSTOM_ENV_VAR": "value"
+      }
+    },
+    {
+      "name": "filesystem",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/path/to/allowed/directory"
+      ],
+      "env": {
+        "DEBUG": "true"
+      }
+    },
+    {
+      "name": "remote-api",
+      "type": "sse",
+      "url": "https://example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer your-token-here",
+        "X-Custom-Header": "value"
+      }
+    },
+    {
+      "name": "remote-api-advanced",
+      "type": "sse",
+      "url": "https://example.com/mcp",
+      "requestInit": {
+        "headers": {
+          "Authorization": "Bearer your-token-here",
+          "Content-Type": "application/json"
+        }
+      },
+      "eventSourceInit": {
+        "headers": {
+          "Authorization": "Bearer your-token-here"
+        }
+      }
+    }
+  ]
+}

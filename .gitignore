@@ -141,3 +141,5 @@ vite.config.ts.timestamp-*
 .data
 .idea
 tmp
+.roo
+.cline

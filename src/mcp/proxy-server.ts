@@ -1,24 +1,23 @@
 #!/usr/bin/env node
-import { Server } from "@modelcontextprotocol/sdk/server";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-import { createServer, IncomingMessage, ServerResponse } from "http";
-
+import { connectMongo, MongoConnection } from "../shared/database/mongo.js";
+import { connectQdrant, QdrantConnection } from "../shared/database/qdrant.js";
 import {
   connectMemgraph,
   MemgraphConnection,
-} from "./shared/database/memgraph.js";
-import { connectMongo, MongoConnection } from "./shared/database/mongo.js";
-import { connectQdrant, QdrantConnection } from "./shared/database/qdrant.js";
-import { connectRedis, RedisConnection } from "./shared/database/redis.js";
+} from "../shared/database/memgraph.js";
+import { connectRedis, RedisConnection } from "../shared/database/redis.js";
 import {
   MCPClientManager,
   MCPServerConfig,
-} from "./services/connector/mcp-clients/client.js";
-import { loadProxyConfig, validateConfig } from "./mcp/config-loader.js";
+} from "../services/connector/mcp-clients/client.js";
+import { loadProxyConfig, validateConfig } from "./config-loader.js";
 
 interface ServiceConnections {
   mongo: MongoConnection;
@@ -71,7 +70,7 @@ const initializeRemoteServers = async (configs: MCPServerConfig[]) => {
 // Create MCP server
 const server = new Server(
   {
-    name: "ebee-oss",
+    name: "ebee-proxy",
     version: "0.1.0",
   },
   {
@@ -81,8 +80,8 @@ const server = new Server(
   }
 );
 
-// Define available tools
-const tools: Tool[] = [
+// Define local tools
+const localTools: Tool[] = [
   {
     name: "mongo_query",
     description: "Execute a MongoDB query on a collection",
@@ -287,7 +286,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   const remoteTools = remoteToolsData.map((t) => t.tool);
 
   // Combine local and remote tools
-  const allTools = [...tools, ...remoteTools];
+  const allTools = [...localTools, ...remoteTools];
 
   return { tools: allTools };
 });
@@ -497,16 +496,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-// Helper to read request body
-const readBody = (req: IncomingMessage): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    let body = "";
-    req.on("data", (chunk) => (body += chunk));
-    req.on("end", () => resolve(body));
-    req.on("error", reject);
-  });
-};
-
 // Start server
 const runServer = async () => {
   // Load remote MCP server configurations from environment or config file
@@ -527,164 +516,17 @@ const runServer = async () => {
   if (validConfigs.length > 0) {
     await initializeRemoteServers(validConfigs);
   } else {
-    console.error("ℹ️  No remote MCP servers configured");
+    console.error("ℹ️ No remote MCP servers configured");
   }
 
-  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
-  const HOST = process.env.HOST || "0.0.0.0";
-
-  // Create HTTP server with JSON-RPC
-  const httpServer = createServer(
-    async (req: IncomingMessage, res: ServerResponse) => {
-      // Handle CORS
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      res.setHeader(
-        "Access-Control-Allow-Headers",
-        "Content-Type, mcp-protocol-version"
-      );
-
-      if (req.method === "OPTIONS") {
-        res.writeHead(200);
-        res.end();
-        return;
-      }
-
-      // Health check endpoint
-      if (req.url === "/health") {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ status: "ok", version: "0.1.0" }));
-        return;
-      }
-
-      // MCP JSON-RPC endpoint
-      if (req.url === "/mcp" && req.method === "POST") {
-        try {
-          const body = await readBody(req);
-          const request = JSON.parse(body);
-
-          let response;
-
-          // Handle initialize
-          if (request.method === "initialize") {
-            response = {
-              jsonrpc: "2.0",
-              id: request.id,
-              result: {
-                protocolVersion: "2024-11-05",
-                capabilities: {
-                  tools: {},
-                },
-                serverInfo: {
-                  name: "ebee-oss",
-                  version: "0.1.0",
-                },
-              },
-            };
-          }
-          // Handle notifications/initialized
-          else if (request.method === "notifications/initialized") {
-            // No response needed for notifications
-            res.writeHead(200, { "Content-Type": "application/json" });
-            res.end();
-            return;
-          }
-          // Handle list tools
-          else if (request.method === "tools/list") {
-            const remoteToolsData = mcpClientManager.getAllTools();
-            const remoteTools = remoteToolsData.map((t) => t.tool);
-            const allTools = [...tools, ...remoteTools];
-
-            response = {
-              jsonrpc: "2.0",
-              id: request.id,
-              result: { tools: allTools },
-            };
-          }
-          // Handle call tool
-          else if (request.method === "tools/call") {
-            const { name, arguments: args } = request.params;
-
-            // Check if proxied tool
-            const proxyMatch = name.match(/^(.+?)__(.+)$/);
-
-            let result;
-            if (proxyMatch) {
-              const [, serverName, actualToolName] = proxyMatch;
-              if (!mcpClientManager.isConnected(serverName)) {
-                throw new Error(`Server ${serverName} is not connected`);
-              }
-              result = await mcpClientManager.callTool(
-                serverName,
-                actualToolName,
-                args as Record<string, unknown>
-              );
-            } else {
-              // Handle local tools by calling the handler directly
-              const mockRequest = {
-                method: "tools/call",
-                params: { name, arguments: args },
-              };
-
-              // Get the handler for tools/call
-              const handlers = (server as any)._requestHandlers;
-              const handler = handlers.get("tools/call");
-              if (!handler) {
-                throw new Error("Tool handler not found");
-              }
-
-              result = await handler(mockRequest);
-            }
-
-            response = {
-              jsonrpc: "2.0",
-              id: request.id,
-              result,
-            };
-          } else {
-            response = {
-              jsonrpc: "2.0",
-              id: request.id,
-              error: {
-                code: -32601,
-                message: "Method not found",
-              },
-            };
-          }
-
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify(response));
-        } catch (error) {
-          const errorResponse = {
-            jsonrpc: "2.0",
-            id: null,
-            error: {
-              code: -32603,
-              message: error instanceof Error ? error.message : String(error),
-            },
-          };
-          res.writeHead(500, { "Content-Type": "application/json" });
-          res.end(JSON.stringify(errorResponse));
-        }
-        return;
-      }
-
-      // 404 for other routes
-      res.writeHead(404, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Not found" }));
-    }
-  );
-
-  httpServer.listen(PORT, HOST, () => {
-    console.error(`🚀 eBee MCP server running on http://${HOST}:${PORT}`);
-    console.error(`📡 MCP endpoint: http://${HOST}:${PORT}/mcp`);
-    console.error(`💚 Health check: http://${HOST}:${PORT}/health`);
-  });
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error("eBee Proxy MCP server running on stdio");
 };
 
 // Handle graceful shutdown
 process.on("SIGINT", async () => {
-  console.error("Shutting down MCP server...");
+  console.error("Shutting down MCP proxy server...");
 
   await mcpClientManager.disconnectAll();
 
@@ -700,6 +542,6 @@ process.on("SIGINT", async () => {
 });
 
 runServer().catch((error) => {
-  console.error("Fatal error in MCP server:", error);
+  console.error("Fatal error in MCP proxy server:", error);
   process.exit(1);
 });

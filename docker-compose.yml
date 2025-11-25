@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:8.2.2
+    container_name: ebee_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./.data/mongodb:/data/db
+      - ./.data/mongodb-config:/data/configdb
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin123
+    restart: unless-stopped
+    networks:
+      - ebee-network
+
+  qdrant:
+    image: qdrant/qdrant:v1.16.0
+    container_name: ebee_qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ./.data/qdrant:/qdrant/storage
+    restart: unless-stopped
+    networks:
+      - ebee-network
+
+  memgraph:
+    image: memgraph/memgraph:3.7.0
+    container_name: ebee_memgraph
+    ports:
+      - "7687:7687"
+      - "7444:7444"
+    volumes:
+      - ./.data/memgraph:/var/lib/memgraph
+    environment:
+      - MEMGRAPH_LOG_LEVEL=WARNING
+    restart: unless-stopped
+    networks:
+      - ebee-network
+
+  redis:
+    image: redis:alpine3.22
+    container_name: ebee_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./.data/redis:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - ebee-network
+
+networks:
+  ebee-network:
+    driver: bridge

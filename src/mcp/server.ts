@@ -1,19 +1,18 @@
 #!/usr/bin/env node
-import { Server } from "@modelcontextprotocol/sdk/server";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-
+import { connectMongo, MongoConnection } from "../shared/database/mongo.js";
+import { connectQdrant, QdrantConnection } from "../shared/database/qdrant.js";
 import {
   connectMemgraph,
   MemgraphConnection,
-} from "./shared/database/memgraph.js";
-import { connectMongo, MongoConnection } from "./shared/database/mongo.js";
-import { connectQdrant, QdrantConnection } from "./shared/database/qdrant.js";
-import { connectRedis, RedisConnection } from "./shared/database/redis.js";
+} from "../shared/database/memgraph.js";
+import { connectRedis, RedisConnection } from "../shared/database/redis.js";
 
 interface ServiceConnections {
   mongo: MongoConnection;
@@ -403,7 +402,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 const runServer = async () => {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  await initializeServices();
   console.error("eBee MCP server running on stdio");
 };
 

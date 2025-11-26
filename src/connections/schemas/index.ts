@@ -47,15 +47,6 @@ export const QDRANT_SCHEMAS = {
     return `embeddings_${cleanModel}_${dimensions}`;
   },
 
-  // Model dimension mappings
-  MODEL_DIMENSIONS: {
-    "qwen/qwen-3-embedding-0.6b": 1024,
-    "text-embedding-ada-002": 1536,
-    "text-embedding-3-small": 1536,
-    "text-embedding-3-large": 3072,
-    "all-minilm-l6-v2": 384,
-  } as Record<string, number>,
-
   defaultConfig: {
     distance: "Cosine" as const,
     onDiskPayload: true,

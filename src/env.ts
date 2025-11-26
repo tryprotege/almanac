@@ -47,15 +47,16 @@ const envSchema = z.object({
   RERANKER_MODEL: z.string().default("Qwen/Qwen3-Reranker-8B"),
 });
 
-const parsedEnv = envSchema.parse(process.env);
+const parsedEnv = envSchema.parse({
+  ...process.env,
+  RERANKER_ENABLED:
+    process.env.RERANKER_ENABLED?.toLowerCase().trim() === "true",
+});
 
-// Compute embedding dimensions based on model
+// TODO: Compute embedding dimensions based on model
 // This ensures dimension consistency across the application
-// TODO:
-// const EMBEDDING_DIMENSIONS = getEmbeddingDimensions(
-//   parsedEnv.LLM_EMBEDDING_MODEL
-// );
-const EMBEDDING_DIMENSIONS = 1536;
+
+const EMBEDDING_DIMENSIONS = 2560;
 
 export const env = {
   ...parsedEnv,

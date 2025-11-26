@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import { validateVectorDimensions } from "../../shared/utils/index.js";
 
 /**
  * Embedder service - Generates vector embeddings using any OpenAI-compatible API

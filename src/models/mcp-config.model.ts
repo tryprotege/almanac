@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import type { MCPServerConfig } from "../mcp/client.js";
 
 // MCP Server Config Mongoose Schema
 const MCPServerConfigSchema = new mongoose.Schema(

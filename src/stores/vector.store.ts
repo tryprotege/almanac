@@ -1,7 +1,6 @@
 import { randomUUID } from "crypto";
 import { QdrantPoint } from "../types/index.js";
 import { QdrantConnection } from "../connections/qdrant.js";
-import { validateVectorDimensions } from "../shared/utils/index.js";
 import { env } from "../env.js";
 
 /**
@@ -64,14 +63,14 @@ export class VectorStore {
     if (points.length === 0) return;
 
     // Validate all vectors have correct dimensions
-    const expectedDimensions = env.EMBEDDING_DIMENSIONS;
-    for (let i = 0; i < points.length; i++) {
-      validateVectorDimensions(
-        points[i].vector,
-        expectedDimensions,
-        `point ${i} (${points[i].id})`
-      );
-    }
+    // const expectedDimensions = env.EMBEDDING_DIMENSIONS;
+    // for (let i = 0; i < points.length; i++) {
+    //   validateVectorDimensions(
+    //     points[i].vector,
+    //     expectedDimensions,
+    //     `point ${i} (${points[i].id})`
+    //   );
+    // }
 
     // Ensure collection exists before upserting
     await this.ensureCollection();

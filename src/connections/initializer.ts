@@ -74,7 +74,7 @@ export class SchemaInitializer {
       );
 
       // Create collections and indexes
-      for (const [key, schema] of Object.entries(MONGODB_SCHEMAS)) {
+      for (const [_key, schema] of Object.entries(MONGODB_SCHEMAS)) {
         const collectionName = schema.collectionName;
 
         // Create collection if it doesn't exist
@@ -116,8 +116,8 @@ export class SchemaInitializer {
     report: SchemaInitReport["qdrant"]
   ): Promise<void> {
     try {
+      const dimensions = env.EMBEDDING_DIMENSIONS;
       const model = env.LLM_EMBEDDING_MODEL;
-      const dimensions = this.getModelDimensions(model);
       const collectionName = QDRANT_SCHEMAS.getCollectionName(
         model,
         dimensions
@@ -208,10 +208,6 @@ export class SchemaInitializer {
       const errorMsg = error instanceof Error ? error.message : String(error);
       report.errors.push(`Redis: ${errorMsg}`);
     }
-  }
-
-  private getModelDimensions(model: string): number {
-    return QDRANT_SCHEMAS.MODEL_DIMENSIONS[model] || 1024;
   }
 
   private async saveEmbeddingMetadata(

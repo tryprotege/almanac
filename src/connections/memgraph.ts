@@ -1,6 +1,18 @@
 import neo4j, { Driver, Session, AuthToken } from "neo4j-driver";
 import { env } from "../env.js";
 
+export const MEMGRAPH_SCHEMAS = {
+  // Node constraints
+  constraints: ["CREATE CONSTRAINT ON (n:Resource) ASSERT n.id IS UNIQUE"],
+
+  // Indexes for efficient queries
+  indexes: [
+    "CREATE INDEX ON :Resource(id)",
+    "CREATE INDEX ON :Resource(type)",
+    "CREATE INDEX ON :Resource(source)",
+  ],
+} as const;
+
 export interface MemgraphConnection {
   driver: Driver;
   getSession: () => Session;

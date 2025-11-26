@@ -30,7 +30,7 @@ import { NotionAdapter } from "../src/services/sync/adapters/notion-adapter.js";
 import { SimpleSyncService } from "../src/services/sync/simple-sync.service.js";
 import { VectorIndexerService } from "../src/services/sync/vector-indexer.service.js";
 import { GraphIndexerService } from "../src/services/sync/graph-indexer.service.js";
-import { SyncedEntityStore } from "../src/stores/synced-entity.store.js";
+import { RecordStore } from "../src/stores/record.store.js";
 import { VectorStore } from "../src/stores/vector.store.js";
 import { GraphStore } from "../src/stores/graph.store.js";
 import { EmbedderService } from "../src/services/indexing/embedder.js";
@@ -72,7 +72,7 @@ async function main() {
   console.log("✅ Notion MCP server connected\n");
 
   // Initialize stores
-  const entityStore = new SyncedEntityStore();
+  const entityStore = new RecordStore();
   const vectorStore = new VectorStore(qdrant);
   const graphStore = new GraphStore(memgraph);
 

@@ -18,15 +18,15 @@
 import "dotenv/config";
 import { readFileSync, existsSync } from "fs";
 import { connectMongoose } from "../src/connections/mongoose.js";
-import { SyncedEntityStore } from "../src/stores/synced-entity.store.js";
+import { RecordStore } from "../src/stores/record.store.js";
 import { GraphSchemaStore } from "../src/stores/graph-schema.store.js";
 import { SchemaLearningService } from "../src/services/schema/schema-learning.service.js";
 import { LLMService } from "../src/services/llm/llm.service.js";
 import { SourceType } from "../src/types/index.js";
 import { IndexRequest } from "../src/types/indexing.types.js";
-import { EntityType, RelationshipType } from "../src/types/graph-schema.js";
 import OpenAI from "openai";
 import { env } from "../src/env.js";
+import { EntityType } from "../src/models/graph-schema.model.js";
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -76,7 +76,7 @@ async function main() {
 
   try {
     // Initialize services
-    const entityStore = new SyncedEntityStore();
+    const entityStore = new RecordStore();
     const schemaStore = new GraphSchemaStore();
     const schemaLearner = new SchemaLearningService();
 
@@ -182,7 +182,7 @@ async function main() {
     console.log("=".repeat(60));
 
     const allLearnedEntityTypes = new Map<string, EntityType>();
-    const allLearnedRelationshipTypes = new Map<string, RelationshipType>();
+    const allLearnedRelationshipTypes = new Map<string>();
 
     const aiEntityTypes = new Map<string, any>();
     const aiRelationshipTypes = new Map<string, any>();

@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { InferSchemaType } from "mongoose";
 
 // MCP Server Config Mongoose Schema
 const MCPServerConfigSchema = new mongoose.Schema(
@@ -30,8 +30,10 @@ MCPServerConfigSchema.pre("save", function () {
   }
 });
 
+export type MCPServerConfig = InferSchemaType<typeof MCPServerConfigSchema>;
+
 // Export the model
-export const MCPServerConfigModel = mongoose.model(
+export const MCPServerConfigModel = mongoose.model<MCPServerConfig>(
   "MCPServerConfig",
   MCPServerConfigSchema
 );

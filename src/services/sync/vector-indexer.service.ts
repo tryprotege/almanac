@@ -1,8 +1,8 @@
-import { SyncedEntityStore } from "../../stores/synced-entity.store.js";
+import { RecordStore } from "../../stores/record.store.js";
 import { VectorStore } from "../../stores/vector.store.js";
 import { ChunkerService } from "../indexing/chunker.js";
 import { EmbedderService } from "../indexing/embedder.js";
-import { ISyncedEntity } from "../../models/synced-entity.model.js";
+import { Record } from "../../models/record.model.js";
 import { SourceType } from "../../types/index.js";
 import { randomUUID } from "crypto";
 
@@ -15,7 +15,7 @@ export class VectorIndexerService {
   private chunker: ChunkerService;
 
   constructor(
-    private entityStore: SyncedEntityStore,
+    private entityStore: RecordStore,
     private vectorStore: VectorStore,
     private embedder: EmbedderService
   ) {
@@ -103,7 +103,7 @@ export class VectorIndexerService {
    * Index a single entity into Qdrant
    */
   async indexEntity(
-    entity: ISyncedEntity,
+    entity: Record,
     options?: {
       maxChunkSize?: number;
       overlapSize?: number;
@@ -143,7 +143,7 @@ export class VectorIndexerService {
           mongoId: entity._id,
           source: entity.source,
           sourceId: entity.sourceId,
-          entityType: entity.entityType,
+          entityType: entity.recordType,
           title: entity.title,
           chunkIndex: chunk.index,
           chunkText: chunk.text,

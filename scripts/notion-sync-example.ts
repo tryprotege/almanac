@@ -13,7 +13,7 @@ import { MCPClientManager } from "../src/mcp/client.js";
 import { NotionMCPClient } from "../src/services/indexing/sources/notion/mcpClient.js";
 import { NotionAdapter } from "../src/services/sync/adapters/notion-adapter.js";
 import { SimpleSyncService } from "../src/services/sync/simple-sync.service.js";
-import { SyncedEntityStore } from "../src/stores/synced-entity.store.js";
+import { RecordStore } from "../src/stores/record.store.js";
 import { loadProxyConfig } from "../src/mcp/config-loader.js";
 
 async function main() {
@@ -26,7 +26,7 @@ async function main() {
 
   try {
     // 2. Initialize stores
-    const entityStore = new SyncedEntityStore();
+    const entityStore = new RecordStore();
 
     // 3. Initialize MCP client manager and connect to Notion
     console.log("🔌 Connecting to Notion MCP server...");

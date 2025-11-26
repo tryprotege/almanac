@@ -1,30 +1,24 @@
 import { AnyKeys } from "mongoose";
-import {
-  SyncedEntityModel,
-  ISyncedEntity,
-} from "../models/synced-entity.model.js";
+import { RecordModel, Record } from "../models/record.model.js";
 import { SourceType } from "../types/index.js";
 
 /**
  * Data access layer for synced entities
  * Provides batch operations and efficient queries
  */
-export class SyncedEntityStore {
+export class RecordStore {
   /**
-   * Upsert a single entity
+   * Upsert a single record
    */
-  async upsert({
-    _id,
-    ...entity
-  }: AnyKeys<ISyncedEntity>): Promise<ISyncedEntity> {
-    const result = await SyncedEntityModel.findByIdAndUpdate(
+  async upsert({ _id, ...record }: AnyKeys<Record>): Promise<Record> {
+    const result = await RecordModel.findByIdAndUpdate(
       _id,
-      { $set: entity },
+      { $set: record },
       { upsert: true, new: true }
     );
 
     if (!result) {
-      throw new Error(`Failed to upsert entity ${_id}`);
+      throw new Error(`Failed to upsert record ${_id}`);
     }
 
     return result;
@@ -33,25 +27,25 @@ export class SyncedEntityStore {
   /**
    * Batch upsert entities (optimized for bulk operations)
    */
-  async upsertBatch(entities: ISyncedEntity[]): Promise<void> {
+  async upsertBatch(entities: Record[]): Promise<void> {
     if (entities.length === 0) return;
 
-    const operations = entities.map((entity) => ({
+    const operations = entities.map((record) => ({
       updateOne: {
-        filter: { _id: entity._id },
-        update: { $set: entity },
+        filter: { _id: record._id },
+        update: { $set: record },
         upsert: true,
       },
     }));
 
-    await SyncedEntityModel.bulkWrite(operations, { ordered: false });
+    await RecordModel.bulkWrite(operations, { ordered: false });
   }
 
   /**
-   * Find entity by ID
+   * Find record by ID
    */
-  async findById(id: string): Promise<ISyncedEntity | null> {
-    return await SyncedEntityModel.findById(id);
+  async findById(id: string): Promise<Record | null> {
+    return await RecordModel.findById(id);
   }
 
   /**
@@ -61,14 +55,14 @@ export class SyncedEntityStore {
     source: SourceType,
     entityType?: string,
     options?: { limit?: number; skip?: number; includeDeleted?: boolean }
-  ): Promise<ISyncedEntity[]> {
+  ): Promise<Record[]> {
     const filter: any = { source, entityType };
 
     if (!options?.includeDeleted) {
       filter.isDeleted = false;
     }
 
-    let query = SyncedEntityModel.find();
+    let query = RecordModel.find();
 
     if (options?.skip) query = query.skip(options.skip);
     if (options?.limit) query = query.limit(options.limit);
@@ -77,45 +71,45 @@ export class SyncedEntityStore {
   }
 
   /**
-   * Get entity by source ID
+   * Get record by source ID
    */
   async findBySourceId(
     source: SourceType,
     sourceId: string
-  ): Promise<ISyncedEntity | null> {
-    return await SyncedEntityModel.findOne({ source, sourceId });
+  ): Promise<Record | null> {
+    return await RecordModel.findOne({ source, sourceId });
   }
 
   /**
-   * Check if entity exists and get checksum
+   * Check if record exists and get checksum
    */
   async getChecksum(id: string): Promise<string | null> {
-    const entity = await SyncedEntityModel.findById(id, { checksum: 1 });
-    return entity?.checksum || null;
+    const record = await RecordModel.findById(id, { checksum: 1 });
+    return record?.checksum || null;
   }
 
   /**
    * Get multiple checksums efficiently
    */
   async getChecksums(ids: string[]): Promise<Map<string, string>> {
-    const entities = await SyncedEntityModel.find(
+    const entities = await RecordModel.find(
       { _id: { $in: ids } },
       { _id: 1, checksum: 1 }
     );
 
     const checksumMap = new Map<string, string>();
-    entities.forEach((entity) => {
-      checksumMap.set(entity._id, entity.checksum);
+    entities.forEach((record) => {
+      checksumMap.set(record._id, record.checksum);
     });
 
     return checksumMap;
   }
 
   /**
-   * Soft delete entity
+   * Soft delete record
    */
   async softDelete(id: string): Promise<void> {
-    await SyncedEntityModel.findByIdAndUpdate(id, {
+    await RecordModel.findByIdAndUpdate(id, {
       $set: {
         isDeleted: true,
         deletedAt: new Date(),
@@ -129,7 +123,7 @@ export class SyncedEntityStore {
   async softDeleteBatch(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
 
-    await SyncedEntityModel.updateMany(
+    await RecordModel.updateMany(
       { _id: { $in: ids } },
       {
         $set: {
@@ -141,10 +135,10 @@ export class SyncedEntityStore {
   }
 
   /**
-   * Hard delete entity
+   * Hard delete record
    */
   async hardDelete(id: string): Promise<void> {
-    await SyncedEntityModel.findByIdAndDelete(id);
+    await RecordModel.findByIdAndDelete(id);
   }
 
   /**
@@ -153,7 +147,7 @@ export class SyncedEntityStore {
   async hardDeleteBatch(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
 
-    await SyncedEntityModel.deleteMany({ _id: { $in: ids } });
+    await RecordModel.deleteMany({ _id: { $in: ids } });
   }
 
   /**
@@ -163,8 +157,8 @@ export class SyncedEntityStore {
     source: SourceType,
     since: Date,
     options?: { limit?: number }
-  ): Promise<ISyncedEntity[]> {
-    let query = SyncedEntityModel.find({
+  ): Promise<Record[]> {
+    let query = RecordModel.find({
       source,
       sourceUpdatedAt: { $gt: since },
     }).sort({ sourceUpdatedAt: 1 });
@@ -187,48 +181,14 @@ export class SyncedEntityStore {
     if (!includeDeleted) {
       filter.isDeleted = false;
     }
-    return await SyncedEntityModel.countDocuments(filter);
-  }
-
-  /**
-   * Get sync statistics for a source
-   */
-  async getSyncStats(source: SourceType): Promise<{
-    total: number;
-    byType: Record<string, number>;
-    deleted: number;
-    lastSynced: Date | null;
-  }> {
-    const [total, deleted, byType, lastSynced] = await Promise.all([
-      this.countBySource(source, false),
-      SyncedEntityModel.countDocuments({ source, isDeleted: true }),
-      SyncedEntityModel.aggregate([
-        { $match: { source, isDeleted: false } },
-        { $group: { _id: "$entityType", count: { $sum: 1 } } },
-      ]),
-      SyncedEntityModel.findOne({ source })
-        .sort({ syncedAt: -1 })
-        .select("syncedAt"),
-    ]);
-
-    const byTypeMap: Record<string, number> = {};
-    byType.forEach((item: any) => {
-      byTypeMap[item._id] = item.count;
-    });
-
-    return {
-      total,
-      byType: byTypeMap,
-      deleted,
-      lastSynced: lastSynced?.syncedAt || null,
-    };
+    return await RecordModel.countDocuments(filter);
   }
 
   /**
    * Find entities by IDs
    */
-  async findByIds(ids: string[]): Promise<ISyncedEntity[]> {
-    return await SyncedEntityModel.find({ _id: { $in: ids } });
+  async findByIds(ids: string[]): Promise<Record[]> {
+    return await RecordModel.find({ _id: { $in: ids } });
   }
 
   /**
@@ -242,7 +202,7 @@ export class SyncedEntityStore {
       limit?: number;
       skip?: number;
     }
-  ): Promise<ISyncedEntity[]> {
+  ): Promise<Record[]> {
     const filter: any = {
       $text: { $search: query },
       isDeleted: false,
@@ -256,7 +216,7 @@ export class SyncedEntityStore {
       filter.entityType = options.entityType;
     }
 
-    let searchQuery = SyncedEntityModel.find(filter).sort({
+    let searchQuery = RecordModel.find(filter).sort({
       score: { $meta: "textScore" },
     });
 
@@ -275,7 +235,7 @@ export class SyncedEntityStore {
       source?: SourceType;
       limit?: number;
     }
-  ): Promise<ISyncedEntity[]> {
+  ): Promise<Record[]> {
     const filter: any = {
       people: { $in: people },
       isDeleted: false,
@@ -285,7 +245,7 @@ export class SyncedEntityStore {
       filter.source = options.source;
     }
 
-    let query = SyncedEntityModel.find(filter).sort({ primaryDate: -1 });
+    let query = RecordModel.find(filter).sort({ primaryDate: -1 });
 
     if (options?.limit) {
       query = query.limit(options.limit);
@@ -305,7 +265,7 @@ export class SyncedEntityStore {
       entityType?: string;
       limit?: number;
     }
-  ): Promise<ISyncedEntity[]> {
+  ): Promise<Record[]> {
     const filter: any = {
       primaryDate: { $gte: startDate, $lte: endDate },
       isDeleted: false,
@@ -319,7 +279,7 @@ export class SyncedEntityStore {
       filter.entityType = options.entityType;
     }
 
-    let query = SyncedEntityModel.find(filter).sort({ primaryDate: -1 });
+    let query = RecordModel.find(filter).sort({ primaryDate: -1 });
 
     if (options?.limit) {
       query = query.limit(options.limit);
@@ -337,7 +297,7 @@ export class SyncedEntityStore {
       source?: SourceType;
       limit?: number;
     }
-  ): Promise<ISyncedEntity[]> {
+  ): Promise<Record[]> {
     const filter: any = {
       tags: { $in: tags },
       isDeleted: false,
@@ -347,7 +307,7 @@ export class SyncedEntityStore {
       filter.source = options.source;
     }
 
-    let query = SyncedEntityModel.find(filter).sort({ syncedAt: -1 });
+    let query = RecordModel.find(filter).sort({ syncedAt: -1 });
 
     if (options?.limit) {
       query = query.limit(options.limit);

@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { connectMongoose } from "../src/connections/mongoose.js";
 import { connectMemgraph } from "../src/connections/memgraph.js";
-import { SyncedEntityStore } from "../src/stores/synced-entity.store.js";
+import { RecordStore } from "../src/stores/record.store.js";
 import { GraphStore } from "../src/stores/graph.store.js";
 import { GraphIndexerService } from "../src/services/sync/graph-indexer.service.js";
 import { NotionAdapter } from "../src/services/sync/adapters/notion-adapter.js";
@@ -34,7 +34,7 @@ async function main() {
   const memgraph = await connectMemgraph();
 
   // Initialize stores
-  const entityStore = new SyncedEntityStore();
+  const entityStore = new RecordStore();
   const graphStore = new GraphStore(memgraph);
 
   // Initialize Notion MCP client for relationship extraction

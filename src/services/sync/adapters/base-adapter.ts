@@ -1,5 +1,5 @@
 import { SourceType } from "../../../types/index.js";
-import { ISyncedEntity } from "../../../models/synced-entity.model.js";
+import { Record } from "../../../models/record.model.js";
 import { FetchOptions, EntityRelationship } from "../types.js";
 import { computeChecksum } from "../utils/checksum.js";
 
@@ -33,7 +33,7 @@ export abstract class BaseEntityAdapter<TSource = any> {
   /**
    * Transform source entity to unified format
    */
-  abstract transform(sourceEntity: TSource): Promise<ISyncedEntity>;
+  abstract transform(sourceEntity: TSource): Promise<Record>;
 
   /**
    * Extract relationships from entity

@@ -1,6 +1,6 @@
 import { connectMongoose } from "../src/connections/mongoose.js";
 import { connectQdrant } from "../src/connections/qdrant.js";
-import { SyncedEntityStore } from "../src/stores/synced-entity.store.js";
+import { RecordStore } from "../src/stores/record.store.js";
 import { VectorStore } from "../src/stores/vector.store.js";
 import { VectorIndexerService } from "../src/services/sync/vector-indexer.service.js";
 import { EmbedderService } from "../src/services/indexing/embedder.js";
@@ -31,7 +31,7 @@ async function main() {
   const qdrant = await connectQdrant();
 
   // Initialize stores
-  const entityStore = new SyncedEntityStore();
+  const entityStore = new RecordStore();
   const vectorStore = new VectorStore(qdrant);
 
   // Initialize embedder

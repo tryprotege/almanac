@@ -1,17 +1,16 @@
 import mongoose from "mongoose";
 import { env } from "../env.js";
 
+// TODO: we may not need this
 export const MONGODB_SCHEMAS = {
   // Main content storage (renamed from resources)
-  documents: {
+  records: {
     collectionName: "documents",
     indexes: [
       { key: { _id: 1 }, unique: true },
       { key: { source: 1, type: 1 } },
       { key: { type: 1 } },
       { key: { indexedAt: -1 } },
-      { key: { "metadata.tags": 1 } },
-      { key: { "content.text": "text" } }, // Full text search
     ],
   },
 

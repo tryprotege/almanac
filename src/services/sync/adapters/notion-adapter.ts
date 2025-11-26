@@ -1,5 +1,5 @@
 import { BaseEntityAdapter } from "./base-adapter.js";
-import { ISyncedEntity } from "../../../models/synced-entity.model.js";
+import { Record } from "../../../models/record.model.js";
 import { FetchOptions, EntityRelationship } from "../types.js";
 import { NotionMCPClient } from "../../indexing/sources/notion/mcpClient.js";
 import {
@@ -102,7 +102,7 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
   /**
    * Transform Notion entity to unified format
    */
-  async transform(sourceEntity: NotionEntity): Promise<ISyncedEntity> {
+  async transform(sourceEntity: NotionEntity): Promise<Record> {
     const entityType = this.getEntityType(sourceEntity);
     const sourceId = sourceEntity.id;
     const _id = this.generateEntityId(entityType, sourceId);
@@ -136,7 +136,7 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
       _id,
       source: this.source,
       sourceId,
-      entityType,
+      recordType: entityType,
       title,
       content,
       people,

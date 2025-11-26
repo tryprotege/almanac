@@ -13,6 +13,7 @@ import {
   connectMongoose,
   MongooseConnection,
 } from "../shared/database/mongoose.js";
+import { SchemaInitializer } from "../shared/database/schema-initializer.js";
 
 export interface ServiceConnections {
   mongo: MongoConnection;
@@ -41,6 +42,11 @@ export async function initializeServices(): Promise<ServiceConnections> {
 
   services = { mongo, mongoose, qdrant, memgraph, redis };
   console.error("✅ All services initialized successfully!");
+
+  // Initialize database schemas
+  const schemaInitializer = new SchemaInitializer(services);
+  await schemaInitializer.initializeAll();
+
   return services;
 }
 

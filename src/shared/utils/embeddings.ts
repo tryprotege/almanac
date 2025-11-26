@@ -8,9 +8,9 @@
 export function getEmbeddingDimensions(model: string): number {
   const dimensionMap: Record<string, number> = {
     // Qwen models
-    "qwen/qwen-3-embedding-0.6b": 1024,
-    "qwen/qwen-3-embedding-4b": 2560,
-    "qwen/qwen-3-embedding-8b": 4096,
+    "qwen/qwen3-embedding-0.6b": 1024,
+    "qwen/qwen3-embedding-4b": 2560,
+    "qwen/qwen3-embedding-8b": 4096,
   };
 
   const normalizedModel = model.toLowerCase().trim();

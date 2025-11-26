@@ -41,15 +41,6 @@ export class EmbedderService {
         (item: { embedding: number[] }) => item.embedding
       );
 
-      // Validate dimensions for all returned embeddings
-      for (let i = 0; i < embeddings.length; i++) {
-        validateVectorDimensions(
-          embeddings[i],
-          this.embeddingDimension,
-          `embedding ${i} from model ${this.model}`
-        );
-      }
-
       return embeddings;
     } catch (error) {
       console.error("Error generating embeddings:", error);

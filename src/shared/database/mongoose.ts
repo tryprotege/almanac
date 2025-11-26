@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { env } from "../../env.js";
 import type { GraphSchema } from "../../types/graph-schema.js";
+import type { MCPServerConfig } from "../../services/connector/mcp-clients/client.js";
 
 export interface MongooseConnection {
   connection: typeof mongoose;
@@ -76,6 +77,41 @@ GraphSchemaSchema.index({ workspaceId: 1 }, { unique: true });
 export const GraphSchemaModel = mongoose.model<GraphSchema>(
   "GraphSchema",
   GraphSchemaSchema
+);
+
+// MCP Server Config Mongoose Schema
+const MCPServerConfigSchema = new mongoose.Schema<MCPServerConfig>(
+  {
+    name: { type: String, required: true, unique: true, index: true },
+    type: { type: String, required: true, enum: ["stdio", "sse"] },
+    command: { type: String },
+    args: [{ type: String }],
+    env: { type: Map, of: String },
+    url: { type: String },
+    headers: { type: Map, of: String },
+  },
+  {
+    collection: "mcp_server_configs",
+    timestamps: true,
+  }
+);
+
+// Create indexes
+MCPServerConfigSchema.index({ name: 1 }, { unique: true });
+
+// Add validation for type-specific required fields
+MCPServerConfigSchema.pre("save", function () {
+  if (this.type === "stdio" && !this.command) {
+    throw new Error("stdio server requires 'command' field");
+  } else if (this.type === "sse" && !this.url) {
+    throw new Error("sse server requires 'url' field");
+  }
+});
+
+// Export the model
+export const MCPServerConfigModel = mongoose.model<MCPServerConfig>(
+  "MCPServerConfig",
+  MCPServerConfigSchema
 );
 
 /**

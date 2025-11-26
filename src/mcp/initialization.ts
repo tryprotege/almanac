@@ -9,9 +9,14 @@ import {
   MCPClientManager,
   MCPServerConfig,
 } from "../services/connector/mcp-clients/client.js";
+import {
+  connectMongoose,
+  MongooseConnection,
+} from "../shared/database/mongoose.js";
 
 export interface ServiceConnections {
   mongo: MongoConnection;
+  mongoose: MongooseConnection;
   qdrant: QdrantConnection;
   memgraph: MemgraphConnection;
   redis: RedisConnection;
@@ -26,14 +31,15 @@ export async function initializeServices(): Promise<ServiceConnections> {
 
   console.error("🚀 Initializing eBee services...");
 
-  const [mongo, qdrant, memgraph, redis] = await Promise.all([
+  const [mongo, mongoose, qdrant, memgraph, redis] = await Promise.all([
     connectMongo(),
+    connectMongoose(),
     connectQdrant(),
     connectMemgraph(),
     connectRedis(),
   ]);
 
-  services = { mongo, qdrant, memgraph, redis };
+  services = { mongo, mongoose, qdrant, memgraph, redis };
   console.error("✅ All services initialized successfully!");
   return services;
 }

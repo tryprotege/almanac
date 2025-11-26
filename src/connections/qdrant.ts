@@ -1,6 +1,26 @@
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { env } from "../env.js";
 
+export const QDRANT_SCHEMAS = {
+  // Collection naming pattern: embeddings_<model>_<dimensions>
+  getCollectionName: (model: string, dimensions: number): string => {
+    const cleanModel = model.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+    return `embeddings_${cleanModel}_${dimensions}`;
+  },
+
+  // Model dimension mappings
+  MODEL_DIMENSIONS: {
+    "qwen/qwen3-embedding-0.6b": 1024,
+    "qwen/qwen3-embedding-4b": 2560,
+    "qwen/qwen3-embedding-8b": 4096,
+  } as Record<string, number>,
+
+  defaultConfig: {
+    distance: "Cosine" as const,
+    onDiskPayload: true,
+  },
+} as const;
+
 export interface QdrantConnection {
   client: QdrantClient;
   createCollection: (

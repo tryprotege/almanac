@@ -1,48 +1,42 @@
 import { randomUUID } from "crypto";
 import { QdrantPoint } from "../types/index.js";
-import { QdrantConnection } from "../shared/database/qdrant.js";
+import { QdrantConnection } from "../connections/qdrant.js";
 import { validateVectorDimensions } from "../shared/utils/index.js";
 import { env } from "../env.js";
 
-export class QdrantRepository {
+/**
+ * Vector Store - Single-tenant Qdrant operations
+ */
+export class VectorStore {
+  private readonly collectionName = "embeddings";
+
   constructor(private qdrant: QdrantConnection) {}
 
   /**
-   * Get collection name for workspace
+   * Ensure collection exists
    */
-  private getWorkspaceCollectionName(workspaceId: string): string {
-    return `ws_${workspaceId}_vectors`;
-  }
-
-  /**
-   * Ensure workspace collection exists
-   */
-  async ensureWorkspaceCollection(
-    workspaceId: string,
-    vectorSize?: number
-  ): Promise<void> {
-    const collectionName = this.getWorkspaceCollectionName(workspaceId);
+  async ensureCollection(vectorSize?: number): Promise<void> {
     const dimensions = vectorSize ?? env.EMBEDDING_DIMENSIONS;
 
     try {
       // Check if collection exists
       const collections = await this.qdrant.client.getCollections();
       const exists = collections.collections.some(
-        (c) => c.name === collectionName
+        (c) => c.name === this.collectionName
       );
 
       if (!exists) {
         await this.qdrant.createCollection(
-          collectionName,
+          this.collectionName,
           dimensions,
           "Cosine"
         );
         console.log(
-          `✅ Created Qdrant collection: ${collectionName} (${dimensions} dimensions, model: ${env.LLM_EMBEDDING_MODEL})`
+          `✅ Created Qdrant collection: ${this.collectionName} (${dimensions} dimensions, model: ${env.LLM_EMBEDDING_MODEL})`
         );
       }
     } catch (error) {
-      console.error(`Error ensuring collection ${collectionName}:`, error);
+      console.error(`Error ensuring collection ${this.collectionName}:`, error);
       throw error;
     }
   }
@@ -51,7 +45,6 @@ export class QdrantRepository {
    * Upsert a single point
    */
   async upsertPoint(
-    workspaceId: string,
     point: Omit<QdrantPoint, "id"> & { id?: string }
   ): Promise<string> {
     const id = point.id || randomUUID();
@@ -60,20 +53,15 @@ export class QdrantRepository {
       id,
     };
 
-    await this.upsertPoints(workspaceId, [fullPoint]);
+    await this.upsertPoints([fullPoint]);
     return id;
   }
 
   /**
    * Upsert multiple points
    */
-  async upsertPoints(
-    workspaceId: string,
-    points: QdrantPoint[]
-  ): Promise<void> {
+  async upsertPoints(points: QdrantPoint[]): Promise<void> {
     if (points.length === 0) return;
-
-    const collectionName = this.getWorkspaceCollectionName(workspaceId);
 
     // Validate all vectors have correct dimensions
     const expectedDimensions = env.EMBEDDING_DIMENSIONS;
@@ -86,9 +74,9 @@ export class QdrantRepository {
     }
 
     // Ensure collection exists before upserting
-    await this.ensureWorkspaceCollection(workspaceId);
+    await this.ensureCollection();
 
-    await this.qdrant.client.upsert(collectionName, {
+    await this.qdrant.client.upsert(this.collectionName, {
       wait: true,
       points: points.map((p) => ({
         id: p.id,
@@ -102,7 +90,6 @@ export class QdrantRepository {
    * Search for similar vectors
    */
   async search(
-    workspaceId: string,
     vector: number[],
     options?: {
       limit?: number;
@@ -112,8 +99,6 @@ export class QdrantRepository {
   ): Promise<
     Array<{ id: string; score: number; payload: QdrantPoint["payload"] }>
   > {
-    const collectionName = this.getWorkspaceCollectionName(workspaceId);
-
     const searchParams: any = {
       vector,
       limit: options?.limit || 20,
@@ -128,7 +113,7 @@ export class QdrantRepository {
     }
 
     const results = await this.qdrant.client.search(
-      collectionName,
+      this.collectionName,
       searchParams
     );
 
@@ -143,7 +128,6 @@ export class QdrantRepository {
    * Search with pre-filtered MongoDB IDs
    */
   async searchWithMongoFilter(
-    workspaceId: string,
     vector: number[],
     mongoIds: string[],
     options?: {
@@ -155,7 +139,7 @@ export class QdrantRepository {
   > {
     if (mongoIds.length === 0) return [];
 
-    return this.search(workspaceId, vector, {
+    return this.search(vector, {
       ...options,
       filter: {
         must: [
@@ -173,12 +157,10 @@ export class QdrantRepository {
   /**
    * Delete points by IDs
    */
-  async deletePoints(workspaceId: string, ids: string[]): Promise<void> {
+  async deletePoints(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
 
-    const collectionName = this.getWorkspaceCollectionName(workspaceId);
-
-    await this.qdrant.client.delete(collectionName, {
+    await this.qdrant.client.delete(this.collectionName, {
       wait: true,
       points: ids,
     });
@@ -187,10 +169,8 @@ export class QdrantRepository {
   /**
    * Delete points by MongoDB ID
    */
-  async deleteByMongoId(workspaceId: string, mongoId: string): Promise<void> {
-    const collectionName = this.getWorkspaceCollectionName(workspaceId);
-
-    await this.qdrant.client.delete(collectionName, {
+  async deleteByMongoId(mongoId: string): Promise<void> {
+    await this.qdrant.client.delete(this.collectionName, {
       wait: true,
       filter: {
         must: [
@@ -208,11 +188,9 @@ export class QdrantRepository {
   /**
    * Get point by ID
    */
-  async getPoint(workspaceId: string, id: string): Promise<QdrantPoint | null> {
-    const collectionName = this.getWorkspaceCollectionName(workspaceId);
-
+  async getPoint(id: string): Promise<QdrantPoint | null> {
     try {
-      const points = await this.qdrant.client.retrieve(collectionName, {
+      const points = await this.qdrant.client.retrieve(this.collectionName, {
         ids: [id],
         with_payload: true,
         with_vector: true,
@@ -232,3 +210,6 @@ export class QdrantRepository {
     }
   }
 }
+
+// Export with old name for backwards compatibility during migration
+export const QdrantRepository = VectorStore;

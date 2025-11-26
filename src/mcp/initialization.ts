@@ -1,22 +1,17 @@
 import {
   connectMemgraph,
   MemgraphConnection,
-} from "../shared/database/memgraph.js";
-import { connectMongo, MongoConnection } from "../shared/database/mongo.js";
-import { connectQdrant, QdrantConnection } from "../shared/database/qdrant.js";
-import { connectRedis, RedisConnection } from "../shared/database/redis.js";
-import {
-  MCPClientManager,
-  MCPServerConfig,
-} from "../services/connector/mcp-clients/client.js";
+} from "../connections/memgraph.js";
+import { connectQdrant, QdrantConnection } from "../connections/qdrant.js";
+import { connectRedis, RedisConnection } from "../connections/redis.js";
+import { MCPClientManager, MCPServerConfig } from "./client.js";
 import {
   connectMongoose,
   MongooseConnection,
-} from "../shared/database/mongoose.js";
-import { SchemaInitializer } from "../shared/database/schema-initializer.js";
+} from "../connections/mongoose.js";
+import { SchemaInitializer } from "../connections/initializer.js";
 
 export interface ServiceConnections {
-  mongo: MongoConnection;
   mongoose: MongooseConnection;
   qdrant: QdrantConnection;
   memgraph: MemgraphConnection;
@@ -32,15 +27,14 @@ export async function initializeServices(): Promise<ServiceConnections> {
 
   console.error("🚀 Initializing eBee services...");
 
-  const [mongo, mongoose, qdrant, memgraph, redis] = await Promise.all([
-    connectMongo(),
+  const [mongoose, qdrant, memgraph, redis] = await Promise.all([
     connectMongoose(),
     connectQdrant(),
     connectMemgraph(),
     connectRedis(),
   ]);
 
-  services = { mongo, mongoose, qdrant, memgraph, redis };
+  services = { mongoose, qdrant, memgraph, redis };
   console.error("✅ All services initialized successfully!");
 
   // Initialize database schemas
@@ -73,7 +67,6 @@ export async function initializeRemoteServers(
 export async function shutdownServices(): Promise<void> {
   if (services) {
     await Promise.all([
-      services.mongo.close(),
       services.qdrant.close(),
       services.memgraph.close(),
       services.redis.close(),

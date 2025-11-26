@@ -1,5 +1,5 @@
 import { EntityType, RelationshipType } from "../../types/graph-schema.js";
-import { IndexRequest } from "../../contracts/index.js";
+import { IndexRequest } from "../../types/index.js";
 
 /**
  * Service for learning entity and relationship types from MCP data

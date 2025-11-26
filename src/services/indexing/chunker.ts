@@ -3,8 +3,8 @@ import {
   DocumentChunk,
   ChunkingStrategy,
   SourceType,
+  IndexRequest,
 } from "../../types/index.js";
-import { IndexRequest } from "../../contracts/index.js";
 
 /**
  * Chunker service - Extracts and chunks content from MCPToolResult
@@ -22,7 +22,7 @@ export class ChunkerService {
   async extractFromIndexRequest(
     request: IndexRequest
   ): Promise<ExtractedResource[]> {
-    const { toolResult, workspaceId, source } = request;
+    const { toolResult, source } = request;
 
     // Combine all text content from the tool result
     let combinedText = "";
@@ -55,19 +55,13 @@ export class ChunkerService {
       // Handle structured data (e.g., Notion pages, Slack messages)
       return this.extractFromStructuredData(
         parsedData,
-        workspaceId,
         source,
         resourceId,
         combinedText
       );
     } else {
       // Handle plain text
-      return this.extractFromPlainText(
-        combinedText,
-        workspaceId,
-        source,
-        resourceId
-      );
+      return this.extractFromPlainText(combinedText, source, resourceId);
     }
   }
 
@@ -85,7 +79,6 @@ export class ChunkerService {
    */
   private extractFromStructuredData(
     data: any,
-    workspaceId: string,
     source: { type: SourceType; serverId: string },
     resourceId: string,
     rawText: string
@@ -93,11 +86,11 @@ export class ChunkerService {
     // Handle arrays of resources
     if (Array.isArray(data)) {
       return data.flatMap((item) =>
-        this.extractSingleResource(item, workspaceId, source, rawText)
+        this.extractSingleResource(item, source, rawText)
       );
     }
 
-    return [this.extractSingleResource(data, workspaceId, source, rawText)];
+    return [this.extractSingleResource(data, source, rawText)];
   }
 
   /**
@@ -105,7 +98,6 @@ export class ChunkerService {
    */
   private extractSingleResource(
     data: any,
-    workspaceId: string,
     source: { type: SourceType; serverId: string },
     rawText: string
   ): ExtractedResource {
@@ -312,7 +304,6 @@ export class ChunkerService {
    */
   private extractFromPlainText(
     text: string,
-    workspaceId: string,
     source: { type: SourceType; serverId: string },
     resourceId: string
   ): ExtractedResource[] {

@@ -12,8 +12,8 @@ import {
   QDRANT_SCHEMAS,
   MEMGRAPH_SCHEMAS,
 } from "./schemas/index.js";
-import { env } from "../../env.js";
-import type { ServiceConnections } from "../../mcp/initialization.js";
+import { env } from "../env.js";
+import type { ServiceConnections } from "../mcp/initialization.js";
 
 export interface SchemaInitReport {
   mongodb: {
@@ -63,12 +63,19 @@ export class SchemaInitializer {
   private async initializeMongoDB(
     report: SchemaInitReport["mongodb"]
   ): Promise<void> {
-    const db = this.services.mongo.db;
+    const db = this.services.mongoose.connection.connection.db;
+
+    if (!db) {
+      report.errors.push("MongoDB: Database connection not initialized");
+      return;
+    }
 
     try {
       // Get existing collections
       const existingCollections = await db.listCollections().toArray();
-      const existingNames = new Set(existingCollections.map((c) => c.name));
+      const existingNames = new Set(
+        existingCollections.map((c: any) => c.name)
+      );
 
       // Create collections and indexes
       for (const [key, schema] of Object.entries(MONGODB_SCHEMAS)) {
@@ -83,7 +90,9 @@ export class SchemaInitializer {
         // Ensure indexes
         const collection = db.collection(collectionName);
         const existingIndexes = await collection.indexes();
-        const existingIndexNames = new Set(existingIndexes.map((i) => i.name));
+        const existingIndexNames = new Set(
+          existingIndexes.map((i: any) => i.name)
+        );
 
         for (const indexSpec of schema.indexes) {
           // Generate index name
@@ -214,7 +223,12 @@ export class SchemaInitializer {
     model: string,
     dimensions: number
   ): Promise<void> {
-    const db = this.services.mongo.db;
+    const db = this.services.mongoose.connection.connection.db;
+
+    if (!db) {
+      throw new Error("MongoDB: Database connection not initialized");
+    }
+
     const collection = db.collection("embedding_metadata");
 
     await collection.updateOne(

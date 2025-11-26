@@ -5,10 +5,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { createServer, IncomingMessage, ServerResponse } from "http";
-import {
-  MCPClientManager,
-  MCPServerConfig,
-} from "./services/connector/mcp-clients/client.js";
+import { MCPClientManager, MCPServerConfig } from "./mcp/client.js";
 import { loadProxyConfig, validateConfig } from "./mcp/config-loader.js";
 import { localTools, proxyTools } from "./mcp/tools.js";
 import { handleLocalTool, handleProxyTool } from "./mcp/handlers.js";
@@ -17,7 +14,7 @@ import {
   initializeRemoteServers,
   shutdownServices,
 } from "./mcp/initialization.js";
-import { MCPServerConfigModel } from "./shared/database/mongoose.js";
+import { MCPServerConfigModel } from "./connections/mongoose.js";
 
 const mcpClientManager = new MCPClientManager();
 

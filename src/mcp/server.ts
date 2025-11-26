@@ -6,16 +6,13 @@ import {
   ListToolsRequestSchema,
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-import { connectMongo, MongoConnection } from "../shared/database/mongo.js";
-import { connectQdrant, QdrantConnection } from "../shared/database/qdrant.js";
+import { connectMongo, MongoConnection } from "../connections/mongo.js";
+import { connectQdrant, QdrantConnection } from "../connections/qdrant.js";
 import {
   connectMemgraph,
   MemgraphConnection,
-} from "../shared/database/memgraph.js";
-import { connectRedis, RedisConnection } from "../shared/database/redis.js";
-import { MongoRepository } from "../repositories/index.js";
-import { QdrantRepository } from "../repositories/index.js";
-import { MemgraphRepository } from "../repositories/index.js";
+} from "../connections/memgraph.js";
+import { connectRedis, RedisConnection } from "../connections/redis.js";
 import { ChunkerService } from "../services/indexing/chunker.js";
 import { EmbedderService } from "../services/indexing/embedder.js";
 import { IndexingService } from "../services/indexing/indexing.service.js";
@@ -245,10 +242,6 @@ const tools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        workspaceId: {
-          type: "string",
-          description: "Workspace identifier",
-        },
         source: {
           type: "object",
           properties: {
@@ -303,7 +296,7 @@ const tools: Tool[] = [
           required: ["content"],
         },
       },
-      required: ["workspaceId", "source", "toolCall", "toolResult"],
+      required: ["source", "toolCall", "toolResult"],
     },
   },
 ];
@@ -456,12 +449,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "index_mcp_resource": {
-        const { workspaceId, source, toolCall, toolResult } = args as any;
+        const { source, toolCall, toolResult } = args as any;
 
         // Initialize indexing service
-        const mongoRepo = new MongoRepository(svc.mongo);
-        const qdrantRepo = new QdrantRepository(svc.qdrant);
-        const memgraphRepo = new MemgraphRepository(svc.memgraph);
+        const { DocumentStore } = await import("../stores/document.store.js");
+        const { VectorStore } = await import("../stores/vector.store.js");
+        const { GraphStore } = await import("../stores/graph.store.js");
+
+        const documentStore = new DocumentStore();
+        const vectorStore = new VectorStore(svc.qdrant);
+        const graphStore = new GraphStore(svc.memgraph);
         const chunker = new ChunkerService();
 
         // Create LLM client for embeddings
@@ -480,16 +477,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
 
         const indexingService = new IndexingService(
-          mongoRepo,
-          qdrantRepo,
-          memgraphRepo,
+          documentStore,
+          vectorStore,
+          graphStore,
           chunker,
           embedder
         );
 
         // Process the index request
         const response = await indexingService.index({
-          workspaceId,
           source,
           toolCall,
           toolResult,

@@ -5,12 +5,13 @@ import {
   MemgraphNode,
   MemgraphRelationship,
   generateMongoId,
+  IndexRequest,
+  IndexResponse,
 } from "../../types/index.js";
-import { IndexRequest, IndexResponse } from "../../contracts/index.js";
-import { MongoRepository } from "../../repositories/mongo.repository.js";
-import { QdrantRepository } from "../../repositories/qdrant.repository.js";
-import { MemgraphRepository } from "../../repositories/memgraph.repository.js";
-import { GraphSchemaRepository } from "../../repositories/graph-schema.repository.js";
+import { DocumentStore } from "../../stores/document.store.js";
+import { VectorStore } from "../../stores/vector.store.js";
+import { GraphStore } from "../../stores/graph.store.js";
+import { GraphSchemaStore } from "../../stores/graph-schema.store.js";
 import { ChunkerService } from "./chunker.js";
 import { EmbedderService } from "./embedder.js";
 import { LLMService } from "../llm/llm.service.js";
@@ -18,14 +19,14 @@ import { SchemaLearningService } from "../schema/schema-learning.service.js";
 
 /**
  * Enhanced indexing service with LLM-based relationship extraction
- * and dynamic schema learning
+ * and dynamic schema learning (single-tenant)
  */
 export class IndexingWithLLMService {
   constructor(
-    private mongoRepo: MongoRepository,
-    private qdrantRepo: QdrantRepository,
-    private memgraphRepo: MemgraphRepository,
-    private schemaRepo: GraphSchemaRepository,
+    private documentStore: DocumentStore,
+    private vectorStore: VectorStore,
+    private graphStore: GraphStore,
+    private schemaStore: GraphSchemaStore,
     private chunker: ChunkerService,
     private embedder: EmbedderService,
     private llm: LLMService,
@@ -40,14 +41,10 @@ export class IndexingWithLLMService {
     const startTime = Date.now();
 
     try {
-      console.log(
-        `[${jobId}] Starting indexing with LLM for workspace: ${request.workspaceId}`
-      );
+      console.log(`[${jobId}] Starting indexing with LLM`);
 
       // Step 1: Get or create graph schema
-      const schema = await this.schemaRepo.getOrCreateSchema(
-        request.workspaceId
-      );
+      const schema = await this.schemaStore.getOrCreateSchema();
 
       // Step 2: Learn schema from MCP data
       if (schema.extractionRules.autoExtractEntities) {
@@ -57,10 +54,7 @@ export class IndexingWithLLMService {
           console.log(
             `[${jobId}] Learned ${learnedEntityTypes.length} new entity types`
           );
-          await this.schemaRepo.updateEntityTypes(
-            request.workspaceId,
-            learnedEntityTypes
-          );
+          await this.schemaStore.updateEntityTypes(learnedEntityTypes);
         }
       }
 
@@ -71,17 +65,12 @@ export class IndexingWithLLMService {
           console.log(
             `[${jobId}] Learned ${learnedRelTypes.length} new relationship types`
           );
-          await this.schemaRepo.updateRelationshipTypes(
-            request.workspaceId,
-            learnedRelTypes
-          );
+          await this.schemaStore.updateRelationshipTypes(learnedRelTypes);
         }
       }
 
       // Refresh schema after learning
-      const updatedSchema = await this.schemaRepo.getSchema(
-        request.workspaceId
-      );
+      const updatedSchema = await this.schemaStore.getSchema();
 
       // Step 3: Extract resources from MCP tool result
       const extractedResources = await this.chunker.extractFromIndexRequest(
@@ -99,7 +88,6 @@ export class IndexingWithLLMService {
       for (const extracted of extractedResources) {
         try {
           await this.processResourceWithLLM(
-            request.workspaceId,
             extracted,
             request.source.type,
             updatedSchema!
@@ -145,7 +133,6 @@ export class IndexingWithLLMService {
    * Process a single resource with LLM relationship extraction
    */
   private async processResourceWithLLM(
-    workspaceId: string,
     extracted: any,
     sourceType: string,
     schema: any
@@ -156,9 +143,9 @@ export class IndexingWithLLMService {
     const needsChunking = extracted.textContent.length > 2000;
 
     if (needsChunking) {
-      await this.processWithChunking(workspaceId, extracted, mongoId);
+      await this.processWithChunking(extracted, mongoId);
     } else {
-      await this.processSingleDocument(workspaceId, extracted, mongoId);
+      await this.processSingleDocument(extracted, mongoId);
     }
 
     // Create graph node
@@ -169,16 +156,11 @@ export class IndexingWithLLMService {
       title: extracted.title,
     };
 
-    await this.memgraphRepo.createNode(workspaceId, node);
+    await this.graphStore.createNode(node);
 
     // Extract relationships using LLM
     if (schema.extractionRules.autoExtractRelationships) {
-      await this.extractAndCreateRelationships(
-        workspaceId,
-        mongoId,
-        extracted,
-        schema
-      );
+      await this.extractAndCreateRelationships(mongoId, extracted, schema);
     }
   }
 
@@ -186,14 +168,12 @@ export class IndexingWithLLMService {
    * Extract relationships using LLM and create them in graph
    */
   private async extractAndCreateRelationships(
-    workspaceId: string,
     sourceId: string,
     extracted: any,
     schema: any
   ): Promise<void> {
     // Get recent resources to compare against
-    const recentResources = await this.mongoRepo.find(
-      workspaceId,
+    const recentResources = await this.documentStore.find(
       {},
       { limit: 50, sort: { indexedAt: -1 } }
     );
@@ -204,10 +184,10 @@ export class IndexingWithLLMService {
     const targetResources = recentResources
       .filter((r) => r._id !== sourceId) // Exclude self
       .map((r) => ({
-        id: r._id,
-        title: r.title,
+        id: r._id!,
+        title: r.metadata.title || "Untitled",
         type: r.type,
-        content: r.textContent.substring(0, 500),
+        content: r.content.text.substring(0, 500),
       }));
 
     if (targetResources.length === 0) return;
@@ -243,14 +223,13 @@ export class IndexingWithLLMService {
       })
     );
 
-    await this.memgraphRepo.createRelationships(workspaceId, memgraphRels);
+    await this.graphStore.createRelationships(memgraphRels);
   }
 
   /**
    * Process document without chunking
    */
   private async processSingleDocument(
-    workspaceId: string,
     extracted: any,
     mongoId: string
   ): Promise<void> {
@@ -264,13 +243,11 @@ export class IndexingWithLLMService {
       vector,
       payload: {
         mongoId,
-        workspaceId,
       },
     };
 
     const mongoResource: MongoResource = {
       _id: mongoId,
-      workspaceId,
       source: extracted.source,
       resourceId: extracted.resourceId,
       type: extracted.type,
@@ -287,8 +264,8 @@ export class IndexingWithLLMService {
     };
 
     await Promise.all([
-      this.mongoRepo.saveResource(mongoResource),
-      this.qdrantRepo.upsertPoints(workspaceId, [qdrantPoint]),
+      this.documentStore.save(mongoResource),
+      this.vectorStore.upsertPoints([qdrantPoint]),
     ]);
   }
 
@@ -296,7 +273,6 @@ export class IndexingWithLLMService {
    * Process document with chunking
    */
   private async processWithChunking(
-    workspaceId: string,
     extracted: any,
     mongoId: string
   ): Promise<void> {
@@ -312,7 +288,6 @@ export class IndexingWithLLMService {
       vector: vectors[idx],
       payload: {
         mongoId,
-        workspaceId,
         chunkIndex: chunk.index,
         chunkStart: chunk.start,
         chunkEnd: chunk.end,
@@ -321,7 +296,6 @@ export class IndexingWithLLMService {
 
     const mongoResource: MongoResource = {
       _id: mongoId,
-      workspaceId,
       source: extracted.source,
       resourceId: extracted.resourceId,
       type: extracted.type,
@@ -338,8 +312,8 @@ export class IndexingWithLLMService {
     };
 
     await Promise.all([
-      this.mongoRepo.saveResource(mongoResource),
-      this.qdrantRepo.upsertPoints(workspaceId, qdrantPoints),
+      this.documentStore.save(mongoResource),
+      this.vectorStore.upsertPoints(qdrantPoints),
     ]);
   }
 

@@ -1,11 +1,11 @@
-import { MongoConnection } from "../shared/database/mongo.js";
-import { QdrantConnection } from "../shared/database/qdrant.js";
-import { MemgraphConnection } from "../shared/database/memgraph.js";
-import { RedisConnection } from "../shared/database/redis.js";
-import { MCPClientManager } from "../services/connector/mcp-clients/client.js";
+import { QdrantConnection } from "../connections/qdrant.js";
+import { MemgraphConnection } from "../connections/memgraph.js";
+import { RedisConnection } from "../connections/redis.js";
+import { MongooseConnection } from "../connections/mongoose.js";
+import { MCPClientManager } from "./client.js";
 
 export interface ServiceConnections {
-  mongo: MongoConnection;
+  mongoose: MongooseConnection;
   qdrant: QdrantConnection;
   memgraph: MemgraphConnection;
   redis: RedisConnection;

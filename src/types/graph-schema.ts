@@ -34,11 +34,10 @@ export interface ExtractionRules {
 }
 
 /**
- * Complete graph schema for a workspace
+ * Complete graph schema (single-tenant)
  */
 export interface GraphSchema {
-  _id: string; // workspaceId
-  workspaceId: string;
+  _id: string;
   entityTypes: EntityType[];
   relationshipTypes: RelationshipType[];
   extractionRules: ExtractionRules;
@@ -47,11 +46,11 @@ export interface GraphSchema {
 }
 
 /**
- * Default schema for new workspaces
+ * Default schema
  */
 export const DEFAULT_GRAPH_SCHEMA: Omit<
   GraphSchema,
-  "_id" | "workspaceId" | "createdAt" | "updatedAt"
+  "_id" | "createdAt" | "updatedAt"
 > = {
   entityTypes: [
     {

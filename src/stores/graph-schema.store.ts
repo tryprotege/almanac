@@ -4,26 +4,27 @@ import {
   EntityType,
   RelationshipType,
 } from "../types/graph-schema.js";
-import { GraphSchemaModel } from "../shared/database/mongoose.js";
+import { GraphSchemaModel } from "../connections/mongoose.js";
 
 /**
- * Repository for managing graph schemas in MongoDB
+ * Graph Schema Store - Single-tenant schema management
  */
-export class GraphSchemaRepository {
+export class GraphSchemaStore {
+  private readonly SCHEMA_ID = "default";
+
   /**
-   * Get schema for a workspace
+   * Get the global schema
    */
-  async getSchema(workspaceId: string): Promise<GraphSchema | null> {
-    return await GraphSchemaModel.findOne({ workspaceId }).exec();
+  async getSchema(): Promise<GraphSchema | null> {
+    return await GraphSchemaModel.findById(this.SCHEMA_ID).exec();
   }
 
   /**
-   * Create a new schema for a workspace
+   * Create the default schema
    */
-  async createSchema(workspaceId: string): Promise<GraphSchema> {
+  async createSchema(): Promise<GraphSchema> {
     const schema = new GraphSchemaModel({
-      _id: workspaceId,
-      workspaceId,
+      _id: this.SCHEMA_ID,
       ...DEFAULT_GRAPH_SCHEMA,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -33,13 +34,13 @@ export class GraphSchemaRepository {
   }
 
   /**
-   * Get or create schema (ensures workspace always has a schema)
+   * Get or create schema (ensures schema always exists)
    */
-  async getOrCreateSchema(workspaceId: string): Promise<GraphSchema> {
-    let schema = await this.getSchema(workspaceId);
+  async getOrCreateSchema(): Promise<GraphSchema> {
+    let schema = await this.getSchema();
 
     if (!schema) {
-      schema = await this.createSchema(workspaceId);
+      schema = await this.createSchema();
     }
 
     return schema;
@@ -48,12 +49,9 @@ export class GraphSchemaRepository {
   /**
    * Add a new entity type to the schema
    */
-  async addEntityType(
-    workspaceId: string,
-    entityType: EntityType
-  ): Promise<GraphSchema | null> {
-    return await GraphSchemaModel.findOneAndUpdate(
-      { workspaceId },
+  async addEntityType(entityType: EntityType): Promise<GraphSchema | null> {
+    return await GraphSchemaModel.findByIdAndUpdate(
+      this.SCHEMA_ID,
       {
         $addToSet: { entityTypes: entityType },
         $set: { updatedAt: new Date() },
@@ -66,11 +64,10 @@ export class GraphSchemaRepository {
    * Add a new relationship type to the schema
    */
   async addRelationshipType(
-    workspaceId: string,
     relationshipType: RelationshipType
   ): Promise<GraphSchema | null> {
-    return await GraphSchemaModel.findOneAndUpdate(
-      { workspaceId },
+    return await GraphSchemaModel.findByIdAndUpdate(
+      this.SCHEMA_ID,
       {
         $addToSet: { relationshipTypes: relationshipType },
         $set: { updatedAt: new Date() },
@@ -83,10 +80,9 @@ export class GraphSchemaRepository {
    * Update entity types (merge with existing)
    */
   async updateEntityTypes(
-    workspaceId: string,
     entityTypes: EntityType[]
   ): Promise<GraphSchema | null> {
-    const schema = await this.getSchema(workspaceId);
+    const schema = await this.getSchema();
     if (!schema) return null;
 
     // Merge new entity types with existing ones
@@ -95,8 +91,8 @@ export class GraphSchemaRepository {
 
     if (newTypes.length === 0) return schema;
 
-    return await GraphSchemaModel.findOneAndUpdate(
-      { workspaceId },
+    return await GraphSchemaModel.findByIdAndUpdate(
+      this.SCHEMA_ID,
       {
         $push: { entityTypes: { $each: newTypes } },
         $set: { updatedAt: new Date() },
@@ -109,10 +105,9 @@ export class GraphSchemaRepository {
    * Update relationship types (merge with existing)
    */
   async updateRelationshipTypes(
-    workspaceId: string,
     relationshipTypes: RelationshipType[]
   ): Promise<GraphSchema | null> {
-    const schema = await this.getSchema(workspaceId);
+    const schema = await this.getSchema();
     if (!schema) return null;
 
     // Merge new relationship types with existing ones
@@ -123,8 +118,8 @@ export class GraphSchemaRepository {
 
     if (newTypes.length === 0) return schema;
 
-    return await GraphSchemaModel.findOneAndUpdate(
-      { workspaceId },
+    return await GraphSchemaModel.findByIdAndUpdate(
+      this.SCHEMA_ID,
       {
         $push: { relationshipTypes: { $each: newTypes } },
         $set: { updatedAt: new Date() },
@@ -137,7 +132,6 @@ export class GraphSchemaRepository {
    * Update extraction rules
    */
   async updateExtractionRules(
-    workspaceId: string,
     rules: Partial<{
       autoExtractEntities: boolean;
       autoExtractRelationships: boolean;
@@ -159,47 +153,34 @@ export class GraphSchemaRepository {
         rules.confidenceThreshold;
     }
 
-    return await GraphSchemaModel.findOneAndUpdate(
-      { workspaceId },
+    return await GraphSchemaModel.findByIdAndUpdate(
+      this.SCHEMA_ID,
       { $set: updateFields },
       { new: true }
     ).exec();
   }
 
   /**
-   * Delete schema for a workspace
+   * Reset schema to default
    */
-  async deleteSchema(workspaceId: string): Promise<boolean> {
-    const result = await GraphSchemaModel.deleteOne({ workspaceId }).exec();
-    return result.deletedCount > 0;
-  }
-
-  /**
-   * List all schemas
-   */
-  async listSchemas(): Promise<GraphSchema[]> {
-    return await GraphSchemaModel.find().exec();
+  async resetSchema(): Promise<GraphSchema> {
+    await GraphSchemaModel.deleteOne({ _id: this.SCHEMA_ID }).exec();
+    return await this.createSchema();
   }
 
   /**
    * Check if an entity type exists
    */
-  async hasEntityType(
-    workspaceId: string,
-    entityTypeName: string
-  ): Promise<boolean> {
-    const schema = await this.getSchema(workspaceId);
+  async hasEntityType(entityTypeName: string): Promise<boolean> {
+    const schema = await this.getSchema();
     return schema?.entityTypes.some((e) => e.name === entityTypeName) || false;
   }
 
   /**
    * Check if a relationship type exists
    */
-  async hasRelationshipType(
-    workspaceId: string,
-    relationshipTypeName: string
-  ): Promise<boolean> {
-    const schema = await this.getSchema(workspaceId);
+  async hasRelationshipType(relationshipTypeName: string): Promise<boolean> {
+    const schema = await this.getSchema();
     return (
       schema?.relationshipTypes.some((r) => r.name === relationshipTypeName) ||
       false
@@ -210,11 +191,10 @@ export class GraphSchemaRepository {
    * Get valid relationship types for a source->target entity pair
    */
   async getValidRelationshipTypes(
-    workspaceId: string,
     sourceType: string,
     targetType: string
   ): Promise<RelationshipType[]> {
-    const schema = await this.getSchema(workspaceId);
+    const schema = await this.getSchema();
     if (!schema) return [];
 
     return schema.relationshipTypes.filter(
@@ -224,3 +204,6 @@ export class GraphSchemaRepository {
     );
   }
 }
+
+// Export with old name for backwards compatibility during migration
+export const GraphSchemaRepository = GraphSchemaStore;

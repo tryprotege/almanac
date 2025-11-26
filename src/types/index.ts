@@ -1,4 +1,6 @@
-// src/types/index.ts
+/**
+ * Core Types - Single Tenant (No Workspace)
+ */
 
 // ============================================
 // Core Source Types
@@ -19,17 +21,9 @@ export type SourceType =
 // MongoDB Collections
 // ============================================
 
-export interface Workspace {
-  _id: string; // e.g., "acme_corp"
-  name: string;
-  createdAt: Date;
-  settings?: Record<string, any>;
-}
-
 export interface Connection {
   _id: string;
-  workspaceId: string;
-  serverId: string; // Maps to MCPServerRegistration.serverId from contracts
+  serverId: string;
   serverType: SourceType;
   status: "active" | "disconnected" | "error";
   connectedAt: Date;
@@ -44,7 +38,6 @@ export interface Connection {
 export interface MongoResource {
   // Identity
   _id: string; // e.g., "notion_page_abc123"
-  workspaceId: string; // e.g., "acme_corp"
   source: SourceType;
   resourceId: string; // Original ID from source
   type: string; // 'page' | 'message' | 'event' | 'call' | 'file' | 'task' | 'issue'
@@ -69,16 +62,15 @@ export interface MongoResource {
 }
 
 // ============================================
-// Qdrant (Ultra-Minimal Vector Search)
+// Qdrant (Vector Search)
 // ============================================
 
 export interface QdrantPoint {
   id: string; // UUID
-  vector: number[]; // 3584 dimensions (Qwen2-7B)
+  vector: number[]; // Embedding dimensions
 
   payload: {
     mongoId: string; // Reference to MongoDB _id
-    workspaceId: string; // For workspace isolation
 
     // For chunked documents
     chunkIndex?: number; // 0, 1, 2, ... (which chunk)
@@ -88,11 +80,11 @@ export interface QdrantPoint {
 }
 
 // ============================================
-// Memgraph (Workspace-Scoped Graph)
+// Memgraph (Knowledge Graph)
 // ============================================
 
 export interface MemgraphNode {
-  label: string; // Composite: "{workspaceId}_{type}" e.g., "AcmeCorp_Page"
+  label: string; // Type-based label: "Page", "Task", "Issue", etc.
   id: string; // Same as MongoDB _id
   type: string; // "page", "task", "issue"
   title: string; // For display
@@ -168,7 +160,6 @@ export interface ChunkingStrategy {
 // ============================================
 
 export interface SearchRequest {
-  workspaceId: string;
   query: string;
   filters?: Record<string, any>; // MongoDB filters
   sources?: SourceType[];
@@ -194,27 +185,11 @@ export interface SearchResult {
 // ============================================
 
 /**
- * Generate workspace-scoped Memgraph label
- * @example getNodeLabel("acme_corp", "page") => "AcmeCorp_Page"
+ * Generate Memgraph label from type
+ * @example getNodeLabel("page") => "Page"
  */
-export function getNodeLabel(workspaceId: string, type: string): string {
-  const wsPrefix = workspaceId
-    .replace(/-/g, "")
-    .replace(/_/g, "")
-    .split("")
-    .map((char, i) => (i === 0 ? char.toUpperCase() : char))
-    .join("");
-
-  const typeCapitalized = type.charAt(0).toUpperCase() + type.slice(1);
-  return `${wsPrefix}_${typeCapitalized}`;
-}
-
-/**
- * Generate MongoDB collection name for workspace resources
- * @example getWorkspaceCollectionName("acme_corp") => "ws_acme_corp_resources"
- */
-export function getWorkspaceCollectionName(workspaceId: string): string {
-  return `ws_${workspaceId}_resources`;
+export function getNodeLabel(type: string): string {
+  return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
 /**
@@ -239,3 +214,7 @@ export type {
   ExtractionRules,
 } from "./graph-schema.js";
 export { DEFAULT_GRAPH_SCHEMA } from "./graph-schema.js";
+
+// Re-export from new type files
+export * from "./indexing.types.js";
+export * from "./search.types.js";

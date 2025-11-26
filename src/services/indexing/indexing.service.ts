@@ -4,22 +4,24 @@ import {
   QdrantPoint,
   MemgraphNode,
   generateMongoId,
+  IndexRequest,
+  IndexResponse,
 } from "../../types/index.js";
-import { IndexRequest, IndexResponse } from "../../contracts/index.js";
-import { MongoRepository } from "../../repositories/mongo.repository.js";
-import { QdrantRepository } from "../../repositories/qdrant.repository.js";
-import { MemgraphRepository } from "../../repositories/memgraph.repository.js";
+import { DocumentStore } from "../../stores/document.store.js";
+import { VectorStore } from "../../stores/vector.store.js";
+import { GraphStore } from "../../stores/graph.store.js";
 import { ChunkerService } from "./chunker.js";
 import { EmbedderService } from "./embedder.js";
 
 /**
  * Main indexing service - Orchestrates the entire indexing pipeline
+ * Single-tenant version (no workspace isolation)
  */
 export class IndexingService {
   constructor(
-    private mongoRepo: MongoRepository,
-    private qdrantRepo: QdrantRepository,
-    private memgraphRepo: MemgraphRepository,
+    private documentStore: DocumentStore,
+    private vectorStore: VectorStore,
+    private graphStore: GraphStore,
     private chunker: ChunkerService,
     private embedder: EmbedderService
   ) {}
@@ -32,9 +34,7 @@ export class IndexingService {
     const startTime = Date.now();
 
     try {
-      console.log(
-        `[${jobId}] Starting indexing for workspace: ${request.workspaceId}`
-      );
+      console.log(`[${jobId}] Starting indexing`);
 
       // Step 1: Extract resources from MCP tool result
       const extractedResources = await this.chunker.extractFromIndexRequest(
@@ -51,11 +51,7 @@ export class IndexingService {
 
       for (const extracted of extractedResources) {
         try {
-          await this.processResource(
-            request.workspaceId,
-            extracted,
-            request.source.type
-          );
+          await this.processResource(extracted, request.source.type);
           indexed++;
         } catch (error) {
           console.error(
@@ -97,7 +93,6 @@ export class IndexingService {
    * Process a single extracted resource
    */
   private async processResource(
-    workspaceId: string,
     extracted: any,
     sourceType: string
   ): Promise<void> {
@@ -108,28 +103,25 @@ export class IndexingService {
 
     if (needsChunking) {
       // Process with chunking
-      await this.processWithChunking(workspaceId, extracted, mongoId);
+      await this.processWithChunking(extracted, mongoId);
     } else {
       // Process without chunking (single document)
-      await this.processSingleDocument(workspaceId, extracted, mongoId);
+      await this.processSingleDocument(extracted, mongoId);
     }
 
     // Create graph node
     const node: MemgraphNode = {
-      label: "", // Will be set by repository
+      label: "", // Will be set by store based on type
       id: mongoId,
       type: extracted.type,
       title: extracted.title,
     };
 
-    await this.memgraphRepo.createNode(workspaceId, node);
+    await this.graphStore.createNode(node);
 
     // Create relationships if any
     if (extracted.relationships && extracted.relationships.length > 0) {
-      await this.memgraphRepo.createRelationships(
-        workspaceId,
-        extracted.relationships
-      );
+      await this.graphStore.createRelationships(extracted.relationships);
     }
   }
 
@@ -137,7 +129,6 @@ export class IndexingService {
    * Process document without chunking
    */
   private async processSingleDocument(
-    workspaceId: string,
     extracted: any,
     mongoId: string
   ): Promise<void> {
@@ -153,14 +144,12 @@ export class IndexingService {
       vector,
       payload: {
         mongoId,
-        workspaceId,
       },
     };
 
     // Create MongoDB resource
     const mongoResource: MongoResource = {
       _id: mongoId,
-      workspaceId,
       source: extracted.source,
       resourceId: extracted.resourceId,
       type: extracted.type,
@@ -178,8 +167,8 @@ export class IndexingService {
 
     // Save to all databases
     await Promise.all([
-      this.mongoRepo.saveResource(mongoResource),
-      this.qdrantRepo.upsertPoints(workspaceId, [qdrantPoint]),
+      this.documentStore.save(mongoResource),
+      this.vectorStore.upsertPoints([qdrantPoint]),
     ]);
   }
 
@@ -187,7 +176,6 @@ export class IndexingService {
    * Process document with chunking
    */
   private async processWithChunking(
-    workspaceId: string,
     extracted: any,
     mongoId: string
   ): Promise<void> {
@@ -206,7 +194,6 @@ export class IndexingService {
       vector: vectors[idx],
       payload: {
         mongoId,
-        workspaceId,
         chunkIndex: chunk.index,
         chunkStart: chunk.start,
         chunkEnd: chunk.end,
@@ -216,7 +203,6 @@ export class IndexingService {
     // Create MongoDB resource
     const mongoResource: MongoResource = {
       _id: mongoId,
-      workspaceId,
       source: extracted.source,
       resourceId: extracted.resourceId,
       type: extracted.type,
@@ -234,8 +220,8 @@ export class IndexingService {
 
     // Save to all databases
     await Promise.all([
-      this.mongoRepo.saveResource(mongoResource),
-      this.qdrantRepo.upsertPoints(workspaceId, qdrantPoints),
+      this.documentStore.save(mongoResource),
+      this.vectorStore.upsertPoints(qdrantPoints),
     ]);
   }
 

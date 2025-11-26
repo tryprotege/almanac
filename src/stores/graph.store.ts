@@ -3,16 +3,19 @@ import {
   MemgraphRelationship,
   getNodeLabel,
 } from "../types/index.js";
-import { MemgraphConnection } from "../shared/database/memgraph.js";
+import { MemgraphConnection } from "../connections/memgraph.js";
 
-export class MemgraphRepository {
+/**
+ * Graph Store - Single-tenant Memgraph operations
+ */
+export class GraphStore {
   constructor(private memgraph: MemgraphConnection) {}
 
   /**
    * Create or update a node
    */
-  async createNode(workspaceId: string, node: MemgraphNode): Promise<void> {
-    const label = getNodeLabel(workspaceId, node.type);
+  async createNode(node: MemgraphNode): Promise<void> {
+    const label = getNodeLabel(node.type);
 
     const query = `
       MERGE (n:${label} {id: $id})
@@ -29,7 +32,7 @@ export class MemgraphRepository {
   /**
    * Create multiple nodes in batch
    */
-  async createNodes(workspaceId: string, nodes: MemgraphNode[]): Promise<void> {
+  async createNodes(nodes: MemgraphNode[]): Promise<void> {
     if (nodes.length === 0) return;
 
     // Group by type for more efficient batch operations
@@ -43,7 +46,7 @@ export class MemgraphRepository {
     // Create nodes for each type
     await Promise.all(
       Array.from(nodesByType.entries()).map(async ([type, typeNodes]) => {
-        const label = getNodeLabel(workspaceId, type);
+        const label = getNodeLabel(type);
 
         const query = `
           UNWIND $nodes AS nodeData
@@ -65,10 +68,7 @@ export class MemgraphRepository {
   /**
    * Create a relationship between two nodes
    */
-  async createRelationship(
-    workspaceId: string,
-    relationship: MemgraphRelationship
-  ): Promise<void> {
+  async createRelationship(relationship: MemgraphRelationship): Promise<void> {
     // Find nodes by ID (they might have different types/labels)
     const query = `
       MATCH (source {id: $sourceId})
@@ -90,7 +90,6 @@ export class MemgraphRepository {
    * Create multiple relationships in batch
    */
   async createRelationships(
-    workspaceId: string,
     relationships: MemgraphRelationship[]
   ): Promise<void> {
     if (relationships.length === 0) return;
@@ -130,7 +129,7 @@ export class MemgraphRepository {
   /**
    * Get a node by ID
    */
-  async getNode(workspaceId: string, id: string): Promise<MemgraphNode | null> {
+  async getNode(id: string): Promise<MemgraphNode | null> {
     const query = `
       MATCH (n {id: $id})
       RETURN n.id AS id, n.type AS type, n.title AS title, labels(n) AS labels
@@ -158,7 +157,6 @@ export class MemgraphRepository {
    * Find all relationships for a node
    */
   async getNodeRelationships(
-    workspaceId: string,
     nodeId: string,
     options?: {
       direction?: "outgoing" | "incoming" | "both";
@@ -230,7 +228,6 @@ export class MemgraphRepository {
    * Find paths between two nodes
    */
   async findPaths(
-    workspaceId: string,
     sourceId: string,
     targetId: string,
     options?: {
@@ -263,7 +260,7 @@ export class MemgraphRepository {
 
     return results.map((r) => ({
       nodes: r.nodes.map((n) => ({
-        label: getNodeLabel(workspaceId, n.type),
+        label: getNodeLabel(n.type),
         id: n.id,
         type: n.type,
         title: n.title,
@@ -284,7 +281,7 @@ export class MemgraphRepository {
   /**
    * Delete a node and all its relationships
    */
-  async deleteNode(workspaceId: string, id: string): Promise<void> {
+  async deleteNode(id: string): Promise<void> {
     const query = `
       MATCH (n {id: $id})
       DETACH DELETE n
@@ -294,23 +291,17 @@ export class MemgraphRepository {
   }
 
   /**
-   * Delete all nodes and relationships for a workspace
+   * Delete all nodes and relationships
    */
-  async deleteWorkspace(workspaceId: string): Promise<void> {
-    // Get all labels for this workspace
-    const prefix = workspaceId
-      .replace(/-/g, "")
-      .replace(/_/g, "")
-      .split("")
-      .map((char, i) => (i === 0 ? char.toUpperCase() : char))
-      .join("");
-
+  async deleteAll(): Promise<void> {
     const query = `
       MATCH (n)
-      WHERE any(label IN labels(n) WHERE label STARTS WITH $prefix)
       DETACH DELETE n
     `;
 
-    await this.memgraph.executeQuery(query, { prefix });
+    await this.memgraph.executeQuery(query, {});
   }
 }
+
+// Export with old name for backwards compatibility during migration
+export const MemgraphRepository = GraphStore;

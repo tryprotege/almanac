@@ -3,11 +3,9 @@
  * Ensures all required collections, indexes, and constraints exist on startup
  */
 
-import {
-  MONGODB_SCHEMAS,
-  QDRANT_SCHEMAS,
-  MEMGRAPH_SCHEMAS,
-} from "./schemas/index.js";
+import { MONGODB_SCHEMAS } from "./mongoose.js";
+import { QDRANT_SCHEMAS } from "./qdrant.js";
+import { MEMGRAPH_SCHEMAS } from "./memgraph.js";
 import { env } from "../env.js";
 import type { ServiceConnections } from "../mcp/initialization.js";
 

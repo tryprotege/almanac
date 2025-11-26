@@ -3,6 +3,10 @@ import { IndexRequest, IndexResponse } from "../../contracts/index.js";
 import { IndexingService } from "../indexing/indexing.service.js";
 import { env } from "../../env.js";
 import { Redis } from "ioredis";
+import { MCPServerConfigModel } from "../../shared/database/mongoose.js";
+import { MCPClientManager } from "../connector/mcp-clients/client.js";
+import { NotionMCPClient } from "./notion/mcpClient.js";
+import { indexNotionWorkspace } from "./notion/indexer.js";
 
 /**
  * Indexer Service - Worker + Queue System
@@ -364,3 +368,93 @@ export class IndexerService {
     console.log("[Indexer] Shutdown complete");
   }
 }
+
+/**
+ * Index all MCP servers from MongoDB
+ * Connects to each server and runs the appropriate indexer
+ */
+export const indexMcpServers = async () => {
+  console.log("🔍 Starting MCP servers indexing...");
+
+  try {
+    // Get all MCP server configs from MongoDB
+    const mcpServers = await MCPServerConfigModel.find({});
+
+    if (mcpServers.length === 0) {
+      console.log("⚠️  No MCP servers found in database");
+      return;
+    }
+
+    console.log(`📋 Found ${mcpServers.length} MCP server(s) to index`);
+
+    // Create MCP client manager
+    const mcpClientManager = new MCPClientManager();
+
+    // Process each server
+    for (const serverConfig of mcpServers) {
+      try {
+        console.log(`\n🔌 Connecting to ${serverConfig.name}...`);
+
+        // Convert Mongoose Map to plain object
+        const envObj = serverConfig.env
+          ? Object.fromEntries(serverConfig.env as any)
+          : undefined;
+        const headersObj = serverConfig.headers
+          ? Object.fromEntries(serverConfig.headers as any)
+          : undefined;
+
+        // Connect to the MCP server
+        await mcpClientManager.connect({
+          name: serverConfig.name,
+          type: serverConfig.type,
+          command: serverConfig.command,
+          args: serverConfig.args,
+          env: envObj,
+          url: serverConfig.url,
+          headers: headersObj,
+        });
+
+        // Run the appropriate indexer based on server name/type
+        if (serverConfig.name.toLowerCase().includes("notion")) {
+          console.log(`📝 Running Notion indexer for ${serverConfig.name}...`);
+
+          const notionClient = new NotionMCPClient(mcpClientManager);
+          const result = await indexNotionWorkspace(notionClient, {
+            include_comments: true,
+            include_archived: false,
+            max_retries: 3,
+            rate_limit_delay: 350,
+          });
+
+          if (result.success) {
+            console.log(
+              `✅ Successfully indexed ${serverConfig.name}: ${result.summary.total_entities} entities`
+            );
+          } else {
+            console.error(
+              `❌ Failed to index ${serverConfig.name}:`,
+              result.progress.errors
+            );
+          }
+        } else {
+          console.log(
+            `⚠️  No indexer available for ${serverConfig.name} (type: ${serverConfig.type})`
+          );
+        }
+
+        // Disconnect from the server
+        await mcpClientManager.disconnect(serverConfig.name);
+      } catch (error) {
+        console.error(
+          `❌ Error indexing ${serverConfig.name}:`,
+          error instanceof Error ? error.message : String(error)
+        );
+      }
+    }
+
+    console.log("\n✅ MCP servers indexing completed");
+  } catch (error) {
+    console.error("❌ Error in indexMcpServers:", error);
+    throw error;
+  }
+};

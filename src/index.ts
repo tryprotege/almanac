@@ -5,7 +5,10 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { createServer, IncomingMessage, ServerResponse } from "http";
-import { MCPClientManager } from "./services/connector/mcp-clients/client.js";
+import {
+  MCPClientManager,
+  MCPServerConfig,
+} from "./services/connector/mcp-clients/client.js";
 import { loadProxyConfig, validateConfig } from "./mcp/config-loader.js";
 import { localTools, proxyTools } from "./mcp/tools.js";
 import { handleLocalTool, handleProxyTool } from "./mcp/handlers.js";
@@ -14,6 +17,7 @@ import {
   initializeRemoteServers,
   shutdownServices,
 } from "./mcp/initialization.js";
+import { MCPServerConfigModel } from "./shared/database/mongoose.js";
 
 const mcpClientManager = new MCPClientManager();
 
@@ -97,6 +101,7 @@ const readBody = (req: IncomingMessage): Promise<string> => {
 // Start server
 const runServer = async () => {
   const remoteServerConfigs = loadProxyConfig();
+  await initializeServices();
 
   const validConfigs = remoteServerConfigs.filter((config) => {
     const error = validateConfig(config);
@@ -137,6 +142,336 @@ const runServer = async () => {
       if (req.url === "/health") {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ status: "ok", version: "0.1.0" }));
+        return;
+      }
+
+      // MCP Server Config REST API endpoints
+      // GET /api/mcp-servers - List all MCP server configs
+      if (req.url === "/api/mcp-servers" && req.method === "GET") {
+        try {
+          const configs = await MCPServerConfigModel.find().sort({
+            createdAt: -1,
+          });
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ success: true, data: configs }));
+        } catch (error) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          );
+        }
+        return;
+      }
+
+      // POST /api/mcp-servers - Create a new MCP server config
+      if (req.url === "/api/mcp-servers" && req.method === "POST") {
+        try {
+          const body = await readBody(req);
+          const configData: MCPServerConfig = JSON.parse(body);
+
+          // Validate the config
+          const validationError = validateConfig(configData);
+          if (validationError) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ success: false, error: validationError }));
+            return;
+          }
+
+          // Create and save the config
+          const config = new MCPServerConfigModel(configData);
+          await config.save();
+
+          // Optionally connect to the server immediately
+          if (configData.name) {
+            try {
+              await mcpClientManager.connect(configData);
+              console.error(
+                `✅ Auto-connected to new MCP server: ${configData.name}`
+              );
+            } catch (connectError) {
+              console.error(
+                `⚠️  Failed to auto-connect to ${configData.name}:`,
+                connectError
+              );
+            }
+          }
+
+          res.writeHead(201, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ success: true, data: config }));
+        } catch (error) {
+          const statusCode = (error as any).code === 11000 ? 409 : 500;
+          res.writeHead(statusCode, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          );
+        }
+        return;
+      }
+
+      // GET /api/mcp-servers/:name - Get a specific MCP server config
+      const getMatch = req.url?.match(/^\/api\/mcp-servers\/([^/]+)$/);
+      if (getMatch && req.method === "GET") {
+        try {
+          const name = decodeURIComponent(getMatch[1]);
+          const config = await MCPServerConfigModel.findOne({ name });
+
+          if (!config) {
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({
+                success: false,
+                error: "MCP server config not found",
+              })
+            );
+            return;
+          }
+
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ success: true, data: config }));
+        } catch (error) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          );
+        }
+        return;
+      }
+
+      // PUT /api/mcp-servers/:name - Update an MCP server config
+      const putMatch = req.url?.match(/^\/api\/mcp-servers\/([^/]+)$/);
+      if (putMatch && req.method === "PUT") {
+        try {
+          const name = decodeURIComponent(putMatch[1]);
+          const body = await readBody(req);
+          const updateData: Partial<MCPServerConfig> = JSON.parse(body);
+
+          // Don't allow changing the name
+          delete (updateData as any).name;
+
+          // Validate if type is being changed
+          if (updateData.type) {
+            const tempConfig = { ...updateData, name } as MCPServerConfig;
+            const validationError = validateConfig(tempConfig);
+            if (validationError) {
+              res.writeHead(400, { "Content-Type": "application/json" });
+              res.end(
+                JSON.stringify({ success: false, error: validationError })
+              );
+              return;
+            }
+          }
+
+          const config = await MCPServerConfigModel.findOneAndUpdate(
+            { name },
+            updateData,
+            { new: true, runValidators: true }
+          );
+
+          if (!config) {
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({
+                success: false,
+                error: "MCP server config not found",
+              })
+            );
+            return;
+          }
+
+          // Reconnect if the server is currently connected
+          if (mcpClientManager.isConnected(name)) {
+            try {
+              await mcpClientManager.disconnect(name);
+              await mcpClientManager.connect(
+                config.toObject() as MCPServerConfig
+              );
+              console.error(`✅ Reconnected to updated MCP server: ${name}`);
+            } catch (reconnectError) {
+              console.error(
+                `⚠️  Failed to reconnect to ${name}:`,
+                reconnectError
+              );
+            }
+          }
+
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ success: true, data: config }));
+        } catch (error) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          );
+        }
+        return;
+      }
+
+      // DELETE /api/mcp-servers/:name - Delete an MCP server config
+      const deleteMatch = req.url?.match(/^\/api\/mcp-servers\/([^/]+)$/);
+      if (deleteMatch && req.method === "DELETE") {
+        try {
+          const name = decodeURIComponent(deleteMatch[1]);
+
+          // Disconnect if currently connected
+          if (mcpClientManager.isConnected(name)) {
+            await mcpClientManager.disconnect(name);
+          }
+
+          const config = await MCPServerConfigModel.findOneAndDelete({ name });
+
+          if (!config) {
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({
+                success: false,
+                error: "MCP server config not found",
+              })
+            );
+            return;
+          }
+
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              success: true,
+              message: "MCP server config deleted",
+            })
+          );
+        } catch (error) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          );
+        }
+        return;
+      }
+
+      // POST /api/mcp-servers/:name/connect - Connect to an MCP server
+      const connectMatch = req.url?.match(
+        /^\/api\/mcp-servers\/([^/]+)\/connect$/
+      );
+      if (connectMatch && req.method === "POST") {
+        try {
+          console.log("?????");
+          const name = decodeURIComponent(connectMatch[1]);
+          const config = await MCPServerConfigModel.findOne({ name });
+
+          if (!config) {
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({
+                success: false,
+                error: "MCP server config not found",
+              })
+            );
+            return;
+          }
+
+          if (mcpClientManager.isConnected(name)) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({
+                success: false,
+                error: "Server already connected",
+              })
+            );
+            return;
+          }
+
+          await mcpClientManager.connect(config.toObject() as MCPServerConfig);
+
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({ success: true, message: `Connected to ${name}` })
+          );
+        } catch (error) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          );
+        }
+        return;
+      }
+
+      // POST /api/mcp-servers/:name/disconnect - Disconnect from an MCP server
+      const disconnectMatch = req.url?.match(
+        /^\/api\/mcp-servers\/([^/]+)\/disconnect$/
+      );
+      if (disconnectMatch && req.method === "POST") {
+        try {
+          const name = decodeURIComponent(disconnectMatch[1]);
+
+          if (!mcpClientManager.isConnected(name)) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({ success: false, error: "Server not connected" })
+            );
+            return;
+          }
+
+          await mcpClientManager.disconnect(name);
+
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              success: true,
+              message: `Disconnected from ${name}`,
+            })
+          );
+        } catch (error) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          );
+        }
+        return;
+      }
+
+      // GET /api/mcp-servers/:name/status - Get connection status
+      const statusMatch = req.url?.match(
+        /^\/api\/mcp-servers\/([^/]+)\/status$/
+      );
+      if (statusMatch && req.method === "GET") {
+        try {
+          const name = decodeURIComponent(statusMatch[1]);
+          const isConnected = mcpClientManager.isConnected(name);
+
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              success: true,
+              data: { name, connected: isConnected },
+            })
+          );
+        } catch (error) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          );
+        }
         return;
       }
 

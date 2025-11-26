@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "indexer": "tsx src/indexer.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "type-check": "tsc --noEmit",

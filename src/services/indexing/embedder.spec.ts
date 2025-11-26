@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, jest } from "@jest/globals";
-import { EmbedderService } from "../../services/indexing/embedder.js";
+import { EmbedderService } from "./embedder.js";
 import OpenAI from "openai";
 
 describe("EmbedderService", () => {

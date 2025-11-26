@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, jest } from "@jest/globals";
-import { VectorSearchService } from "../../services/search/vector-search.service.js";
+import { VectorSearchService } from "./vector-search.service.js";
 import { SearchQuery } from "../../contracts/search.contracts.js";
 
 describe("VectorSearchService", () => {

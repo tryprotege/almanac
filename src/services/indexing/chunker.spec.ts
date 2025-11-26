@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "@jest/globals";
-import { ChunkerService } from "../../services/indexing/chunker.js";
+import { ChunkerService } from "./chunker.js";
 import { IndexRequest } from "../../contracts/index.js";
 
 describe("ChunkerService", () => {

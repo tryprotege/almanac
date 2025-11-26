@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, jest } from "@jest/globals";
-import { IndexingService } from "../../services/indexing/indexing.service.js";
+import { IndexingService } from "./indexing.service.js";
 import { IndexRequest } from "../../contracts/index.js";
 
 describe("IndexingService", () => {

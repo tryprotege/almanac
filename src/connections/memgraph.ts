@@ -1,5 +1,5 @@
 import neo4j, { Driver, Session, AuthToken } from "neo4j-driver";
-import { env } from "../../env.js";
+import { env } from "../env.js";
 
 export interface MemgraphConnection {
   driver: Driver;

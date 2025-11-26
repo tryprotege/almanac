@@ -1,15 +1,20 @@
+import { jsonSchemaToZod } from "json-schema-to-zod";
+
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+
+import { SchemaInitializer } from "../connections/initializer.js";
 import {
   connectMemgraph,
   MemgraphConnection,
 } from "../connections/memgraph.js";
-import { connectQdrant, QdrantConnection } from "../connections/qdrant.js";
-import { connectRedis, RedisConnection } from "../connections/redis.js";
-import { MCPClientManager, MCPServerConfig } from "./client.js";
 import {
   connectMongoose,
   MongooseConnection,
 } from "../connections/mongoose.js";
-import { SchemaInitializer } from "../connections/initializer.js";
+import { connectQdrant, QdrantConnection } from "../connections/qdrant.js";
+import { connectRedis, RedisConnection } from "../connections/redis.js";
+import { resolveSerializedZodOutput } from "../utils/resolveSerializedZodOutput.js";
+import { MCPClientManager, MCPServerConfig } from "./client.js";
 
 export interface ServiceConnections {
   mongoose: MongooseConnection;
@@ -46,13 +51,43 @@ export async function initializeServices(): Promise<ServiceConnections> {
 
 export async function initializeRemoteServers(
   configs: MCPServerConfig[],
-  mcpClientManager: MCPClientManager
+  mcpClientManager: MCPClientManager,
+  mcpSever: McpServer
 ): Promise<void> {
   console.error("🔌 Connecting to remote MCP servers...");
 
   for (const config of configs) {
     try {
       await mcpClientManager.connect(config);
+
+      const tools = await mcpClientManager.getAllTools();
+
+      tools.forEach(({ tool }) => {
+        mcpSever.registerTool(
+          tool.name,
+          {
+            description: tool.description,
+            title: tool.title,
+            _meta: tool._meta,
+            annotations: tool.annotations,
+            inputSchema: resolveSerializedZodOutput(
+              jsonSchemaToZod(tool.inputSchema)
+            ) as {},
+            outputSchema: tool.outputSchema
+              ? (resolveSerializedZodOutput(
+                  jsonSchemaToZod(tool.outputSchema, { module: "esm" })
+                ) as {})
+              : undefined,
+          },
+          async (args, _extra) => {
+            return await mcpClientManager.callTool(
+              config.name,
+              tool.name,
+              args
+            );
+          }
+        );
+      });
     } catch (error) {
       console.error(`Failed to connect to ${config.name}:`, error);
     }

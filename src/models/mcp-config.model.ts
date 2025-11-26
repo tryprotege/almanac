@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import type { MCPServerConfig } from "../mcp/client.js";
 
 // MCP Server Config Mongoose Schema
-const MCPServerConfigSchema = new mongoose.Schema<MCPServerConfig>(
+const MCPServerConfigSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, unique: true, index: true },
     type: { type: String, required: true, enum: ["stdio", "sse"] },
@@ -11,6 +11,7 @@ const MCPServerConfigSchema = new mongoose.Schema<MCPServerConfig>(
     env: { type: Map, of: String },
     url: { type: String },
     headers: { type: Map, of: String },
+    isDisabled: { type: Boolean, default: false },
   },
   {
     collection: "mcp_server_configs",
@@ -31,7 +32,7 @@ MCPServerConfigSchema.pre("save", function () {
 });
 
 // Export the model
-export const MCPServerConfigModel = mongoose.model<MCPServerConfig>(
+export const MCPServerConfigModel = mongoose.model(
   "MCPServerConfig",
   MCPServerConfigSchema
 );

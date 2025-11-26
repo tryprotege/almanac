@@ -7,11 +7,11 @@ import { Tool } from "@modelcontextprotocol/sdk/types.js";
 export interface MCPServerConfig {
   name: string;
   type: "stdio" | "sse";
-  command?: string;
-  args?: string[];
-  env?: Record<string, string>;
-  url?: string;
-  headers?: Record<string, string>;
+  command?: string | null;
+  args?: string[] | null;
+  env?: Record<string, string> | null;
+  url?: string | null;
+  headers?: Record<string, string> | null;
   requestInit?: RequestInit;
   eventSourceInit?: any;
 }
@@ -39,7 +39,7 @@ export class MCPClientManager {
       transport = new StdioClientTransport({
         command: config.command,
         args: config.args || [],
-        env: config.env,
+        env: config.env || undefined,
       });
     } else if (config.type === "sse") {
       if (!config.url) {
@@ -168,7 +168,7 @@ export class MCPClientManager {
     }
 
     const response = await client.callTool({
-      name: toolName,
+      name: toolName.replace(`${serverName}__`, ""),
       arguments: args,
     });
 

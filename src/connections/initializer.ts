@@ -3,10 +3,6 @@
  * Ensures all required collections, indexes, and constraints exist on startup
  */
 
-import { Db, MongoClient } from "mongodb";
-import { QdrantClient } from "@qdrant/js-client-rest";
-import { Driver } from "neo4j-driver";
-import { Redis } from "ioredis";
 import {
   MONGODB_SCHEMAS,
   QDRANT_SCHEMAS,

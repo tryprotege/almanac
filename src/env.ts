@@ -1,7 +1,6 @@
 import "dotenv/config";
 
 import { z } from "zod";
-import { getEmbeddingDimensions } from "./shared/utils/embeddings.js";
 
 const envSchema = z.object({
   // MongoDB Configuration
@@ -52,9 +51,11 @@ const parsedEnv = envSchema.parse(process.env);
 
 // Compute embedding dimensions based on model
 // This ensures dimension consistency across the application
-const EMBEDDING_DIMENSIONS = getEmbeddingDimensions(
-  parsedEnv.LLM_EMBEDDING_MODEL
-);
+// TODO:
+// const EMBEDDING_DIMENSIONS = getEmbeddingDimensions(
+//   parsedEnv.LLM_EMBEDDING_MODEL
+// );
+const EMBEDDING_DIMENSIONS = 1536;
 
 export const env = {
   ...parsedEnv,

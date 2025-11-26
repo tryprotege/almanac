@@ -1,5 +1,5 @@
 import { RedisOptions, Redis } from "ioredis";
-import { env } from "../../env.js";
+import { env } from "../env.js";
 
 export interface RedisConnection {
   client: Redis;

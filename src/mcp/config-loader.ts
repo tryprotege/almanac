@@ -1,5 +1,5 @@
-import { readFileSync } from "fs";
-import { MCPServerConfig } from "../services/connector/mcp-clients/client.js";
+import { MCPServerConfig } from "./client.js";
+import { MCPServerConfigModel } from "../models/mcp-config.model.js";
 
 export interface MCPProxyConfig {
   remoteServers: MCPServerConfig[];
@@ -8,36 +8,21 @@ export interface MCPProxyConfig {
 /**
  * Load MCP proxy configuration from a file or environment variable
  */
-export function loadProxyConfig(): MCPServerConfig[] {
-  // First, try to load from environment variable
-  const envConfig = process.env.MCP_REMOTE_SERVERS;
-  if (envConfig) {
-    try {
-      const parsed = JSON.parse(envConfig);
-      if (Array.isArray(parsed)) {
-        return parsed as MCPServerConfig[];
-      }
-      if (parsed.remoteServers && Array.isArray(parsed.remoteServers)) {
-        return parsed.remoteServers as MCPServerConfig[];
-      }
-    } catch (error) {
-      console.error("Failed to parse MCP_REMOTE_SERVERS:", error);
-    }
-  }
+export async function loadProxyConfig() {
+  const remoteServerConfigs = await MCPServerConfigModel.find({
+    isDisabled: false,
+  });
 
-  // Second, try to load from config file
-  const configPath = process.env.MCP_CONFIG_PATH || "./mcp-config.json";
-  try {
-    const configContent = readFileSync(configPath, "utf-8");
-    const config: MCPProxyConfig = JSON.parse(configContent);
-    return config.remoteServers || [];
-  } catch (error) {
-    // Config file not found or invalid - return empty array
-    if ((error as any).code !== "ENOENT") {
-      console.error(`Failed to load config from ${configPath}:`, error);
+  const validConfigs = remoteServerConfigs.filter((config) => {
+    const error = validateConfig(config);
+    if (error) {
+      console.error(`Invalid config for ${config.name}: ${error}`);
+      return false;
     }
-    return [];
-  }
+    return true;
+  });
+
+  return validConfigs;
 }
 
 /**

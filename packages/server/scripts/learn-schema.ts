@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /**
  * AI-Powered Schema Learning Script
  *

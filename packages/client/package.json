@@ -19,6 +19,7 @@
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.54.2",
     "react-hot-toast": "^2.4.1",
+    "react-router-dom": "^6.28.0",
     "reactflow": "^11.11.4",
     "zod": "^3.24.1"
   },

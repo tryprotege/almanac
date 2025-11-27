@@ -1,14 +1,9 @@
-interface NavigationProps {
-  activeTab: "dashboard" | "connections" | "schema" | "settings";
-  onTabChange: (
-    tab: "dashboard" | "connections" | "schema" | "settings"
-  ) => void;
-}
+import { NavLink } from "react-router-dom";
 
-export function Navigation({ activeTab, onTabChange }: NavigationProps) {
-  const tabClass = (tab: string) =>
+export function Navigation() {
+  const getLinkClass = ({ isActive }: { isActive: boolean }) =>
     `px-4 py-2 font-medium transition-colors ${
-      activeTab === tab
+      isActive
         ? "text-primary-600 border-b-2 border-primary-600"
         : "text-gray-600 hover:text-gray-900"
     }`;
@@ -23,30 +18,18 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
               <span className="ml-2 text-xl font-bold text-gray-900">eBee</span>
             </div>
             <div className="ml-8 flex space-x-4 items-center">
-              <button
-                onClick={() => onTabChange("dashboard")}
-                className={tabClass("dashboard")}
-              >
+              <NavLink to="/dashboard" className={getLinkClass}>
                 📊 Dashboard
-              </button>
-              <button
-                onClick={() => onTabChange("connections")}
-                className={tabClass("connections")}
-              >
+              </NavLink>
+              <NavLink to="/connections" className={getLinkClass}>
                 🔌 Connections
-              </button>
-              <button
-                onClick={() => onTabChange("schema")}
-                className={tabClass("schema")}
-              >
+              </NavLink>
+              <NavLink to="/schema" className={getLinkClass}>
                 🕸️ Schema
-              </button>
-              <button
-                onClick={() => onTabChange("settings")}
-                className={tabClass("settings")}
-              >
+              </NavLink>
+              <NavLink to="/settings" className={getLinkClass}>
                 ⚙️ Settings
-              </button>
+              </NavLink>
             </div>
           </div>
         </div>

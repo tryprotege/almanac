@@ -3,7 +3,9 @@ import express, { NextFunction, Request, Response } from "express";
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
+import { router } from "./api/index.js";
 import { MCPServerConfigModel } from "./connections/mongoose.js";
+import { env } from "./env.js";
 import { mcpClientManager, MCPServerConfig } from "./mcp/client.js";
 import { validateConfig } from "./mcp/config-loader.js";
 import {
@@ -11,7 +13,7 @@ import {
   mcpServer,
   shutdownServices,
 } from "./mcp/initialization.js";
-import { router } from "./api/index.js";
+import { mockMCPServers, mockMCPServerStatus } from "./mock/index.js";
 
 // Start server
 const runServer = async () => {
@@ -56,6 +58,12 @@ const runServer = async () => {
   // GET /api/mcp-servers - List all MCP server configs
   app.get("/api/mcp-servers", async (_req: Request, res: Response) => {
     try {
+      // Return mock data if enabled
+      if (env.ENABLE_MOCK_DATA) {
+        res.json({ success: true, data: mockMCPServers });
+        return;
+      }
+
       const configs = await MCPServerConfigModel.find().sort({
         createdAt: -1,
       });
@@ -285,6 +293,16 @@ const runServer = async () => {
     async (req: Request, res: Response) => {
       try {
         const name = decodeURIComponent(req.params.name);
+
+        // Return mock data if enabled
+        if (env.ENABLE_MOCK_DATA) {
+          res.json({
+            success: true,
+            data: mockMCPServerStatus(name),
+          });
+          return;
+        }
+
         const isConnected = mcpClientManager.isConnected(name);
 
         res.json({

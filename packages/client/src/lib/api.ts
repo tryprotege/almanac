@@ -153,3 +153,42 @@ export const statsApi = {
   vectors: () => api.get<ApiResponse<VectorStats>>("/stats/vectors"),
   graph: () => api.get<ApiResponse<GraphStats>>("/stats/graph"),
 };
+
+// Model Configuration API Types
+export interface ModelConfigData {
+  llmProvider: "openai" | "openrouter" | "azure" | "anthropic";
+  llmApiKey?: string;
+  llmBaseURL?: string;
+  llmChatModel: string;
+  llmEmbeddingModel: string;
+  rerankerEnabled: boolean;
+  rerankerApiKey?: string;
+  rerankerBaseURL?: string;
+  rerankerModel?: string;
+  updatedAt?: string;
+}
+
+export interface TestConnectionRequest {
+  llmProvider: string;
+  llmApiKey: string;
+  llmBaseURL?: string;
+  llmChatModel: string;
+}
+
+export interface TestConnectionResponse {
+  response: string;
+  model: string;
+  provider: string;
+}
+
+// Model Configuration API
+export const modelConfigApi = {
+  get: () => api.get<ApiResponse<ModelConfigData>>("/config/models"),
+  update: (config: Partial<ModelConfigData>) =>
+    api.put<ApiResponse<ModelConfigData>>("/config/models", config),
+  test: (testConfig: TestConnectionRequest) =>
+    api.post<ApiResponse<TestConnectionResponse>>(
+      "/config/models/test",
+      testConfig
+    ),
+};

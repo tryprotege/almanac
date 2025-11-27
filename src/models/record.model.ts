@@ -1,0 +1,62 @@
+import mongoose, { InferSchemaType } from "mongoose";
+import { SourceType } from "../types/index.js";
+
+/**
+ * Unified entity model for multi-source synchronization
+ * Supports Notion, Slack, Calendar, Jira, and future sources
+ */
+const RecordSchema = new mongoose.Schema(
+  {
+    _id: { type: String, required: true }, // Format: "{source}_{entityType}_{sourceId}"
+    source: { type: String, required: true, index: true },
+    sourceId: { type: String, required: true, index: true }, // Original ID from source
+    recordType: { type: String, required: true, index: true }, // 'page' | 'message' | 'event' | 'task' | 'issue' | etc.
+
+    // Universal searchable fields (indexed for fast queries)
+    title: { type: String, required: true, index: true },
+    content: { type: String, required: true }, // Combined searchable text
+    people: [{ type: String, index: true }], // Email addresses or user IDs
+    primaryDate: { type: Date, index: true }, // Most relevant date for the entity
+    tags: [{ type: String, index: true }], // Extracted or explicit tags
+
+    // Raw data (for reconstruction and debugging)
+    rawData: { type: mongoose.Schema.Types.Mixed, default: {} },
+
+    // SHA-256 of normalized content
+    checksum: { type: String, required: true },
+    // Incremental version number
+    version: { type: Number, default: 1 },
+    // Last successful sync
+    syncedAt: { type: Date, default: Date.now, index: true },
+    // Last update time from source
+    sourceUpdatedAt: { type: Date, required: true, index: true },
+
+    // Deletion tracking
+    isDeleted: { type: Boolean, default: false, index: true }, // Soft delete flag
+    deletedAt: { type: Date, default: null },
+    deletionStrategy: {
+      type: String,
+      enum: ["soft", "hard", "historical"],
+      default: "soft",
+    },
+
+    graphNodeId: { type: String }, // Memgraph node reference
+    graphVersion: { type: Number, default: 1 },
+  },
+  {
+    collection: "records",
+    timestamps: true,
+    _id: false, // We provide our own _id
+  }
+);
+
+export type Record = InferSchemaType<typeof RecordSchema>;
+
+// Compound indexes for efficient queries
+RecordSchema.index({ source: 1, entityType: 1 });
+RecordSchema.index({ source: 1, sourceId: 1 }, { unique: true });
+RecordSchema.index({ isDeleted: 1, syncedAt: -1 });
+RecordSchema.index({ sourceUpdatedAt: -1 });
+RecordSchema.index({ content: "text", title: "text" }); // Full-text search
+
+export const RecordModel = mongoose.model<Record>("SyncedRecord", RecordSchema);

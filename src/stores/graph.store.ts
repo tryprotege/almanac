@@ -1,9 +1,13 @@
-import {
-  MemgraphNode,
-  MemgraphRelationship,
-  getNodeLabel,
-} from "../types/index.js";
+import { MemgraphNode, MemgraphRelationship } from "../types/index.js";
 import { MemgraphConnection } from "../connections/memgraph.js";
+
+/**
+ * Generate Memgraph label from type
+ * @example getNodeLabel("page") => "Page"
+ */
+export function getNodeLabel(type: string): string {
+  return type.charAt(0).toUpperCase() + type.slice(1);
+}
 
 /**
  * Graph Store - Single-tenant Memgraph operations

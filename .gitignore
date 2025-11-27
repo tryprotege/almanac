@@ -143,5 +143,6 @@ vite.config.ts.timestamp-*
 tmp
 .roo
 .cline
+.DS_Store
 
 devScripts/*

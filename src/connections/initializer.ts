@@ -3,11 +3,9 @@
  * Ensures all required collections, indexes, and constraints exist on startup
  */
 
-import {
-  MONGODB_SCHEMAS,
-  QDRANT_SCHEMAS,
-  MEMGRAPH_SCHEMAS,
-} from "./schemas/index.js";
+import { MONGODB_SCHEMAS } from "./mongoose.js";
+import { QDRANT_SCHEMAS } from "./qdrant.js";
+import { MEMGRAPH_SCHEMAS } from "./memgraph.js";
 import { env } from "../env.js";
 import type { ServiceConnections } from "../mcp/initialization.js";
 
@@ -74,7 +72,7 @@ export class SchemaInitializer {
       );
 
       // Create collections and indexes
-      for (const [key, schema] of Object.entries(MONGODB_SCHEMAS)) {
+      for (const [_key, schema] of Object.entries(MONGODB_SCHEMAS)) {
         const collectionName = schema.collectionName;
 
         // Create collection if it doesn't exist
@@ -116,8 +114,8 @@ export class SchemaInitializer {
     report: SchemaInitReport["qdrant"]
   ): Promise<void> {
     try {
+      const dimensions = env.EMBEDDING_DIMENSIONS;
       const model = env.LLM_EMBEDDING_MODEL;
-      const dimensions = this.getModelDimensions(model);
       const collectionName = QDRANT_SCHEMAS.getCollectionName(
         model,
         dimensions
@@ -208,10 +206,6 @@ export class SchemaInitializer {
       const errorMsg = error instanceof Error ? error.message : String(error);
       report.errors.push(`Redis: ${errorMsg}`);
     }
-  }
-
-  private getModelDimensions(model: string): number {
-    return QDRANT_SCHEMAS.MODEL_DIMENSIONS[model] || 1024;
   }
 
   private async saveEmbeddingMetadata(

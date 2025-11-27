@@ -1,4 +1,7 @@
-import { EntityType, RelationshipType } from "../../types/graph-schema.js";
+import {
+  EntityType,
+  RelationshipType,
+} from "../../models/graph-schema.model.js";
 import { IndexRequest } from "../../types/index.js";
 
 /**

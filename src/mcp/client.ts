@@ -16,7 +16,7 @@ export interface MCPServerConfig {
   eventSourceInit?: any;
 }
 
-export class MCPClientManager {
+class MCPClientManager {
   private clients: Map<string, Client> = new Map();
   private transports: Map<string, Transport> = new Map();
   private toolCache: Map<string, Tool[]> = new Map();
@@ -189,3 +189,5 @@ export class MCPClientManager {
     return this.clients.has(serverName);
   }
 }
+
+export const mcpClientManager = new MCPClientManager();

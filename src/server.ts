@@ -1,46 +1,20 @@
 #!/usr/bin/env node
 import express, { NextFunction, Request, Response } from "express";
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import { MCPServerConfigModel } from "./connections/mongoose.js";
-import { MCPClientManager, MCPServerConfig } from "./mcp/client.js";
-import { loadProxyConfig, validateConfig } from "./mcp/config-loader.js";
+import { mcpClientManager, MCPServerConfig } from "./mcp/client.js";
+import { validateConfig } from "./mcp/config-loader.js";
 import {
-  initializeRemoteServers,
   initializeServices,
+  mcpServer,
   shutdownServices,
 } from "./mcp/initialization.js";
-
-const mcpClientManager = new MCPClientManager();
-
-// Create MCP server
-const server = new McpServer({
-  name: "ebee-oss",
-  version: "0.1.0",
-});
 
 // Start server
 const runServer = async () => {
   await initializeServices();
-
-  const validConfigs = await loadProxyConfig();
-  if (validConfigs.length > 0) {
-    await initializeRemoteServers(
-      validConfigs.map((c) => ({
-        ...c.toObject(),
-        env: c.env ? Object.fromEntries(c.env.entries()) : undefined,
-        headers: c.headers
-          ? Object.fromEntries(c.headers.entries())
-          : undefined,
-      })),
-      mcpClientManager,
-      server
-    );
-  } else {
-    console.error("ℹ️  No remote MCP servers configured");
-  }
 
   const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
   const HOST = process.env.HOST || "0.0.0.0";
@@ -113,9 +87,6 @@ const runServer = async () => {
       if (configData.name) {
         try {
           await mcpClientManager.connect(configData);
-          console.error(
-            `✅ Auto-connected to new MCP server: ${configData.name}`
-          );
         } catch (connectError) {
           console.error(
             `⚠️  Failed to auto-connect to ${configData.name}:`,
@@ -339,7 +310,7 @@ const runServer = async () => {
       transport.close();
     });
 
-    await server.connect(transport);
+    await mcpServer.connect(transport);
     await transport.handleRequest(req, res, req.body);
   });
 

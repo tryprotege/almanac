@@ -1,19 +1,18 @@
-import { MCPClientManager } from "../../mcp/client.js";
+import OpenAI from "openai";
+
+import { env } from "../../env.js";
 import { loadProxyConfig } from "../../mcp/config-loader.js";
 import { getServices } from "../../mcp/initialization.js";
 import { GraphStore } from "../../stores/graph.store.js";
 import { RecordStore } from "../../stores/record.store.js";
 import { VectorStore } from "../../stores/vector.store.js";
 import { SourceType } from "../../types/index.js";
+import { runSchemaLearning, shouldRunSchemaLearning } from "../schema/index.js";
 import { NotionMCPClient } from "../sources/notion/mcpClient.js";
 import { NotionAdapter } from "./adapters/notion-adapter.js";
-import { SimpleSyncService } from "./db-indexer.service.js";
+import { syncAllRecords } from "./db-indexer.service.js";
 import { GraphIndexerService } from "./graph-indexer.service.js";
 import { insertAllRecordsToVectorDB } from "./vector-indexer.service.js";
-import { shouldRunSchemaLearning, runSchemaLearning } from "../schema/index.js";
-import { connectMongoose } from "../../connections/mongoose.js";
-import OpenAI from "openai";
-import { env } from "../../env.js";
 
 export async function indexRecords() {
   const { qdrant, memgraph } = await getServices();
@@ -22,26 +21,15 @@ export async function indexRecords() {
 
   await Promise.all(
     validConfigs.map(async (config) => {
-      const mcpManager = new MCPClientManager();
-
-      await mcpManager.connect({
-        ...config.toObject(),
-        env: config.env ? Object.fromEntries(config.env.entries()) : undefined,
-        headers: config.headers
-          ? Object.fromEntries(config.headers.entries())
-          : undefined,
-      });
-
       const recordStore = new RecordStore();
       const vectorStore = new VectorStore(qdrant);
       const graphStore = new GraphStore(memgraph);
 
       if (config.name === "notion") {
-        const notionClient = new NotionMCPClient(mcpManager);
+        const notionClient = new NotionMCPClient();
         const notionAdapter = new NotionAdapter(notionClient);
-        const syncService = new SimpleSyncService(recordStore);
 
-        await syncService.syncAll("notion", notionAdapter);
+        await syncAllRecords(recordStore, "notion", notionAdapter);
 
         console.log("✅ Saved records into document DB");
 

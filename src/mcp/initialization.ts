@@ -13,7 +13,8 @@ import {
 import { connectQdrant, QdrantConnection } from "../connections/qdrant.js";
 import { connectRedis, RedisConnection } from "../connections/redis.js";
 import { resolveSerializedZodOutput } from "../utils/resolveSerializedZodOutput.js";
-import { MCPClientManager, MCPServerConfig } from "./client.js";
+import { mcpClientManager, MCPServerConfig } from "./client.js";
+import { loadProxyConfig } from "./config-loader.js";
 
 export interface ServiceConnections {
   mongoose: MongooseConnection;
@@ -23,6 +24,12 @@ export interface ServiceConnections {
 }
 
 let services: ServiceConnections | null = null;
+
+// Create MCP server
+export const mcpServer = new McpServer({
+  name: "ebee-oss",
+  version: "0.1.0",
+});
 
 export const getServices = async (): Promise<ServiceConnections> => {
   if (!services) {
@@ -48,16 +55,27 @@ export async function initializeServices(): Promise<ServiceConnections> {
   services = { mongoose, qdrant, memgraph, redis };
   console.error("✅ All services initialized successfully!");
 
-  // Initialize database schemas
-  // const schemaInitializer = new SchemaInitializer(services);
-  // await schemaInitializer.initializeAll();
+  const validConfigs = await loadProxyConfig();
+  if (validConfigs.length > 0) {
+    await initializeRemoteServers(
+      validConfigs.map((c) => ({
+        ...c.toObject(),
+        env: c.env ? Object.fromEntries(c.env.entries()) : undefined,
+        headers: c.headers
+          ? Object.fromEntries(c.headers.entries())
+          : undefined,
+      })),
+      mcpServer
+    );
+  } else {
+    console.error("ℹ️  No remote MCP servers configured");
+  }
 
   return services;
 }
 
 export async function initializeRemoteServers(
   configs: MCPServerConfig[],
-  mcpClientManager: MCPClientManager,
   mcpSever: McpServer
 ): Promise<void> {
   console.error("🔌 Connecting to remote MCP servers...");

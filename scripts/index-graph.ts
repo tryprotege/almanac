@@ -3,7 +3,6 @@ import { getServices } from "../src/mcp/initialization.js";
 import { RecordStore } from "../src/stores/record.store.js";
 import { GraphStore } from "../src/stores/graph.store.js";
 import { GraphIndexerService } from "../src/services/indexing/graph-indexer.service.js";
-import { MCPClientManager } from "../src/mcp/client.js";
 import { loadProxyConfig } from "../src/mcp/config-loader.js";
 import { NotionMCPClient } from "../src/services/sources/notion/mcpClient.js";
 import { NotionAdapter } from "../src/services/indexing/adapters/notion-adapter.js";
@@ -79,15 +78,6 @@ async function indexGraphRecords() {
     console.log(`\n📦 Processing source: ${config.name}`);
     console.log("─".repeat(50));
 
-    const mcpManager = new MCPClientManager();
-    await mcpManager.connect({
-      ...config.toObject(),
-      env: config.env ? Object.fromEntries(config.env.entries()) : undefined,
-      headers: config.headers
-        ? Object.fromEntries(config.headers.entries())
-        : undefined,
-    });
-
     const recordStore = new RecordStore();
     const graphStore = new GraphStore(memgraph);
 
@@ -95,7 +85,7 @@ async function indexGraphRecords() {
     const adapters = new Map<SourceType, any>();
 
     if (config.name === "notion") {
-      const notionClient = new NotionMCPClient(mcpManager);
+      const notionClient = new NotionMCPClient();
       const notionAdapter = new NotionAdapter(notionClient);
       adapters.set("notion", notionAdapter);
     }

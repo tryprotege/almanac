@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { Loader2, Trash2, Save } from "lucide-react";
+import { Loader2, Save, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { usePersona } from "../hooks/usePersona";
 
 const MAX_CHARS = 1000;
@@ -71,16 +71,16 @@ export function PersonaEditor() {
     <div className="card">
       <div className="flex items-center justify-between mb-4">
         <div className="w-full">
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             👤 User Persona
           </h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
             Define your role and context to help eBee understand your data
             better
           </p>
         </div>
         {(isUpdating || isDeleting) && (
-          <Loader2 className="w-5 h-5 animate-spin text-primary-600" />
+          <Loader2 className="w-5 h-5 animate-spin text-primary-600 dark:text-primary-400" />
         )}
       </div>
 
@@ -105,15 +105,17 @@ Key entities I care about:
             disabled={isUpdating || isDeleting}
           />
           <div className="flex items-center justify-between mt-2">
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
               {localPersona.length}/{MAX_CHARS} characters
             </span>
           </div>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="text-sm font-medium text-blue-900 mb-2">💡 Tips:</h4>
-          <ul className="text-sm text-blue-800 space-y-1">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <h4 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">
+            💡 Tips:
+          </h4>
+          <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
             <li>• Describe your role and responsibilities</li>
             <li>• Mention key entities and relationships you track</li>
             <li>• Include tools and workflows you use</li>
@@ -121,8 +123,8 @@ Key entities I care about:
           </ul>
         </div>
 
-        <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-          <div className="text-sm text-gray-600">
+        <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-600 dark:text-gray-300">
             Last updated:{" "}
             <span className="font-medium">{formatDate(updatedAt)}</span>
           </div>

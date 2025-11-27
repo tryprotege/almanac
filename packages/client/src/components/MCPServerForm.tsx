@@ -223,17 +223,17 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
   const isLoading = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             {server ? "Edit MCP Server" : "Add MCP Server"}
           </h2>
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
           >
             <X className="w-5 h-5" />
           </button>
@@ -246,7 +246,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
         >
           {/* Name */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Server Name *
             </label>
             <input
@@ -260,10 +260,12 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
               placeholder="my-mcp-server"
             />
             {errors.name && (
-              <p className="mt-1 text-sm text-error-600">{errors.name}</p>
+              <p className="mt-1 text-sm text-error-600 dark:text-error-400">
+                {errors.name}
+              </p>
             )}
             {server && (
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 Server name cannot be changed
               </p>
             )}
@@ -271,7 +273,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
 
           {/* Type */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Server Type *
             </label>
             <select
@@ -294,7 +296,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
           {formData.type === "stdio" && (
             <>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Command *
                 </label>
                 <input
@@ -308,14 +310,14 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
                   placeholder="node"
                 />
                 {errors.command && (
-                  <p className="mt-1 text-sm text-error-600">
+                  <p className="mt-1 text-sm text-error-600 dark:text-error-400">
                     {errors.command}
                   </p>
                 )}
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Arguments
                 </label>
                 <input
@@ -328,7 +330,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
                   className="input"
                   placeholder="path/to/server.js --option value"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   Space-separated arguments
                 </p>
               </div>
@@ -336,14 +338,14 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
               {/* Environment Variables */}
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Environment Variables
                   </label>
                   <button
                     type="button"
                     onClick={addEnvVar}
                     disabled={isLoading}
-                    className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                    className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center gap-1"
                   >
                     <Plus className="w-4 h-4" />
                     Add Variable
@@ -375,7 +377,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
                       <button
                         type="button"
                         onClick={() => toggleEnvVisibility(index)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                       >
                         {env.showValue ? (
                           <EyeOff className="w-4 h-4" />
@@ -388,7 +390,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
                       type="button"
                       onClick={() => removeEnvVar(index)}
                       disabled={isLoading}
-                      className="text-error-600 hover:text-error-700"
+                      className="text-error-600 dark:text-error-400 hover:text-error-700 dark:hover:text-error-300"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -402,7 +404,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
           {formData.type === "sse" && (
             <>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   URL *
                 </label>
                 <input
@@ -416,21 +418,23 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
                   placeholder="https://example.com/mcp"
                 />
                 {errors.url && (
-                  <p className="mt-1 text-sm text-error-600">{errors.url}</p>
+                  <p className="mt-1 text-sm text-error-600 dark:text-error-400">
+                    {errors.url}
+                  </p>
                 )}
               </div>
 
               {/* Headers */}
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Headers
                   </label>
                   <button
                     type="button"
                     onClick={addHeader}
                     disabled={isLoading}
-                    className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                    className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center gap-1"
                   >
                     <Plus className="w-4 h-4" />
                     Add Header
@@ -462,7 +466,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
                       <button
                         type="button"
                         onClick={() => toggleHeaderVisibility(index)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                       >
                         {header.showValue ? (
                           <EyeOff className="w-4 h-4" />
@@ -475,7 +479,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
                       type="button"
                       onClick={() => removeHeader(index)}
                       disabled={isLoading}
-                      className="text-error-600 hover:text-error-700"
+                      className="text-error-600 dark:text-error-400 hover:text-error-700 dark:hover:text-error-300"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -495,9 +499,9 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
                   setFormData({ ...formData, isDisabled: e.target.checked })
                 }
                 disabled={isLoading}
-                className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                className="w-4 h-4 text-primary-600 dark:text-primary-500 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500 dark:focus:ring-primary-400"
               />
-              <span className="ml-2 text-sm text-gray-700">
+              <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
                 Disable this server (prevent automatic connection)
               </span>
             </label>
@@ -505,7 +509,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
         </form>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
           <button
             type="button"
             onClick={onClose}

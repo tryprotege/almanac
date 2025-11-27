@@ -21,19 +21,19 @@ interface SchemaVisualizationProps {
 // Custom node component for entity types
 function EntityNode({ data }: { data: any }) {
   return (
-    <div className="px-4 py-3 bg-white border-2 border-primary-500 rounded-lg shadow-md min-w-[150px]">
-      <div className="font-semibold text-gray-900 text-center mb-1">
+    <div className="px-4 py-3 bg-white dark:bg-gray-800 border-2 border-primary-500 dark:border-primary-400 rounded-lg shadow-md min-w-[150px]">
+      <div className="font-semibold text-gray-900 dark:text-white text-center mb-1">
         {data.label}
       </div>
       {data.description && (
-        <div className="text-xs text-gray-600 text-center border-t pt-1 mt-1">
+        <div className="text-xs text-gray-600 dark:text-gray-300 text-center border-t border-gray-200 dark:border-gray-600 pt-1 mt-1">
           {data.description.length > 50
             ? data.description.substring(0, 50) + "..."
             : data.description}
         </div>
       )}
       {data.properties && data.properties.length > 0 && (
-        <div className="text-xs text-gray-500 text-center mt-1">
+        <div className="text-xs text-gray-500 dark:text-gray-400 text-center mt-1">
           {data.properties.length} properties
         </div>
       )}
@@ -123,10 +123,12 @@ export function SchemaVisualization({ schema }: SchemaVisualizationProps) {
 
   if (schema.entityTypes.length === 0) {
     return (
-      <div className="flex items-center justify-center h-96 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+      <div className="flex items-center justify-center h-96 bg-gray-50 dark:bg-gray-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
         <div className="text-center">
-          <p className="text-gray-600 mb-2">No schema data available</p>
-          <p className="text-sm text-gray-500">
+          <p className="text-gray-600 dark:text-gray-300 mb-2">
+            No schema data available
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Run schema learning to generate entity and relationship types
           </p>
         </div>
@@ -135,7 +137,7 @@ export function SchemaVisualization({ schema }: SchemaVisualizationProps) {
   }
 
   return (
-    <div className="w-full h-[600px] bg-gray-50 rounded-lg border border-gray-200">
+    <div className="w-full h-[600px] bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
       <ReactFlow
         nodes={nodes}
         edges={edges}

@@ -57,26 +57,32 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
       {/* Connection Status Badge */}
       <div className="absolute top-4 right-4">
         {isLoading ? (
-          <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+          <Loader2 className="w-5 h-5 text-gray-400 dark:text-gray-500 animate-spin" />
         ) : isConnected ? (
-          <CheckCircle className="w-5 h-5 text-success-500" />
+          <CheckCircle className="w-5 h-5 text-success-500 dark:text-success-400" />
         ) : (
-          <XCircle className="w-5 h-5 text-gray-400" />
+          <XCircle className="w-5 h-5 text-gray-400 dark:text-gray-500" />
         )}
       </div>
 
       {/* Server Info */}
       <div className="pr-12">
-        <h3 className="text-lg font-semibold text-gray-900">{server.name}</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          {server.name}
+        </h3>
         <div className="mt-2 space-y-1">
           <div className="flex items-center text-sm">
-            <span className="text-gray-500 w-16">Type:</span>
-            <span className="text-gray-700 font-medium">{server.type}</span>
+            <span className="text-gray-500 dark:text-gray-400 w-16">Type:</span>
+            <span className="text-gray-700 dark:text-gray-300 font-medium">
+              {server.type}
+            </span>
           </div>
           {server.type === "stdio" && server.command && (
             <div className="flex items-start text-sm">
-              <span className="text-gray-500 w-16 flex-shrink-0">Command:</span>
-              <span className="text-gray-700 font-mono text-xs break-all">
+              <span className="text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">
+                Command:
+              </span>
+              <span className="text-gray-700 dark:text-gray-300 font-mono text-xs break-all">
                 {server.command}
                 {server.args && server.args.length > 0
                   ? ` ${server.args.join(" ")}`
@@ -86,16 +92,20 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
           )}
           {server.type === "sse" && server.url && (
             <div className="flex items-start text-sm">
-              <span className="text-gray-500 w-16 flex-shrink-0">URL:</span>
-              <span className="text-gray-700 font-mono text-xs break-all">
+              <span className="text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">
+                URL:
+              </span>
+              <span className="text-gray-700 dark:text-gray-300 font-mono text-xs break-all">
                 {server.url}
               </span>
             </div>
           )}
           {server.env && Object.keys(server.env).length > 0 && (
             <div className="flex items-start text-sm">
-              <span className="text-gray-500 w-16 flex-shrink-0">Env:</span>
-              <span className="text-gray-700 text-xs">
+              <span className="text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">
+                Env:
+              </span>
+              <span className="text-gray-700 dark:text-gray-300 text-xs">
                 {Object.keys(server.env).length} variable(s)
               </span>
             </div>
@@ -105,15 +115,15 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
         {/* Status Badge */}
         <div className="mt-3">
           {server.isDisabled ? (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
               Disabled
             </span>
           ) : isConnected ? (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-100 text-success-800">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-100 dark:bg-success-900 text-success-800 dark:text-success-200">
               Connected
             </span>
           ) : (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
               Disconnected
             </span>
           )}
@@ -128,7 +138,7 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
             disabled={isLoading || server.isDisabled}
             className={`btn flex items-center gap-2 ${
               isConnected
-                ? "bg-gray-200 text-gray-900 hover:bg-gray-300"
+                ? "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600"
                 : "btn-primary"
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
@@ -155,15 +165,15 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
           <button
             onClick={() => setShowDeleteConfirm(true)}
             disabled={isLoading}
-            className="btn bg-error-600 text-white hover:bg-error-700 flex items-center gap-2"
+            className="btn bg-error-600 dark:bg-error-500 text-white hover:bg-error-700 dark:hover:bg-error-600 flex items-center gap-2"
           >
             <Trash2 className="w-4 h-4" />
             Delete
           </button>
         </div>
       ) : (
-        <div className="mt-4 bg-error-50 border border-error-200 rounded-lg p-3">
-          <p className="text-sm text-error-800 mb-3">
+        <div className="mt-4 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg p-3">
+          <p className="text-sm text-error-800 dark:text-error-200 mb-3">
             Are you sure you want to delete this MCP server? This action cannot
             be undone.
           </p>
@@ -171,7 +181,7 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
             <button
               onClick={handleDelete}
               disabled={isLoading}
-              className="btn bg-error-600 text-white hover:bg-error-700 text-sm"
+              className="btn bg-error-600 dark:bg-error-500 text-white hover:bg-error-700 dark:hover:bg-error-600 text-sm"
             >
               Yes, Delete
             </button>
@@ -187,12 +197,12 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
 
       {/* Timestamps */}
       {server.createdAt && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <p className="text-xs text-gray-500">
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             Created: {new Date(server.createdAt).toLocaleString()}
           </p>
           {server.updatedAt && (
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               Updated: {new Date(server.updatedAt).toLocaleString()}
             </p>
           )}

@@ -1,4 +1,10 @@
-import axios from "axios";
+import axios, { AxiosError, AxiosResponse } from "axios";
+
+// Error response type
+interface ErrorResponseData {
+  error?: string;
+  message?: string;
+}
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
@@ -7,7 +13,88 @@ export const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  timeout: 30000, // 30 seconds
 });
+
+// Request interceptor for logging
+api.interceptors.request.use(
+  (config) => {
+    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`);
+    return config;
+  },
+  (error) => {
+    console.error("[API Request Error]", error);
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor for error handling
+api.interceptors.response.use(
+  (response: AxiosResponse) => {
+    return response;
+  },
+  async (error: AxiosError<ErrorResponseData>) => {
+    const originalRequest = error.config as any;
+
+    // Handle network errors
+    if (!error.response) {
+      console.error("[API Network Error]", error.message);
+      return Promise.reject({
+        message: "Network error. Please check your connection.",
+        originalError: error,
+      });
+    }
+
+    // Retry logic for 5xx errors (max 2 retries)
+    if (
+      error.response.status >= 500 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      (!originalRequest._retryCount || originalRequest._retryCount < 2)
+    ) {
+      originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
+      console.log(
+        `[API Retry] Attempt ${originalRequest._retryCount} for ${originalRequest.url}`
+      );
+
+      // Wait before retrying (exponential backoff)
+      await new Promise((resolve) =>
+        setTimeout(resolve, 1000 * originalRequest._retryCount)
+      );
+
+      return api(originalRequest);
+    }
+
+    // Handle specific error codes
+    const errorMessage =
+      error.response.data?.error || error.response.data?.message;
+
+    switch (error.response.status) {
+      case 400:
+        console.error("[API Bad Request]", errorMessage);
+        break;
+      case 401:
+        console.error("[API Unauthorized]", errorMessage);
+        break;
+      case 403:
+        console.error("[API Forbidden]", errorMessage);
+        break;
+      case 404:
+        console.error("[API Not Found]", errorMessage);
+        break;
+      case 429:
+        console.error("[API Rate Limit]", errorMessage);
+        break;
+      default:
+        console.error(
+          `[API Error ${error.response.status}]`,
+          errorMessage || "Unknown error"
+        );
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 // Response types
 export interface ApiResponse<T> {

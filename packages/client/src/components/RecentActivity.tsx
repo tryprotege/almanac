@@ -58,21 +58,23 @@ export function RecentActivity({ stats }: RecentActivityProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
         📊 Recent Activity
       </h2>
       <div className="space-y-3">
         {recentActivities.map((activity, index) => (
           <div
             key={index}
-            className="flex items-start space-x-3 text-sm text-gray-600"
+            className="flex items-start space-x-3 text-sm text-gray-600 dark:text-gray-300"
           >
             <span className="text-lg flex-shrink-0">{activity.icon}</span>
             <div>
               <span>{activity.message}</span>
               {activity.time && (
-                <span className="text-gray-400 ml-2">({activity.time})</span>
+                <span className="text-gray-400 dark:text-gray-500 ml-2">
+                  ({activity.time})
+                </span>
               )}
             </div>
           </div>

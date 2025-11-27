@@ -5,7 +5,7 @@ import { MCPServerForm } from "../components/MCPServerForm";
 import { useMCPServers } from "../hooks/useMCPServers";
 import { MCPServerConfig } from "../lib/api";
 
-export function Connections() {
+export default function Connections() {
   const { servers, isLoading, error } = useMCPServers();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingServer, setEditingServer] = useState<MCPServerConfig | null>(
@@ -28,16 +28,16 @@ export function Connections() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                 MCP Server Connections
               </h1>
-              <p className="mt-2 text-gray-600">
+              <p className="mt-2 text-gray-600 dark:text-gray-300">
                 Manage your Model Context Protocol server connections
               </p>
             </div>
@@ -56,12 +56,14 @@ export function Connections() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div className="card">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-primary-100 rounded-lg">
-                  <Server className="w-6 h-6 text-primary-600" />
+                <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
+                  <Server className="w-6 h-6 text-primary-600 dark:text-primary-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Total Servers</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    Total Servers
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {servers.length}
                   </p>
                 </div>
@@ -70,12 +72,14 @@ export function Connections() {
 
             <div className="card">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-success-100 rounded-lg">
-                  <Server className="w-6 h-6 text-success-600" />
+                <div className="p-3 bg-success-100 dark:bg-success-900/30 rounded-lg">
+                  <Server className="w-6 h-6 text-success-600 dark:text-success-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Connected</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    Connected
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {servers.filter((s) => !s.isDisabled).length}
                   </p>
                 </div>
@@ -84,12 +88,14 @@ export function Connections() {
 
             <div className="card">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-gray-100 rounded-lg">
-                  <Server className="w-6 h-6 text-gray-600" />
+                <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                  <Server className="w-6 h-6 text-gray-600 dark:text-gray-300" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Disabled</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    Disabled
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {servers.filter((s) => s.isDisabled).length}
                   </p>
                 </div>
@@ -101,20 +107,20 @@ export function Connections() {
         {/* Loading State */}
         {isLoading && (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+            <Loader2 className="w-8 h-8 text-primary-600 dark:text-primary-400 animate-spin" />
           </div>
         )}
 
         {/* Error State */}
         {error && (
-          <div className="card bg-error-50 border-error-200">
+          <div className="card bg-error-50 dark:bg-error-900/20 border-error-200 dark:border-error-800">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-error-600 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-error-600 dark:text-error-400 flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="text-sm font-medium text-error-900">
+                <h3 className="text-sm font-medium text-error-900 dark:text-error-200">
                   Error loading servers
                 </h3>
-                <p className="mt-1 text-sm text-error-700">
+                <p className="mt-1 text-sm text-error-700 dark:text-error-300">
                   {error.message || "Failed to load MCP servers"}
                 </p>
               </div>
@@ -125,11 +131,11 @@ export function Connections() {
         {/* Empty State */}
         {!isLoading && !error && servers.length === 0 && (
           <div className="card text-center py-12">
-            <Server className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <Server className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
               No MCP Servers
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               Get started by adding your first MCP server connection
             </p>
             <button
@@ -145,7 +151,7 @@ export function Connections() {
         {/* Server List */}
         {!isLoading && !error && servers.length > 0 && (
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Configured Servers
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

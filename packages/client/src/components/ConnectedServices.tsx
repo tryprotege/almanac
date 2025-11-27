@@ -49,13 +49,13 @@ export function ConnectedServices() {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           🔌 Connected Services
         </h2>
         <div className="animate-pulse space-y-4">
-          <div className="h-16 bg-gray-200 rounded"></div>
-          <div className="h-16 bg-gray-200 rounded"></div>
+          <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
         </div>
       </div>
     );
@@ -63,11 +63,11 @@ export function ConnectedServices() {
 
   if (servers.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           🔌 Connected Services
         </h2>
-        <p className="text-gray-500 text-center py-8">
+        <p className="text-gray-500 dark:text-gray-400 text-center py-8">
           No MCP servers configured yet
         </p>
       </div>
@@ -75,8 +75,8 @@ export function ConnectedServices() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
         🔌 Connected Services
       </h2>
       <div className="space-y-3">
@@ -86,13 +86,15 @@ export function ConnectedServices() {
           return (
             <div
               key={server.name}
-              className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <div className="flex items-center space-x-3">
                 <span className="text-2xl">{isConnected ? "✅" : "⚠️"}</span>
                 <div>
-                  <div className="font-medium text-gray-900">{server.name}</div>
-                  <div className="text-sm text-gray-500">
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {server.name}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
                     {isConnected ? "Connected" : "Disconnected"} •{" "}
                     {formatTimeAgo(server.updatedAt)}
                   </div>
@@ -103,7 +105,7 @@ export function ConnectedServices() {
                   <button
                     onClick={() => disconnectMutation.mutate(server.name)}
                     disabled={disconnectMutation.isPending}
-                    className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+                    className="px-3 py-1 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors disabled:opacity-50"
                   >
                     Disconnect
                   </button>
@@ -111,7 +113,7 @@ export function ConnectedServices() {
                   <button
                     onClick={() => connectMutation.mutate(server.name)}
                     disabled={connectMutation.isPending}
-                    className="px-3 py-1 text-sm text-primary-600 hover:bg-primary-50 rounded-md transition-colors disabled:opacity-50"
+                    className="px-3 py-1 text-sm text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md transition-colors disabled:opacity-50"
                   >
                     Connect
                   </button>

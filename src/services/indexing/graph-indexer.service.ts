@@ -12,18 +12,18 @@ import { MemgraphNode, MemgraphRelationship } from "../../types/index.js";
  */
 export class GraphIndexerService {
   constructor(
-    private entityStore: RecordStore,
+    private recordStore: RecordStore,
     private graphStore: GraphStore,
     private adapters: Map<SourceType, BaseEntityAdapter>
   ) {}
 
   /**
-   * Index all entities from a source into Memgraph
+   * Index all records from a source into Memgraph
    */
   async indexAll(
     source: SourceType,
     options?: {
-      entityType?: string;
+      recordType?: string;
       batchSize?: number;
       includeRelationships?: boolean;
     }
@@ -48,28 +48,28 @@ export class GraphIndexerService {
 
     // First pass: Create all nodes
     while (hasMore) {
-      const entities = await this.entityStore.findBySourceAndType(
+      const records = await this.recordStore.findBySourceAndType(
         source,
-        options?.entityType || "",
+        options?.recordType || "",
         { limit: batchSize, skip, includeDeleted: false }
       );
 
-      if (entities.length === 0) {
+      if (records.length === 0) {
         hasMore = false;
         break;
       }
 
       try {
         // Create nodes in batch
-        const nodes = entities.map((entity) => this.entityToNode(entity));
+        const nodes = records.map((record) => this.recordToNode(record));
         await this.graphStore.createNodes(nodes);
         stats.nodes += nodes.length;
 
-        // Update entities with graph node IDs
-        for (const entity of entities) {
-          await this.entityStore.upsert({
-            _id: entity._id,
-            graphNodeId: entity._id,
+        // Update records with graph node IDs
+        for (const record of records) {
+          await this.recordStore.upsert({
+            _id: record._id,
+            graphNodeId: record._id,
           });
         }
       } catch (error) {
@@ -77,7 +77,7 @@ export class GraphIndexerService {
         stats.errors++;
       }
 
-      skip += entities.length;
+      skip += records.length;
       console.log(`📊 Progress: ${stats.nodes} nodes created`);
     }
 
@@ -88,20 +88,20 @@ export class GraphIndexerService {
       hasMore = true;
 
       while (hasMore) {
-        const entities = await this.entityStore.findBySourceAndType(
+        const records = await this.recordStore.findBySourceAndType(
           source,
-          options?.entityType || "",
+          options?.recordType || "",
           { limit: batchSize, skip, includeDeleted: false }
         );
 
-        if (entities.length === 0) {
+        if (records.length === 0) {
           hasMore = false;
           break;
         }
 
         try {
-          const relationships = await this.extractRelationshipsFromEntities(
-            entities,
+          const relationships = await this.extractRelationshipsFromRecords(
+            records,
             source
           );
           if (relationships.length > 0) {
@@ -116,7 +116,7 @@ export class GraphIndexerService {
           stats.errors++;
         }
 
-        skip += entities.length;
+        skip += records.length;
         console.log(
           `📊 Progress: ${stats.relationships} relationships created`
         );
@@ -132,10 +132,10 @@ export class GraphIndexerService {
   }
 
   /**
-   * Index a single entity into Memgraph
+   * Index a single record into Memgraph
    */
-  async indexEntity(
-    entity: Record,
+  async indexRecord(
+    record: Record,
     options?: {
       includeRelationships?: boolean;
     }
@@ -146,22 +146,22 @@ export class GraphIndexerService {
     const includeRelationships = options?.includeRelationships ?? true;
 
     // Create node
-    const node = this.entityToNode(entity);
+    const node = this.recordToNode(record);
     await this.graphStore.createNode(node);
 
-    // Update entity with graph node ID
-    await this.entityStore.upsert({
-      _id: entity._id,
-      graphNodeId: entity._id,
+    // Update record with graph node ID
+    await this.recordStore.upsert({
+      _id: record._id,
+      graphNodeId: record._id,
     });
 
     let relationshipCount = 0;
 
     // Extract and create relationships
     if (includeRelationships) {
-      const relationships = await this.extractRelationshipsFromEntities(
-        [entity],
-        entity.source
+      const relationships = await this.extractRelationshipsFromRecords(
+        [record],
+        record.source
       );
       if (relationships.length > 0) {
         await this.graphStore.createRelationships(relationships);
@@ -170,13 +170,13 @@ export class GraphIndexerService {
     }
 
     return {
-      nodeId: entity._id,
+      nodeId: record._id,
       relationships: relationshipCount,
     };
   }
 
   /**
-   * Index specific entities by IDs
+   * Index specific records by IDs
    */
   async indexByIds(
     ids: string[],
@@ -194,19 +194,19 @@ export class GraphIndexerService {
       errors: 0,
     };
 
-    console.log(`🔄 Indexing ${ids.length} entities by ID`);
+    console.log(`🔄 Indexing ${ids.length} records by ID`);
 
-    const entities = await this.entityStore.findByIds(ids);
+    const records = await this.recordStore.findByIds(ids);
 
     // Create nodes
-    for (const entity of entities) {
+    for (const record of records) {
       try {
-        const result = await this.indexEntity(entity, options);
+        const result = await this.indexRecord(record, options);
         stats.nodes++;
         stats.relationships += result.relationships;
       } catch (error) {
         console.error(
-          `❌ Error indexing entity ${entity._id}:`,
+          `❌ Error indexing record ${record._id}:`,
           error instanceof Error ? error.message : error
         );
         stats.errors++;
@@ -220,22 +220,22 @@ export class GraphIndexerService {
   }
 
   /**
-   * Convert entity to graph node
+   * Convert record to graph node
    */
-  private entityToNode(entity: Record): MemgraphNode {
+  private recordToNode(record: Record): MemgraphNode {
     return {
-      label: entity.recordType.toUpperCase(),
-      id: entity._id,
-      type: entity.recordType,
-      title: entity.title,
+      label: record.recordType.toUpperCase(),
+      id: record._id,
+      type: record.recordType,
+      title: record.title,
     };
   }
 
   /**
-   * Extract relationships from entities using their adapters
+   * Extract relationships from records using their adapters
    */
-  private async extractRelationshipsFromEntities(
-    entities: Record[],
+  private async extractRelationshipsFromRecords(
+    records: Record[],
     source: SourceType
   ): Promise<MemgraphRelationship[]> {
     const adapter = this.adapters.get(source);
@@ -246,10 +246,10 @@ export class GraphIndexerService {
 
     const relationships: MemgraphRelationship[] = [];
 
-    for (const entity of entities) {
+    for (const record of records) {
       try {
         // Use the raw data to extract relationships via adapter
-        const sourceEntity = entity.rawData;
+        const sourceEntity = record.rawData;
         const entityRelationships = await adapter.extractRelationships(
           sourceEntity
         );
@@ -267,7 +267,7 @@ export class GraphIndexerService {
         }
       } catch (error) {
         console.error(
-          `Error extracting relationships for entity ${entity._id}:`,
+          `Error extracting relationships for record ${record._id}:`,
           error instanceof Error ? error.message : error
         );
       }
@@ -277,15 +277,15 @@ export class GraphIndexerService {
   }
 
   /**
-   * Delete node for deleted entity
+   * Delete node for deleted record
    */
   async deleteNode(entityId: string): Promise<void> {
     await this.graphStore.deleteNode(entityId);
 
-    // Clear graph node ID from entity
-    const entity = await this.entityStore.findById(entityId);
-    if (entity) {
-      await this.entityStore.upsert({
+    // Clear graph node ID from record
+    const record = await this.recordStore.findById(entityId);
+    if (record) {
+      await this.recordStore.upsert({
         _id: entityId,
         graphNodeId: "",
       });
@@ -293,42 +293,44 @@ export class GraphIndexerService {
   }
 
   /**
-   * Clean up nodes for deleted entities
+   * Clean up nodes for deleted records
    */
-  async cleanupDeletedEntities(source: SourceType): Promise<number> {
+  async cleanupDeletedRecords(source: SourceType): Promise<number> {
     console.log(
-      `🧹 Cleaning up graph nodes for deleted entities from ${source}`
+      `🧹 Cleaning up graph nodes for deleted records from ${source}`
     );
 
-    const deletedEntities = await this.entityStore.findBySourceAndType(
+    const deletedRecords = await this.recordStore.findBySourceAndType(
       source,
       "",
       { includeDeleted: true }
     );
 
-    const deleted = deletedEntities.filter((e) => e.isDeleted && e.graphNodeId);
+    const deleted = deletedRecords.filter(
+      (record) => record.isDeleted && record.graphNodeId
+    );
     let cleaned = 0;
 
-    for (const entity of deleted) {
+    for (const record of deleted) {
       try {
-        await this.graphStore.deleteNode(entity.graphNodeId);
+        await this.graphStore.deleteNode(record.graphNodeId);
         cleaned++;
 
         // Clear graph node ID
-        await this.entityStore.upsert({
-          _id: entity._id,
+        await this.recordStore.upsert({
+          _id: record._id,
           graphNodeId: "",
         });
       } catch (error) {
         console.error(
-          `Error deleting node for entity ${entity._id}:`,
+          `Error deleting node for record ${record._id}:`,
           error instanceof Error ? error.message : error
         );
       }
     }
 
     console.log(
-      `✅ Cleaned up ${cleaned} nodes from ${deleted.length} deleted entities`
+      `✅ Cleaned up ${cleaned} nodes from ${deleted.length} deleted records`
     );
     return cleaned;
   }
@@ -340,7 +342,7 @@ export class GraphIndexerService {
   async rebuildRelationships(
     source: SourceType,
     options?: {
-      entityType?: string;
+      recordType?: string;
       batchSize?: number;
     }
   ): Promise<{
@@ -359,20 +361,20 @@ export class GraphIndexerService {
     let hasMore = true;
 
     while (hasMore) {
-      const entities = await this.entityStore.findBySourceAndType(
+      const records = await this.recordStore.findBySourceAndType(
         source,
-        options?.entityType || "",
+        options?.recordType || "",
         { limit: batchSize, skip, includeDeleted: false }
       );
 
-      if (entities.length === 0) {
+      if (records.length === 0) {
         hasMore = false;
         break;
       }
 
       try {
-        const relationships = await this.extractRelationshipsFromEntities(
-          entities,
+        const relationships = await this.extractRelationshipsFromRecords(
+          records,
           source
         );
         if (relationships.length > 0) {
@@ -387,7 +389,7 @@ export class GraphIndexerService {
         stats.errors++;
       }
 
-      skip += entities.length;
+      skip += records.length;
       console.log(`📊 Progress: ${stats.relationships} relationships rebuilt`);
     }
 
@@ -402,20 +404,20 @@ export class GraphIndexerService {
    * Get indexing statistics
    */
   async getStats(source: SourceType): Promise<{
-    totalEntities: number;
+    totalRecords: number;
     indexedNodes: number;
     notIndexed: number;
   }> {
-    const entities = await this.entityStore.findBySourceAndType(source, "", {
+    const records = await this.recordStore.findBySourceAndType(source, "", {
       includeDeleted: false,
     });
 
-    const indexed = entities.filter((e) => e.graphNodeId);
+    const indexed = records.filter((record) => record.graphNodeId);
 
     return {
-      totalEntities: entities.length,
+      totalRecords: records.length,
       indexedNodes: indexed.length,
-      notIndexed: entities.length - indexed.length,
+      notIndexed: records.length - indexed.length,
     };
   }
 
@@ -428,11 +430,11 @@ export class GraphIndexerService {
   }> {
     // This would require querying Memgraph for statistics
     // For now, return basic stats from MongoDB
-    const entities = await this.entityStore.findBySourceAndType(source, "", {
+    const records = await this.recordStore.findBySourceAndType(source, "", {
       includeDeleted: false,
     });
 
-    const indexed = entities.filter((e) => e.graphNodeId);
+    const indexed = records.filter((record) => record.graphNodeId);
 
     return {
       totalNodes: indexed.length,

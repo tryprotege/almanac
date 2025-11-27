@@ -5,9 +5,7 @@ import { RecordStore } from "../../stores/record.store.js";
  * Determine if schema learning should be triggered
  * Used for hybrid schema update strategy
  */
-export async function shouldRunSchemaLearning(
-  recordStore: RecordStore
-): Promise<{
+export async function shouldRunSchemaLearning(): Promise<{
   shouldRun: boolean;
   reason: string;
 }> {

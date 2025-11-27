@@ -7,7 +7,7 @@ import { SourceType } from "../types/index.js";
  */
 const RecordSchema = new mongoose.Schema(
   {
-    _id: { type: String, required: true }, // Format: "{source}_{entityType}_{sourceId}"
+    _id: { type: String, required: true }, // Format: "{source}_{recordType}_{sourceId}"
     source: { type: String, required: true, index: true },
     sourceId: { type: String, required: true, index: true }, // Original ID from source
     recordType: { type: String, required: true, index: true }, // 'page' | 'message' | 'event' | 'task' | 'issue' | etc.
@@ -53,7 +53,7 @@ const RecordSchema = new mongoose.Schema(
 export type Record = InferSchemaType<typeof RecordSchema>;
 
 // Compound indexes for efficient queries
-RecordSchema.index({ source: 1, entityType: 1 });
+RecordSchema.index({ source: 1, recordType: 1 });
 RecordSchema.index({ source: 1, sourceId: 1 }, { unique: true });
 RecordSchema.index({ isDeleted: 1, syncedAt: -1 });
 RecordSchema.index({ sourceUpdatedAt: -1 });

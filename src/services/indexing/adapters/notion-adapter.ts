@@ -75,15 +75,15 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
    * Transform Notion entity to unified format
    */
   async transform(sourceEntity: NotionEntity): Promise<Record> {
-    const entityType = this.getEntityType(sourceEntity);
+    const recordType = this.getEntityType(sourceEntity);
     const sourceId = sourceEntity.id;
-    const _id = this.generateEntityId(entityType, sourceId);
+    const _id = this.generateEntityId(recordType, sourceId);
 
     // Get additional data for pages
     let blocks: NotionBlock[] = [];
     let comments: NotionComment[] = [];
 
-    if (entityType === "page") {
+    if (recordType === "page") {
       try {
         blocks = await this.client.getAllBlocksRecursive(sourceId);
         comments = await this.client.getPageComments(sourceId);
@@ -105,7 +105,7 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
       _id,
       source: this.source,
       sourceId,
-      recordType: entityType,
+      recordType: recordType,
       title,
       content,
       people,
@@ -133,7 +133,7 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
     sourceEntity: NotionEntity
   ): Promise<EntityRelationship[]> {
     const relationships: EntityRelationship[] = [];
-    const entityType = this.getEntityType(sourceEntity);
+    const recordType = this.getEntityType(sourceEntity);
 
     // Extract parent relationship
     if ((sourceEntity as any).parent) {
@@ -148,7 +148,7 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
 
       if (targetId) {
         relationships.push({
-          sourceId: this.generateEntityId(entityType, sourceEntity.id),
+          sourceId: this.generateEntityId(recordType, sourceEntity.id),
           targetId,
           type: "CHILD_OF",
           confidence: 1.0,
@@ -159,7 +159,7 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
 
     // Extract database relationships for pages
     if (
-      entityType === "page" &&
+      recordType === "page" &&
       (sourceEntity as NotionPage).parent.type === "database_id"
     ) {
       const databaseId = (sourceEntity as NotionPage).parent.database_id;
@@ -179,22 +179,22 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
    * Extract text content from entity
    */
   protected extractTextContent(sourceEntity: NotionEntity): string {
-    const entityType = this.getEntityType(sourceEntity);
+    const recordType = this.getEntityType(sourceEntity);
 
-    if (entityType === "page") {
+    if (recordType === "page") {
       // For pages, we'll need to fetch blocks separately
       // This is a simplified version
       return this.extractTitle(sourceEntity);
     }
 
-    if (entityType === "database") {
+    if (recordType === "database") {
       const db = sourceEntity as NotionDatabase;
       const title = this.extractRichText(db.title);
       const description = this.extractRichText(db.description || []);
       return `${title}\n${description}`.trim();
     }
 
-    if (entityType === "user") {
+    if (recordType === "user") {
       const user = sourceEntity as NotionUser;
       return user.name || "";
     }
@@ -206,9 +206,9 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
    * Extract title from entity
    */
   protected extractTitle(sourceEntity: NotionEntity): string {
-    const entityType = this.getEntityType(sourceEntity);
+    const recordType = this.getEntityType(sourceEntity);
 
-    if (entityType === "page") {
+    if (recordType === "page") {
       const page = sourceEntity as NotionPage;
       const titleProp = page.properties.title || page.properties.Name;
       if (titleProp && (titleProp as any).title) {
@@ -217,12 +217,12 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
       return "Untitled";
     }
 
-    if (entityType === "database") {
+    if (recordType === "database") {
       const db = sourceEntity as NotionDatabase;
       return this.extractRichText(db.title);
     }
 
-    if (entityType === "user") {
+    if (recordType === "user") {
       const user = sourceEntity as NotionUser;
       return user.name || "Unknown User";
     }

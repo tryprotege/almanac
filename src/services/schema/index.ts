@@ -2,9 +2,9 @@
 export {
   learnSchema,
   runSchemaLearning,
-  fetchEntities,
-  extractEntitiesWithAI,
-  extractRelationshipsWithAI,
+  fetchRecords,
+  extractEntityTypesFromRecords,
+  extractRelationshipTypesFromRecords,
   mergeEntityTypes,
   mergeRelationshipTypes,
   createEmptyResult,

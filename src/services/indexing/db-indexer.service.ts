@@ -9,7 +9,7 @@ import { Record } from "../../models/record.model.js";
  * Syncs entities from source to MongoDB only
  */
 export class SimpleSyncService {
-  constructor(private entityStore: RecordStore) {}
+  constructor(private recordStore: RecordStore) {}
 
   /**
    * Perform a one-time full sync
@@ -129,7 +129,7 @@ export class SimpleSyncService {
     const entity: Record = await adapter.transform(sourceEntity);
 
     // Check if entity exists
-    const existing = await this.entityStore.findById(entity._id);
+    const existing = await this.recordStore.findById(entity._id);
 
     if (existing) {
       // Update: increment version
@@ -140,11 +140,11 @@ export class SimpleSyncService {
         return { action: "skipped" };
       }
 
-      await this.entityStore.upsert(entity);
+      await this.recordStore.upsert(entity);
       return { action: "updated" };
     } else {
       // Create new
-      await this.entityStore.upsert(entity);
+      await this.recordStore.upsert(entity);
       return { action: "created" };
     }
   }

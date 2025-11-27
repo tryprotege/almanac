@@ -17,11 +17,11 @@ import OpenAI from "openai";
  * Index all entities from a source into Qdrant
  */
 export async function insertAllRecordsToVectorDB(
-  entityStore: RecordStore,
+  recordStore: RecordStore,
   vectorStore: VectorStore,
   source: SourceType,
   options?: {
-    entityType?: string;
+    recordType?: string;
     batchSize?: number;
     maxChunkSize?: number;
     overlapSize?: number;
@@ -50,9 +50,9 @@ export async function insertAllRecordsToVectorDB(
 
   while (hasMore) {
     // Fetch batch of entities
-    const entities = await entityStore.findBySourceAndType(
+    const entities = await recordStore.findBySourceAndType(
       source,
-      options?.entityType,
+      options?.recordType,
       { limit: batchSize, skip, includeDeleted: false }
     );
 
@@ -64,7 +64,7 @@ export async function insertAllRecordsToVectorDB(
     // Process batch
     for (const entity of entities) {
       try {
-        await insertRecordToVectorDB(entityStore, vectorStore, entity);
+        await insertRecordToVectorDB(recordStore, vectorStore, entity);
         stats.processed++;
       } catch (error) {
         console.error(`❌ Error indexing entity ${entity._id}:`, error);
@@ -93,7 +93,7 @@ export async function insertAllRecordsToVectorDB(
  * Index a single entity into Qdrant
  */
 export async function insertRecordToVectorDB(
-  entityStore: RecordStore,
+  recordStore: RecordStore,
   vectorStore: VectorStore,
   entity: Record
 ): Promise<string[]> {
@@ -127,7 +127,7 @@ export async function insertRecordToVectorDB(
         mongoId: entity._id,
         source: entity.source,
         sourceId: entity.sourceId,
-        entityType: entity.recordType,
+        recordType: entity.recordType,
         title: entity.title,
         chunkIndex: chunk.index,
         chunkText: chunk.text,
@@ -147,7 +147,7 @@ export async function insertRecordToVectorDB(
   await vectorStore.upsertPoints(points);
 
   // Update entity with vector IDs
-  await entityStore.upsert({
+  await recordStore.upsert({
     _id: entity._id,
     vectorIds,
     lastIndexedAt: new Date(),

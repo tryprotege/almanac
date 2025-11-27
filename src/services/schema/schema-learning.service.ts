@@ -29,9 +29,9 @@ export interface SchemaLearningResult {
   newEntityTypes: GraphEntityType[];
   newRelationshipTypes: GraphRelationshipType[];
   stats: {
-    totalEntities: number;
-    entitiesProcessed: number;
-    entitiesWithContent: number;
+    totalRecords: number;
+    recordsProcessed: number;
+    recordsWithContent: number;
   };
 }
 
@@ -56,20 +56,20 @@ export async function learnSchema(
     minContentLength = 100,
   } = options;
 
-  // Fetch entities
-  const entities = await fetchEntities(recordStore, source, limit);
+  // Fetch records
+  const records = await fetchRecords(recordStore, source, limit);
 
-  if (entities.length === 0) {
+  if (records.length === 0) {
     return createEmptyResult();
   }
 
-  // Filter entities with sufficient content
-  const contentEntities = entities.filter(
+  // Filter records with sufficient content
+  const contentRecords = records.filter(
     (e) => e.content && e.content.length >= minContentLength
   );
 
   // Limit AI processing for cost control
-  const entitiesToProcess = contentEntities.slice(0, aiSampleSize);
+  const recordsToProcess = contentRecords.slice(0, aiSampleSize);
 
   // Get current schema
   let currentSchema = await schemaStore.getSchema();
@@ -78,17 +78,17 @@ export async function learnSchema(
   }
 
   // Learn entity types
-  const learnedEntityTypes = await extractEntitiesWithAI(
+  const learnedEntityTypes = await extractEntityTypesFromRecords(
     openaiClient,
-    entitiesToProcess,
+    recordsToProcess,
     currentSchema.entityTypes.map((et: GraphEntityType) => et.name),
     persona
   );
 
   // Learn relationship types
-  const learnedRelationshipTypes = await extractRelationshipsWithAI(
+  const learnedRelationshipTypes = await extractRelationshipTypesFromRecords(
     openaiClient,
-    entitiesToProcess,
+    recordsToProcess,
     learnedEntityTypes,
     currentSchema.relationshipTypes,
     persona
@@ -115,22 +115,22 @@ export async function learnSchema(
     newEntityTypes,
     newRelationshipTypes,
     stats: {
-      totalEntities: entities.length,
-      entitiesProcessed: entitiesToProcess.length,
-      entitiesWithContent: contentEntities.length,
+      totalRecords: records.length,
+      recordsProcessed: recordsToProcess.length,
+      recordsWithContent: contentRecords.length,
     },
   };
 }
 
 // ============================================================================
-// Entity Fetching
+// Record Fetching
 // ============================================================================
 
 /**
- * Fetch entities from the database
+ * Fetch records from the database
  * Pure function with I/O side effects
  */
-export async function fetchEntities(
+export async function fetchRecords(
   recordStore: RecordStore,
   source: SourceType | null,
   limit: number
@@ -155,17 +155,17 @@ export async function fetchEntities(
     "google_drive",
   ];
 
-  const entities = [];
+  const records = [];
   for (const src of allSources) {
-    const sourceEntities = await recordStore.findBySourceAndType(src, "", {
+    const sourceRecords = await recordStore.findBySourceAndType(src, "", {
       limit,
       includeDeleted: false,
     });
-    entities.push(...sourceEntities);
-    if (entities.length >= limit) break;
+    records.push(...sourceRecords);
+    if (records.length >= limit) break;
   }
 
-  return entities.slice(0, limit);
+  return records.slice(0, limit);
 }
 
 // ============================================================================
@@ -173,22 +173,22 @@ export async function fetchEntities(
 // ============================================================================
 
 /**
- * Extract entity types from content using AI
+ * Extract entity types from records using AI
  * Pure function with async I/O
  */
-export async function extractEntitiesWithAI(
+export async function extractEntityTypesFromRecords(
   openaiClient: OpenAI,
-  entities: any[],
+  records: any[],
   existingTypeNames: string[],
   persona?: string
 ): Promise<GraphEntityType[]> {
   const allEntityTypes = new Map<string, GraphEntityType>();
 
-  for (const entity of entities) {
+  for (const record of records) {
     try {
       const extractedEntities = await extractEntitiesFromContent(
         openaiClient,
-        entity.content,
+        record.content,
         existingTypeNames,
         persona
       );
@@ -198,14 +198,14 @@ export async function extractEntitiesWithAI(
           allEntityTypes.set(aiEntity.name, {
             name: aiEntity.name,
             description: aiEntity.description,
-            mcpSource: `${entity.source}_ai`,
+            mcpSource: `${record.source}_ai`,
             properties: [],
           });
         }
       });
     } catch (error) {
       console.error(
-        `  ⚠️  AI entity extraction failed for ${entity._id}:`,
+        `  ⚠️  AI entity extraction failed for ${record._id}:`,
         (error as Error).message
       );
     }
@@ -215,12 +215,12 @@ export async function extractEntitiesWithAI(
 }
 
 /**
- * Extract relationship types from content using AI
+ * Extract relationship types from records using AI
  * Pure function with async I/O
  */
-export async function extractRelationshipsWithAI(
+export async function extractRelationshipTypesFromRecords(
   openaiClient: OpenAI,
-  entities: any[],
+  records: any[],
   learnedEntityTypes: GraphEntityType[],
   existingRelationships: GraphRelationshipType[],
   persona?: string
@@ -233,13 +233,13 @@ export async function extractRelationshipsWithAI(
     instances: [], // We don't track instances at this stage
   }));
 
-  for (const entity of entities) {
+  for (const record of records) {
     try {
       if (entityInstances.length === 0) continue;
 
       const extractedRels = await extractRelationshipsFromContent(
         openaiClient,
-        entity.content,
+        record.content,
         entityInstances,
         existingRelationships,
         persona
@@ -253,13 +253,13 @@ export async function extractRelationshipsWithAI(
             sourceTypes: aiRel.sourceTypes,
             targetTypes: aiRel.targetTypes,
             bidirectional: aiRel.bidirectional,
-            mcpSource: `${entity.source}_ai`,
+            mcpSource: `${record.source}_ai`,
           });
         }
       });
     } catch (error) {
       console.error(
-        `  ⚠️  AI relationship extraction failed for ${entity._id}:`,
+        `  ⚠️  AI relationship extraction failed for ${record._id}:`,
         (error as Error).message
       );
     }
@@ -363,9 +363,9 @@ export function createEmptyResult(): SchemaLearningResult {
     newEntityTypes: [],
     newRelationshipTypes: [],
     stats: {
-      totalEntities: 0,
-      entitiesProcessed: 0,
-      entitiesWithContent: 0,
+      totalRecords: 0,
+      recordsProcessed: 0,
+      recordsWithContent: 0,
     },
   };
 }
@@ -491,28 +491,28 @@ async function displayLearningStats(
   console.log("\n" + "=".repeat(60));
   console.log("📊 LEARNING STATISTICS");
   console.log("=".repeat(60));
-  console.log(`\nTotal entities fetched: ${result.stats.totalEntities}`);
+  console.log(`\nTotal records fetched: ${result.stats.totalRecords}`);
   console.log(
-    `Entities with sufficient content: ${result.stats.entitiesWithContent}`
+    `Records with sufficient content: ${result.stats.recordsWithContent}`
   );
-  console.log(`Entities processed with AI: ${result.stats.entitiesProcessed}`);
+  console.log(`Records processed with AI: ${result.stats.recordsProcessed}`);
 
-  // Display entity type breakdown if we have entities
-  if (result.stats.totalEntities > 0) {
-    const sampleEntities = await recordStore.findBySourceAndType(
+  // Display record type breakdown if we have records
+  if (result.stats.totalRecords > 0) {
+    const sampleRecords = await recordStore.findBySourceAndType(
       source || ("notion" as SourceType),
       "",
-      { limit: Math.min(50, result.stats.totalEntities), includeDeleted: false }
+      { limit: Math.min(50, result.stats.totalRecords), includeDeleted: false }
     );
 
-    const entityTypeBreakdown: Record<string, number> = {};
-    sampleEntities.forEach((entity: any) => {
-      entityTypeBreakdown[entity.recordType] =
-        (entityTypeBreakdown[entity.recordType] || 0) + 1;
+    const recordTypeBreakdown: Record<string, number> = {};
+    sampleRecords.forEach((record: any) => {
+      recordTypeBreakdown[record.recordType] =
+        (recordTypeBreakdown[record.recordType] || 0) + 1;
     });
 
-    console.log("\nEntity Type Breakdown (sample):");
-    Object.entries(entityTypeBreakdown)
+    console.log("\nRecord Type Breakdown (sample):");
+    Object.entries(recordTypeBreakdown)
       .sort((a, b) => b[1] - a[1])
       .forEach(([type, count]) => {
         console.log(`  ${type}: ${count}`);
@@ -578,7 +578,7 @@ async function updateSchemaWithResults(
     await schemaStore.updateEntityTypes(
       result.newEntityTypes,
       "manual_learning",
-      result.stats.entitiesProcessed
+      result.stats.recordsProcessed
     );
     if (verbose) {
       console.log(`\n✅ Added ${result.newEntityTypes.length} entity types`);
@@ -589,7 +589,7 @@ async function updateSchemaWithResults(
     await schemaStore.updateRelationshipTypes(
       result.newRelationshipTypes,
       "manual_learning",
-      result.stats.entitiesProcessed
+      result.stats.recordsProcessed
     );
     if (verbose) {
       console.log(

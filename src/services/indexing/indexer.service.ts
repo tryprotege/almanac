@@ -10,6 +10,9 @@ import { NotionAdapter } from "./adapters/notion-adapter.js";
 import { SimpleSyncService } from "./db-indexer.service.js";
 import { GraphIndexerService } from "./graph-indexer.service.js";
 import { insertAllRecordsToVectorDB } from "./vector-indexer.service.js";
+import { shouldRunSchemaLearning, runSchemaLearning } from "../schema/index.js";
+import OpenAI from "openai";
+import { env } from "../../env.js";
 
 export async function indexRecords() {
   const { qdrant, memgraph } = await getServices();
@@ -28,32 +31,55 @@ export async function indexRecords() {
           : undefined,
       });
 
-      const entityStore = new RecordStore();
+      const recordStore = new RecordStore();
       const vectorStore = new VectorStore(qdrant);
       const graphStore = new GraphStore(memgraph);
 
       if (config.name === "notion") {
         const notionClient = new NotionMCPClient(mcpManager);
         const notionAdapter = new NotionAdapter(notionClient);
-        const syncService = new SimpleSyncService(entityStore);
+        const syncService = new SimpleSyncService(recordStore);
 
         await syncService.syncAll("notion", notionAdapter);
 
-        console.log("Saved records into document DB");
+        console.log("✅ Saved records into document DB");
 
-        await insertAllRecordsToVectorDB(entityStore, vectorStore, "notion", {
+        // Check if schema learning is needed
+        const { shouldRun, reason } = await shouldRunSchemaLearning();
+
+        if (shouldRun) {
+          console.log(`\n🧠 Schema learning needed: ${reason}`);
+          const openai = new OpenAI({
+            apiKey: env.LLM_API_KEY,
+            baseURL: env.LLM_BASE_URL,
+          });
+
+          await runSchemaLearning(openai, recordStore, {
+            limit: 100,
+            source: "notion",
+            aiSampleSize: 20,
+            minContentLength: 100,
+            verbose: true,
+          });
+
+          console.log("✅ Schema learning complete\n");
+        } else {
+          console.log(`ℹ️  Schema learning skipped: ${reason}\n`);
+        }
+
+        await insertAllRecordsToVectorDB(recordStore, vectorStore, "notion", {
           batchSize: 50,
           maxChunkSize: 2000,
           overlapSize: 200,
         });
 
-        console.log("Saved records into vector DB");
+        console.log("✅ Saved records into vector DB");
 
         const adapters = new Map<SourceType, any>();
         adapters.set("notion", notionAdapter);
 
         const graphIndexer = new GraphIndexerService(
-          entityStore,
+          recordStore,
           graphStore,
           adapters
         );
@@ -63,7 +89,7 @@ export async function indexRecords() {
           includeRelationships: true,
         });
 
-        console.log("Saved records into graph DB");
+        console.log("✅ Saved records into graph DB");
       }
     })
   );

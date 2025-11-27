@@ -55,8 +55,8 @@ export abstract class BaseEntityAdapter<TSource = any> {
   /**
    * Generate entity ID in standard format
    */
-  protected generateEntityId(entityType: string, sourceId: string): string {
-    return `${this.source}_${entityType}_${sourceId}`;
+  protected generateEntityId(recordType: string, sourceId: string): string {
+    return `${this.source}_${recordType}_${sourceId}`;
   }
 
   /**

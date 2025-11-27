@@ -53,10 +53,10 @@ export class RecordStore {
    */
   async findBySourceAndType(
     source: SourceType,
-    entityType?: string,
+    recordType?: string,
     options?: { limit?: number; skip?: number; includeDeleted?: boolean }
   ): Promise<Record[]> {
-    const filter: any = { source, entityType };
+    const filter: any = { source, recordType };
 
     if (!options?.includeDeleted) {
       filter.isDeleted = false;
@@ -198,7 +198,7 @@ export class RecordStore {
     query: string,
     options?: {
       source?: SourceType;
-      entityType?: string;
+      recordType?: string;
       limit?: number;
       skip?: number;
     }
@@ -212,8 +212,8 @@ export class RecordStore {
       filter.source = options.source;
     }
 
-    if (options?.entityType) {
-      filter.entityType = options.entityType;
+    if (options?.recordType) {
+      filter.recordType = options.recordType;
     }
 
     let searchQuery = RecordModel.find(filter).sort({
@@ -262,7 +262,7 @@ export class RecordStore {
     endDate: Date,
     options?: {
       source?: SourceType;
-      entityType?: string;
+      recordType?: string;
       limit?: number;
     }
   ): Promise<Record[]> {
@@ -275,8 +275,8 @@ export class RecordStore {
       filter.source = options.source;
     }
 
-    if (options?.entityType) {
-      filter.entityType = options.entityType;
+    if (options?.recordType) {
+      filter.recordType = options.recordType;
     }
 
     let query = RecordModel.find(filter).sort({ primaryDate: -1 });

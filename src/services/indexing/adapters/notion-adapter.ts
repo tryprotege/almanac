@@ -1,14 +1,14 @@
 import { BaseEntityAdapter } from "./base-adapter.js";
-import { ISyncedEntity } from "../../../models/synced-entity.model.js";
-import { FetchOptions, EntityRelationship } from "../types.js";
-import { NotionMCPClient } from "../../indexing/sources/notion/mcpClient.js";
+import { Record } from "../../../models/record.model.js";
+import { NotionMCPClient } from "../../sources/notion/mcpClient.js";
 import {
   NotionPage,
   NotionDatabase,
   NotionBlock,
   NotionComment,
   NotionUser,
-} from "../../indexing/sources/notion/types.js";
+} from "../../sources/notion/types.js";
+import { EntityRelationship, FetchOptions } from "../../../types/index.js";
 
 type NotionEntity = NotionPage | NotionDatabase | NotionUser;
 
@@ -53,34 +53,6 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
   }
 
   /**
-   * Fetch entities modified since timestamp
-   */
-  async *fetchIncremental(
-    since: Date,
-    cursor?: string
-  ): AsyncIterable<NotionEntity[]> {
-    // Notion doesn't have a direct "modified since" API
-    // We need to fetch all and filter by last_edited_time
-    const allPages = await this.client.searchAllPages();
-    const allDatabases = await this.client.searchAllDatabases();
-
-    const modifiedPages = allPages.filter(
-      (p) => new Date(p.last_edited_time) > since
-    );
-    const modifiedDatabases = allDatabases.filter(
-      (d) => new Date(d.last_edited_time) > since
-    );
-
-    if (modifiedPages.length > 0) {
-      yield modifiedPages as NotionEntity[];
-    }
-
-    if (modifiedDatabases.length > 0) {
-      yield modifiedDatabases as NotionEntity[];
-    }
-  }
-
-  /**
    * Fetch single entity by ID
    */
   async fetchById(id: string): Promise<NotionEntity | null> {
@@ -102,7 +74,7 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
   /**
    * Transform Notion entity to unified format
    */
-  async transform(sourceEntity: NotionEntity): Promise<ISyncedEntity> {
+  async transform(sourceEntity: NotionEntity): Promise<Record> {
     const entityType = this.getEntityType(sourceEntity);
     const sourceId = sourceEntity.id;
     const _id = this.generateEntityId(entityType, sourceId);
@@ -129,20 +101,16 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
     const primaryDate = this.extractPrimaryDate(sourceEntity);
     const tags = this.extractTags(sourceEntity);
 
-    // Build attributes based on entity type
-    const attributes = this.buildAttributes(sourceEntity, blocks, comments);
-
     return {
       _id,
       source: this.source,
       sourceId,
-      entityType,
+      recordType: entityType,
       title,
       content,
       people,
       primaryDate,
       tags,
-      attributes,
       rawData: sourceEntity,
       checksum: this.computeChecksum(sourceEntity),
       version: 1,
@@ -151,12 +119,10 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
         (sourceEntity as any).last_edited_time || new Date()
       ),
       isDeleted: (sourceEntity as any).archived || false,
-      deletedAt: null,
       deletionStrategy: "soft",
-      vectorIds: [],
       graphNodeId: _id,
-      embeddingVersion: 1,
-      lastIndexedAt: new Date(),
+      graphVersion: 1,
+      updatedAt: new Date(),
     };
   }
 
@@ -207,22 +173,6 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
     }
 
     return relationships;
-  }
-
-  /**
-   * Check if entity is deleted
-   */
-  isDeleted(sourceEntity: NotionEntity): boolean {
-    return (sourceEntity as any).archived === true;
-  }
-
-  /**
-   * Get deleted entities (Notion doesn't provide this directly)
-   */
-  async *getDeletedEntities(since: Date): AsyncIterable<string[]> {
-    // Notion doesn't have a direct API for deleted entities
-    // We would need to track this ourselves or fetch all and compare
-    yield [];
   }
 
   /**
@@ -359,51 +309,5 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
   private extractRichText(richText: any[]): string {
     if (!Array.isArray(richText)) return "";
     return richText.map((rt) => rt.text?.content || "").join("");
-  }
-
-  /**
-   * Helper: Build attributes object
-   */
-  private buildAttributes(
-    entity: NotionEntity,
-    blocks: NotionBlock[],
-    comments: NotionComment[]
-  ): Record<string, any> {
-    const entityType = this.getEntityType(entity);
-
-    if (entityType === "page") {
-      return {
-        properties: (entity as NotionPage).properties,
-        icon: (entity as any).icon,
-        cover: (entity as any).cover,
-        url: (entity as any).url,
-        blocks: blocks.map((b) => ({
-          id: b.id,
-          type: b.type,
-          has_children: b.has_children,
-        })),
-        comments_count: comments.length,
-      };
-    }
-
-    if (entityType === "database") {
-      return {
-        properties: (entity as NotionDatabase).properties,
-        icon: (entity as any).icon,
-        cover: (entity as any).cover,
-        url: (entity as any).url,
-      };
-    }
-
-    if (entityType === "user") {
-      const user = entity as NotionUser;
-      return {
-        type: user.type,
-        avatar_url: user.avatar_url,
-        email: user.person?.email,
-      };
-    }
-
-    return {};
   }
 }

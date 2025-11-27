@@ -1,7 +1,8 @@
-import { EmbedderService } from "../indexing/embedder.js";
+import { embed } from "../../utils/embedding.js";
 import { QdrantRepository } from "../../repositories/qdrant.repository.js";
 import { MongoRepository } from "../../repositories/mongo.repository.js";
 import { SearchQuery, SearchResult } from "../../contracts/search.contracts.js";
+import OpenAI from "openai";
 
 /**
  * Vector Search Service
@@ -9,7 +10,8 @@ import { SearchQuery, SearchResult } from "../../contracts/search.contracts.js";
  */
 export class VectorSearchService {
   constructor(
-    private embedder: EmbedderService,
+    private openaiClient: OpenAI,
+    private embeddingModel: string,
     private qdrant: QdrantRepository,
     private mongo: MongoRepository
   ) {}
@@ -29,7 +31,9 @@ export class VectorSearchService {
     console.log(`[VectorSearch] Query: "${query.text}"`);
 
     // Step 1 - Generate embedding for query
-    const queryVector = await this.embedder.embed(query.text);
+    const queryVector = (
+      await embed(this.openaiClient, this.embeddingModel, [query.text])
+    )[0];
 
     // Step 2 - Pre-filter with MongoDB if filters provided
     let mongoIds: string[] | undefined;

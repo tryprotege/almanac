@@ -1,6 +1,6 @@
-import { SyncedEntityStore } from "../../stores/synced-entity.store.js";
+import { RecordStore } from "../../stores/record.store.js";
 import { GraphStore } from "../../stores/graph.store.js";
-import { ISyncedEntity } from "../../models/synced-entity.model.js";
+import { Record } from "../../models/record.model.js";
 import { SourceType } from "../../types/index.js";
 import { BaseEntityAdapter } from "./adapters/base-adapter.js";
 import { MemgraphNode, MemgraphRelationship } from "../../types/index.js";
@@ -12,7 +12,7 @@ import { MemgraphNode, MemgraphRelationship } from "../../types/index.js";
  */
 export class GraphIndexerService {
   constructor(
-    private entityStore: SyncedEntityStore,
+    private entityStore: RecordStore,
     private graphStore: GraphStore,
     private adapters: Map<SourceType, BaseEntityAdapter>
   ) {}
@@ -135,7 +135,7 @@ export class GraphIndexerService {
    * Index a single entity into Memgraph
    */
   async indexEntity(
-    entity: ISyncedEntity,
+    entity: Record,
     options?: {
       includeRelationships?: boolean;
     }
@@ -222,11 +222,11 @@ export class GraphIndexerService {
   /**
    * Convert entity to graph node
    */
-  private entityToNode(entity: ISyncedEntity): MemgraphNode {
+  private entityToNode(entity: Record): MemgraphNode {
     return {
-      label: entity.entityType.toUpperCase(),
+      label: entity.recordType.toUpperCase(),
       id: entity._id,
-      type: entity.entityType,
+      type: entity.recordType,
       title: entity.title,
     };
   }
@@ -235,7 +235,7 @@ export class GraphIndexerService {
    * Extract relationships from entities using their adapters
    */
   private async extractRelationshipsFromEntities(
-    entities: ISyncedEntity[],
+    entities: Record[],
     source: SourceType
   ): Promise<MemgraphRelationship[]> {
     const adapter = this.adapters.get(source);
@@ -274,17 +274,6 @@ export class GraphIndexerService {
     }
 
     return relationships;
-  }
-
-  /**
-   * Generate entity ID in standard format
-   */
-  private generateEntityId(
-    source: SourceType,
-    entityType: string,
-    sourceId: string
-  ): string {
-    return `${source}_${entityType}_${sourceId}`;
   }
 
   /**

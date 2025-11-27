@@ -1,15 +1,15 @@
 import { randomUUID } from "crypto";
 import { SourceType } from "../../types/index.js";
 import { BaseEntityAdapter } from "./adapters/base-adapter.js";
-import { SyncedEntityStore } from "../../stores/synced-entity.store.js";
-import { ISyncedEntity } from "../../models/synced-entity.model.js";
+import { RecordStore } from "../../stores/record.store.js";
+import { Record } from "../../models/record.model.js";
 
 /**
  * Simple one-time sync service
  * Syncs entities from source to MongoDB only
  */
 export class SimpleSyncService {
-  constructor(private entityStore: SyncedEntityStore) {}
+  constructor(private entityStore: RecordStore) {}
 
   /**
    * Perform a one-time full sync
@@ -126,7 +126,7 @@ export class SimpleSyncService {
     sourceEntity: any
   ): Promise<{ action: "created" | "updated" | "skipped" }> {
     // Transform entity to unified format
-    const entity: ISyncedEntity = await adapter.transform(sourceEntity);
+    const entity: Record = await adapter.transform(sourceEntity);
 
     // Check if entity exists
     const existing = await this.entityStore.findById(entity._id);
@@ -147,66 +147,5 @@ export class SimpleSyncService {
       await this.entityStore.upsert(entity);
       return { action: "created" };
     }
-  }
-
-  /**
-   * Sync specific entities by IDs
-   */
-  async syncByIds(
-    source: SourceType,
-    adapter: BaseEntityAdapter,
-    entityIds: string[]
-  ): Promise<{
-    success: boolean;
-    synced: number;
-    failed: number;
-    errors: Array<{ entityId: string; error: string }>;
-  }> {
-    console.log(
-      `🔄 Syncing ${entityIds.length} specific entities from ${source}`
-    );
-
-    let synced = 0;
-    let failed = 0;
-    const errors: Array<{ entityId: string; error: string }> = [];
-
-    for (const entityId of entityIds) {
-      try {
-        const sourceEntity = await adapter.fetchById(entityId);
-
-        if (!sourceEntity) {
-          throw new Error(`Entity not found: ${entityId}`);
-        }
-
-        await this.syncEntity(adapter, sourceEntity);
-        synced++;
-      } catch (error) {
-        failed++;
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        errors.push({ entityId, error: errorMsg });
-        console.error(`  ❌ Failed to sync ${entityId}:`, errorMsg);
-      }
-    }
-
-    console.log(`✅ Synced ${synced}/${entityIds.length} entities`);
-
-    return {
-      success: failed === 0,
-      synced,
-      failed,
-      errors,
-    };
-  }
-
-  /**
-   * Get sync statistics for a source
-   */
-  async getStats(source: SourceType): Promise<{
-    total: number;
-    byType: Record<string, number>;
-    deleted: number;
-    lastSynced: Date | null;
-  }> {
-    return await this.entityStore.getSyncStats(source);
   }
 }

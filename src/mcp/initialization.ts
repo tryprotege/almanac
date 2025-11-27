@@ -25,6 +25,13 @@ export interface ServiceConnections {
 
 let services: ServiceConnections | null = null;
 
+export const getServices = async (): Promise<ServiceConnections> => {
+  if (!services) {
+    return await initializeServices();
+  }
+  return services;
+};
+
 export async function initializeServices(): Promise<ServiceConnections> {
   if (services) {
     return services;

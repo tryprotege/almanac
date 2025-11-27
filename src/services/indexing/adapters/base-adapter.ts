@@ -1,7 +1,10 @@
-import { SourceType } from "../../../types/index.js";
-import { ISyncedEntity } from "../../../models/synced-entity.model.js";
-import { FetchOptions, EntityRelationship } from "../types.js";
-import { computeChecksum } from "../utils/checksum.js";
+import {
+  EntityRelationship,
+  FetchOptions,
+  SourceType,
+} from "../../../types/index.js";
+import { Record } from "../../../models/record.model.js";
+import { computeChecksum } from "../../../utils/checksum.js";
 
 /**
  * Base entity adapter interface
@@ -18,14 +21,6 @@ export abstract class BaseEntityAdapter<TSource = any> {
   abstract fetchAll(options?: FetchOptions): AsyncIterable<TSource[]>;
 
   /**
-   * Fetch entities modified since timestamp (for incremental sync)
-   */
-  abstract fetchIncremental(
-    since: Date,
-    cursor?: string
-  ): AsyncIterable<TSource[]>;
-
-  /**
    * Fetch single entity by ID
    */
   abstract fetchById(id: string): Promise<TSource | null>;
@@ -33,7 +28,7 @@ export abstract class BaseEntityAdapter<TSource = any> {
   /**
    * Transform source entity to unified format
    */
-  abstract transform(sourceEntity: TSource): Promise<ISyncedEntity>;
+  abstract transform(sourceEntity: TSource): Promise<Record>;
 
   /**
    * Extract relationships from entity
@@ -41,16 +36,6 @@ export abstract class BaseEntityAdapter<TSource = any> {
   abstract extractRelationships(
     sourceEntity: TSource
   ): Promise<EntityRelationship[]>;
-
-  /**
-   * Check if entity is deleted in source
-   */
-  abstract isDeleted(sourceEntity: TSource): boolean;
-
-  /**
-   * Get list of deleted entity IDs since timestamp
-   */
-  abstract getDeletedEntities(since: Date): AsyncIterable<string[]>;
 
   /**
    * Compute checksum for change detection

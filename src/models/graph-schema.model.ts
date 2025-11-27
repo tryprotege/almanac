@@ -1,5 +1,4 @@
-import mongoose from "mongoose";
-import type { GraphSchema } from "../types/graph-schema.js";
+import mongoose, { InferSchemaType } from "mongoose";
 
 // Graph Schema Mongoose Schema
 const EntityTypeSchema = new mongoose.Schema(
@@ -39,7 +38,7 @@ const ExtractionRulesSchema = new mongoose.Schema(
   { _id: false }
 );
 
-const GraphSchemaSchema = new mongoose.Schema<GraphSchema>(
+const GraphSchemaSchema = new mongoose.Schema(
   {
     _id: { type: String, required: true },
     entityTypes: [EntityTypeSchema],
@@ -56,6 +55,10 @@ const GraphSchemaSchema = new mongoose.Schema<GraphSchema>(
     timestamps: true,
   }
 );
+
+export type GraphSchema = InferSchemaType<typeof GraphSchemaSchema>;
+export type RelationshipType = InferSchemaType<typeof RelationshipTypeSchema>;
+export type EntityType = InferSchemaType<typeof EntityTypeSchema>;
 
 // Export the model
 export const GraphSchemaModel = mongoose.model<GraphSchema>(

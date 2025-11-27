@@ -1,10 +1,9 @@
-import {
-  GraphSchema,
-  DEFAULT_GRAPH_SCHEMA,
-  EntityType,
-  RelationshipType,
-} from "../types/graph-schema.js";
 import { GraphSchemaModel } from "../connections/mongoose.js";
+import {
+  EntityType,
+  GraphSchema,
+  RelationshipType,
+} from "../models/graph-schema.model.js";
 
 /**
  * Graph Schema Store - Single-tenant schema management
@@ -25,25 +24,11 @@ export class GraphSchemaStore {
   async createSchema(): Promise<GraphSchema> {
     const schema = new GraphSchemaModel({
       _id: this.SCHEMA_ID,
-      ...DEFAULT_GRAPH_SCHEMA,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
     return await schema.save();
-  }
-
-  /**
-   * Get or create schema (ensures schema always exists)
-   */
-  async getOrCreateSchema(): Promise<GraphSchema> {
-    let schema = await this.getSchema();
-
-    if (!schema) {
-      schema = await this.createSchema();
-    }
-
-    return schema;
   }
 
   /**

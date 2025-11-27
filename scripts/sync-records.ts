@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { syncRecordsOnly } from "../src/services/indexing/indexer.service.js";
+import { SyncService } from "../src/services/sync/sync.service.js";
 
 /**
  * Sync records from sources to MongoDB
@@ -14,7 +14,8 @@ const run = async () => {
   console.log("🔄 Starting record sync (MongoDB only)");
   console.log("=======================================\n");
 
-  await syncRecordsOnly();
+  const syncService = new SyncService();
+  await syncService.syncAll();
 
   console.log("\n✨ Record sync completed");
   console.log("\nNext steps:");

@@ -1,4 +1,4 @@
-import { MCPClientManager } from "../../../../mcp/client.js";
+import { MCPClientManager } from "../../../mcp/client.js";
 import {
   NotionUser,
   NotionPage,
@@ -234,20 +234,6 @@ export class NotionMCPClient {
       "API-retrieve-a-comment",
       {
         block_id: pageId,
-      },
-      (response) => response.results
-    );
-  }
-
-  /**
-   * Phase 4: Get page property (for large properties)
-   */
-  async getPageProperty(pageId: string, propertyId: string): Promise<any> {
-    return this.fetchAllPages<any>(
-      "API-retrieve-a-page-property",
-      {
-        page_id: pageId,
-        property_id: propertyId,
       },
       (response) => response.results
     );

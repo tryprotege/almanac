@@ -277,17 +277,6 @@ export class GraphIndexerService {
   }
 
   /**
-   * Generate entity ID in standard format
-   */
-  private generateEntityId(
-    source: SourceType,
-    entityType: string,
-    sourceId: string
-  ): string {
-    return `${source}_${entityType}_${sourceId}`;
-  }
-
-  /**
    * Delete node for deleted entity
    */
   async deleteNode(entityId: string): Promise<void> {

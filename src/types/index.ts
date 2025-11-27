@@ -74,27 +74,34 @@ export interface ExtractedResource {
   rawData: Record<string, any>;
 }
 
+/**
+ * Fetch options for entity adapters
+ */
+export interface FetchOptions {
+  batchSize?: number;
+  cursor?: string;
+  includeDeleted?: boolean;
+}
+
+/**
+ * Entity relationship extracted from source data
+ */
+export interface EntityRelationship {
+  sourceId: string;
+  targetId: string;
+  type: string; // "BLOCKS", "REQUIRES", "ASSIGNED_TO", "RELATED_TO", etc.
+  confidence: number; // 0.0 - 1.0
+  extractedBy: "explicit" | "llm" | "heuristic";
+  metadata?: Record<string, any>;
+}
+
 // ============================================
 // Chunking Types
 // ============================================
-
-export interface DocumentChunk {
-  index: number;
-  text: string;
-  start: number; // Character offset in original document
-  end: number;
-}
-
-export interface ChunkingStrategy {
-  maxChunkSize: number; // Characters per chunk
-  overlapSize: number; // Overlap between chunks
-  splitOn?: "paragraph" | "sentence" | "token";
-}
 
 // ============================================
 // Graph Schema Types
 // ============================================
 
 // Re-export from new type files
-export * from "./indexing.types.js";
 export * from "./search.types.js";

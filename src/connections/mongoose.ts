@@ -1,43 +1,6 @@
 import mongoose from "mongoose";
 import { env } from "../env.js";
 
-export const MONGODB_SCHEMAS = {
-  // Main content storage (renamed from resources)
-  documents: {
-    collectionName: "documents",
-    indexes: [
-      { key: { _id: 1 }, unique: true },
-      { key: { source: 1, type: 1 } },
-      { key: { type: 1 } },
-      { key: { indexedAt: -1 } },
-      { key: { "metadata.tags": 1 } },
-      { key: { "content.text": "text" } }, // Full text search
-    ],
-  },
-
-  // Graph extraction configuration
-  graph_schema: {
-    collectionName: "graph_schema",
-    indexes: [{ key: { _id: 1 }, unique: true }],
-  },
-
-  // MCP server configurations
-  mcp_server_configs: {
-    collectionName: "mcp_server_configs",
-    indexes: [{ key: { name: 1 }, unique: true }, { key: { type: 1 } }],
-  },
-
-  // Embedding model metadata
-  embedding_metadata: {
-    collectionName: "embedding_metadata",
-    indexes: [
-      { key: { _id: 1 }, unique: true }, // Collection name
-      { key: { active: 1 } }, // Which collection is active
-      { key: { model: 1 } },
-    ],
-  },
-} as const;
-
 export interface MongooseConnection {
   connection: typeof mongoose;
   close: () => Promise<void>;

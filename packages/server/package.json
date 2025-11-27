@@ -1,0 +1,52 @@
+{
+  "name": "@ebee-oss/server",
+  "version": "0.1.0",
+  "description": "eBee OSS Server - Lightning fast data access for Agents",
+  "type": "module",
+  "main": "dist/server.js",
+  "exports": {
+    ".": "./dist/server.js",
+    "./types": "./dist/types/index.js",
+    "./types/*": "./dist/types/*.js"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "dev:indexer": "tsx watch src/indexer-worker.ts",
+    "indexer": "tsx src/indexer-worker.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "start:indexer": "node dist/indexer-worker.js",
+    "type-check": "tsc --noEmit",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+    "test:integration": "NODE_OPTIONS=--experimental-vm-modules jest src/__tests__/integration"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.22.0",
+    "@qdrant/js-client-rest": "^1.16.0",
+    "bullmq": "^5.64.1",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "ioredis": "^5.8.2",
+    "json-schema-to-zod": "^2.7.0",
+    "mongodb": "^7.0.0",
+    "mongoose": "^9.0.0",
+    "neo4j-driver": "^6.0.1",
+    "openai": "^6.9.1",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.2.0",
+    "@types/express": "^5.0.5",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.10.1",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.5",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

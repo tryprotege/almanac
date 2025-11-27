@@ -5,7 +5,6 @@ import { embed } from "../../utils/embedding.js";
 import { Record } from "../../models/record.model.js";
 import { SourceType } from "../../types/index.js";
 import { randomUUID } from "crypto";
-import OpenAI from "openai";
 
 /**
  * Vector Indexer Service

@@ -1,4 +1,4 @@
-import { MCPClientManager } from "../../../mcp/client.js";
+import { mcpClientManager } from "../../../mcp/client.js";
 import {
   NotionUser,
   NotionPage,
@@ -14,7 +14,7 @@ export class NotionMCPClient {
   private serverName = "notion";
   private rateLimitDelay = 350; // 350ms = ~3 requests per second
 
-  constructor(private mcpClient: MCPClientManager) {}
+  constructor() {}
 
   /**
    * Sleep utility for rate limiting
@@ -31,7 +31,7 @@ export class NotionMCPClient {
     args: Record<string, any>
   ): Promise<T> {
     await this.sleep(this.rateLimitDelay);
-    const response = await this.mcpClient.callTool(
+    const response = await mcpClientManager.callTool(
       this.serverName,
       toolName,
       args

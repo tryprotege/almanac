@@ -1,5 +1,4 @@
 import * as schemaStore from "../../stores/graph-schema.store.js";
-import { RecordStore } from "../../stores/record.store.js";
 
 /**
  * Determine if schema learning should be triggered

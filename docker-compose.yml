@@ -54,6 +54,50 @@ services:
     networks:
       - ebee-network
 
+  # TODO: Enable when ready
+  # server:
+  #   build:
+  #     context: .
+  #     dockerfile: packages/server/Dockerfile
+  #   container_name: ebee_server
+  #   ports:
+  #     - "3000:3000"
+  #   volumes:
+  #     - ./packages/server:/app/packages/server
+  #     - /app/packages/server/node_modules
+  #     - /app/node_modules
+  #   environment:
+  #     - NODE_ENV=development
+  #   depends_on:
+  #     - mongodb
+  #     - qdrant
+  #     - memgraph
+  #     - redis
+  #   restart: unless-stopped
+  #   networks:
+  #     - ebee-network
+  #   command: pnpm --filter server run dev
+
+  # client:
+  #   build:
+  #     context: .
+  #     dockerfile: packages/client/Dockerfile
+  #   container_name: ebee_client
+  #   ports:
+  #     - "5173:5173"
+  #   volumes:
+  #     - ./packages/client:/app/packages/client
+  #     - /app/packages/client/node_modules
+  #     - /app/node_modules
+  #   environment:
+  #     - NODE_ENV=development
+  #   depends_on:
+  #     - server
+  #   restart: unless-stopped
+  #   networks:
+  #     - ebee-network
+  #   command: pnpm --filter client run dev
+
 networks:
   ebee-network:
     driver: bridge

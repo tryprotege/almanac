@@ -1,6 +1,6 @@
 interface NavigationProps {
-  activeTab: "dashboard" | "settings";
-  onTabChange: (tab: "dashboard" | "settings") => void;
+  activeTab: "dashboard" | "connections" | "settings";
+  onTabChange: (tab: "dashboard" | "connections" | "settings") => void;
 }
 
 export function Navigation({ activeTab, onTabChange }: NavigationProps) {
@@ -26,6 +26,12 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
                 className={tabClass("dashboard")}
               >
                 📊 Dashboard
+              </button>
+              <button
+                onClick={() => onTabChange("connections")}
+                className={tabClass("connections")}
+              >
+                🔌 Connections
               </button>
               <button
                 onClick={() => onTabChange("settings")}

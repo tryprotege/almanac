@@ -35,33 +35,158 @@ export class LLMService {
   }
 
   /**
-   * Extract entities from text using LLM
+   * Extract entities from content using AI with optional persona context
    */
-  async extractEntities(text: string): Promise<{
-    people: string[];
-    organizations: string[];
-    projects: string[];
-    locations: string[];
-  }> {
-    const prompt = `Extract entities from the following text. Return as JSON with these keys: people, organizations, projects, locations.
+  async extractEntitiesFromContent(
+    content: string,
+    existingTypes: string[],
+    persona?: string
+  ): Promise<
+    Array<{
+      name: string;
+      instances: string[];
+      confidence: number;
+      description: string;
+    }>
+  > {
+    const personaContext = persona ? `USER CONTEXT:\n${persona}\n\n` : "";
 
-Text: ${text.substring(0, 3000)}
+    const prompt = `${personaContext}You are analyzing content to extract domain-specific entities.
+
+CONTENT:
+${content.substring(0, 2000)}
+
+EXISTING ENTITY TYPES:
+${existingTypes.join(", ")}
+
+TASK:
+1. Identify named entities and concepts in the content
+2. Group similar entities into types
+${
+  persona
+    ? "3. Prioritize entities relevant to the user context"
+    : "3. Focus on the most significant entities"
+}
+4. Avoid duplicating existing types unless new instances found
+
+OUTPUT FORMAT (JSON array):
+[
+  {
+    "name": "Feature",
+    "instances": ["Two-factor auth", "API rate limiting"],
+    "confidence": 0.9,
+    "description": "Product features and capabilities"
+  }
+]
 
 Return only valid JSON, no other text.`;
 
-    const response = await this.chat([
-      {
-        role: "system",
-        content:
-          "You are an entity extraction assistant. Always respond with valid JSON.",
-      },
-      { role: "user", content: prompt },
-    ]);
+    const response = await this.chat(
+      [
+        {
+          role: "system",
+          content:
+            "You are an entity extraction system for knowledge graphs. Extract structured entities from content. Always respond with valid JSON array.",
+        },
+        { role: "user", content: prompt },
+      ],
+      { temperature: 0.1 }
+    );
 
     try {
-      return JSON.parse(response);
+      const cleaned = response
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
+      return JSON.parse(cleaned);
     } catch {
-      return { people: [], organizations: [], projects: [], locations: [] };
+      return [];
+    }
+  }
+
+  /**
+   * Extract relationships from content using AI with optional persona context
+   */
+  async extractRelationshipsFromContent(
+    content: string,
+    entities: Array<{ name: string; instances: string[] }>,
+    existingRelationships: Array<{ name: string; description: string }>,
+    persona?: string
+  ): Promise<
+    Array<{
+      name: string;
+      sourceTypes: string[];
+      targetTypes: string[];
+      confidence: number;
+      description: string;
+      bidirectional: boolean;
+    }>
+  > {
+    const personaContext = persona ? `USER CONTEXT:\n${persona}\n\n` : "";
+
+    const entitiesList = entities
+      .map((e) => `${e.name}: ${e.instances.join(", ")}`)
+      .join("\n");
+
+    const existingRelsList = existingRelationships
+      .map((r) => r.name)
+      .join(", ");
+
+    const prompt = `${personaContext}You are analyzing content to extract semantic relationships between entities.
+
+CONTENT:
+${content.substring(0, 2000)}
+
+DISCOVERED ENTITIES:
+${entitiesList}
+
+EXISTING RELATIONSHIPS:
+${existingRelsList}
+
+TASK:
+1. Identify how entities relate to each other in the content
+2. Create relationship types that capture these connections
+${
+  persona
+    ? "3. Focus on relationships useful for the user's context"
+    : "3. Focus on meaningful, queryable relationships"
+}
+4. Avoid generic relationships like "RELATED_TO" unless specific
+
+OUTPUT FORMAT (JSON array):
+[
+  {
+    "name": "IMPLEMENTS",
+    "sourceTypes": ["Developer"],
+    "targetTypes": ["Feature"],
+    "confidence": 0.85,
+    "description": "Developer implements or builds a feature",
+    "bidirectional": false
+  }
+]
+
+Return only valid JSON, no other text.`;
+
+    const response = await this.chat(
+      [
+        {
+          role: "system",
+          content:
+            "You are a relationship extraction system for knowledge graphs. Extract semantic relationships between entities. Always respond with valid JSON array.",
+        },
+        { role: "user", content: prompt },
+      ],
+      { temperature: 0.1 }
+    );
+
+    try {
+      const cleaned = response
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
+      return JSON.parse(cleaned);
+    } catch {
+      return [];
     }
   }
 

@@ -2,7 +2,6 @@ import { jsonSchemaToZod } from "json-schema-to-zod";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { SchemaInitializer } from "../connections/initializer.js";
 import {
   connectMemgraph,
   MemgraphConnection,
@@ -25,6 +24,13 @@ export interface ServiceConnections {
 
 let services: ServiceConnections | null = null;
 
+export const getServices = async (): Promise<ServiceConnections> => {
+  if (!services) {
+    return await initializeServices();
+  }
+  return services;
+};
+
 export async function initializeServices(): Promise<ServiceConnections> {
   if (services) {
     return services;
@@ -43,8 +49,8 @@ export async function initializeServices(): Promise<ServiceConnections> {
   console.error("✅ All services initialized successfully!");
 
   // Initialize database schemas
-  const schemaInitializer = new SchemaInitializer(services);
-  await schemaInitializer.initializeAll();
+  // const schemaInitializer = new SchemaInitializer(services);
+  // await schemaInitializer.initializeAll();
 
   return services;
 }

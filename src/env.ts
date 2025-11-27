@@ -39,7 +39,15 @@ const envSchema = z.object({
   LLM_EMBEDDING_MODEL: z.string().default("qwen/qwen-3-embedding-0.6b"),
 
   // Reranker Configuration (generic - works with any provider)
-  RERANKER_ENABLED: z.boolean().default(false),
+  RERANKER_ENABLED: z.preprocess((val) => {
+    if (typeof val === "boolean") return val;
+    if (typeof val === "string") {
+      const lower = val.toLowerCase();
+      if (lower === "true" || lower === "1") return true;
+      if (lower === "false" || lower === "0") return false;
+    }
+    return val;
+  }, z.boolean().default(false)),
   RERANKER_API_KEY: z.string().optional(),
   RERANKER_BASE_URL: z
     .string()

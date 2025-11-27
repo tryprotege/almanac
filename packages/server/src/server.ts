@@ -11,6 +11,7 @@ import {
   mcpServer,
   shutdownServices,
 } from "./mcp/initialization.js";
+import { router } from "./api/index.js";
 
 // Start server
 const runServer = async () => {
@@ -299,6 +300,9 @@ const runServer = async () => {
     }
   );
 
+  // Schema API endpoints
+  app.use("/api", router);
+
   // MCP JSON-RPC endpoint
   app.post("/mcp", async (req: Request, res: Response) => {
     const transport = new StreamableHTTPServerTransport({
@@ -313,7 +317,6 @@ const runServer = async () => {
     await mcpServer.connect(transport);
     await transport.handleRequest(req, res, req.body);
   });
-
   // 404 for other routes
   app.use((_req: Request, res: Response) => {
     res.status(404).json({ error: "Not found" });

@@ -27,7 +27,6 @@ const runServer = async () => {
 
   const validConfigs = await loadProxyConfig();
   if (validConfigs.length > 0) {
-    console.log(JSON.stringify(validConfigs));
     await initializeRemoteServers(
       validConfigs.map((c) => ({
         ...c.toObject(),

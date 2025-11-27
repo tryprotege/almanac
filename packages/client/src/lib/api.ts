@@ -103,3 +103,53 @@ export const mcpServersApi = {
       `/mcp-servers/${encodeURIComponent(name)}/status`
     ),
 };
+
+// Statistics API Types
+export interface OverviewStats {
+  totalRecords: number;
+  totalVectors: number;
+  totalGraphNodes: number;
+  totalGraphRelationships: number;
+  mcpServers: {
+    total: number;
+    connected: number;
+    disconnected: number;
+  };
+  bySource: {
+    [source: string]: {
+      records: number;
+      lastSync?: string;
+    };
+  };
+}
+
+export interface RecordStats {
+  total: number;
+  bySource: { [source: string]: number };
+  byType: { [type: string]: number };
+  recentlyUpdated: number;
+  deleted: number;
+}
+
+export interface VectorStats {
+  collectionName: string;
+  totalPoints: number;
+  indexedPoints: number;
+  dimensions: number;
+  model: string;
+}
+
+export interface GraphStats {
+  totalNodes: number;
+  totalRelationships: number;
+  nodesByLabel: { [label: string]: number };
+  relationshipsByType: { [type: string]: number };
+}
+
+// Statistics API
+export const statsApi = {
+  overview: () => api.get<ApiResponse<OverviewStats>>("/stats/overview"),
+  records: () => api.get<ApiResponse<RecordStats>>("/stats/records"),
+  vectors: () => api.get<ApiResponse<VectorStats>>("/stats/vectors"),
+  graph: () => api.get<ApiResponse<GraphStats>>("/stats/graph"),
+};

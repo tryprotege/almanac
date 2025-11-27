@@ -25,19 +25,6 @@ export function PersonaEditor() {
     }
   }, [persona]);
 
-  // Auto-save with debouncing
-  useEffect(() => {
-    if (localPersona === persona) return; // No changes
-
-    const timeoutId = setTimeout(() => {
-      if (localPersona !== persona) {
-        updatePersona(localPersona);
-      }
-    }, DEBOUNCE_MS);
-
-    return () => clearTimeout(timeoutId);
-  }, [localPersona, persona, updatePersona]);
-
   const handleClear = useCallback(() => {
     setShowConfirmDelete(false);
     deletePersona();
@@ -121,12 +108,6 @@ Key entities I care about:
             <span className="text-xs text-gray-500">
               {localPersona.length}/{MAX_CHARS} characters
             </span>
-            {localPersona !== persona && (
-              <span className="text-xs text-warning-600 flex items-center">
-                <Save className="w-3 h-3 mr-1" />
-                Auto-saving in {DEBOUNCE_MS / 1000}s...
-              </span>
-            )}
           </div>
         </div>
 

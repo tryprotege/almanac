@@ -150,7 +150,7 @@ export async function insertRecordToVectorDB(
   await recordStore.upsert({
     _id: entity._id,
     vectorIds,
-    lastIndexedAt: new Date(),
+    lastEmbedDate: new Date(),
   });
 
   return vectorIds;

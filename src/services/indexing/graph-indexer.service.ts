@@ -70,6 +70,7 @@ export class GraphIndexerService {
           await this.recordStore.upsert({
             _id: record._id,
             graphNodeId: record._id,
+            lastGraphIndexDate: new Date(),
           });
         }
       } catch (error) {
@@ -153,6 +154,7 @@ export class GraphIndexerService {
     await this.recordStore.upsert({
       _id: record._id,
       graphNodeId: record._id,
+      lastGraphIndexDate: new Date(),
     });
 
     let relationshipCount = 0;

@@ -14,6 +14,62 @@ import { shouldRunSchemaLearning, runSchemaLearning } from "../schema/index.js";
 import OpenAI from "openai";
 import { env } from "../../env.js";
 
+/**
+ * Sync records from sources to MongoDB only (no vector/graph indexing)
+ */
+export async function syncRecordsOnly() {
+  const validConfigs = await loadProxyConfig();
+
+  await Promise.all(
+    validConfigs.map(async (config) => {
+      const mcpManager = new MCPClientManager();
+
+      await mcpManager.connect({
+        ...config.toObject(),
+        env: config.env ? Object.fromEntries(config.env.entries()) : undefined,
+        headers: config.headers
+          ? Object.fromEntries(config.headers.entries())
+          : undefined,
+      });
+
+      const recordStore = new RecordStore();
+
+      if (config.name === "notion") {
+        const notionClient = new NotionMCPClient(mcpManager);
+        const notionAdapter = new NotionAdapter(notionClient);
+        const syncService = new SimpleSyncService(recordStore);
+
+        await syncService.syncAll("notion", notionAdapter);
+
+        console.log("✅ Saved records into document DB");
+
+        // Check if schema learning is needed
+        const { shouldRun, reason } = await shouldRunSchemaLearning();
+
+        if (shouldRun) {
+          console.log(`\n🧠 Schema learning needed: ${reason}`);
+          const openai = new OpenAI({
+            apiKey: env.LLM_API_KEY,
+            baseURL: env.LLM_BASE_URL,
+          });
+
+          await runSchemaLearning(openai, recordStore, {
+            limit: 100,
+            source: "notion",
+            aiSampleSize: 20,
+            minContentLength: 100,
+            verbose: true,
+          });
+
+          console.log("✅ Schema learning complete\n");
+        } else {
+          console.log(`ℹ️  Schema learning skipped: ${reason}\n`);
+        }
+      }
+    })
+  );
+}
+
 export async function indexRecords() {
   const { qdrant, memgraph } = await getServices();
 

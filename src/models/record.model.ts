@@ -42,6 +42,14 @@ const RecordSchema = new mongoose.Schema(
 
     graphNodeId: { type: String }, // Memgraph node reference
     graphVersion: { type: Number, default: 1 },
+
+    // Vector DB references
+    vectorIds: [{ type: String }], // Qdrant point IDs
+    embeddingVersion: { type: Number, default: 1 },
+
+    // Indexing timestamps
+    lastEmbedDate: { type: Date }, // Last embedded to vector DB
+    lastGraphIndexDate: { type: Date }, // Last indexed to graph DB
   },
   {
     collection: "records",

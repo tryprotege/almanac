@@ -38,6 +38,19 @@ const ExtractionRulesSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const SchemaUpdateHistorySchema = new mongoose.Schema(
+  {
+    version: { type: Number, required: true },
+    updatedAt: { type: Date, required: true },
+    reason: { type: String, required: true },
+    entityTypesAdded: { type: Number, default: 0 },
+    relationshipTypesAdded: { type: Number, default: 0 },
+    totalEntityTypes: { type: Number, required: true },
+    totalRelationshipTypes: { type: Number, required: true },
+  },
+  { _id: false }
+);
+
 const GraphSchemaSchema = new mongoose.Schema(
   {
     _id: { type: String, required: true },
@@ -47,6 +60,18 @@ const GraphSchemaSchema = new mongoose.Schema(
       type: ExtractionRulesSchema,
       required: true,
     },
+    // Versioning fields
+    version: { type: Number, required: true, default: 1 },
+    lastLearnedAt: { type: Date },
+    learnedFromSampleSize: { type: Number },
+    // Persona field
+    persona: {
+      type: String,
+      default: "",
+      description: "User-provided context/persona for AI schema learning",
+    },
+    // History tracking
+    schemaUpdateHistory: [SchemaUpdateHistorySchema],
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   },
@@ -57,8 +82,10 @@ const GraphSchemaSchema = new mongoose.Schema(
 );
 
 export type GraphSchema = InferSchemaType<typeof GraphSchemaSchema>;
-export type RelationshipType = InferSchemaType<typeof RelationshipTypeSchema>;
-export type EntityType = InferSchemaType<typeof EntityTypeSchema>;
+export type GraphRelationshipType = InferSchemaType<
+  typeof RelationshipTypeSchema
+>;
+export type GraphEntityType = InferSchemaType<typeof EntityTypeSchema>;
 
 // Export the model
 export const GraphSchemaModel = mongoose.model<GraphSchema>(

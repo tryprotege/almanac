@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { env } from "../../env.js";
 
 /**
  * Generic LLM Service - Provider-agnostic interface for LLM operations
@@ -24,7 +25,7 @@ export class LLMService {
     }
   ): Promise<string> {
     const completion = await this.client.chat.completions.create({
-      model: options?.model || "gpt-4o",
+      model: options?.model || env.LLM_CHAT_MODEL,
       messages,
       temperature: options?.temperature ?? 0.7,
       max_tokens: options?.maxTokens,

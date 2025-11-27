@@ -56,24 +56,6 @@ export interface MemgraphRelationship {
   metadata?: Record<string, any>;
 }
 
-// ============================================
-// Extraction Pipeline Types
-// ============================================
-
-export interface ExtractedResource {
-  id: string;
-  source: SourceType;
-  resourceId: string;
-  type: string;
-  title: string;
-  textContent: string;
-  people: string[];
-  primaryDate: Date | null;
-  attributes: Record<string, any>;
-  relationships: MemgraphRelationship[];
-  rawData: Record<string, any>;
-}
-
 /**
  * Fetch options for entity adapters
  */
@@ -94,14 +76,6 @@ export interface EntityRelationship {
   extractedBy: "explicit" | "llm" | "heuristic";
   metadata?: Record<string, any>;
 }
-
-// ============================================
-// Chunking Types
-// ============================================
-
-// ============================================
-// Graph Schema Types
-// ============================================
 
 // Re-export from new type files
 export * from "./search.types.js";

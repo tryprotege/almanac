@@ -62,16 +62,6 @@ export class VectorStore {
   async upsertPoints(points: QdrantPoint[]): Promise<void> {
     if (points.length === 0) return;
 
-    // Validate all vectors have correct dimensions
-    // const expectedDimensions = env.EMBEDDING_DIMENSIONS;
-    // for (let i = 0; i < points.length; i++) {
-    //   validateVectorDimensions(
-    //     points[i].vector,
-    //     expectedDimensions,
-    //     `point ${i} (${points[i].id})`
-    //   );
-    // }
-
     // Ensure collection exists before upserting
     await this.ensureCollection();
 

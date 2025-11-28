@@ -10,9 +10,9 @@ import { computeChecksum } from "../../../utils/checksum.js";
  * Base entity adapter interface
  * All source-specific adapters must implement this interface
  */
-export abstract class BaseEntityAdapter<TSource = any> {
+export abstract class BaseRecordAdapter<TSource = any> {
   abstract readonly source: SourceType;
-  abstract readonly supportedEntityTypes: string[];
+  abstract readonly supportedRecordTypes: string[];
 
   /**
    * Fetch all entities from source
@@ -55,7 +55,7 @@ export abstract class BaseEntityAdapter<TSource = any> {
   /**
    * Generate entity ID in standard format
    */
-  protected generateEntityId(recordType: string, sourceId: string): string {
+  protected generateRecordId(recordType: string, sourceId: string): string {
     return `${this.source}_${recordType}_${sourceId}`;
   }
 

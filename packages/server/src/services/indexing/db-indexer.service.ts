@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { SourceType } from "../../types/index.js";
-import { BaseEntityAdapter } from "./adapters/base-adapter.js";
+import { BaseRecordAdapter } from "./adapters/base-adapter.js";
 import { RecordStore } from "../../stores/record.store.js";
 import { Record } from "../../models/record.model.js";
 
@@ -9,7 +9,7 @@ import { Record } from "../../models/record.model.js";
  */
 async function syncRecord(
   recordStore: RecordStore,
-  adapter: BaseEntityAdapter,
+  adapter: BaseRecordAdapter,
   sourceRecord: any
 ): Promise<{ action: "created" | "updated" | "skipped" }> {
   // Transform record to unified format
@@ -42,7 +42,7 @@ async function syncRecord(
 export async function syncAllRecords(
   recordStore: RecordStore,
   source: SourceType,
-  adapter: BaseEntityAdapter
+  adapter: BaseRecordAdapter
 ): Promise<{
   jobId: string;
   success: boolean;

@@ -1,4 +1,4 @@
-import { BaseEntityAdapter } from "./base-adapter.js";
+import { BaseRecordAdapter } from "./base-adapter.js";
 import { Record } from "../../../models/record.model.js";
 import { NotionMCPClient } from "../../sources/notion/mcpClient.js";
 import {
@@ -8,16 +8,19 @@ import {
   NotionComment,
   NotionUser,
 } from "../../sources/notion/types.js";
-import { EntityRelationship, FetchOptions } from "../../../types/index.js";
+import {
+  EntityRelationship as RecordRelationship,
+  FetchOptions,
+} from "../../../types/index.js";
 
-type NotionEntity = NotionPage | NotionDatabase | NotionUser;
+type NotionRecord = NotionPage | NotionDatabase | NotionUser;
 
 /**
  * Notion adapter for syncing Notion entities
  */
-export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
+export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   readonly source = "notion" as const;
-  readonly supportedEntityTypes = [
+  readonly supportedRecordTypes = [
     "page",
     "database",
     "user",
@@ -32,39 +35,39 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
   /**
    * Fetch all entities from Notion workspace
    */
-  async *fetchAll(options?: FetchOptions): AsyncIterable<NotionEntity[]> {
+  async *fetchAll(options?: FetchOptions): AsyncIterable<NotionRecord[]> {
     const batchSize = options?.batchSize || 100;
 
     // Fetch users
     const users = await this.client.getAllUsers();
-    yield users as NotionEntity[];
+    yield users as NotionRecord[];
 
     // Fetch databases
     const databases = await this.client.searchAllDatabases();
     for (let i = 0; i < databases.length; i += batchSize) {
-      yield databases.slice(i, i + batchSize) as NotionEntity[];
+      yield databases.slice(i, i + batchSize) as NotionRecord[];
     }
 
     // Fetch pages
     const pages = await this.client.searchAllPages();
     for (let i = 0; i < pages.length; i += batchSize) {
-      yield pages.slice(i, i + batchSize) as NotionEntity[];
+      yield pages.slice(i, i + batchSize) as NotionRecord[];
     }
   }
 
   /**
    * Fetch single entity by ID
    */
-  async fetchById(id: string): Promise<NotionEntity | null> {
+  async fetchById(id: string): Promise<NotionRecord | null> {
     try {
       // Try as page first
       const page = await this.client.getPage(id);
-      return page as NotionEntity;
+      return page as NotionRecord;
     } catch {
       try {
         // Try as database
         const database = await this.client.getDatabaseSchema(id);
-        return database as NotionEntity;
+        return database as NotionRecord;
       } catch {
         return null;
       }
@@ -74,10 +77,10 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
   /**
    * Transform Notion entity to unified format
    */
-  async transform(sourceEntity: NotionEntity): Promise<Record> {
+  async transform(sourceEntity: NotionRecord): Promise<Record> {
     const recordType = this.getEntityType(sourceEntity);
     const sourceId = sourceEntity.id;
-    const _id = this.generateEntityId(recordType, sourceId);
+    const _id = this.generateRecordId(recordType, sourceId);
 
     // Get additional data for pages
     let blocks: NotionBlock[] = [];
@@ -131,25 +134,25 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
    * Extract relationships from Notion entity
    */
   async extractRelationships(
-    sourceEntity: NotionEntity
-  ): Promise<EntityRelationship[]> {
-    const relationships: EntityRelationship[] = [];
-    const recordType = this.getEntityType(sourceEntity);
+    sourceRecord: NotionRecord
+  ): Promise<RecordRelationship[]> {
+    const relationships: RecordRelationship[] = [];
+    const recordType = this.getEntityType(sourceRecord);
 
     // Extract parent relationship
-    if ((sourceEntity as any).parent) {
-      const parent = (sourceEntity as any).parent;
+    if ((sourceRecord as any).parent) {
+      const parent = (sourceRecord as any).parent;
       let targetId: string | null = null;
 
       if (parent.type === "page_id") {
-        targetId = this.generateEntityId("page", parent.page_id);
+        targetId = this.generateRecordId("page", parent.page_id);
       } else if (parent.type === "database_id") {
-        targetId = this.generateEntityId("database", parent.database_id);
+        targetId = this.generateRecordId("database", parent.database_id);
       }
 
       if (targetId) {
         relationships.push({
-          sourceId: this.generateEntityId(recordType, sourceEntity.id),
+          sourceId: this.generateRecordId(recordType, sourceRecord.id),
           targetId,
           type: "CHILD_OF",
           confidence: 1.0,
@@ -161,12 +164,12 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
     // Extract database relationships for pages
     if (
       recordType === "page" &&
-      (sourceEntity as NotionPage).parent.type === "database_id"
+      (sourceRecord as NotionPage).parent.type === "database_id"
     ) {
-      const databaseId = (sourceEntity as NotionPage).parent.database_id;
+      const databaseId = (sourceRecord as NotionPage).parent.database_id;
       relationships.push({
-        sourceId: this.generateEntityId("page", sourceEntity.id),
-        targetId: this.generateEntityId("database", databaseId),
+        sourceId: this.generateRecordId("page", sourceRecord.id),
+        targetId: this.generateRecordId("database", databaseId),
         type: "ROW_OF",
         confidence: 1.0,
         extractedBy: "explicit",
@@ -180,7 +183,7 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
    * Extract text content from entity
    */
   protected extractTextContent(
-    sourceEntity: NotionEntity,
+    sourceEntity: NotionRecord,
     blocks?: NotionBlock[]
   ): string {
     const recordType = this.getEntityType(sourceEntity);
@@ -210,7 +213,7 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
   /**
    * Extract title from entity
    */
-  protected extractTitle(sourceEntity: NotionEntity): string {
+  protected extractTitle(sourceEntity: NotionRecord): string {
     const recordType = this.getEntityType(sourceEntity);
 
     if (recordType === "page") {
@@ -238,7 +241,7 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
   /**
    * Extract people from entity
    */
-  protected extractPeople(sourceEntity: NotionEntity): string[] {
+  protected extractPeople(sourceEntity: NotionRecord): string[] {
     const people: string[] = [];
 
     if ((sourceEntity as any).created_by) {
@@ -267,7 +270,7 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
   /**
    * Extract primary date from entity
    */
-  protected extractPrimaryDate(sourceEntity: NotionEntity): Date | null {
+  protected extractPrimaryDate(sourceEntity: NotionRecord): Date | null {
     // Use last_edited_time as primary date
     const lastEdited = (sourceEntity as any).last_edited_time;
     return lastEdited ? new Date(lastEdited) : null;
@@ -276,7 +279,7 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
   /**
    * Extract tags from entity
    */
-  protected extractTags(sourceEntity: NotionEntity): string[] {
+  protected extractTags(sourceEntity: NotionRecord): string[] {
     const tags: string[] = [];
 
     if (this.getEntityType(sourceEntity) === "page") {
@@ -304,7 +307,7 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
   /**
    * Helper: Get entity type
    */
-  private getEntityType(entity: NotionEntity): string {
+  private getEntityType(entity: NotionRecord): string {
     return entity.object === "user" ? "user" : entity.object;
   }
 

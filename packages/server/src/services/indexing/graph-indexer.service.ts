@@ -2,7 +2,7 @@ import { RecordStore } from "../../stores/record.store.js";
 import { GraphStore } from "../../stores/graph.store.js";
 import { Record } from "../../models/record.model.js";
 import { SourceType } from "../../types/index.js";
-import { BaseEntityAdapter } from "./adapters/base-adapter.js";
+import { BaseRecordAdapter } from "./adapters/base-adapter.js";
 import { MemgraphNode, MemgraphRelationship } from "../../types/index.js";
 
 /**
@@ -14,7 +14,7 @@ export class GraphIndexerService {
   constructor(
     private recordStore: RecordStore,
     private graphStore: GraphStore,
-    private adapters: Map<SourceType, BaseEntityAdapter>
+    private adapters: Map<SourceType, BaseRecordAdapter>
   ) {}
 
   /**

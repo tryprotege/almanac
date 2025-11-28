@@ -1,9 +1,9 @@
-import { RecordStore } from "../../stores/record.store.js";
-import { GraphStore } from "../../stores/graph.store.js";
-import { Record } from "../../models/record.model.js";
-import { SourceType } from "../../types/index.js";
-import { BaseRecordAdapter } from "./adapters/base-adapter.js";
-import { MemgraphNode, MemgraphRelationship } from "../../types/index.js";
+import { RecordStore } from "../../../stores/record.store.js";
+import { GraphStore } from "../../../stores/graph.store.js";
+import { Record } from "../../../models/record.model.js";
+import { SourceType } from "../../../types/index.js";
+import { BaseRecordAdapter } from "../../sync/adapters/base-adapter.js";
+import { MemgraphNode, MemgraphRelationship } from "../../../types/index.js";
 
 /**
  * Graph Indexer Service

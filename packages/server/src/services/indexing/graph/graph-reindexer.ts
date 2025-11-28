@@ -3,13 +3,13 @@
  * Schema-driven change detection and re-indexing
  */
 
-import { Record } from "../../models/record.model.js";
-import { RecordStore } from "../../stores/record.store.js";
-import { GraphStore } from "../../stores/graph.store.js";
-import { SourceType } from "../../types/index.js";
-import { BaseRecordAdapter } from "./adapters/base-adapter.js";
+import { Record } from "../../../models/record.model.js";
+import { RecordStore } from "../../../stores/record.store.js";
+import { GraphStore } from "../../../stores/graph.store.js";
+import { SourceType } from "../../../types/index.js";
+import { BaseRecordAdapter } from "../../sync/adapters/base-adapter.js";
 import { GraphNode } from "./graph-converter.js";
-import { getSchema } from "../../stores/graph-schema.store.js";
+import { getSchema } from "../../../stores/graph-schema.store.js";
 import { getCurrentSchemaTypes } from "./schema-auto-discovery.js";
 import {
   extractGraphFromRecord,

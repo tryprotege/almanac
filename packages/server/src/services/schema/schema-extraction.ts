@@ -4,10 +4,143 @@ import {
   GraphRelationshipType,
 } from "../../models/graph-schema.model.js";
 import { chat } from "../llm/llm.js";
+import { Entity, Relationship } from "./entity-deduplication.js";
 
 // TODO: Replace with token counting based on model's context window
 // Most models support 128K tokens (~512K chars), but varies by model
 const MAX_CONTENT_LENGTH = 200_000;
+
+// ============================================================================
+// Unified Graph Extraction Functions (No Chunking)
+// ============================================================================
+
+/**
+ * Build LightRAG-inspired extraction prompt
+ */
+function buildExtractionPrompt(
+  content: string,
+  entityTypes: string[],
+  relationshipTypes: string[],
+  persona?: string
+): string {
+  const personaContext = persona ? `USER CONTEXT:\n${persona}\n\n` : "";
+
+  return `${personaContext}---Goal---
+Given a text document, extract ALL entities and relationships to build a knowledge graph.
+
+---Entity Types---
+${entityTypes.join(", ")}
+
+---Relationship Types---
+${relationshipTypes.map((rt) => `- ${rt}`).join("\n")}
+
+---Steps---
+1. Identify entities:
+   - Extract named entities (people, places, organizations, concepts)
+   - Classify each entity using the entity types above
+   - Provide a brief description for each entity
+
+2. Identify relationships:
+   - Extract semantic connections between entities
+   - Use relationship types above when applicable
+   - Assign strength score (1-10):
+     * 9-10: Explicit mention (e.g., "Alex works on Project X")
+     * 7-8: Strong contextual evidence
+     * 5-6: Moderate semantic connection
+     * 1-4: Weak or inferred connection
+   - Add keywords that describe the relationship context
+
+3. Content keywords:
+   - Extract high-level themes and topics from the content
+
+---Output Format---
+Return valid JSON with this structure:
+
+{
+  "entities": [
+    {
+      "name": "Alex Smith",
+      "type": "Person",
+      "description": "Software engineer working on backend systems"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "Alex Smith",
+      "target": "API Project",
+      "type": "WORKS_ON",
+      "description": "Alex is the lead developer for the API project",
+      "keywords": ["development", "backend", "api"],
+      "strength": 9
+    }
+  ],
+  "keywords": ["engineering", "backend development", "apis"]
+}
+
+---Real Data---
+Text:
+${content.substring(0, MAX_CONTENT_LENGTH)}
+
+---Output---
+Return ONLY valid JSON, no other text.`;
+}
+
+/**
+ * Extract entities and relationships from full document (no chunking)
+ * LightRAG-inspired unified extraction
+ */
+export async function extractGraphFromContent(
+  client: OpenAI,
+  content: string,
+  existingEntityTypes: string[],
+  existingRelationshipTypes: string[],
+  persona?: string
+): Promise<{
+  entities: Entity[];
+  relationships: Relationship[];
+  keywords: string[];
+}> {
+  const prompt = buildExtractionPrompt(
+    content,
+    existingEntityTypes,
+    existingRelationshipTypes,
+    persona
+  );
+
+  const response = await chat(
+    client,
+    [
+      {
+        role: "system",
+        content:
+          "You are a knowledge graph extraction system. Extract structured entities and relationships from content. Always respond with valid JSON.",
+      },
+      { role: "user", content: prompt },
+    ],
+    { temperature: 0.1 }
+  );
+
+  try {
+    const cleaned = response
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+    const extracted = JSON.parse(cleaned);
+
+    return {
+      entities: extracted.entities || [],
+      relationships: extracted.relationships || [],
+      keywords: extracted.keywords || [],
+    };
+  } catch (error) {
+    console.error("Failed to parse extraction response:", error);
+    return {
+      entities: [],
+      relationships: [],
+      keywords: [],
+    };
+  }
+}
 
 // ============================================================================
 // Schema Learning Extraction Functions

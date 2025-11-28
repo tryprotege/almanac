@@ -62,6 +62,12 @@ const envSchema = z.object({
 
   // Vector Indexing Configuration
   VECTOR_INDEXING_CONCURRENCY: z.coerce.number().default(32),
+  VECTOR_INDEXING_MAX_BATCH_SIZE: z.coerce.number().default(100),
+
+  // Graph Extraction Configuration
+  GRAPH_EXTRACTION_CONCURRENCY: z.coerce.number().default(32),
+  ENABLE_TOXIC_DOCUMENT_FILTER: z.boolean().default(true),
+  MAX_ENTITIES_PER_DOCUMENT: z.coerce.number().default(200),
 });
 
 const parsedEnv = envSchema.parse({

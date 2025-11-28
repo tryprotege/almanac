@@ -1,14 +1,13 @@
 import { BaseRecordAdapter } from "./base-adapter.js";
 import { Record } from "../../../models/record.model.js";
 import { EntityRelationship, FetchOptions } from "../../../types/index.js";
-import { NotionMCPClient } from "../../indexing/sources/notion/mcpClient.js";
 import {
   NotionPage,
   NotionDatabase,
   NotionBlock,
-  NotionComment,
   NotionUser,
 } from "../../sources/notion/types.js";
+import { NotionMCPClient } from "../../sources/notion/mcpClient.js";
 
 type NotionRecord = NotionPage | NotionDatabase | NotionUser;
 
@@ -57,7 +56,7 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
    */
   async *fetchIncremental(
     since: Date,
-    cursor?: string
+    _cursor?: string
   ): AsyncIterable<NotionRecord[]> {
     // Notion doesn't have a direct "modified since" API
     // We need to fetch all and filter by last_edited_time
@@ -141,16 +140,11 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
       version: 1,
       syncedAt: new Date(),
       sourceUpdatedAt: new Date(
-        (sourceRecord as any).last_edited_time || new Date()
+        (sourceRecord as NotionPage).last_edited_time || new Date()
       ),
-      isDeleted: (sourceRecord as any).archived || false,
-      deletedAt: null as any,
-      deletionStrategy: "soft",
-      graphNodeId: _id,
-      graphVersion: 1,
-      graphSchemaVersion: 0,
-      vectorIds: [],
-      embeddingVersion: 1,
+      deletedAt: (sourceRecord as NotionPage).archived
+        ? new Date((sourceRecord as NotionPage).last_edited_time)
+        : null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

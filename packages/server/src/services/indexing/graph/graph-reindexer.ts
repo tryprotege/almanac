@@ -66,11 +66,10 @@ export interface ReindexOptions {
  */
 export const needsReindex = (
   record: Record,
-  currentSchemaVersion: number,
   existingNode: GraphNode | null
 ): ReindexCheck => {
   // Never indexed
-  if (!record.graphSchemaVersion) {
+  if (!record.lastGraphIndexDate) {
     return { needed: true, reason: "never_indexed" };
   }
 
@@ -84,11 +83,6 @@ export const needsReindex = (
     return { needed: true, reason: "content_changed" };
   }
 
-  // Schema version outdated
-  if (record.graphSchemaVersion < currentSchemaVersion) {
-    return { needed: true, reason: "schema_changed" };
-  }
-
   // Up to date
   return { needed: false, reason: "up_to_date" };
 };
@@ -98,7 +92,6 @@ export const needsReindex = (
  */
 export const filterRecordsForReindex = async (
   records: Record[],
-  currentSchemaVersion: number,
   graphStore: GraphStore
 ): Promise<RecordToReindex[]> => {
   const recordsToReindex: RecordToReindex[] = [];
@@ -122,7 +115,7 @@ export const filterRecordsForReindex = async (
     }
 
     // Check if re-index needed
-    const check = needsReindex(record, currentSchemaVersion, existingNode);
+    const check = needsReindex(record, existingNode);
 
     if (check.needed) {
       recordsToReindex.push({
@@ -205,11 +198,7 @@ export const smartReindex = async (
     }));
   } else {
     // Smart mode: filter to only changed records
-    recordsToReindex = await filterRecordsForReindex(
-      records,
-      currentSchemaVersion,
-      graphStore
-    );
+    recordsToReindex = await filterRecordsForReindex(records, graphStore);
   }
 
   console.log(`   Records to re-index: ${recordsToReindex.length}`);
@@ -310,9 +299,7 @@ export const smartReindex = async (
       // Update record metadata with current schema version
       await recordStore.upsert({
         _id: record._id,
-        graphNodeId: record._id,
         lastGraphIndexDate: new Date(),
-        graphSchemaVersion: currentSchemaVersion,
       });
 
       stats.reindexed++;

@@ -1,4 +1,5 @@
 import mongoose, { InferSchemaType } from "mongoose";
+import { SourceType } from "../types/index.js";
 
 /**
  * Unified entity model for multi-source synchronization
@@ -7,7 +8,12 @@ import mongoose, { InferSchemaType } from "mongoose";
 const RecordSchema = new mongoose.Schema(
   {
     _id: { type: String, required: true }, // Format: "{source}_{recordType}_{sourceId}"
-    source: { type: String, required: true, index: true },
+    source: {
+      type: String,
+      required: true,
+      index: true,
+      enum: ["notion", "slack", "calendar", "jira"] satisfies SourceType[],
+    },
     sourceId: { type: String, required: true, index: true }, // Original ID from source
     recordType: { type: String, required: true, index: true }, // 'page' | 'message' | 'event' | 'task' | 'issue' | etc.
 
@@ -31,21 +37,7 @@ const RecordSchema = new mongoose.Schema(
     sourceUpdatedAt: { type: Date, required: true, index: true },
 
     // Deletion tracking
-    isDeleted: { type: Boolean, default: false, index: true }, // Soft delete flag
-    deletedAt: { type: Date, default: null },
-    deletionStrategy: {
-      type: String,
-      enum: ["soft", "hard", "historical"],
-      default: "soft",
-    },
-
-    graphNodeId: { type: String }, // Memgraph node reference
-    graphVersion: { type: Number, default: 1 },
-    graphSchemaVersion: { type: Number, default: 0 }, // Track which schema version was used
-
-    // Vector DB references
-    vectorIds: [{ type: String }], // Qdrant point IDs
-    embeddingVersion: { type: Number, default: 1 },
+    deletedAt: { type: Date },
 
     // Indexing timestamps
     lastEmbedDate: { type: Date }, // Last embedded to vector DB

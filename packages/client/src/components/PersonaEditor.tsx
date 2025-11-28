@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from "react";
 import { usePersona } from "../hooks/usePersona";
 
 const MAX_CHARS = 1000;
-const DEBOUNCE_MS = 2000;
 
 export function PersonaEditor() {
   const {

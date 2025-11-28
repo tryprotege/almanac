@@ -81,7 +81,7 @@ export function ConnectedServices() {
       </h2>
       <div className="space-y-3">
         {servers.map((server) => {
-          const isConnected = !server.connected;
+          const isConnected = !server.isDisabled;
 
           return (
             <div

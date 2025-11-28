@@ -113,10 +113,10 @@ export function SchemaVisualization({ schema }: SchemaVisualizationProps) {
     return { initialNodes: nodes, initialEdges: edges };
   }, [schema]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, _setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, _setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+  const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     console.log("Node clicked:", node);
     // You can add modal or detail view here
   }, []);
@@ -153,7 +153,7 @@ export function SchemaVisualization({ schema }: SchemaVisualizationProps) {
         <Background />
         <Controls />
         <MiniMap
-          nodeColor={(node) => {
+          nodeColor={(_node: Node) => {
             return "#3b82f6";
           }}
           maskColor="rgba(0, 0, 0, 0.1)"

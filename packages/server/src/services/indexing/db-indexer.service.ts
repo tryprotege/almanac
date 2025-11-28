@@ -1,8 +1,14 @@
 import { randomUUID } from "crypto";
+import pLimit from "p-limit";
+
+import { env } from "../../env.js";
+import { Record } from "../../models/record.model.js";
+import { RecordStore } from "../../stores/record.store.js";
 import { SourceType } from "../../types/index.js";
 import { BaseEntityAdapter } from "./adapters/base-adapter.js";
-import { RecordStore } from "../../stores/record.store.js";
-import { Record } from "../../models/record.model.js";
+
+// Create concurrency limiter. Have this outside of the function to ensure the limit applied to all invocations
+const limit = pLimit(env.DB_INDEXING_CONCURRENCY);
 
 /**
  * Sync a single record
@@ -73,33 +79,45 @@ export async function syncAllRecords(
     for await (const batch of iterator) {
       console.log(`  Processing batch of ${batch.length} entities...`);
 
-      for (const sourceRecord of batch) {
-        try {
-          const result = await syncRecord(recordStore, adapter, sourceRecord);
-          totalProcessed++;
+      await Promise.all(
+        batch.map(
+          async (sourceRecord) =>
+            await limit(async () => {
+              try {
+                const result = await syncRecord(
+                  recordStore,
+                  adapter,
+                  sourceRecord
+                );
+                totalProcessed++;
 
-          if (result.action === "created") {
-            totalCreated++;
-          } else if (result.action === "updated") {
-            totalUpdated++;
-          }
+                if (result.action === "created") {
+                  totalCreated++;
+                } else if (result.action === "updated") {
+                  totalUpdated++;
+                }
 
-          if (totalProcessed % 10 === 0) {
-            console.log(
-              `  Progress: ${totalProcessed} processed (${totalCreated} created, ${totalUpdated} updated)`
-            );
-          }
-        } catch (error) {
-          totalFailed++;
-          const recordId = (sourceRecord as any).id || "unknown";
-          const errorMsg =
-            error instanceof Error ? error.message : String(error);
+                if (totalProcessed % 10 === 0) {
+                  console.log(
+                    `  Progress: ${totalProcessed} processed (${totalCreated} created, ${totalUpdated} updated)`
+                  );
+                }
+              } catch (error) {
+                totalFailed++;
+                const recordId = (sourceRecord as any).id || "unknown";
+                const errorMsg =
+                  error instanceof Error ? error.message : String(error);
 
-          errors.push({ recordId, error: errorMsg });
+                errors.push({ recordId, error: errorMsg });
 
-          console.error(`  ❌ Failed to sync record ${recordId}:`, errorMsg);
-        }
-      }
+                console.error(
+                  `  ❌ Failed to sync record ${recordId}:`,
+                  errorMsg
+                );
+              }
+            })
+        )
+      );
     }
 
     const duration = Date.now() - startTime;

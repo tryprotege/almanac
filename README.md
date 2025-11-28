@@ -143,7 +143,7 @@ This project uses Docker Compose to manage the following services:
 Copy `.env.example` to `.env` in the server package and configure:
 
 ```bash
-cp .env.example packages/server/.env
+cp packages/server/.env.example packages/server/.env
 ```
 
 ## 📄 License

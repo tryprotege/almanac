@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { getServices } from "../src/mcp/initialization.js";
+import { initializeServices } from "../src/mcp/initialization.js";
 import { RecordStore } from "../src/stores/record.store.js";
 import { VectorStore } from "../src/stores/vector.store.js";
 import { insertRecordToVectorDB } from "../src/services/indexing/vector-indexer.service.js";
@@ -53,7 +53,7 @@ async function getVectorStats(
   indexed: number;
   unindexed: number;
 }> {
-  const records = await recordStore.findBySourceAndType(source, "", {
+  const records = await recordStore.findBySourceAndType(source, undefined, {
     includeDeleted: false,
   });
 
@@ -79,7 +79,7 @@ async function indexVectorRecords() {
   console.log(`Force Re-index: ${options.force ? "Yes" : "No"}`);
   console.log("");
 
-  const { qdrant } = await getServices();
+  const { qdrant } = await initializeServices();
   const recordStore = new RecordStore();
   const vectorStore = new VectorStore(qdrant);
 

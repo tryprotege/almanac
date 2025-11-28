@@ -21,7 +21,7 @@ export type SourceType =
 // Qdrant (Vector Search)
 // ============================================
 
-export interface QdrantPoint {
+export interface VectorPoint {
   id: string; // UUID
   vector: number[]; // Embedding dimensions
 
@@ -33,6 +33,7 @@ export interface QdrantPoint {
     chunkIndex?: number; // 0, 1, 2, ... (which chunk)
     chunkStart?: number; // Character offset start
     chunkEnd?: number; // Character offset end
+    chunkText?: string; // Chunked text
   };
 }
 

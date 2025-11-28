@@ -54,13 +54,14 @@ const envSchema = z.object({
     .default("https://api.deepinfra.com/v1/inference"),
   RERANKER_MODEL: z.string().default("Qwen/Qwen3-Reranker-8B"),
 
+  DB_INDEXING_CONCURRENCY: z.coerce.number().default(32),
+
   // Schema Learning Configuration
   SCHEMA_LEARNING_CONCURRENCY: z.coerce.number().default(32),
   SCHEMA_LEARNING_MAX_BATCH_CHARS: z.coerce.number().default(250000),
 
   // Vector Indexing Configuration
   VECTOR_INDEXING_CONCURRENCY: z.coerce.number().default(32),
-  VECTOR_INDEXING_MAX_BATCH_SIZE: z.coerce.number().default(100),
 });
 
 const parsedEnv = envSchema.parse({

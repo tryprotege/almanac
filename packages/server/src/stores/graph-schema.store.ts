@@ -1,8 +1,8 @@
-import { GraphSchemaModel } from "../connections/mongoose.js";
 import {
   GraphEntityType,
-  GraphSchema,
   GraphRelationshipType,
+  GraphSchema,
+  GraphSchemaModel,
 } from "../models/graph-schema.model.js";
 
 // TODO: Add REST API CRUD endpoints for persona management:

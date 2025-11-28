@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { QdrantPoint } from "../types/index.js";
+import { VectorPoint } from "../types/index.js";
 import { QdrantConnection } from "../connections/qdrant.js";
 import { env } from "../env.js";
 
@@ -44,10 +44,10 @@ export class VectorStore {
    * Upsert a single point
    */
   async upsertPoint(
-    point: Omit<QdrantPoint, "id"> & { id?: string }
+    point: Omit<VectorPoint, "id"> & { id?: string }
   ): Promise<string> {
     const id = point.id || randomUUID();
-    const fullPoint: QdrantPoint = {
+    const fullPoint: VectorPoint = {
       ...point,
       id,
     };
@@ -59,7 +59,7 @@ export class VectorStore {
   /**
    * Upsert multiple points
    */
-  async upsertPoints(points: QdrantPoint[]): Promise<void> {
+  async upsertPoints(points: VectorPoint[]): Promise<void> {
     if (points.length === 0) return;
 
     // Ensure collection exists before upserting
@@ -86,7 +86,7 @@ export class VectorStore {
       scoreThreshold?: number;
     }
   ): Promise<
-    Array<{ id: string; score: number; payload: QdrantPoint["payload"] }>
+    Array<{ id: string; score: number; payload: VectorPoint["payload"] }>
   > {
     const searchParams: any = {
       vector,
@@ -109,7 +109,7 @@ export class VectorStore {
     return results.map((result) => ({
       id: result.id as string,
       score: result.score,
-      payload: result.payload as QdrantPoint["payload"],
+      payload: result.payload as VectorPoint["payload"],
     }));
   }
 
@@ -124,7 +124,7 @@ export class VectorStore {
       scoreThreshold?: number;
     }
   ): Promise<
-    Array<{ id: string; score: number; payload: QdrantPoint["payload"] }>
+    Array<{ id: string; score: number; payload: VectorPoint["payload"] }>
   > {
     if (mongoIds.length === 0) return [];
 
@@ -177,7 +177,7 @@ export class VectorStore {
   /**
    * Get point by ID
    */
-  async getPoint(id: string): Promise<QdrantPoint | null> {
+  async getPoint(id: string): Promise<VectorPoint | null> {
     try {
       const points = await this.qdrant.client.retrieve(this.collectionName, {
         ids: [id],
@@ -191,7 +191,7 @@ export class VectorStore {
       return {
         id: point.id as string,
         vector: point.vector as number[],
-        payload: point.payload as QdrantPoint["payload"],
+        payload: point.payload as VectorPoint["payload"],
       };
     } catch (error) {
       console.error(`Error getting point ${id}:`, error);

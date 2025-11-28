@@ -1,5 +1,4 @@
 import mongoose, { InferSchemaType } from "mongoose";
-import { SourceType } from "../types/index.js";
 
 /**
  * Unified entity model for multi-source synchronization

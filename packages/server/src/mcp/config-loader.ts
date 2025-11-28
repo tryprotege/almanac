@@ -1,9 +1,5 @@
-import { MCPServerConfig } from "./client.js";
 import { MCPServerConfigModel } from "../models/mcp-config.model.js";
-
-export interface MCPProxyConfig {
-  remoteServers: MCPServerConfig[];
-}
+import { MCPServerConfig } from "./client.js";
 
 /**
  * Load MCP proxy configuration from a file or environment variable
@@ -28,7 +24,9 @@ export async function loadProxyConfig() {
 /**
  * Validate MCP server configuration
  */
-export function validateConfig(config: MCPServerConfig): string | null {
+export function validateConfig(
+  config: Pick<MCPServerConfig, "name" | "type" | "command" | "url">
+): string | null {
   if (!config.name) {
     return "Server name is required";
   }

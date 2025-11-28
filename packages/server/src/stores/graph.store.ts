@@ -92,6 +92,7 @@ export class GraphStore {
 
   /**
    * Create multiple relationships in batch
+   * Uses sequential processing to avoid transaction conflicts in Memgraph
    */
   async createRelationships(
     relationships: MemgraphRelationship[]
@@ -106,28 +107,26 @@ export class GraphStore {
       relsByType.set(rel.type, existing);
     }
 
-    // Create relationships for each type
-    await Promise.all(
-      Array.from(relsByType.entries()).map(async ([type, typeRels]) => {
-        const query = `
-          UNWIND $relationships AS relData
-          MATCH (source {id: relData.sourceId})
-          MATCH (target {id: relData.targetId})
-          MERGE (source)-[r:${type}]->(target)
-          SET r.confidence = relData.confidence,
-              r.extractedBy = relData.extractedBy
-        `;
+    // Create relationships for each type sequentially to avoid transaction conflicts
+    for (const [type, typeRels] of relsByType.entries()) {
+      const query = `
+        UNWIND $relationships AS relData
+        MATCH (source {id: relData.sourceId})
+        MATCH (target {id: relData.targetId})
+        MERGE (source)-[r:${type}]->(target)
+        SET r.confidence = relData.confidence,
+            r.extractedBy = relData.extractedBy
+      `;
 
-        await this.memgraph.executeQuery(query, {
-          relationships: typeRels.map((r) => ({
-            sourceId: r.sourceId,
-            targetId: r.targetId,
-            confidence: r.confidence,
-            extractedBy: r.extractedBy,
-          })),
-        });
-      })
-    );
+      await this.memgraph.executeQuery(query, {
+        relationships: typeRels.map((r) => ({
+          sourceId: r.sourceId,
+          targetId: r.targetId,
+          confidence: r.confidence,
+          extractedBy: r.extractedBy,
+        })),
+      });
+    }
   }
 
   /**

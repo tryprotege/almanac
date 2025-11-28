@@ -1,6 +1,6 @@
 import OpenAI from "openai";
-import { chat } from "../llm/llm.js";
 import { Entity, Relationship } from "./entity-deduplication.js";
+import { chat } from "../../../llm/llm.js";
 
 // TODO: Replace with token counting based on model's context window
 // Most models support 128K tokens (~512K chars), but varies by model
@@ -144,7 +144,6 @@ export async function extractGraphFromContent(
  */
 export async function extractGraphRelationships(
   client: OpenAI,
-  sourceId: string,
   sourceContent: string,
   sourceType: string,
   targetResources: Array<{

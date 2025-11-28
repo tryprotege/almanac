@@ -39,7 +39,9 @@ export async function insertAllRecordsToVectorDB(
   };
 
   console.log(`🔄 Starting vector indexing for source: ${source}`);
-  console.log(`   Concurrency: ${concurrency} parallel records`);
+  console.log(
+    `   Concurrency: ${env.VECTOR_INDEXING_CONCURRENCY} parallel records`
+  );
 
   // Ensure Qdrant collection exists
   await vectorStore.ensureCollection();
@@ -50,11 +52,11 @@ export async function insertAllRecordsToVectorDB(
 
   while (hasMore) {
     // Fetch batch of records
-    const records = await recordStore.findBySourceAndType(
-      source,
-      options?.recordType,
-      { limit: batchSize, skip, includeDeleted: false }
-    );
+    const records = await recordStore.findBySourceAndType(source, undefined, {
+      limit: 50,
+      skip,
+      includeDeleted: false,
+    });
 
     if (records.length === 0) {
       hasMore = false;
@@ -118,8 +120,8 @@ export async function insertRecordToVectorDB(
   }
 
   // Delete existing vectors for this record
-  if (record.vectorIds && record.vectorIds.length > 0) {
-    await vectorStore.deletePoints(record.vectorIds);
+  if (record.lastGraphIndexDate) {
+    await vectorStore.deleteOutdatedPoints(record._id, record.checksum);
   }
 
   // Prepend title to content for better search relevance
@@ -149,13 +151,10 @@ export async function insertRecordToVectorDB(
         mongoId: record._id,
         // Change detection (for re-indexing)
         checksum: record.checksum,
-        // Display data (avoid extra MongoDB query)
-        title: record.title,
         // Chunk metadata (for result assembly)
         chunkIndex: chunk.index,
         chunkStart: chunk.start,
         chunkEnd: chunk.end,
-        totalChunks: chunks.length,
       },
     };
   });
@@ -166,7 +165,6 @@ export async function insertRecordToVectorDB(
   // Update record with vector IDs
   await recordStore.upsert({
     _id: record._id,
-    vectorIds,
     lastEmbedDate: new Date(),
   });
 

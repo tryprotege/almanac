@@ -33,7 +33,6 @@ export interface VectorPoint {
     chunkIndex?: number; // 0, 1, 2, ... (which chunk)
     chunkStart?: number; // Character offset start
     chunkEnd?: number; // Character offset end
-    chunkText?: string; // Chunked text
   };
 }
 

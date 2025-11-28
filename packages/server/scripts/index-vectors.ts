@@ -1,8 +1,9 @@
 import "dotenv/config";
+
 import { initializeServices } from "../src/mcp/initialization.js";
+import { insertRecordToVectorDB } from "../src/services/indexing/embeddings/vector-indexer.service.ts";
 import { RecordStore } from "../src/stores/record.store.js";
 import { VectorStore } from "../src/stores/vector.store.js";
-import { insertRecordToVectorDB } from "../src/services/indexing/vector-indexer.service.js";
 import { SourceType } from "../src/types/index.js";
 
 /**
@@ -57,9 +58,7 @@ async function getVectorStats(
     includeDeleted: false,
   });
 
-  const indexed = records.filter(
-    (record) => record.vectorIds && record.vectorIds.length > 0
-  );
+  const indexed = records.filter((record) => record.lastEmbedDate);
 
   return {
     totalRecords: records.length,
@@ -114,9 +113,7 @@ async function indexVectorRecords() {
 
     const candidateRecords = options.force
       ? allRecords
-      : allRecords.filter(
-          (record) => !record.vectorIds || record.vectorIds.length === 0
-        );
+      : allRecords.filter((record) => !record.lastEmbedDate);
 
     if (candidateRecords.length === 0) {
       console.log(`\n✅ No records to index for ${source}`);

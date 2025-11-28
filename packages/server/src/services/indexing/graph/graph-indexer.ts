@@ -233,7 +233,6 @@ export const indexAllRecords = async (
   const {
     entityTypes: existingEntityTypes,
     relationshipTypes: existingRelTypes,
-    version: currentSchemaVersion,
   } = getCurrentSchemaTypes(currentSchema);
 
   // Create concurrency limiter
@@ -342,9 +341,7 @@ export const indexAllRecords = async (
       for (const result of validResults) {
         await recordStore.upsert({
           _id: result.recordId,
-          graphNodeId: result.recordId,
           lastGraphIndexDate: new Date(),
-          graphSchemaVersion: currentSchemaVersion,
         });
       }
 
@@ -391,7 +388,6 @@ export const indexSingleRecord = async (
   const {
     entityTypes: existingEntityTypes,
     relationshipTypes: existingRelTypes,
-    version: currentSchemaVersion,
   } = getCurrentSchemaTypes(currentSchema);
 
   // Extract from single record
@@ -445,9 +441,7 @@ export const indexSingleRecord = async (
   // Update record metadata
   await recordStore.upsert({
     _id: record._id,
-    graphNodeId: record._id,
     lastGraphIndexDate: new Date(),
-    graphSchemaVersion: currentSchemaVersion,
   });
 
   return {

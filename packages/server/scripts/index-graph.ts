@@ -1,11 +1,11 @@
 import "dotenv/config";
-import { getServices } from "../src/mcp/initialization.js";
+import { initializeServices } from "../src/mcp/initialization.js";
 import { RecordStore } from "../src/stores/record.store.js";
 import { GraphStore } from "../src/stores/graph.store.js";
-import { GraphIndexerService } from "../src/services/indexing/graph-indexer.service.js";
+import { GraphIndexerService } from "../src/services/indexing/graph/graph-indexer.service.ts";
 import { loadProxyConfig } from "../src/mcp/config-loader.js";
 import { NotionMCPClient } from "../src/services/sources/notion/mcpClient.js";
-import { NotionAdapter } from "../src/services/indexing/adapters/notion-adapter.js";
+import { NotionAdapter } from "../src/services/sync/adapters/notion-adapter.ts";
 import { SourceType } from "../src/types/index.js";
 
 /**
@@ -66,7 +66,7 @@ async function indexGraphRecords() {
   );
   console.log("");
 
-  const { memgraph } = await getServices();
+  const { memgraph } = await initializeServices();
   const validConfigs = await loadProxyConfig();
 
   for (const config of validConfigs) {
@@ -130,7 +130,7 @@ async function indexGraphRecords() {
       );
 
       const unindexedRecords = allRecords.filter(
-        (record) => !record.graphNodeId || record.graphNodeId === ""
+        (record) => !record.lastGraphIndexDate
       );
 
       if (unindexedRecords.length === 0) {

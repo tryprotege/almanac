@@ -144,21 +144,9 @@ export class VectorStore {
   }
 
   /**
-   * Delete points by IDs
-   */
-  async deletePoints(ids: string[]): Promise<void> {
-    if (ids.length === 0) return;
-
-    await this.qdrant.client.delete(this.collectionName, {
-      wait: true,
-      points: ids,
-    });
-  }
-
-  /**
    * Delete points by MongoDB ID
    */
-  async deleteByMongoId(mongoId: string): Promise<void> {
+  async deleteOutdatedPoints(mongoId: string, checksum: string): Promise<void> {
     await this.qdrant.client.delete(this.collectionName, {
       wait: true,
       filter: {
@@ -167,6 +155,14 @@ export class VectorStore {
             key: "mongoId",
             match: {
               value: mongoId,
+            },
+          },
+        ],
+        must_not: [
+          {
+            key: "checksum",
+            match: {
+              value: checksum,
             },
           },
         ],

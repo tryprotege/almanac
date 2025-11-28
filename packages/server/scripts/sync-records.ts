@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { SyncService } from "../src/services/sync/sync.service.js";
-import { getServices } from "../src/mcp/initialization.js";
+import { initializeServices } from "../src/mcp/initialization.js";
 
 /**
  * Sync records from sources to MongoDB
@@ -16,7 +16,7 @@ const run = async () => {
   console.log("=======================================\n");
 
   // init db connections and mcp server
-  await getServices();
+  await initializeServices();
 
   const syncService = new SyncService();
   await syncService.syncAll();

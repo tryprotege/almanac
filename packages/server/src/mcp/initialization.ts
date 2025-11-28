@@ -16,64 +16,6 @@ import { resolveSerializedZodOutput } from "../utils/resolveSerializedZodOutput.
 import { mcpClientManager, MCPServerConfig } from "./client.js";
 import { loadProxyConfig } from "./config-loader.js";
 
-export interface ServiceConnections {
-  mongoose: MongooseConnection;
-  qdrant: QdrantConnection;
-  memgraph: MemgraphConnection;
-  redis: RedisConnection;
-}
-
-let services: ServiceConnections | null = null;
-
-// Create MCP server
-export const mcpServer = new McpServer({
-  name: "ebee-oss",
-  version: "0.1.0",
-});
-
-export const getServices = async (): Promise<ServiceConnections> => {
-  if (!services) {
-    return await initializeServices();
-  }
-  return services;
-};
-
-export async function initializeServices(): Promise<ServiceConnections> {
-  if (services) {
-    return services;
-  }
-
-  console.error("🚀 Initializing eBee services...");
-
-  const [mongoose, qdrant, memgraph, redis] = await Promise.all([
-    connectMongoose(),
-    connectQdrant(),
-    connectMemgraph(),
-    connectRedis(),
-  ]);
-
-  services = { mongoose, qdrant, memgraph, redis };
-  console.error("✅ All services initialized successfully!");
-
-  const validConfigs = await loadProxyConfig();
-  if (validConfigs.length > 0) {
-    await initializeRemoteServers(
-      validConfigs.map((c) => ({
-        ...c.toObject(),
-        env: c.env ? Object.fromEntries(c.env.entries()) : undefined,
-        headers: c.headers
-          ? Object.fromEntries(c.headers.entries())
-          : undefined,
-      })),
-      mcpServer
-    );
-  } else {
-    console.error("ℹ️  No remote MCP servers configured");
-  }
-
-  return services;
-}
-
 export async function initializeRemoteServers(
   configs: MCPServerConfig[],
   mcpSever: McpServer
@@ -121,6 +63,61 @@ export async function initializeRemoteServers(
   console.error(
     `✅ Connected to ${connectedServers.length} remote MCP server(s)`
   );
+}
+
+const connectMcpServers = async () => {
+  const validConfigs = await loadProxyConfig();
+  if (validConfigs.length > 0) {
+    await initializeRemoteServers(
+      validConfigs.map((c) => ({
+        ...c.toObject(),
+        env: c.env ? Object.fromEntries(c.env.entries()) : undefined,
+        headers: c.headers
+          ? Object.fromEntries(c.headers.entries())
+          : undefined,
+      })),
+      mcpServer
+    );
+  } else {
+    console.error("ℹ️  No remote MCP servers configured");
+  }
+};
+
+export interface ServiceConnections {
+  mongoose: MongooseConnection;
+  qdrant: QdrantConnection;
+  memgraph: MemgraphConnection;
+  redis: RedisConnection;
+}
+
+let services: ServiceConnections | null = null;
+
+// Create MCP server
+export const mcpServer = new McpServer({
+  name: "ebee-oss",
+  version: "0.1.0",
+});
+
+export async function initializeServices(): Promise<ServiceConnections> {
+  if (services) {
+    return services;
+  }
+
+  console.error("🚀 Initializing eBee services...");
+
+  const [mongoose, qdrant, memgraph, redis] = await Promise.all([
+    connectMongoose(),
+    connectQdrant(),
+    connectMemgraph(),
+    connectRedis(),
+  ]);
+
+  services = { mongoose, qdrant, memgraph, redis };
+  console.error("✅ All services initialized successfully!");
+
+  await connectMcpServers();
+
+  return services;
 }
 
 export async function shutdownServices(): Promise<void> {

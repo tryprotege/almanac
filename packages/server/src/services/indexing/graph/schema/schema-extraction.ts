@@ -1,143 +1,107 @@
 import OpenAI from "openai";
-import {
-  GraphEntityType,
-  GraphRelationshipType,
-} from "../../models/graph-schema.model.js";
 import { chat } from "../llm/llm.js";
+import { Entity, Relationship } from "./entity-deduplication.js";
 
 // TODO: Replace with token counting based on model's context window
 // Most models support 128K tokens (~512K chars), but varies by model
 const MAX_CONTENT_LENGTH = 200_000;
 
 // ============================================================================
-// Schema Learning Extraction Functions
+// Unified Graph Extraction Functions (No Chunking)
 // ============================================================================
 
 /**
- * Extract entity types from content using AI
+ * Build LightRAG-inspired extraction prompt
  */
-export async function extractEntitiesFromContent(
-  client: OpenAI,
+function buildExtractionPrompt(
   content: string,
-  existingTypes: string[],
+  entityTypes: string[],
+  relationshipTypes: string[],
   persona?: string
-): Promise<GraphEntityType[]> {
+): string {
   const personaContext = persona ? `USER CONTEXT:\n${persona}\n\n` : "";
 
-  const prompt = `${personaContext}You are analyzing content to extract domain-specific entity types.
+  return `${personaContext}---Goal---
+Given a text document, extract ALL entities and relationships to build a knowledge graph.
 
-CONTENT:
+---Entity Types---
+${entityTypes.join(", ")}
+
+---Relationship Types---
+${relationshipTypes.map((rt) => `- ${rt}`).join("\n")}
+
+---Steps---
+1. Identify entities:
+   - Extract named entities (people, places, organizations, concepts)
+   - Classify each entity using the entity types above
+   - Provide a brief description for each entity
+
+2. Identify relationships:
+   - Extract semantic connections between entities
+   - Use relationship types above when applicable
+   - Assign strength score (1-10):
+     * 9-10: Explicit mention (e.g., "Alex works on Project X")
+     * 7-8: Strong contextual evidence
+     * 5-6: Moderate semantic connection
+     * 1-4: Weak or inferred connection
+   - Add keywords that describe the relationship context
+
+3. Content keywords:
+   - Extract high-level themes and topics from the content
+
+---Output Format---
+Return valid JSON with this structure:
+
+{
+  "entities": [
+    {
+      "name": "Alex Smith",
+      "type": "Person",
+      "description": "Software engineer working on backend systems"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "Alex Smith",
+      "target": "API Project",
+      "type": "WORKS_ON",
+      "description": "Alex is the lead developer for the API project",
+      "keywords": ["development", "backend", "api"],
+      "strength": 9
+    }
+  ],
+  "keywords": ["engineering", "backend development", "apis"]
+}
+
+---Real Data---
+Text:
 ${content.substring(0, MAX_CONTENT_LENGTH)}
 
-EXISTING ENTITY TYPES:
-${existingTypes.join(", ")}
-
-TASK:
-1. Identify named entities and concepts in the content
-2. Group similar entities into types
-${
-  persona
-    ? "3. Prioritize entities relevant to the user context"
-    : "3. Focus on the most significant entities"
-}
-4. Avoid duplicating existing types unless you find new instances
-
-OUTPUT FORMAT (JSON array):
-[
-  {
-    "name": "Feature",
-    "instances": ["Two-factor auth", "API rate limiting"],
-    "confidence": 0.9,
-    "description": "Product features and capabilities"
-  }
-]
-
-Return only valid JSON, no other text.`;
-
-  const response = await chat(
-    client,
-    [
-      {
-        role: "system",
-        content:
-          "You are an entity extraction system for knowledge graphs. Extract structured entities from content. Always respond with valid JSON array.",
-      },
-      { role: "user", content: prompt },
-    ],
-    { temperature: 0.1 }
-  );
-
-  try {
-    const cleaned = response
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
-    const extracted = JSON.parse(cleaned);
-
-    // Convert to EntityType format
-    return extracted.map((item: any) => ({
-      name: item.name,
-      description: item.description,
-      mcpSource: "ai",
-      properties: [],
-    }));
-  } catch {
-    return [];
-  }
+---Output---
+Return ONLY valid JSON, no other text.`;
 }
 
 /**
- * Extract relationship types from content using AI
+ * Extract entities and relationships from full document (no chunking)
+ * LightRAG-inspired unified extraction
  */
-export async function extractRelationshipsFromContent(
+export async function extractGraphFromContent(
   client: OpenAI,
   content: string,
-  entities: Array<{ name: string; instances: string[] }>,
-  existingRelationships: GraphRelationshipType[],
+  existingEntityTypes: string[],
+  existingRelationshipTypes: string[],
   persona?: string
-): Promise<GraphRelationshipType[]> {
-  const personaContext = persona ? `USER CONTEXT:\n${persona}\n\n` : "";
-
-  const entitiesList = entities
-    .map((e) => `${e.name}: ${e.instances.join(", ")}`)
-    .join("\n");
-
-  const existingRelsList = existingRelationships.map((r) => r.name).join(", ");
-
-  const prompt = `${personaContext}You are analyzing content to extract semantic relationships between entities.
-
-CONTENT:
-${content.substring(0, MAX_CONTENT_LENGTH)}
-
-DISCOVERED ENTITIES:
-${entitiesList}
-
-EXISTING RELATIONSHIPS:
-${existingRelsList}
-
-TASK:
-1. Identify how entities relate to each other in the content
-2. Create relationship types that capture these connections
-${
-  persona
-    ? "3. Focus on relationships useful for the user's context"
-    : "3. Focus on meaningful, queryable relationships"
-}
-4. Avoid generic relationships like "RELATED_TO" unless specific
-
-OUTPUT FORMAT (JSON array):
-[
-  {
-    "name": "IMPLEMENTS",
-    "sourceTypes": ["Developer"],
-    "targetTypes": ["Feature"],
-    "confidence": 0.85,
-    "description": "Developer implements or builds a feature",
-    "bidirectional": false
-  }
-]
-
-Return only valid JSON, no other text.`;
+): Promise<{
+  entities: Entity[];
+  relationships: Relationship[];
+  keywords: string[];
+}> {
+  const prompt = buildExtractionPrompt(
+    content,
+    existingEntityTypes,
+    existingRelationshipTypes,
+    persona
+  );
 
   const response = await chat(
     client,
@@ -145,7 +109,7 @@ Return only valid JSON, no other text.`;
       {
         role: "system",
         content:
-          "You are a relationship extraction system for knowledge graphs. Extract semantic relationships between entities. Always respond with valid JSON array.",
+          "You are a knowledge graph extraction system. Extract structured entities and relationships from content. Always respond with valid JSON.",
       },
       { role: "user", content: prompt },
     ],
@@ -159,17 +123,18 @@ Return only valid JSON, no other text.`;
       .trim();
     const extracted = JSON.parse(cleaned);
 
-    // Convert to RelationshipType format
-    return extracted.map((item: any) => ({
-      name: item.name,
-      description: item.description,
-      sourceTypes: item.sourceTypes,
-      targetTypes: item.targetTypes,
-      bidirectional: item.bidirectional,
-      mcpSource: "ai",
-    }));
-  } catch {
-    return [];
+    return {
+      entities: extracted.entities || [],
+      relationships: extracted.relationships || [],
+      keywords: extracted.keywords || [],
+    };
+  } catch (error) {
+    console.error("Failed to parse extraction response:", error);
+    return {
+      entities: [],
+      relationships: [],
+      keywords: [],
+    };
   }
 }
 

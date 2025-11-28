@@ -2,7 +2,7 @@ import OpenAI from "openai";
 
 import { env } from "../../env.js";
 import { loadProxyConfig } from "../../mcp/config-loader.js";
-import { getServices } from "../../mcp/initialization.js";
+import { initializeServices } from "../../mcp/initialization.js";
 import { GraphStore } from "../../stores/graph.store.js";
 import { RecordStore } from "../../stores/record.store.js";
 import { VectorStore } from "../../stores/vector.store.js";
@@ -15,7 +15,7 @@ import { GraphIndexerService } from "./graph-indexer.service.js";
 import { insertAllRecordsToVectorDB } from "./vector-indexer.service.js";
 
 export async function indexRecords() {
-  const { qdrant, memgraph } = await getServices();
+  const { qdrant, memgraph } = await initializeServices();
 
   const validConfigs = await loadProxyConfig();
 
@@ -56,11 +56,7 @@ export async function indexRecords() {
           console.log(`ℹ️  Schema learning skipped: ${reason}\n`);
         }
 
-        await insertAllRecordsToVectorDB(recordStore, vectorStore, "notion", {
-          batchSize: 50,
-          maxChunkSize: 2000,
-          overlapSize: 200,
-        });
+        await insertAllRecordsToVectorDB(recordStore, vectorStore, "notion");
 
         console.log("✅ Saved records into vector DB");
 

@@ -1,5 +1,4 @@
 import mongoose, { InferSchemaType } from "mongoose";
-import { SourceType } from "../types/index.js";
 
 /**
  * Unified entity model for multi-source synchronization
@@ -42,6 +41,7 @@ const RecordSchema = new mongoose.Schema(
 
     graphNodeId: { type: String }, // Memgraph node reference
     graphVersion: { type: Number, default: 1 },
+    graphSchemaVersion: { type: Number, default: 0 }, // Track which schema version was used
 
     // Vector DB references
     vectorIds: [{ type: String }], // Qdrant point IDs

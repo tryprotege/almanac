@@ -3,7 +3,6 @@ import express, { NextFunction, Request, Response } from "express";
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
-import { MCPServerConfigModel } from "./connections/mongoose.js";
 import { mcpClientManager, MCPServerConfig } from "./mcp/client.js";
 import { validateConfig } from "./mcp/config-loader.js";
 import {
@@ -11,6 +10,7 @@ import {
   mcpServer,
   shutdownServices,
 } from "./mcp/initialization.js";
+import { MCPServerConfigModel } from "./models/mcp-config.model.js";
 
 // Start server
 const runServer = async () => {

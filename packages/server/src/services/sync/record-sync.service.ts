@@ -5,7 +5,7 @@ import { env } from "../../env.js";
 import { Record } from "../../models/record.model.js";
 import { RecordStore } from "../../stores/record.store.js";
 import { SourceType } from "../../types/index.js";
-import { BaseEntityAdapter } from "./adapters/base-adapter.js";
+import { BaseRecordAdapter } from "./adapters/base-adapter.js";
 
 // Create concurrency limiter. Have this outside of the function to ensure the limit applied to all invocations
 const limit = pLimit(env.DB_INDEXING_CONCURRENCY);
@@ -15,7 +15,7 @@ const limit = pLimit(env.DB_INDEXING_CONCURRENCY);
  */
 async function syncRecord(
   recordStore: RecordStore,
-  adapter: BaseEntityAdapter,
+  adapter: BaseRecordAdapter,
   sourceRecord: any
 ): Promise<{ action: "created" | "updated" | "skipped" }> {
   // Transform record to unified format
@@ -48,7 +48,7 @@ async function syncRecord(
 export async function syncAllRecords(
   recordStore: RecordStore,
   source: SourceType,
-  adapter: BaseEntityAdapter
+  adapter: BaseRecordAdapter
 ): Promise<{
   jobId: string;
   success: boolean;

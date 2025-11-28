@@ -1,9 +1,9 @@
-import { RecordStore } from "../../stores/record.store.js";
-import { GraphStore } from "../../stores/graph.store.js";
-import { Record } from "../../models/record.model.js";
-import { SourceType } from "../../types/index.js";
-import { BaseEntityAdapter } from "./adapters/base-adapter.js";
-import { MemgraphNode, MemgraphRelationship } from "../../types/index.js";
+import { RecordStore } from "../../../stores/record.store.js";
+import { GraphStore } from "../../../stores/graph.store.js";
+import { Record } from "../../../models/record.model.js";
+import { SourceType } from "../../../types/index.js";
+import { BaseRecordAdapter } from "../../sync/adapters/base-adapter.js";
+import { MemgraphNode, MemgraphRelationship } from "../../../types/index.js";
 
 /**
  * Graph Indexer Service
@@ -14,7 +14,7 @@ export class GraphIndexerService {
   constructor(
     private recordStore: RecordStore,
     private graphStore: GraphStore,
-    private adapters: Map<SourceType, BaseEntityAdapter>
+    private adapters: Map<SourceType, BaseRecordAdapter>
   ) {}
 
   /**
@@ -251,14 +251,14 @@ export class GraphIndexerService {
     for (const record of records) {
       try {
         // Use the raw data to extract relationships via adapter
-        const sourceEntity = record.rawData;
-        const entityRelationships = await adapter.extractRelationships(
-          sourceEntity
+        const sourceRecord = record.rawData;
+        const recordRelationships = await adapter.extractRelationships(
+          sourceRecord
         );
 
         // Convert to Memgraph relationships
         // The sourceId and targetId from adapter are already in the format we need
-        for (const rel of entityRelationships) {
+        for (const rel of recordRelationships) {
           relationships.push({
             sourceId: rel.sourceId,
             targetId: rel.targetId,

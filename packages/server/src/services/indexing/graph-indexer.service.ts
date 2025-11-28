@@ -251,14 +251,14 @@ export class GraphIndexerService {
     for (const record of records) {
       try {
         // Use the raw data to extract relationships via adapter
-        const sourceEntity = record.rawData;
-        const entityRelationships = await adapter.extractRelationships(
-          sourceEntity
+        const sourceRecord = record.rawData;
+        const recordRelationships = await adapter.extractRelationships(
+          sourceRecord
         );
 
         // Convert to Memgraph relationships
         // The sourceId and targetId from adapter are already in the format we need
-        for (const rel of entityRelationships) {
+        for (const rel of recordRelationships) {
           relationships.push({
             sourceId: rel.sourceId,
             targetId: rel.targetId,

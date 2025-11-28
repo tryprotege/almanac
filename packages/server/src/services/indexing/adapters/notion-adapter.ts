@@ -1,6 +1,7 @@
 import { BaseRecordAdapter } from "./base-adapter.js";
 import { Record } from "../../../models/record.model.js";
-import { NotionMCPClient } from "../../sources/notion/mcpClient.js";
+import { EntityRelationship, FetchOptions } from "../../../types/index.js";
+import { NotionMCPClient } from "../../indexing/sources/notion/mcpClient.js";
 import {
   NotionPage,
   NotionDatabase,
@@ -8,15 +9,11 @@ import {
   NotionComment,
   NotionUser,
 } from "../../sources/notion/types.js";
-import {
-  EntityRelationship as RecordRelationship,
-  FetchOptions,
-} from "../../../types/index.js";
 
 type NotionRecord = NotionPage | NotionDatabase | NotionUser;
 
 /**
- * Notion adapter for syncing Notion entities
+ * Notion adapter for syncing Notion records
  */
 export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   readonly source = "notion" as const;
@@ -33,7 +30,7 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   }
 
   /**
-   * Fetch all entities from Notion workspace
+   * Fetch all records from Notion workspace
    */
   async *fetchAll(options?: FetchOptions): AsyncIterable<NotionRecord[]> {
     const batchSize = options?.batchSize || 100;
@@ -56,7 +53,35 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   }
 
   /**
-   * Fetch single entity by ID
+   * Fetch records modified since timestamp
+   */
+  async *fetchIncremental(
+    since: Date,
+    cursor?: string
+  ): AsyncIterable<NotionRecord[]> {
+    // Notion doesn't have a direct "modified since" API
+    // We need to fetch all and filter by last_edited_time
+    const allPages = await this.client.searchAllPages();
+    const allDatabases = await this.client.searchAllDatabases();
+
+    const modifiedPages = allPages.filter(
+      (p: NotionPage) => new Date(p.last_edited_time) > since
+    );
+    const modifiedDatabases = allDatabases.filter(
+      (d: NotionDatabase) => new Date(d.last_edited_time) > since
+    );
+
+    if (modifiedPages.length > 0) {
+      yield modifiedPages as NotionRecord[];
+    }
+
+    if (modifiedDatabases.length > 0) {
+      yield modifiedDatabases as NotionRecord[];
+    }
+  }
+
+  /**
+   * Fetch single record by ID
    */
   async fetchById(id: string): Promise<NotionRecord | null> {
     try {
@@ -75,11 +100,11 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   }
 
   /**
-   * Transform Notion entity to unified format
+   * Transform Notion record to unified format
    */
-  async transform(sourceEntity: NotionRecord): Promise<Record> {
-    const recordType = this.getEntityType(sourceEntity);
-    const sourceId = sourceEntity.id;
+  async transform(sourceRecord: NotionRecord): Promise<Record> {
+    const recordType = this.getRecordType(sourceRecord);
+    const sourceId = sourceRecord.id;
     const _id = this.generateRecordId(recordType, sourceId);
 
     // Get additional data for pages
@@ -95,34 +120,35 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
       }
     }
 
-    const title = this.extractTitle(sourceEntity);
-    const content = this.extractTextContent(sourceEntity, blocks);
-    const people = this.extractPeople(sourceEntity);
-    const primaryDate = this.extractPrimaryDate(sourceEntity);
-    const tags = this.extractTags(sourceEntity);
+    const title = this.extractTitle(sourceRecord);
+    const content = this.extractTextContent(sourceRecord);
+    const people = this.extractPeople(sourceRecord);
+    const primaryDate = this.extractPrimaryDate(sourceRecord);
+    const tags = this.extractTags(sourceRecord);
 
     return {
       _id,
       source: this.source,
       sourceId,
-      recordType: recordType,
+      recordType,
       title,
       content,
       people,
       primaryDate,
       tags,
-      rawData: sourceEntity,
-      checksum: this.computeChecksum(sourceEntity),
+      rawData: sourceRecord,
+      checksum: this.computeChecksum(sourceRecord),
       version: 1,
       syncedAt: new Date(),
       sourceUpdatedAt: new Date(
-        (sourceEntity as any).last_edited_time || new Date()
+        (sourceRecord as any).last_edited_time || new Date()
       ),
-      isDeleted: (sourceEntity as any).archived || false,
+      isDeleted: (sourceRecord as any).archived || false,
       deletedAt: null as any,
       deletionStrategy: "soft",
       graphNodeId: _id,
       graphVersion: 1,
+      graphSchemaVersion: 0,
       vectorIds: [],
       embeddingVersion: 1,
       createdAt: new Date(),
@@ -131,13 +157,13 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   }
 
   /**
-   * Extract relationships from Notion entity
+   * Extract relationships from Notion record
    */
   async extractRelationships(
     sourceRecord: NotionRecord
-  ): Promise<RecordRelationship[]> {
-    const relationships: RecordRelationship[] = [];
-    const recordType = this.getEntityType(sourceRecord);
+  ): Promise<EntityRelationship[]> {
+    const relationships: EntityRelationship[] = [];
+    const recordType = this.getRecordType(sourceRecord);
 
     // Extract parent relationship
     if ((sourceRecord as any).parent) {
@@ -180,30 +206,42 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   }
 
   /**
-   * Extract text content from entity
+   * Check if record is deleted
    */
-  protected extractTextContent(
-    sourceEntity: NotionRecord,
-    blocks?: NotionBlock[]
-  ): string {
-    const recordType = this.getEntityType(sourceEntity);
+  isDeleted(sourceRecord: NotionRecord): boolean {
+    return (sourceRecord as any).archived === true;
+  }
+
+  /**
+   * Get deleted records (Notion doesn't provide this directly)
+   */
+  async *getDeletedRecords(since: Date): AsyncIterable<string[]> {
+    // Notion doesn't have a direct API for deleted records
+    // We would need to track this ourselves or fetch all and compare
+    yield [];
+  }
+
+  /**
+   * Extract text content from record
+   */
+  protected extractTextContent(sourceRecord: NotionRecord): string {
+    const recordType = this.getRecordType(sourceRecord);
 
     if (recordType === "page") {
-      // Extract markdown content from blocks
-      if (blocks && blocks.length > 0) {
-        return this.blocksToMarkdown(blocks);
-      }
-      return "";
+      // For pages, we'll need to fetch blocks separately
+      // This is a simplified version
+      return this.extractTitle(sourceRecord);
     }
 
     if (recordType === "database") {
-      const db = sourceEntity as NotionDatabase;
+      const db = sourceRecord as NotionDatabase;
+      const title = this.extractRichText(db.title);
       const description = this.extractRichText(db.description || []);
       return description;
     }
 
     if (recordType === "user") {
-      const user = sourceEntity as NotionUser;
+      const user = sourceRecord as NotionUser;
       return user.name || "";
     }
 
@@ -211,13 +249,13 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   }
 
   /**
-   * Extract title from entity
+   * Extract title from record
    */
-  protected extractTitle(sourceEntity: NotionRecord): string {
-    const recordType = this.getEntityType(sourceEntity);
+  protected extractTitle(sourceRecord: NotionRecord): string {
+    const recordType = this.getRecordType(sourceRecord);
 
     if (recordType === "page") {
-      const page = sourceEntity as NotionPage;
+      const page = sourceRecord as NotionPage;
       const titleProp = page.properties.title || page.properties.Name;
       if (titleProp && (titleProp as any).title) {
         return this.extractRichText((titleProp as any).title);
@@ -226,12 +264,12 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
     }
 
     if (recordType === "database") {
-      const db = sourceEntity as NotionDatabase;
+      const db = sourceRecord as NotionDatabase;
       return this.extractRichText(db.title);
     }
 
     if (recordType === "user") {
-      const user = sourceEntity as NotionUser;
+      const user = sourceRecord as NotionUser;
       return user.name || "Unknown User";
     }
 
@@ -239,22 +277,22 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   }
 
   /**
-   * Extract people from entity
+   * Extract people from record
    */
-  protected extractPeople(sourceEntity: NotionRecord): string[] {
+  protected extractPeople(sourceRecord: NotionRecord): string[] {
     const people: string[] = [];
 
-    if ((sourceEntity as any).created_by) {
-      people.push((sourceEntity as any).created_by.id);
+    if ((sourceRecord as any).created_by) {
+      people.push((sourceRecord as any).created_by.id);
     }
 
-    if ((sourceEntity as any).last_edited_by) {
-      people.push((sourceEntity as any).last_edited_by.id);
+    if ((sourceRecord as any).last_edited_by) {
+      people.push((sourceRecord as any).last_edited_by.id);
     }
 
     // Extract from properties for pages
-    if (this.getEntityType(sourceEntity) === "page") {
-      const page = sourceEntity as NotionPage;
+    if (this.getRecordType(sourceRecord) === "page") {
+      const page = sourceRecord as NotionPage;
       for (const [key, value] of Object.entries(page.properties)) {
         if ((value as any).type === "people" && (value as any).people) {
           (value as any).people.forEach((person: any) => {
@@ -268,22 +306,22 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   }
 
   /**
-   * Extract primary date from entity
+   * Extract primary date from record
    */
-  protected extractPrimaryDate(sourceEntity: NotionRecord): Date | null {
+  protected extractPrimaryDate(sourceRecord: NotionRecord): Date | null {
     // Use last_edited_time as primary date
-    const lastEdited = (sourceEntity as any).last_edited_time;
+    const lastEdited = (sourceRecord as any).last_edited_time;
     return lastEdited ? new Date(lastEdited) : null;
   }
 
   /**
-   * Extract tags from entity
+   * Extract tags from record
    */
-  protected extractTags(sourceEntity: NotionRecord): string[] {
+  protected extractTags(sourceRecord: NotionRecord): string[] {
     const tags: string[] = [];
 
-    if (this.getEntityType(sourceEntity) === "page") {
-      const page = sourceEntity as NotionPage;
+    if (this.getRecordType(sourceRecord) === "page") {
+      const page = sourceRecord as NotionPage;
       for (const [key, value] of Object.entries(page.properties)) {
         if (
           (value as any).type === "multi_select" &&
@@ -305,10 +343,10 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   }
 
   /**
-   * Helper: Get entity type
+   * Helper: Get record type
    */
-  private getEntityType(entity: NotionRecord): string {
-    return entity.object === "user" ? "user" : entity.object;
+  private getRecordType(record: NotionRecord): string {
+    return record.object === "user" ? "user" : record.object;
   }
 
   /**

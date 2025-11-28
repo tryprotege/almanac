@@ -7,7 +7,7 @@ import { Record } from "../../../models/record.model.js";
 import { computeChecksum } from "../../../utils/checksum.js";
 
 /**
- * Base entity adapter interface
+ * Base record adapter interface
  * All source-specific adapters must implement this interface
  */
 export abstract class BaseRecordAdapter<TSource = any> {
@@ -15,72 +15,90 @@ export abstract class BaseRecordAdapter<TSource = any> {
   abstract readonly supportedRecordTypes: string[];
 
   /**
-   * Fetch all entities from source
+   * Fetch all records from source
    * Returns an async iterator for memory-efficient streaming
    */
   abstract fetchAll(options?: FetchOptions): AsyncIterable<TSource[]>;
 
   /**
-   * Fetch single entity by ID
+   * Fetch records modified since timestamp (for incremental sync)
+   */
+  abstract fetchIncremental(
+    since: Date,
+    cursor?: string
+  ): AsyncIterable<TSource[]>;
+
+  /**
+   * Fetch single record by ID
    */
   abstract fetchById(id: string): Promise<TSource | null>;
 
   /**
-   * Transform source entity to unified format
+   * Transform source record to unified format
    */
-  abstract transform(sourceEntity: TSource): Promise<Record>;
+  abstract transform(sourceRecord: TSource): Promise<Record>;
 
   /**
-   * Extract relationships from entity
+   * Extract relationships from record
    */
   abstract extractRelationships(
-    sourceEntity: TSource
+    sourceRecord: TSource
   ): Promise<EntityRelationship[]>;
+
+  /**
+   * Check if record is deleted in source
+   */
+  abstract isDeleted(sourceRecord: TSource): boolean;
+
+  /**
+   * Get list of deleted record IDs since timestamp
+   */
+  abstract getDeletedRecords(since: Date): AsyncIterable<string[]>;
 
   /**
    * Compute checksum for change detection
    * Can be overridden for source-specific logic
    */
-  computeChecksum(sourceEntity: TSource): string {
-    return computeChecksum(sourceEntity);
+  computeChecksum(sourceRecord: TSource): string {
+    return computeChecksum(sourceRecord);
   }
 
   /**
-   * Check if entity has changed
+   * Check if record has changed
    */
-  hasChanged(sourceEntity: TSource, existingChecksum: string): boolean {
-    return this.computeChecksum(sourceEntity) !== existingChecksum;
+  hasChanged(sourceRecord: TSource, existingChecksum: string): boolean {
+    return this.computeChecksum(sourceRecord) !== existingChecksum;
   }
 
   /**
-   * Generate entity ID in standard format
+   * Generate record ID in standard format
    */
   protected generateRecordId(recordType: string, sourceId: string): string {
     return `${this.source}_${recordType}_${sourceId}`;
   }
 
   /**
-   * Extract text content from entity (helper method)
+   * Extract text content from record (helper method)
    */
-  protected abstract extractTextContent(sourceEntity: TSource): string;
+  protected abstract extractTextContent(sourceRecord: TSource): string;
 
   /**
-   * Extract title from entity (helper method)
+   * Extract title from record (helper method)
    */
-  protected abstract extractTitle(sourceEntity: TSource): string;
+  protected abstract extractTitle(sourceRecord: TSource): string;
 
   /**
-   * Extract people from entity (helper method)
+   * Extract people from record (helper method)
    */
-  protected abstract extractPeople(sourceEntity: TSource): string[];
+  protected abstract extractPeople(sourceRecord: TSource): string[];
 
   /**
-   * Extract primary date from entity (helper method)
+   * Extract primary date from record (helper method)
    */
-  protected abstract extractPrimaryDate(sourceEntity: TSource): Date | null;
+  protected abstract extractPrimaryDate(sourceRecord: TSource): Date | null;
 
   /**
-   * Extract tags from entity (helper method)
+   * Extract tags from record (helper method)
    */
-  protected abstract extractTags(sourceEntity: TSource): string[];
+  protected abstract extractTags(sourceRecord: TSource): string[];
 }

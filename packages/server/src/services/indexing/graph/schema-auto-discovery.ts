@@ -7,12 +7,12 @@ import {
   GraphEntityType,
   GraphRelationshipType,
   GraphSchema,
-} from "../../models/graph-schema.model.js";
+} from "../../../models/graph-schema.model.js";
 import {
   updateEntityTypes,
   updateRelationshipTypes,
-} from "../../stores/graph-schema.store.js";
-import { Entity, Relationship } from "../schema/entity-deduplication.js";
+} from "../../../stores/graph-schema.store.js";
+import { Entity, Relationship } from "./schema/entity-deduplication.js";
 
 // ============================================================================
 // Pure Functions

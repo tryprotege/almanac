@@ -1,13 +1,13 @@
 import { randomUUID } from "crypto";
 import pLimit from "p-limit";
 
-import { env } from "../../env.js";
-import { Record } from "../../models/record.model.js";
-import { RecordStore } from "../../stores/record.store.js";
-import { VectorStore } from "../../stores/vector.store.js";
-import { VectorPoint, SourceType } from "../../types/index.js";
-import { chunkText } from "../../utils/chunking.js";
-import { embed } from "../../utils/embedding.js";
+import { env } from "../../../env.js";
+import { Record } from "../../../models/record.model.js";
+import { RecordStore } from "../../../stores/record.store.js";
+import { VectorStore } from "../../../stores/vector.store.js";
+import { VectorPoint, SourceType } from "../../../types/index.js";
+import { chunkText } from "../../../utils/chunking.js";
+import { embed } from "../../../utils/embedding.js";
 
 // Create concurrency limiter. Have this outside of the function to ensure the limit applied to all invocations
 const limit = pLimit(env.VECTOR_INDEXING_CONCURRENCY);

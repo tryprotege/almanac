@@ -7,7 +7,7 @@ import {
   Entity,
   Relationship,
   normalizeEntityName,
-} from "../schema/entity-deduplication.js";
+} from "./schema/entity-deduplication.js";
 
 export interface GraphNode {
   id: string; // MongoDB _id only

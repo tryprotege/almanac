@@ -1,9 +1,9 @@
 import { loadProxyConfig } from "../../mcp/config-loader.js";
 import { RecordStore } from "../../stores/record.store.js";
 import { NotionMCPClient } from "../sources/notion/mcpClient.js";
-import { NotionAdapter } from "../indexing/adapters/notion-adapter.js";
+import { NotionAdapter } from "./adapters/notion-adapter.js";
 import { connectMongoose } from "../../connections/mongoose.js";
-import { syncAllRecords } from "../indexing/db-indexer.service.js";
+import { syncAllRecords } from "./record-sync.service.js";
 
 /**
  * Sync Service

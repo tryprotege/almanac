@@ -5,22 +5,22 @@
 
 import OpenAI from "openai";
 import pLimit from "p-limit";
-import { Record } from "../../models/record.model.js";
-import { RecordStore } from "../../stores/record.store.js";
-import { GraphStore } from "../../stores/graph.store.js";
-import { SourceType, EntityRelationship } from "../../types/index.js";
-import { BaseRecordAdapter } from "./adapters/base-adapter.js";
-import { extractGraphFromContent } from "../schema/schema-extraction.js";
+import { Record } from "../../../models/record.model.js";
+import { RecordStore } from "../../../stores/record.store.js";
+import { GraphStore } from "../../../stores/graph.store.js";
+import { SourceType, EntityRelationship } from "../../../types/index.js";
+import { BaseRecordAdapter } from "../../sync/adapters/base-adapter.js";
+import { extractGraphFromContent } from "./schema/schema-extraction.js";
 import {
   Entity,
   Relationship,
   deduplicateEntities,
   mergeRelationships,
-} from "../schema/entity-deduplication.js";
+} from "./schema/entity-deduplication.js";
 import {
   isToxicChunk,
   truncateEntities,
-} from "../../utils/toxic-chunk-detector.js";
+} from "../../../utils/toxic-chunk-detector.js";
 import {
   entitiesToGraphNodes,
   relationshipsToGraphRelationships,
@@ -32,7 +32,7 @@ import {
   updateSchemaWithDiscovery,
   getCurrentSchemaTypes,
 } from "./schema-auto-discovery.js";
-import { getSchema } from "../../stores/graph-schema.store.js";
+import { getSchema } from "../../../stores/graph-schema.store.js";
 
 // ============================================================================
 // Types

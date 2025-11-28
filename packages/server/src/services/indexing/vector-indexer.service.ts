@@ -5,6 +5,8 @@ import { embed } from "../../utils/embedding.js";
 import { Record } from "../../models/record.model.js";
 import { SourceType } from "../../types/index.js";
 import { randomUUID } from "crypto";
+import pLimit from "p-limit";
+import { env } from "../../env.js";
 
 /**
  * Vector Indexer Service
@@ -13,7 +15,7 @@ import { randomUUID } from "crypto";
  */
 
 /**
- * Index all entities from a source into Qdrant
+ * Index all entities from a source into Qdrant with parallel processing
  */
 export async function insertAllRecordsToVectorDB(
   recordStore: RecordStore,
@@ -24,6 +26,7 @@ export async function insertAllRecordsToVectorDB(
     batchSize?: number;
     maxChunkSize?: number;
     overlapSize?: number;
+    concurrency?: number;
   }
 ): Promise<{
   processed: number;
@@ -32,6 +35,7 @@ export async function insertAllRecordsToVectorDB(
   skipped: number;
 }> {
   const batchSize = options?.batchSize || 50;
+  const concurrency = options?.concurrency || env.VECTOR_INDEXING_CONCURRENCY;
   const stats = {
     processed: 0,
     chunks: 0,
@@ -40,12 +44,17 @@ export async function insertAllRecordsToVectorDB(
   };
 
   console.log(`🔄 Starting vector indexing for source: ${source}`);
+  console.log(`   Concurrency: ${concurrency} parallel entities`);
 
   // Ensure Qdrant collection exists
   await vectorStore.ensureCollection();
 
+  // Create concurrency limiter
+  const limit = pLimit(concurrency);
+
   let skip = 0;
   let hasMore = true;
+  let batchNumber = 0;
 
   while (hasMore) {
     // Fetch batch of entities
@@ -60,26 +69,41 @@ export async function insertAllRecordsToVectorDB(
       break;
     }
 
-    // Process batch
-    for (const entity of entities) {
-      try {
-        await insertRecordToVectorDB(recordStore, vectorStore, entity);
-        stats.processed++;
-      } catch (error) {
-        console.error(`❌ Error indexing entity ${entity._id}:`, error);
-        stats.errors++;
-      }
-    }
+    batchNumber++;
+    console.log(
+      `\n🔄 Processing batch ${batchNumber} (${entities.length} entities)...`
+    );
+
+    // Process batch in parallel
+    const promises = entities.map((entity) =>
+      limit(async () => {
+        try {
+          const vectorIds = await insertRecordToVectorDB(
+            recordStore,
+            vectorStore,
+            entity
+          );
+          stats.processed++;
+          stats.chunks += vectorIds.length;
+          return { success: true, chunks: vectorIds.length };
+        } catch (error) {
+          console.error(`  ⚠️  Error indexing entity ${entity._id}:`, error);
+          stats.errors++;
+          return { success: false, chunks: 0 };
+        }
+      })
+    );
+
+    await Promise.all(promises);
 
     skip += entities.length;
 
     // Log progress
-    console.log(
-      `📊 Progress: ${stats.processed} processed, ${stats.chunks} chunks, ${stats.errors} errors`
-    );
+    const progress = `  ✓ Batch ${batchNumber} complete - ${stats.processed} processed, ${stats.chunks} chunks, ${stats.errors} errors`;
+    console.log(progress);
   }
 
-  console.log(`✅ Vector indexing complete for ${source}`);
+  console.log(`\n✅ Vector indexing complete for ${source}`);
   console.log(`   Processed: ${stats.processed} entities`);
   console.log(`   Chunks: ${stats.chunks} vectors`);
   console.log(`   Errors: ${stats.errors}`);
@@ -106,8 +130,13 @@ export async function insertRecordToVectorDB(
     await vectorStore.deletePoints(entity.vectorIds);
   }
 
-  // Chunk the content
-  const chunks = chunkText(entity.content);
+  // Prepend title to content for better search relevance
+  const contentWithTitle = entity.title
+    ? `# ${entity.title}\n\n${entity.content}`
+    : entity.content;
+
+  // Chunk the content (including title)
+  const chunks = chunkText(contentWithTitle);
 
   // Generate embeddings for all chunks
   const chunkTexts = chunks.map((chunk) => chunk.text);
@@ -124,6 +153,7 @@ export async function insertRecordToVectorDB(
       vector: embeddings[index],
       payload: {
         mongoId: entity._id,
+        checksum: entity.checksum,
         source: entity.source,
         sourceId: entity.sourceId,
         recordType: entity.recordType,

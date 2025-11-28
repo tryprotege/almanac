@@ -81,22 +81,19 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
 
     // Get additional data for pages
     let blocks: NotionBlock[] = [];
-    let comments: NotionComment[] = [];
+    // let comments: NotionComment[] = [];
 
     if (recordType === "page") {
       try {
         blocks = await this.client.getAllBlocksRecursive(sourceId);
-        comments = await this.client.getPageComments(sourceId);
+        // comments = await this.client.getPageComments(sourceId);
       } catch (error) {
-        console.warn(
-          `Failed to fetch blocks/comments for page ${sourceId}:`,
-          error
-        );
+        console.warn(`Failed to fetch blocks for page ${sourceId}:`, error);
       }
     }
 
     const title = this.extractTitle(sourceEntity);
-    const content = this.extractTextContent(sourceEntity);
+    const content = this.extractTextContent(sourceEntity, blocks);
     const people = this.extractPeople(sourceEntity);
     const primaryDate = this.extractPrimaryDate(sourceEntity);
     const tags = this.extractTags(sourceEntity);
@@ -119,9 +116,13 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
         (sourceEntity as any).last_edited_time || new Date()
       ),
       isDeleted: (sourceEntity as any).archived || false,
+      deletedAt: null as any,
       deletionStrategy: "soft",
       graphNodeId: _id,
       graphVersion: 1,
+      vectorIds: [],
+      embeddingVersion: 1,
+      createdAt: new Date(),
       updatedAt: new Date(),
     };
   }
@@ -178,20 +179,24 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
   /**
    * Extract text content from entity
    */
-  protected extractTextContent(sourceEntity: NotionEntity): string {
+  protected extractTextContent(
+    sourceEntity: NotionEntity,
+    blocks?: NotionBlock[]
+  ): string {
     const recordType = this.getEntityType(sourceEntity);
 
     if (recordType === "page") {
-      // For pages, we'll need to fetch blocks separately
-      // This is a simplified version
-      return this.extractTitle(sourceEntity);
+      // Extract markdown content from blocks
+      if (blocks && blocks.length > 0) {
+        return this.blocksToMarkdown(blocks);
+      }
+      return "";
     }
 
     if (recordType === "database") {
       const db = sourceEntity as NotionDatabase;
-      const title = this.extractRichText(db.title);
       const description = this.extractRichText(db.description || []);
-      return `${title}\n${description}`.trim();
+      return description;
     }
 
     if (recordType === "user") {
@@ -309,5 +314,78 @@ export class NotionAdapter extends BaseEntityAdapter<NotionEntity> {
   private extractRichText(richText: any[]): string {
     if (!Array.isArray(richText)) return "";
     return richText.map((rt) => rt.text?.content || "").join("");
+  }
+
+  /**
+   * Convert Notion blocks to markdown
+   */
+  private blocksToMarkdown(blocks: NotionBlock[]): string {
+    const lines: string[] = [];
+
+    for (const block of blocks) {
+      const text = this.blockToMarkdown(block);
+      if (text) {
+        lines.push(text);
+      }
+    }
+
+    return lines.join("\n\n").trim();
+  }
+
+  /**
+   * Convert a single Notion block to markdown
+   */
+  private blockToMarkdown(block: NotionBlock): string {
+    const type = block.type;
+    const content = (block as any)[type];
+
+    if (!content) return "";
+
+    // Extract rich text if available
+    const richText = content.rich_text || content.text || [];
+    const text = this.extractRichText(richText);
+
+    switch (type) {
+      case "paragraph":
+        return text;
+
+      case "heading_1":
+        return `# ${text}`;
+
+      case "heading_2":
+        return `## ${text}`;
+
+      case "heading_3":
+        return `### ${text}`;
+
+      case "bulleted_list_item":
+        return `- ${text}`;
+
+      case "numbered_list_item":
+        return `1. ${text}`;
+
+      case "to_do":
+        const checked = content.checked ? "x" : " ";
+        return `- [${checked}] ${text}`;
+
+      case "toggle":
+        return `▶ ${text}`;
+
+      case "quote":
+        return `> ${text}`;
+
+      case "code":
+        const language = content.language || "";
+        return `\`\`\`${language}\n${text}\n\`\`\``;
+
+      case "callout":
+        return `📌 ${text}`;
+
+      case "divider":
+        return "---";
+
+      default:
+        return text;
+    }
   }
 }

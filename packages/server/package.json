@@ -34,6 +34,7 @@
     "mongoose": "^9.0.0",
     "neo4j-driver": "^6.0.1",
     "openai": "^6.9.1",
+    "p-limit": "^7.2.0",
     "zod": "3.25.76"
   },
   "devDependencies": {

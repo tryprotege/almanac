@@ -10,6 +10,8 @@ import {
   extractEntitiesFromContent,
   extractRelationshipsFromContent,
 } from "./schema-extraction.js";
+import pLimit from "p-limit";
+import { env } from "../../env.js";
 
 // ============================================================================
 // Types
@@ -21,6 +23,8 @@ export interface SchemaLearningOptions {
   persona?: string;
   aiSampleSize?: number;
   minContentLength?: number;
+  concurrency?: number;
+  maxBatchChars?: number;
 }
 
 export interface SchemaLearningResult {
@@ -169,63 +173,167 @@ export async function fetchRecords(
 }
 
 // ============================================================================
+// Batching Functions
+// ============================================================================
+
+/**
+ * Create dynamic batches based on total character count
+ * Ensures each batch stays under maxBatchChars limit
+ */
+function createDynamicBatches(
+  records: any[],
+  maxBatchChars: number = env.SCHEMA_LEARNING_MAX_BATCH_CHARS
+): any[][] {
+  const batches: any[][] = [];
+  let currentBatch: any[] = [];
+  let currentBatchSize = 0;
+
+  for (const record of records) {
+    const recordSize = record.content.length;
+
+    // If adding this record exceeds limit, start new batch
+    if (
+      currentBatchSize + recordSize > maxBatchChars &&
+      currentBatch.length > 0
+    ) {
+      batches.push(currentBatch);
+      currentBatch = [];
+      currentBatchSize = 0;
+    }
+
+    currentBatch.push(record);
+    currentBatchSize += recordSize;
+  }
+
+  // Add final batch
+  if (currentBatch.length > 0) {
+    batches.push(currentBatch);
+  }
+
+  return batches;
+}
+
+// ============================================================================
 // AI Extraction Functions
 // ============================================================================
 
 /**
- * Extract entity types from records using AI
- * Pure function with async I/O
+ * Extract entity types from records using AI with parallel processing
  */
 export async function extractEntityTypesFromRecords(
   openaiClient: OpenAI,
   records: any[],
   existingTypeNames: string[],
-  persona?: string
+  persona?: string,
+  options: { concurrency?: number; maxBatchChars?: number } = {}
 ): Promise<GraphEntityType[]> {
   const allEntityTypes = new Map<string, GraphEntityType>();
+  const concurrency = options.concurrency || env.SCHEMA_LEARNING_CONCURRENCY;
+  const maxBatchChars =
+    options.maxBatchChars || env.SCHEMA_LEARNING_MAX_BATCH_CHARS;
 
-  for (const record of records) {
-    try {
-      const extractedEntities = await extractEntitiesFromContent(
-        openaiClient,
-        record.content,
-        existingTypeNames,
-        persona
-      );
+  // Create dynamic batches
+  const batches = createDynamicBatches(records, maxBatchChars);
 
-      extractedEntities.forEach((aiEntity: GraphEntityType) => {
-        if (!allEntityTypes.has(aiEntity.name)) {
-          allEntityTypes.set(aiEntity.name, {
-            name: aiEntity.name,
-            description: aiEntity.description,
-            mcpSource: `${record.source}_ai`,
-            properties: [],
+  console.log(
+    `\n🔄 Processing ${records.length} records in ${batches.length} batches with ${concurrency} concurrent requests...\n`
+  );
+
+  // Create concurrency limiter
+  const limit = pLimit(concurrency);
+  let completed = 0;
+
+  // Process batches in parallel
+  const promises = batches.map((batch, batchIndex) =>
+    limit(async () => {
+      const batchResults = new Map<string, GraphEntityType>();
+
+      // Process all records in batch in parallel
+      const recordPromises = batch.map(async (record) => {
+        try {
+          const extractedEntities = await extractEntitiesFromContent(
+            openaiClient,
+            record.content,
+            existingTypeNames,
+            persona
+          );
+
+          return {
+            success: true,
+            entities: extractedEntities,
+            source: record.source,
+          };
+        } catch (error) {
+          console.error(
+            `  ⚠️  AI entity extraction failed for ${record._id}:`,
+            (error as Error).message
+          );
+          return { success: false };
+        }
+      });
+
+      const results = await Promise.all(recordPromises);
+
+      // Merge results
+      results.forEach((result) => {
+        if (result.success && result.entities) {
+          result.entities.forEach((aiEntity: GraphEntityType) => {
+            if (!batchResults.has(aiEntity.name)) {
+              batchResults.set(aiEntity.name, {
+                name: aiEntity.name,
+                description: aiEntity.description,
+                mcpSource: `${result.source}_ai`,
+                properties: [],
+              });
+            }
           });
         }
       });
-    } catch (error) {
-      console.error(
-        `  ⚠️  AI entity extraction failed for ${record._id}:`,
-        (error as Error).message
+
+      completed++;
+      const progress = ((completed / batches.length) * 100).toFixed(1);
+      const batchSize = batch.reduce((sum, r) => sum + r.content.length, 0);
+      console.log(
+        `  ✓ Batch ${completed}/${batches.length} (${progress}%) - ${
+          batch.length
+        } docs, ${(batchSize / 1000).toFixed(1)}KB`
       );
-    }
-  }
+
+      return batchResults;
+    })
+  );
+
+  const results = await Promise.all(promises);
+
+  // Merge all results
+  results.forEach((batchResults) => {
+    batchResults.forEach((entityType, name) => {
+      if (!allEntityTypes.has(name)) {
+        allEntityTypes.set(name, entityType);
+      }
+    });
+  });
+
+  console.log(`\n✅ Completed all ${batches.length} batches!\n`);
 
   return Array.from(allEntityTypes.values());
 }
 
 /**
- * Extract relationship types from records using AI
- * Pure function with async I/O
+ * Extract relationship types from records using AI with parallel processing
  */
 export async function extractRelationshipTypesFromRecords(
   openaiClient: OpenAI,
   records: any[],
   learnedEntityTypes: GraphEntityType[],
   existingRelationships: GraphRelationshipType[],
-  persona?: string
+  persona?: string,
+  options: { concurrency?: number; maxBatchChars?: number } = {}
 ): Promise<GraphRelationshipType[]> {
   const allRelationshipTypes = new Map<string, GraphRelationshipType>();
+  const concurrency = options.concurrency || env.SCHEMA_LEARNING_CONCURRENCY;
+  const maxBatchChars =
+    options.maxBatchChars || env.SCHEMA_LEARNING_MAX_BATCH_CHARS;
 
   // Convert learned entity types to format expected by LLM
   const entityInstances = learnedEntityTypes.map((et) => ({
@@ -233,37 +341,96 @@ export async function extractRelationshipTypesFromRecords(
     instances: [], // We don't track instances at this stage
   }));
 
-  for (const record of records) {
-    try {
-      if (entityInstances.length === 0) continue;
+  if (entityInstances.length === 0) {
+    return [];
+  }
 
-      const extractedRels = await extractRelationshipsFromContent(
-        openaiClient,
-        record.content,
-        entityInstances,
-        existingRelationships,
-        persona
-      );
+  // Create dynamic batches
+  const batches = createDynamicBatches(records, maxBatchChars);
 
-      extractedRels.forEach((aiRel: GraphRelationshipType) => {
-        if (!allRelationshipTypes.has(aiRel.name)) {
-          allRelationshipTypes.set(aiRel.name, {
-            name: aiRel.name,
-            description: aiRel.description,
-            sourceTypes: aiRel.sourceTypes,
-            targetTypes: aiRel.targetTypes,
-            bidirectional: aiRel.bidirectional,
-            mcpSource: `${record.source}_ai`,
+  console.log(
+    `\n🔄 Processing ${records.length} records in ${batches.length} batches for relationships...\n`
+  );
+
+  // Create concurrency limiter
+  const limit = pLimit(concurrency);
+  let completed = 0;
+
+  // Process batches in parallel
+  const promises = batches.map((batch) =>
+    limit(async () => {
+      const batchResults = new Map<string, GraphRelationshipType>();
+
+      // Process all records in batch in parallel
+      const recordPromises = batch.map(async (record) => {
+        try {
+          const extractedRels = await extractRelationshipsFromContent(
+            openaiClient,
+            record.content,
+            entityInstances,
+            existingRelationships,
+            persona
+          );
+
+          return {
+            success: true,
+            relationships: extractedRels,
+            source: record.source,
+          };
+        } catch (error) {
+          console.error(
+            `  ⚠️  AI relationship extraction failed for ${record._id}:`,
+            (error as Error).message
+          );
+          return { success: false };
+        }
+      });
+
+      const results = await Promise.all(recordPromises);
+
+      // Merge results
+      results.forEach((result) => {
+        if (result.success && result.relationships) {
+          result.relationships.forEach((aiRel: GraphRelationshipType) => {
+            if (!batchResults.has(aiRel.name)) {
+              batchResults.set(aiRel.name, {
+                name: aiRel.name,
+                description: aiRel.description,
+                sourceTypes: aiRel.sourceTypes,
+                targetTypes: aiRel.targetTypes,
+                bidirectional: aiRel.bidirectional,
+                mcpSource: `${result.source}_ai`,
+              });
+            }
           });
         }
       });
-    } catch (error) {
-      console.error(
-        `  ⚠️  AI relationship extraction failed for ${record._id}:`,
-        (error as Error).message
+
+      completed++;
+      const progress = ((completed / batches.length) * 100).toFixed(1);
+      const batchSize = batch.reduce((sum, r) => sum + r.content.length, 0);
+      console.log(
+        `  ✓ Batch ${completed}/${batches.length} (${progress}%) - ${
+          batch.length
+        } docs, ${(batchSize / 1000).toFixed(1)}KB`
       );
-    }
-  }
+
+      return batchResults;
+    })
+  );
+
+  const results = await Promise.all(promises);
+
+  // Merge all results
+  results.forEach((batchResults) => {
+    batchResults.forEach((relType, name) => {
+      if (!allRelationshipTypes.has(name)) {
+        allRelationshipTypes.set(name, relType);
+      }
+    });
+  });
+
+  console.log(`\n✅ Completed all ${batches.length} batches!\n`);
 
   return Array.from(allRelationshipTypes.values());
 }

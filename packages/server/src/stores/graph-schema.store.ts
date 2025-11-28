@@ -227,42 +227,6 @@ export async function getValidRelationshipTypes(
 }
 
 // ============================================================================
-// Extraction Rules Functions
-// ============================================================================
-
-/**
- * Update extraction rules
- */
-export async function updateExtractionRules(
-  rules: Partial<{
-    autoExtractEntities: boolean;
-    autoExtractRelationships: boolean;
-    confidenceThreshold: number;
-  }>
-): Promise<GraphSchema | null> {
-  const updateFields: any = { updatedAt: new Date() };
-
-  if (rules.autoExtractEntities !== undefined) {
-    updateFields["extractionRules.autoExtractEntities"] =
-      rules.autoExtractEntities;
-  }
-  if (rules.autoExtractRelationships !== undefined) {
-    updateFields["extractionRules.autoExtractRelationships"] =
-      rules.autoExtractRelationships;
-  }
-  if (rules.confidenceThreshold !== undefined) {
-    updateFields["extractionRules.confidenceThreshold"] =
-      rules.confidenceThreshold;
-  }
-
-  return await GraphSchemaModel.findByIdAndUpdate(
-    SCHEMA_ID,
-    { $set: updateFields },
-    { new: true }
-  ).exec();
-}
-
-// ============================================================================
 // Persona Functions
 // ============================================================================
 

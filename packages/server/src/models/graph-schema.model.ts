@@ -23,21 +23,6 @@ const RelationshipTypeSchema = new mongoose.Schema(
   { _id: false }
 );
 
-const ExtractionRulesSchema = new mongoose.Schema(
-  {
-    autoExtractEntities: { type: Boolean, required: true, default: true },
-    autoExtractRelationships: { type: Boolean, required: true, default: true },
-    confidenceThreshold: {
-      type: Number,
-      required: true,
-      default: 0.6,
-      min: 0,
-      max: 1,
-    },
-  },
-  { _id: false }
-);
-
 const SchemaUpdateHistorySchema = new mongoose.Schema(
   {
     version: { type: Number, required: true },
@@ -56,10 +41,6 @@ const GraphSchemaSchema = new mongoose.Schema(
     _id: { type: String, required: true },
     entityTypes: [EntityTypeSchema],
     relationshipTypes: [RelationshipTypeSchema],
-    extractionRules: {
-      type: ExtractionRulesSchema,
-      required: true,
-    },
     // Versioning fields
     version: { type: Number, required: true, default: 1 },
     lastLearnedAt: { type: Date },

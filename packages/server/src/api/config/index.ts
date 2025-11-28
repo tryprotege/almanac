@@ -40,14 +40,12 @@ configRouter.get("/models", async (_req: Request, res: Response) => {
     // Mask sensitive data
     const safeConfig = {
       llmProvider: config.llmProvider,
-      llmApiKey: config.llmApiKey ? maskApiKey(config.llmApiKey) : undefined,
+      llmApiKey: config.llmApiKey,
       llmBaseURL: config.llmBaseURL,
       llmChatModel: config.llmChatModel,
       llmEmbeddingModel: config.llmEmbeddingModel,
       rerankerEnabled: config.rerankerEnabled,
-      rerankerApiKey: config.rerankerApiKey
-        ? maskApiKey(config.rerankerApiKey)
-        : undefined,
+      rerankerApiKey: config.rerankerApiKey,
       rerankerBaseURL: config.rerankerBaseURL,
       rerankerModel: config.rerankerModel,
       updatedAt: config.updatedAt,

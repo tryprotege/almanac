@@ -27,7 +27,7 @@ export function Navigation() {
 
   return (
     <nav
-      className="top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
+      className="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
       role="navigation"
       aria-label="Main navigation"
     >

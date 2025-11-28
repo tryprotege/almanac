@@ -7,7 +7,7 @@ export default function Schema() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-8">
+      <div className=" bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-center h-96">
           <div className="flex flex-col items-center gap-3">
             <RefreshCw className="w-8 h-8 animate-spin text-primary-600 dark:text-primary-400" />
@@ -22,7 +22,7 @@ export default function Schema() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-8">
+      <div className=" bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
           <p className="text-red-800 dark:text-red-200 font-medium">
             Error loading schema
@@ -43,7 +43,7 @@ export default function Schema() {
 
   if (!schema) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-8">
+      <div className=" bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
           <p className="text-yellow-800 dark:text-yellow-200 font-medium">
             No schema found
@@ -57,7 +57,7 @@ export default function Schema() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className=" bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

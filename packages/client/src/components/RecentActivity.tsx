@@ -66,7 +66,7 @@ export function RecentActivity({ stats }: RecentActivityProps) {
         {recentActivities.map((activity, index) => (
           <div
             key={index}
-            className="flex items-start space-x-3 text-sm text-gray-600 dark:text-gray-300"
+            className="flex items-center space-x-3 text-sm text-gray-600 dark:text-gray-300"
           >
             <span className="text-lg flex-shrink-0">{activity.icon}</span>
             <div>

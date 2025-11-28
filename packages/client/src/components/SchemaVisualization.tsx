@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
-import ReactFlow, {
+import {
+  ReactFlow,
   Background,
   Controls,
   Edge,
@@ -10,9 +11,10 @@ import ReactFlow, {
   Position,
   useEdgesState,
   useNodesState,
-} from "reactflow";
-import "reactflow/dist/style.css";
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import { SchemaData } from "../lib/api";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface SchemaVisualizationProps {
   schema: SchemaData;
@@ -46,6 +48,8 @@ const nodeTypes: NodeTypes = {
 };
 
 export function SchemaVisualization({ schema }: SchemaVisualizationProps) {
+  const { theme } = useTheme();
+
   // Convert schema data to React Flow nodes and edges
   const { initialNodes, initialEdges } = useMemo(() => {
     const nodes: Node[] = [];
@@ -137,7 +141,7 @@ export function SchemaVisualization({ schema }: SchemaVisualizationProps) {
   }
 
   return (
-    <div className="w-full h-[600px] bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+    <div className="w-full h-[600px] rounded-lg border">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -149,6 +153,7 @@ export function SchemaVisualization({ schema }: SchemaVisualizationProps) {
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.1}
         maxZoom={2}
+        colorMode={theme}
       >
         <Background />
         <Controls />

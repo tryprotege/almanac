@@ -66,49 +66,64 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
       </div>
 
       {/* Server Info */}
-      <div className="pr-12">
+      <div>
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
           {server.name}
         </h3>
-        <div className="mt-2 space-y-1">
-          <div className="flex items-center text-sm">
+        <div className="mt-2 space-y-1 grid grid-cols-[15%_85%] gap-2 text-left">
+          <div className="flex items-left text-sm col-start-auto">
             <span className="text-gray-500 dark:text-gray-400 w-16">Type:</span>
+          </div>
+          <div>
             <span className="text-gray-700 dark:text-gray-300 font-medium">
               {server.type}
             </span>
           </div>
           {server.type === "stdio" && server.command && (
-            <div className="flex items-start text-sm">
-              <span className="text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">
-                Command:
-              </span>
-              <span className="text-gray-700 dark:text-gray-300 font-mono text-xs break-all">
-                {server.command}
-                {server.args && server.args.length > 0
-                  ? ` ${server.args.join(" ")}`
-                  : ""}
-              </span>
-            </div>
+            <>
+              <div className="flex items-start text-sm">
+                <span className="text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">
+                  Command:
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-700 dark:text-gray-300 font-mono text-xs break-all">
+                  {server.command}
+                  {server.args && server.args.length > 0
+                    ? ` ${server.args.join(" ")}`
+                    : ""}
+                </span>
+              </div>
+            </>
           )}
           {server.type === "sse" && server.url && (
-            <div className="flex items-start text-sm">
-              <span className="text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">
-                URL:
-              </span>
-              <span className="text-gray-700 dark:text-gray-300 font-mono text-xs break-all">
-                {server.url}
-              </span>
-            </div>
+            <>
+              {" "}
+              <div className="flex items-start text-sm">
+                <span className="text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">
+                  URL:
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-700 dark:text-gray-300 font-mono text-xs break-all">
+                  {server.url}
+                </span>
+              </div>
+            </>
           )}
           {server.env && Object.keys(server.env).length > 0 && (
-            <div className="flex items-start text-sm">
-              <span className="text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">
-                Env:
-              </span>
-              <span className="text-gray-700 dark:text-gray-300 text-xs">
-                {Object.keys(server.env).length} variable(s)
-              </span>
-            </div>
+            <>
+              <div className="flex items-start text-sm">
+                <span className="text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">
+                  Env:
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-700 dark:text-gray-300 text-xs">
+                  {Object.keys(server.env).length} variable(s)
+                </span>
+              </div>
+            </>
           )}
         </div>
 
@@ -132,7 +147,7 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
 
       {/* Actions */}
       {!showDeleteConfirm ? (
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-4 flex items-center justify-center gap-2">
           <button
             onClick={handleConnect}
             disabled={isLoading || server.isDisabled}

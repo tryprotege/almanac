@@ -242,10 +242,10 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
         {/* Form */}
         <form
           onSubmit={handleSubmit}
-          className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]"
+          className="p-6 overflow-y-auto max-h-[calc(90vh-140px)] text-left"
         >
           {/* Name */}
-          <div className="mb-4">
+          <div className="mb-4 ">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Server Name *
             </label>

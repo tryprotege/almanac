@@ -4,7 +4,6 @@ import express, { NextFunction, Request, Response } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import { router } from "./api/index.js";
-import { MCPServerConfigModel } from "./connections/mongoose.js";
 import { env } from "./env.js";
 import { mcpClientManager, MCPServerConfig } from "./mcp/client.js";
 import { validateConfig } from "./mcp/config-loader.js";
@@ -14,6 +13,7 @@ import {
   shutdownServices,
 } from "./mcp/initialization.js";
 import { mockMCPServers, mockMCPServerStatus } from "./mock/index.js";
+import { MCPServerConfigModel } from "./models/mcp-config.model.js";
 
 // Start server
 const runServer = async () => {

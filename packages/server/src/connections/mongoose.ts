@@ -1,19 +1,16 @@
 import mongoose from "mongoose";
+
 import { env } from "../env.js";
-
-export interface MongooseConnection {
-  connection: typeof mongoose;
-  close: () => Promise<void>;
-}
-
-// Re-export models
-export { GraphSchemaModel } from "../models/graph-schema.model.js";
-export { MCPServerConfigModel } from "../models/mcp-config.model.js";
 
 const createMongoUri = (): string => {
   const { MONGO_HOST, MONGO_PORT, MONGO_USERNAME, MONGO_PASSWORD } = env;
   return `mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}`;
 };
+
+export interface MongooseConnection {
+  connection: typeof mongoose;
+  close: () => Promise<void>;
+}
 
 /**
  * Connect to MongoDB using Mongoose

@@ -1,4 +1,3 @@
-import { AnyKeys } from "mongoose";
 import { RecordModel, Record } from "../models/record.model.js";
 import { SourceType } from "../types/index.js";
 
@@ -10,7 +9,7 @@ export class RecordStore {
   /**
    * Upsert a single record
    */
-  async upsert({ _id, ...record }: AnyKeys<Record>): Promise<Record> {
+  async upsert({ _id, ...record }: Partial<Record>): Promise<Record> {
     const result = await RecordModel.findByIdAndUpdate(
       _id,
       { $set: record },
@@ -111,7 +110,6 @@ export class RecordStore {
   async softDelete(id: string): Promise<void> {
     await RecordModel.findByIdAndUpdate(id, {
       $set: {
-        isDeleted: true,
         deletedAt: new Date(),
       },
     });
@@ -127,7 +125,6 @@ export class RecordStore {
       { _id: { $in: ids } },
       {
         $set: {
-          isDeleted: true,
           deletedAt: new Date(),
         },
       }

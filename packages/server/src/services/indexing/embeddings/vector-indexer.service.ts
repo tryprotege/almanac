@@ -1,41 +1,36 @@
-import { RecordStore } from "../../stores/record.store.js";
-import { VectorStore } from "../../stores/vector.store.js";
-import { chunkText } from "../../utils/chunking.js";
-import { embed } from "../../utils/embedding.js";
-import { Record } from "../../models/record.model.js";
-import { SourceType } from "../../types/index.js";
 import { randomUUID } from "crypto";
 import pLimit from "p-limit";
-import { env } from "../../env.js";
+
+import { env } from "../../../env.js";
+import { Record } from "../../../models/record.model.js";
+import { RecordStore } from "../../../stores/record.store.js";
+import { VectorStore } from "../../../stores/vector.store.js";
+import { VectorPoint, SourceType } from "../../../types/index.js";
+import { chunkText } from "../../../utils/chunking.js";
+import { embed } from "../../../utils/embedding.js";
+
+// Create concurrency limiter. Have this outside of the function to ensure the limit applied to all invocations
+const limit = pLimit(env.VECTOR_INDEXING_CONCURRENCY);
 
 /**
  * Vector Indexer Service
- * Post-processes MongoDB entities into Qdrant vector store
+ * Post-processes MongoDB records into Qdrant vector store
  * Handles chunking and embedding of large content
  */
 
 /**
- * Index all entities from a source into Qdrant with parallel processing
+ * Index all records from a source into Qdrant with parallel processing
  */
 export async function insertAllRecordsToVectorDB(
   recordStore: RecordStore,
   vectorStore: VectorStore,
-  source: SourceType,
-  options?: {
-    recordType?: string;
-    batchSize?: number;
-    maxChunkSize?: number;
-    overlapSize?: number;
-    concurrency?: number;
-  }
+  source: SourceType
 ): Promise<{
   processed: number;
   chunks: number;
   errors: number;
   skipped: number;
 }> {
-  const batchSize = options?.batchSize || 50;
-  const concurrency = options?.concurrency || env.VECTOR_INDEXING_CONCURRENCY;
   const stats = {
     processed: 0,
     chunks: 0,
@@ -44,50 +39,49 @@ export async function insertAllRecordsToVectorDB(
   };
 
   console.log(`🔄 Starting vector indexing for source: ${source}`);
-  console.log(`   Concurrency: ${concurrency} parallel entities`);
+  console.log(
+    `   Concurrency: ${env.VECTOR_INDEXING_CONCURRENCY} parallel records`
+  );
 
   // Ensure Qdrant collection exists
   await vectorStore.ensureCollection();
-
-  // Create concurrency limiter
-  const limit = pLimit(concurrency);
 
   let skip = 0;
   let hasMore = true;
   let batchNumber = 0;
 
   while (hasMore) {
-    // Fetch batch of entities
-    const entities = await recordStore.findBySourceAndType(
-      source,
-      options?.recordType,
-      { limit: batchSize, skip, includeDeleted: false }
-    );
+    // Fetch batch of records
+    const records = await recordStore.findBySourceAndType(source, undefined, {
+      limit: 50,
+      skip,
+      includeDeleted: false,
+    });
 
-    if (entities.length === 0) {
+    if (records.length === 0) {
       hasMore = false;
       break;
     }
 
     batchNumber++;
     console.log(
-      `\n🔄 Processing batch ${batchNumber} (${entities.length} entities)...`
+      `\n🔄 Processing batch ${batchNumber} (${records.length} records)...`
     );
 
     // Process batch in parallel
-    const promises = entities.map((entity) =>
+    const promises = records.map((record) =>
       limit(async () => {
         try {
           const vectorIds = await insertRecordToVectorDB(
             recordStore,
             vectorStore,
-            entity
+            record
           );
           stats.processed++;
           stats.chunks += vectorIds.length;
           return { success: true, chunks: vectorIds.length };
         } catch (error) {
-          console.error(`  ⚠️  Error indexing entity ${entity._id}:`, error);
+          console.error(`  ⚠️  Error indexing record ${record._id}:`, error);
           stats.errors++;
           return { success: false, chunks: 0 };
         }
@@ -96,7 +90,7 @@ export async function insertAllRecordsToVectorDB(
 
     await Promise.all(promises);
 
-    skip += entities.length;
+    skip += records.length;
 
     // Log progress
     const progress = `  ✓ Batch ${batchNumber} complete - ${stats.processed} processed, ${stats.chunks} chunks, ${stats.errors} errors`;
@@ -104,7 +98,7 @@ export async function insertAllRecordsToVectorDB(
   }
 
   console.log(`\n✅ Vector indexing complete for ${source}`);
-  console.log(`   Processed: ${stats.processed} entities`);
+  console.log(`   Processed: ${stats.processed} records`);
   console.log(`   Chunks: ${stats.chunks} vectors`);
   console.log(`   Errors: ${stats.errors}`);
   console.log(`   Skipped: ${stats.skipped}`);
@@ -113,27 +107,27 @@ export async function insertAllRecordsToVectorDB(
 }
 
 /**
- * Index a single entity into Qdrant
+ * Index a single record into Qdrant
  */
 export async function insertRecordToVectorDB(
   recordStore: RecordStore,
   vectorStore: VectorStore,
-  entity: Record
+  record: Record
 ): Promise<string[]> {
   // Skip if no content
-  if (!entity.content || entity.content.trim().length === 0) {
+  if (!record.content || record.content.trim().length === 0) {
     return [];
   }
 
-  // Delete existing vectors for this entity
-  if (entity.vectorIds && entity.vectorIds.length > 0) {
-    await vectorStore.deletePoints(entity.vectorIds);
+  // Delete existing vectors for this record
+  if (record.lastGraphIndexDate) {
+    await vectorStore.deleteOutdatedPoints(record._id, record.checksum);
   }
 
   // Prepend title to content for better search relevance
-  const contentWithTitle = entity.title
-    ? `# ${entity.title}\n\n${entity.content}`
-    : entity.content;
+  const contentWithTitle = record.title
+    ? `# ${record.title}\n\n${record.content}`
+    : record.content;
 
   // Chunk the content (including title)
   const chunks = chunkText(contentWithTitle);
@@ -142,9 +136,10 @@ export async function insertRecordToVectorDB(
   const chunkTexts = chunks.map((chunk) => chunk.text);
   const embeddings = await embed(chunkTexts);
 
-  // Create Qdrant points
+  // Create Qdrant points with minimal payload
+  // Metadata (source, people, tags, dates) is fetched from MongoDB via mongoId
   const vectorIds: string[] = [];
-  const points = chunks.map((chunk, index) => {
+  const points = chunks.map<VectorPoint>((chunk, index) => {
     const vectorId = randomUUID();
     vectorIds.push(vectorId);
 
@@ -152,22 +147,14 @@ export async function insertRecordToVectorDB(
       id: vectorId,
       vector: embeddings[index],
       payload: {
-        mongoId: entity._id,
-        checksum: entity.checksum,
-        source: entity.source,
-        sourceId: entity.sourceId,
-        recordType: entity.recordType,
-        title: entity.title,
+        // Link to MongoDB (required)
+        mongoId: record._id,
+        // Change detection (for re-indexing)
+        checksum: record.checksum,
+        // Chunk metadata (for result assembly)
         chunkIndex: chunk.index,
-        chunkText: chunk.text,
         chunkStart: chunk.start,
         chunkEnd: chunk.end,
-        totalChunks: chunks.length,
-        people: entity.people,
-        primaryDate: entity.primaryDate?.toISOString() || null,
-        tags: entity.tags,
-        syncedAt: entity.syncedAt.toISOString(),
-        embeddingVersion: entity.embeddingVersion,
       },
     };
   });
@@ -175,10 +162,9 @@ export async function insertRecordToVectorDB(
   // Upsert to Qdrant
   await vectorStore.upsertPoints(points);
 
-  // Update entity with vector IDs
+  // Update record with vector IDs
   await recordStore.upsert({
-    _id: entity._id,
-    vectorIds,
+    _id: record._id,
     lastEmbedDate: new Date(),
   });
 

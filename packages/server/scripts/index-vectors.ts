@@ -1,8 +1,9 @@
 import "dotenv/config";
-import { getServices } from "../src/mcp/initialization.js";
+
+import { initializeServices } from "../src/mcp/initialization.js";
+import { insertRecordToVectorDB } from "../src/services/indexing/embeddings/vector-indexer.service.ts";
 import { RecordStore } from "../src/stores/record.store.js";
 import { VectorStore } from "../src/stores/vector.store.js";
-import { insertRecordToVectorDB } from "../src/services/indexing/vector-indexer.service.js";
 import { SourceType } from "../src/types/index.js";
 
 /**
@@ -53,13 +54,11 @@ async function getVectorStats(
   indexed: number;
   unindexed: number;
 }> {
-  const records = await recordStore.findBySourceAndType(source, "", {
+  const records = await recordStore.findBySourceAndType(source, undefined, {
     includeDeleted: false,
   });
 
-  const indexed = records.filter(
-    (record) => record.vectorIds && record.vectorIds.length > 0
-  );
+  const indexed = records.filter((record) => record.lastEmbedDate);
 
   return {
     totalRecords: records.length,
@@ -79,7 +78,7 @@ async function indexVectorRecords() {
   console.log(`Force Re-index: ${options.force ? "Yes" : "No"}`);
   console.log("");
 
-  const { qdrant } = await getServices();
+  const { qdrant } = await initializeServices();
   const recordStore = new RecordStore();
   const vectorStore = new VectorStore(qdrant);
 
@@ -114,9 +113,7 @@ async function indexVectorRecords() {
 
     const candidateRecords = options.force
       ? allRecords
-      : allRecords.filter(
-          (record) => !record.vectorIds || record.vectorIds.length === 0
-        );
+      : allRecords.filter((record) => !record.lastEmbedDate);
 
     if (candidateRecords.length === 0) {
       console.log(`\n✅ No records to index for ${source}`);

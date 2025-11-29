@@ -1,9 +1,9 @@
-import { RecordStore } from "../../stores/record.store.js";
-import { GraphStore } from "../../stores/graph.store.js";
-import { Record } from "../../models/record.model.js";
-import { SourceType } from "../../types/index.js";
-import { BaseEntityAdapter } from "./adapters/base-adapter.js";
-import { MemgraphNode, MemgraphRelationship } from "../../types/index.js";
+import { RecordStore } from "../../../stores/record.store.js";
+import { GraphStore } from "../../../stores/graph.store.js";
+import { Record as TRecord } from "../../../models/record.model.js";
+import { SourceType } from "../../../types/index.js";
+import { BaseRecordAdapter } from "../../sync/adapters/base-adapter.js";
+import { MemgraphNode, MemgraphRelationship } from "../../../types/index.js";
 
 /**
  * Graph Indexer Service
@@ -14,7 +14,7 @@ export class GraphIndexerService {
   constructor(
     private recordStore: RecordStore,
     private graphStore: GraphStore,
-    private adapters: Map<SourceType, BaseEntityAdapter>
+    private adapters: Map<SourceType, BaseRecordAdapter>
   ) {}
 
   /**
@@ -69,7 +69,6 @@ export class GraphIndexerService {
         for (const record of records) {
           await this.recordStore.upsert({
             _id: record._id,
-            graphNodeId: record._id,
             lastGraphIndexDate: new Date(),
           });
         }
@@ -136,7 +135,7 @@ export class GraphIndexerService {
    * Index a single record into Memgraph
    */
   async indexRecord(
-    record: Record,
+    record: TRecord,
     options?: {
       includeRelationships?: boolean;
     }
@@ -153,7 +152,6 @@ export class GraphIndexerService {
     // Update record with graph node ID
     await this.recordStore.upsert({
       _id: record._id,
-      graphNodeId: record._id,
       lastGraphIndexDate: new Date(),
     });
 
@@ -224,7 +222,7 @@ export class GraphIndexerService {
   /**
    * Convert record to graph node
    */
-  private recordToNode(record: Record): MemgraphNode {
+  private recordToNode(record: TRecord): MemgraphNode {
     return {
       label: record.recordType.toUpperCase(),
       id: record._id,
@@ -237,7 +235,7 @@ export class GraphIndexerService {
    * Extract relationships from records using their adapters
    */
   private async extractRelationshipsFromRecords(
-    records: Record[],
+    records: TRecord[],
     source: SourceType
   ): Promise<MemgraphRelationship[]> {
     const adapter = this.adapters.get(source);
@@ -251,14 +249,14 @@ export class GraphIndexerService {
     for (const record of records) {
       try {
         // Use the raw data to extract relationships via adapter
-        const sourceEntity = record.rawData;
-        const entityRelationships = await adapter.extractRelationships(
-          sourceEntity
+        const sourceRecord = record.rawData;
+        const recordRelationships = await adapter.extractRelationships(
+          sourceRecord
         );
 
         // Convert to Memgraph relationships
         // The sourceId and targetId from adapter are already in the format we need
-        for (const rel of entityRelationships) {
+        for (const rel of recordRelationships) {
           relationships.push({
             sourceId: rel.sourceId,
             targetId: rel.targetId,
@@ -289,7 +287,7 @@ export class GraphIndexerService {
     if (record) {
       await this.recordStore.upsert({
         _id: entityId,
-        graphNodeId: "",
+        lastGraphIndexDate: null,
       });
     }
   }
@@ -308,20 +306,18 @@ export class GraphIndexerService {
       { includeDeleted: true }
     );
 
-    const deleted = deletedRecords.filter(
-      (record) => record.isDeleted && record.graphNodeId
-    );
+    const deleted = deletedRecords.filter((record) => record.deletedAt);
     let cleaned = 0;
 
     for (const record of deleted) {
       try {
-        await this.graphStore.deleteNode(record.graphNodeId);
+        await this.graphStore.deleteNode(record._id);
         cleaned++;
 
         // Clear graph node ID
         await this.recordStore.upsert({
           _id: record._id,
-          graphNodeId: "",
+          lastGraphIndexDate: null,
         });
       } catch (error) {
         console.error(
@@ -414,7 +410,7 @@ export class GraphIndexerService {
       includeDeleted: false,
     });
 
-    const indexed = records.filter((record) => record.graphNodeId);
+    const indexed = records.filter((record) => record.lastGraphIndexDate);
 
     return {
       totalRecords: records.length,
@@ -436,7 +432,7 @@ export class GraphIndexerService {
       includeDeleted: false,
     });
 
-    const indexed = records.filter((record) => record.graphNodeId);
+    const indexed = records.filter((record) => record.lastGraphIndexDate);
 
     return {
       totalNodes: indexed.length,

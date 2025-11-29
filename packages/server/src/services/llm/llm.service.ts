@@ -196,7 +196,6 @@ Return only valid JSON, no other text.`;
    * Optimized for quick retrieval and smart graph queries
    */
   async extractRelationships(
-    sourceId: string,
     sourceContent: string,
     sourceType: string,
     targetResources: Array<{

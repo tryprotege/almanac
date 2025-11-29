@@ -21,7 +21,7 @@ export type SourceType =
 // Qdrant (Vector Search)
 // ============================================
 
-export interface QdrantPoint {
+export interface VectorPoint {
   id: string; // UUID
   vector: number[]; // Embedding dimensions
 

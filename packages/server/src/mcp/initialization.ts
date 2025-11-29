@@ -125,6 +125,7 @@ export async function initializeServices(): Promise<ServiceConnections> {
     connectMcpServers(),
   ]);
 
+  // start the bullmq workers. Don't wait for them, otherwise it'll hang
   initWorkers().catch((e) => console.error(e));
 
   return services;

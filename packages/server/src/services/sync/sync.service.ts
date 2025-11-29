@@ -2,35 +2,29 @@ import { loadProxyConfig } from "../../mcp/config-loader.js";
 import { RecordStore } from "../../stores/record.store.js";
 import { NotionMCPClient } from "../sources/notion/mcpClient.js";
 import { NotionAdapter } from "./adapters/notion-adapter.js";
-import { connectMongoose } from "../../connections/mongoose.js";
 import { syncAllRecords } from "./record-sync.service.js";
 
-/**
- * Sync Service
- * Handles syncing records from external sources to MongoDB
- */
-export class SyncService {
-  /**
-   * Sync records from all configured sources to MongoDB
-   */
-  async syncAll(): Promise<void> {
-    // Connect to MongoDB before any database operations
-    await connectMongoose();
+import { MCPServerConfig } from "../../models/mcp-config.model.js";
 
-    const validConfigs = await loadProxyConfig();
+export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
+  const recordStore = new RecordStore();
 
-    await Promise.all(
-      validConfigs.map(async (config) => {
-        const recordStore = new RecordStore();
+  if (mcpConfig.name === "notion") {
+    const notionClient = new NotionMCPClient();
+    const notionAdapter = new NotionAdapter(notionClient);
+    await syncAllRecords(recordStore, "notion", notionAdapter);
 
-        if (config.name === "notion") {
-          const notionClient = new NotionMCPClient();
-          const notionAdapter = new NotionAdapter(notionClient);
-          await syncAllRecords(recordStore, "notion", notionAdapter);
-
-          console.log("✅ Saved records into document DB");
-        }
-      })
-    );
+    console.log("✅ Saved records into document DB");
   }
+};
+
+/**
+ * Sync records from all configured sources to MongoDB (direct execution)
+ * This bypasses the queue and runs synchronously - useful for testing or single-run scripts
+ * @deprecated Use queueAllRemoteMcpServers() with the worker for production
+ */
+export async function syncAllRemoteMcpServers(): Promise<void> {
+  const validConfigs = await loadProxyConfig();
+
+  await Promise.all(validConfigs.map(syncMcpServer));
 }

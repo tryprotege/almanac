@@ -62,9 +62,6 @@ export class VectorStore {
   async upsertPoints(points: VectorPoint[]): Promise<void> {
     if (points.length === 0) return;
 
-    // Ensure collection exists before upserting
-    await this.ensureCollection();
-
     await this.qdrant.client.upsert(this.collectionName, {
       wait: true,
       points: points.map((p) => ({

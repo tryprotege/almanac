@@ -43,9 +43,6 @@ export async function insertAllRecordsToVectorDB(
     `   Concurrency: ${env.VECTOR_INDEXING_CONCURRENCY} parallel records`
   );
 
-  // Ensure Qdrant collection exists
-  await vectorStore.ensureCollection();
-
   let skip = 0;
   let hasMore = true;
   let batchNumber = 0;

@@ -15,6 +15,7 @@ import { connectRedis, RedisConnection } from "../connections/redis.js";
 import { resolveSerializedZodOutput } from "../utils/resolveSerializedZodOutput.js";
 import { mcpClientManager, MCPServerConfig } from "./client.js";
 import { loadProxyConfig } from "./config-loader.js";
+import { registerLightRAGTool } from "../services/search/lightrag-tool.js";
 
 export async function initializeRemoteServers(
   configs: MCPServerConfig[],
@@ -114,6 +115,9 @@ export async function initializeServices(): Promise<ServiceConnections> {
 
   services = { mongoose, qdrant, memgraph, redis };
   console.error("✅ All services initialized successfully!");
+
+  // Register LightRAG tool
+  registerLightRAGTool(mcpServer, { memgraph, qdrant });
 
   await connectMcpServers();
 

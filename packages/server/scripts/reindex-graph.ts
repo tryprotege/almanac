@@ -11,13 +11,13 @@ import { connectMemgraph } from "../src/connections/memgraph.js";
 import { RecordStore } from "../src/stores/record.store.js";
 import { GraphStore } from "../src/stores/graph.store.js";
 import { SourceType } from "../src/types/index.js";
-import { BaseRecordAdapter } from "../src/services/indexing/adapters/base-adapter.js";
-import { NotionAdapter } from "../src/services/indexing/adapters/notion-adapter.js";
+import { BaseRecordAdapter } from "../src/services/sync/adapters/base-adapter.ts";
+import { NotionAdapter } from "../src/services/sync/adapters/notion-adapter.ts";
 import { NotionMCPClient } from "../src/services/sources/notion/mcpClient.js";
 import {
   smartReindex,
   ReindexStats,
-} from "../src/services/indexing/graph-reindexer.js";
+} from "../src/services/indexing/graph/graph-reindexer.ts";
 import { env } from "../src/env.js";
 
 // ============================================================================

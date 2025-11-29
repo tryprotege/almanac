@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { SyncService } from "../src/services/sync/sync.service.js";
+import { syncAllRemoteMcpServers } from "../src/services/sync/sync.service.js";
 import { initializeServices } from "../src/mcp/initialization.js";
 
 /**
@@ -18,8 +18,7 @@ const run = async () => {
   // init db connections and mcp server
   await initializeServices();
 
-  const syncService = new SyncService();
-  await syncService.syncAll();
+  await syncAllRemoteMcpServers();
 
   console.log("\n✨ Record sync completed");
   console.log("\nNext steps:");

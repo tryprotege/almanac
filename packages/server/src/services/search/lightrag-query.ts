@@ -54,13 +54,19 @@ export async function lightragQuery(
   // Apply defaults
   const params = applyDefaults(query);
 
-  // Extract keywords for dual-level retrieval
-  const keywords = await extractKeywords(query.query, deps.llm);
-  console.log(
-    `[LightRAG] Keywords - High: [${keywords.high_level.join(
-      ", "
-    )}], Low: [${keywords.low_level.join(", ")}]`
-  );
+  // Extract keywords for dual-level retrieval (skip for naive mode)
+  const keywords =
+    mode !== "naive"
+      ? await extractKeywords(query.query, deps.llm)
+      : { high_level: [], low_level: [] };
+
+  if (mode !== "naive") {
+    console.log(
+      `[LightRAG] Keywords - High: [${keywords.high_level.join(
+        ", "
+      )}], Low: [${keywords.low_level.join(", ")}]`
+    );
+  }
 
   // Execute mode-specific retrieval
   let chunks: LightRAGChunk[];
@@ -382,26 +388,28 @@ async function searchEntitiesByKeywords(
     .limit(limit)
     .lean();
 
-  const entities: LightRAGEntity[] = await Promise.all(
-    records.map(async (record) => {
-      const relationships = await deps.graphStore.getNodeRelationships(
-        record._id
-      );
-
-      return {
-        id: record._id,
-        name: record.title,
-        type: record.recordType,
-        description: record.content.substring(0, 200),
-        degree: relationships.length,
-        rank: calculateNodeRank(relationships.length),
-        source: record.source,
-        sourceId: record.sourceId,
-        date: record.primaryDate?.toISOString(),
-        relevance_score: (record as any).score || 0,
-      };
-    })
+  // Batch fetch relationship counts for all entities
+  const recordIds = records.map((r) => r._id);
+  const degreeCounts = await deps.graphStore.getNodeRelationshipCounts(
+    recordIds
   );
+
+  const entities: LightRAGEntity[] = records.map((record) => {
+    const degree = degreeCounts.get(record._id) || 0;
+
+    return {
+      id: record._id,
+      name: record.title,
+      type: record.recordType,
+      description: record.content.substring(0, 200),
+      degree,
+      rank: calculateNodeRank(degree),
+      source: record.source,
+      sourceId: record.sourceId,
+      date: record.primaryDate?.toISOString(),
+      relevance_score: (record as any).score || 0,
+    };
+  });
 
   entities.sort((a, b) => b.degree - a.degree);
   return entities;
@@ -414,11 +422,17 @@ async function searchRelationshipsByKeywords(
 ): Promise<LightRAGRelationship[]> {
   const entities = await searchEntitiesByKeywords(keywords, limit, deps);
 
+  // Fetch relationships in parallel
+  const relationshipResults = await Promise.all(
+    entities.map(async (entity) => ({
+      entity,
+      rels: await deps.graphStore.getNodeRelationships(entity.id),
+    }))
+  );
+
   const allRelationships: LightRAGRelationship[] = [];
 
-  for (const entity of entities) {
-    const rels = await deps.graphStore.getNodeRelationships(entity.id);
-
+  for (const { entity, rels } of relationshipResults) {
     for (const rel of rels) {
       allRelationships.push({
         id: `${rel.relationship.sourceId}_${rel.relationship.type}_${rel.relationship.targetId}`,
@@ -435,11 +449,7 @@ async function searchRelationshipsByKeywords(
         type: rel.relationship.type,
         confidence: rel.relationship.confidence,
         weight: Math.round(rel.relationship.confidence * 10),
-        rank: await calculateEdgeRank(
-          rel.relationship.sourceId,
-          rel.relationship.targetId,
-          deps.graphStore
-        ),
+        rank: entity.rank, // Use entity rank instead of expensive edge rank
         extracted_by: rel.relationship.extractedBy,
       });
     }
@@ -460,26 +470,28 @@ async function getEntitiesByIds(
 ): Promise<LightRAGEntity[]> {
   const records = await RecordModel.find({ _id: { $in: ids } }).lean();
 
-  const entities: LightRAGEntity[] = await Promise.all(
-    records.map(async (record) => {
-      const relationships = await deps.graphStore.getNodeRelationships(
-        record._id
-      );
-
-      return {
-        id: record._id,
-        name: record.title,
-        type: record.recordType,
-        description: record.content.substring(0, 200),
-        degree: relationships.length,
-        rank: calculateNodeRank(relationships.length),
-        source: record.source,
-        sourceId: record.sourceId,
-        date: record.primaryDate?.toISOString(),
-        relevance_score: 0,
-      };
-    })
+  // Batch fetch relationship counts for all entities
+  const recordIds = records.map((r) => r._id);
+  const degreeCounts = await deps.graphStore.getNodeRelationshipCounts(
+    recordIds
   );
+
+  const entities: LightRAGEntity[] = records.map((record) => {
+    const degree = degreeCounts.get(record._id) || 0;
+
+    return {
+      id: record._id,
+      name: record.title,
+      type: record.recordType,
+      description: record.content.substring(0, 200),
+      degree,
+      rank: calculateNodeRank(degree),
+      source: record.source,
+      sourceId: record.sourceId,
+      date: record.primaryDate?.toISOString(),
+      relevance_score: 0,
+    };
+  });
 
   return entities;
 }
@@ -488,10 +500,16 @@ async function getEntityRelationships(
   entityIds: string[],
   graphStore: GraphStore
 ): Promise<LightRAGRelationship[]> {
+  // Fetch relationships in parallel for all entities
+  const relationshipResults = await Promise.all(
+    entityIds.map((entityId) => graphStore.getNodeRelationships(entityId))
+  );
+
   const relationships: LightRAGRelationship[] = [];
 
-  for (const entityId of entityIds) {
-    const rels = await graphStore.getNodeRelationships(entityId);
+  for (let i = 0; i < entityIds.length; i++) {
+    const entityId = entityIds[i];
+    const rels = relationshipResults[i];
 
     for (const rel of rels) {
       relationships.push({
@@ -509,11 +527,7 @@ async function getEntityRelationships(
         type: rel.relationship.type,
         confidence: rel.relationship.confidence,
         weight: Math.round(rel.relationship.confidence * 10),
-        rank: await calculateEdgeRank(
-          rel.relationship.sourceId,
-          rel.relationship.targetId,
-          graphStore
-        ),
+        rank: 50, // Use fixed rank to avoid expensive calculations
         extracted_by: rel.relationship.extractedBy,
       });
     }

@@ -157,6 +157,48 @@ export class GraphStore {
   }
 
   /**
+   * Get relationship counts for multiple nodes in a single query
+   * Much more efficient than calling getNodeRelationships for each node
+   */
+  async getNodeRelationshipCounts(
+    nodeIds: string[]
+  ): Promise<Map<string, number>> {
+    if (nodeIds.length === 0) return new Map();
+
+    const query = `
+      MATCH (n)-[r]-()
+      WHERE n.id IN $nodeIds
+      RETURN n.id AS nodeId, count(r) AS degree
+    `;
+
+    const results = await this.memgraph.executeQuery<{
+      nodeId: string;
+      degree: number;
+    }>(query, { nodeIds });
+
+    const countMap = new Map<string, number>();
+    results.forEach((r) => {
+      // Handle both Neo4j Integer objects and regular numbers
+      const degree =
+        typeof r.degree === "object" &&
+        r.degree !== null &&
+        "toNumber" in r.degree
+          ? (r.degree as any).toNumber()
+          : r.degree || 0;
+      countMap.set(r.nodeId, degree);
+    });
+
+    // Fill in zeros for nodes with no relationships
+    nodeIds.forEach((id) => {
+      if (!countMap.has(id)) {
+        countMap.set(id, 0);
+      }
+    });
+
+    return countMap;
+  }
+
+  /**
    * Find all relationships for a node
    */
   async getNodeRelationships(

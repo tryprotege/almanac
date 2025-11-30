@@ -16,6 +16,8 @@ import { resolveSerializedZodOutput } from "../utils/resolveSerializedZodOutput.
 import { mcpClientManager, MCPServerConfig } from "./client.js";
 import { loadProxyConfig } from "./config-loader.js";
 import { registerLightRAGTool } from "../services/search/lightrag-tool.js";
+import { initWorkers } from "../services/queue/index.js";
+import { VectorStore } from "../stores/vector.store.js";
 
 export async function initializeRemoteServers(
   configs: MCPServerConfig[],
@@ -117,9 +119,18 @@ export async function initializeServices(): Promise<ServiceConnections> {
   console.error("✅ All services initialized successfully!");
 
   // Register LightRAG tool
-  registerLightRAGTool(mcpServer, { memgraph, qdrant });
 
-  await connectMcpServers();
+  const vectorStore = new VectorStore(qdrant);
+
+  await Promise.all([
+    registerLightRAGTool(mcpServer, { memgraph, qdrant }),
+    // Ensure Qdrant collection exists
+    vectorStore.ensureCollection(),
+    connectMcpServers(),
+  ]);
+
+  // start the bullmq workers. Don't wait for them, otherwise it'll hang
+  initWorkers().catch((e) => console.error(e));
 
   return services;
 }
@@ -130,6 +141,7 @@ export async function shutdownServices(): Promise<void> {
       services.qdrant.close(),
       services.memgraph.close(),
       services.redis.close(),
+      services.mongoose.close(),
     ]);
   }
 }

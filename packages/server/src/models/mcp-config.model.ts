@@ -1,9 +1,16 @@
 import mongoose, { InferSchemaType } from "mongoose";
+import { SourceType } from "../types/index.js";
 
 // MCP Server Config Mongoose Schema
 const MCPServerConfigSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, unique: true, index: true },
+    name: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+      enum: ["notion", "slack", "calendar", "jira"] satisfies SourceType[],
+    },
     type: { type: String, required: true, enum: ["stdio", "sse"] },
     command: { type: String },
     args: [{ type: String }],

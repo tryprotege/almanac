@@ -6,7 +6,7 @@ export interface RedisConnection {
   close: () => Promise<void>;
 }
 
-const createRedisOptions = (): RedisOptions => {
+export const createRedisOptions = (): RedisOptions => {
   return {
     host: env.REDIS_HOST,
     port: parseInt(env.REDIS_PORT),

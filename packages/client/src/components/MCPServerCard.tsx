@@ -71,13 +71,16 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
       });
     }, 300);
 
-    syncMutation.mutate(server._id, {
-      onSettled: () => {
-        clearInterval(progressInterval);
-        setSyncProgress(100);
-        setTimeout(() => setSyncProgress(0), 1000);
-      },
-    });
+    syncMutation.mutate(
+      { configId: server._id, name: server.name },
+      {
+        onSettled: () => {
+          clearInterval(progressInterval);
+          setSyncProgress(100);
+          setTimeout(() => setSyncProgress(0), 1000);
+        },
+      }
+    );
   };
 
   return (

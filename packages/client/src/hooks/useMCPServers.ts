@@ -134,10 +134,11 @@ export function useSyncMCPServer() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (configId: string) => mcpServersApi.sync(configId),
-    onSuccess: (_, configId) => {
+    mutationFn: ({ configId }: { configId: string; name: string }) =>
+      mcpServersApi.sync(configId),
+    onSuccess: (_, { name }) => {
       queryClient.invalidateQueries({ queryKey: ["mcp-servers"] });
-      toast.success(`Sync completed for ${configId}`);
+      toast.success(`Sync completed for ${name}`);
     },
     onError: (error: any, configId) => {
       toast.error(error.response?.data?.error || `Failed to sync ${configId}`);

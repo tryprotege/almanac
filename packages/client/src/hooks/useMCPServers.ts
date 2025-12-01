@@ -128,6 +128,24 @@ export function useDisconnectMCPServer() {
 }
 
 /**
+ * Hook to sync an MCP server configuration
+ */
+export function useSyncMCPServer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (configId: string) => mcpServersApi.sync(configId),
+    onSuccess: (_, configId) => {
+      queryClient.invalidateQueries({ queryKey: ["mcp-servers"] });
+      toast.success(`Sync completed for ${configId}`);
+    },
+    onError: (error: any, configId) => {
+      toast.error(error.response?.data?.error || `Failed to sync ${configId}`);
+    },
+  });
+}
+
+/**
  * Hook to check connection status of an MCP server
  */
 export function useMCPServerStatus(name: string, enabled: boolean = true) {

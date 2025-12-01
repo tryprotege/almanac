@@ -150,6 +150,7 @@ export const schemaApi = {
 
 // MCP Servers API
 export interface MCPServerConfig {
+  _id: string;
   name: string;
   type: "stdio" | "sse";
   command?: string;
@@ -189,6 +190,8 @@ export const mcpServersApi = {
     api.get<ApiResponse<{ name: string; connected: boolean }>>(
       `/mcp-servers/${encodeURIComponent(name)}/status`
     ),
+  sync: (configId: string) =>
+    api.post<ApiResponse<void>>(`/sync/${encodeURIComponent(configId)}`),
 };
 
 // Statistics API Types

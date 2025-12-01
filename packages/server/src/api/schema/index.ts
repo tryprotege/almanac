@@ -33,7 +33,6 @@ schemaRouter.get("/schema", async (_req: Request, res: Response) => {
         version: schema.version,
         entityTypes: schema.entityTypes,
         relationshipTypes: schema.relationshipTypes,
-        extractionRules: schema.extractionRules,
         lastLearnedAt: schema.lastLearnedAt,
         learnedFromSampleSize: schema.learnedFromSampleSize,
         persona: schema.persona,

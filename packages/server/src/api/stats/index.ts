@@ -1,6 +1,6 @@
 import { Request, Response, Router } from "express";
 import { env } from "../../env.js";
-import { getServices } from "../../mcp/initialization.js";
+import { initializeServices } from "../../mcp/initialization.js";
 import {
   mockGraphStats,
   mockOverviewStats,
@@ -20,7 +20,7 @@ let statsService: StatsService | null = null;
 
 async function getStatsService(): Promise<StatsService> {
   if (!statsService) {
-    const services = await getServices();
+    const services = await initializeServices();
     const recordStore = new RecordStore();
     const vectorStore = new VectorStore(services.qdrant);
     const graphStore = new GraphStore(services.memgraph);

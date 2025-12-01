@@ -3,6 +3,7 @@ import {
   Loader2,
   Power,
   PowerOff,
+  RefreshCw,
   Settings,
   Trash2,
   XCircle,
@@ -13,6 +14,7 @@ import {
   useDeleteMCPServer,
   useDisconnectMCPServer,
   useMCPServerStatus,
+  useSyncMCPServer,
 } from "../hooks/useMCPServers";
 import { MCPServerConfig } from "../lib/api";
 
@@ -23,16 +25,19 @@ interface MCPServerCardProps {
 
 export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
 
   const connectMutation = useConnectMCPServer();
   const disconnectMutation = useDisconnectMCPServer();
   const deleteMutation = useDeleteMCPServer();
+  const syncMutation = useSyncMCPServer();
   const { data: statusData, isLoading: statusLoading } = useMCPServerStatus(
     server.name,
     !server.isDisabled
   );
 
   const isConnected = statusData?.connected || false;
+  const isSyncing = syncMutation.isPending;
   const isLoading =
     statusLoading ||
     connectMutation.isPending ||
@@ -50,6 +55,29 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
   const handleDelete = () => {
     deleteMutation.mutate(server.name);
     setShowDeleteConfirm(false);
+  };
+
+  const handleSync = () => {
+    setSyncProgress(0);
+
+    // Simulate progress updates
+    const progressInterval = setInterval(() => {
+      setSyncProgress((prev) => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + 10;
+      });
+    }, 300);
+
+    syncMutation.mutate(server._id, {
+      onSettled: () => {
+        clearInterval(progressInterval);
+        setSyncProgress(100);
+        setTimeout(() => setSyncProgress(0), 1000);
+      },
+    });
   };
 
   return (
@@ -145,9 +173,29 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
         </div>
       </div>
 
+      {/* Sync Progress Bar */}
+      {isSyncing && syncProgress > 0 && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Syncing...
+            </span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {syncProgress}%
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+            <div
+              className="bg-primary-600 dark:bg-primary-500 h-2.5 rounded-full transition-all duration-300"
+              style={{ width: `${syncProgress}%` }}
+            ></div>
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       {!showDeleteConfirm ? (
-        <div className="mt-4 flex items-center justify-center gap-2">
+        <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
           <button
             onClick={handleConnect}
             disabled={isLoading || server.isDisabled}
@@ -169,6 +217,18 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
               </>
             )}
           </button>
+          {isConnected && (
+            <button
+              onClick={handleSync}
+              disabled={isLoading || isSyncing}
+              className="btn btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw
+                className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`}
+              />
+              Sync
+            </button>
+          )}
           <button
             onClick={() => onEdit(server)}
             disabled={isLoading}

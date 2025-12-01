@@ -1,4 +1,4 @@
-import { MCPServerConfigModel } from "../../connections/mongoose.js";
+import { MCPServerConfigModel } from "../../models/mcp-config.model.js";
 import { mcpClientManager } from "../../mcp/client.js";
 import { RecordModel } from "../../models/record.model.js";
 import { CacheStore } from "../../stores/cache.store.js";

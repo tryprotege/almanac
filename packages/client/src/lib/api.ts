@@ -191,7 +191,7 @@ export const mcpServersApi = {
       `/mcp-servers/${encodeURIComponent(name)}/status`
     ),
   sync: (configId: string) =>
-    api.post<ApiResponse<void>>(`/sync/${encodeURIComponent(configId)}`),
+    api.post<ApiResponse<void>>(`/sync`, { configId }),
 };
 
 // Statistics API Types

@@ -337,9 +337,10 @@ const runServer = async () => {
     await transport.handleRequest(req, res, req.body);
   });
 
-  app.post("/api/sync/:configId", async (req: Request, res: Response) => {
+  app.post("/api/sync", async (req: Request, res: Response) => {
     try {
-      const config = await MCPServerConfigModel.findById(req.params.configId);
+      const configId = req.body.configId;
+      const config = await MCPServerConfigModel.findById(configId);
 
       if (!config) {
         res.status(404).json({

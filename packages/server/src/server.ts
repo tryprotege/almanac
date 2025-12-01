@@ -14,6 +14,7 @@ import {
 } from "./mcp/initialization.js";
 import { mockMCPServers, mockMCPServerStatus } from "./mock/index.js";
 import { MCPServerConfigModel } from "./models/mcp-config.model.js";
+import { syncMcpServerQueue } from "./services/queue/sync.queue.js";
 
 // Start server
 const runServer = async () => {
@@ -335,6 +336,38 @@ const runServer = async () => {
     await mcpServer.connect(transport);
     await transport.handleRequest(req, res, req.body);
   });
+
+  app.post("/api/sync/:configId", async (req: Request, res: Response) => {
+    try {
+      const config = await MCPServerConfigModel.findById(req.params.configId);
+
+      if (!config) {
+        res.status(404).json({
+          success: false,
+          error: "MCP server config not found",
+        });
+        return;
+      }
+
+      if (!mcpClientManager.isConnected(config.name)) {
+        res.status(400).json({ success: false, error: "Server not connected" });
+        return;
+      }
+
+      // Queue sync job
+      await syncMcpServerQueue.add(config._id.toString(), {
+        mcpConfig: config.toObject(),
+      });
+
+      res.status(200).json({ success: true });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
   // 404 for other routes
   app.use((_req: Request, res: Response) => {
     res.status(404).json({ error: "Not found" });

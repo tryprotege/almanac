@@ -416,10 +416,6 @@ const runServer = async () => {
           const currentState = await updatedJob.getState();
           const currentProgress = (updatedJob.progress as number) || 0;
 
-          console.log(
-            `[SSE] Job ${jobId} - State: ${currentState}, Progress: ${currentProgress}`
-          );
-
           res.write(
             `data: ${JSON.stringify({
               state: currentState,

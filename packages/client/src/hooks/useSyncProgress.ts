@@ -24,7 +24,6 @@ export function useSyncProgress(jobId: string | null) {
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log("[SSE] Received progress update:", data);
 
         // Handle error response
         if (data.error) {

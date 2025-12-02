@@ -148,6 +148,51 @@ export const schemaApi = {
   get: () => api.get<ApiResponse<SchemaData>>("/schema"),
 };
 
+// Graph Data Types
+export interface GraphNode {
+  id: string;
+  label: string;
+  type: string;
+  title: string;
+}
+
+export interface GraphRelationship {
+  sourceId: string;
+  targetId: string;
+  type: string;
+  confidence: number;
+  extractedBy: "explicit" | "llm" | "heuristic";
+}
+
+export interface GraphDataResponse {
+  nodes: GraphNode[];
+  relationships: GraphRelationship[];
+  stats: {
+    totalNodes: number;
+    totalRelationships: number;
+    hasMore: boolean;
+  };
+}
+
+// Graph Data API
+export const graphApi = {
+  getData: (params?: {
+    limit?: number;
+    offset?: number;
+    nodeTypes?: string[];
+    relationshipTypes?: string[];
+  }) =>
+    api.get<ApiResponse<GraphDataResponse>>("/graph/data", {
+      params: params
+        ? {
+            ...params,
+            nodeTypes: params.nodeTypes?.join(","),
+            relationshipTypes: params.relationshipTypes?.join(","),
+          }
+        : undefined,
+    }),
+};
+
 // MCP Servers API
 export interface MCPServerConfig {
   _id: string;

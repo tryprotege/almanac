@@ -324,6 +324,133 @@ export class GraphStore {
   }
 
   /**
+   * Get all graph data with pagination
+   */
+  async getAllGraphData(options?: {
+    limit?: number;
+    offset?: number;
+    nodeTypes?: string[];
+    relationshipTypes?: string[];
+  }): Promise<{
+    nodes: MemgraphNode[];
+    relationships: MemgraphRelationship[];
+    totalNodes: number;
+    totalRelationships: number;
+  }> {
+    const limit = options?.limit || 100;
+    const offset = options?.offset || 0;
+    const nodeTypes = options?.nodeTypes || [];
+    const relationshipTypes = options?.relationshipTypes || [];
+
+    // Build node query with optional type filter
+    let nodeQuery = "MATCH (n)";
+    if (nodeTypes.length > 0) {
+      const labels = nodeTypes.map((type) => getNodeLabel(type)).join("|");
+      nodeQuery = `MATCH (n:${labels})`;
+    }
+    nodeQuery += `
+      RETURN n.id AS id, n.type AS type, n.title AS title, labels(n) AS labels
+      SKIP ${offset} LIMIT ${limit}
+    `;
+
+    // Get total counts
+    let countNodeQuery = "MATCH (n)";
+    if (nodeTypes.length > 0) {
+      const labels = nodeTypes.map((type) => getNodeLabel(type)).join("|");
+      countNodeQuery = `MATCH (n:${labels})`;
+    }
+    countNodeQuery += " RETURN count(n) AS count";
+
+    let countRelQuery = "MATCH ()-[r]-()";
+    if (relationshipTypes.length > 0) {
+      countRelQuery = `MATCH ()-[r:${relationshipTypes.join("|")}]-()`;
+    }
+    countRelQuery += " RETURN count(r) AS count";
+
+    // Execute node query first
+    const [nodeResults, nodeCountResults, relCountResults] = await Promise.all([
+      this.memgraph.executeQuery<{
+        id: string;
+        type: string;
+        title: string;
+        labels: string[];
+      }>(nodeQuery, {}),
+      this.memgraph.executeQuery<{ count: number }>(countNodeQuery, {}),
+      this.memgraph.executeQuery<{ count: number }>(countRelQuery, {}),
+    ]);
+
+    const nodes: MemgraphNode[] = nodeResults.map((r) => ({
+      label: r.labels[0],
+      id: r.id,
+      type: r.type,
+      title: r.title,
+    }));
+
+    // Get node IDs for filtering relationships
+    const nodeIds = nodes.map((n) => n.id);
+
+    // Build relationship query that only includes relationships between fetched nodes
+    let relQuery = "";
+    if (nodeIds.length === 0) {
+      // No nodes, no relationships
+      return {
+        nodes,
+        relationships: [],
+        totalNodes: nodeCountResults[0]?.count || 0,
+        totalRelationships: relCountResults[0]?.count || 0,
+      };
+    }
+
+    // Query for relationships where both source and target are in our node set
+    if (relationshipTypes.length > 0) {
+      relQuery = `
+        MATCH (source)-[r:${relationshipTypes.join("|")}]->(target)
+        WHERE source.id IN $nodeIds AND target.id IN $nodeIds
+        RETURN
+          source.id AS sourceId,
+          target.id AS targetId,
+          type(r) AS relType,
+          r.confidence AS confidence,
+          r.extractedBy AS extractedBy
+      `;
+    } else {
+      relQuery = `
+        MATCH (source)-[r]->(target)
+        WHERE source.id IN $nodeIds AND target.id IN $nodeIds
+        RETURN
+          source.id AS sourceId,
+          target.id AS targetId,
+          type(r) AS relType,
+          r.confidence AS confidence,
+          r.extractedBy AS extractedBy
+      `;
+    }
+
+    const relResults = await this.memgraph.executeQuery<{
+      sourceId: string;
+      targetId: string;
+      relType: string;
+      confidence: number;
+      extractedBy: string;
+    }>(relQuery, { nodeIds });
+
+    const relationships: MemgraphRelationship[] = relResults.map((r) => ({
+      sourceId: r.sourceId,
+      targetId: r.targetId,
+      type: r.relType,
+      confidence: r.confidence,
+      extractedBy: r.extractedBy as "explicit" | "llm" | "heuristic",
+    }));
+
+    return {
+      nodes,
+      relationships,
+      totalNodes: nodeCountResults[0]?.count || 0,
+      totalRelationships: relCountResults[0]?.count || 0,
+    };
+  }
+
+  /**
    * Delete a node and all its relationships
    */
   async deleteNode(id: string): Promise<void> {

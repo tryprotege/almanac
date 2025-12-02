@@ -21,7 +21,6 @@ const processor: Processor<
       source: mcpConfig.name,
     }),
   ]);
-  return;
 };
 
 type SyncMcpServerJobData = {

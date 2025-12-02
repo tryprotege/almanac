@@ -3,6 +3,7 @@ import express, { NextFunction, Request, Response } from "express";
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
+import { router } from "./api/index.js";
 import { mcpClientManager, MCPServerConfig } from "./mcp/client.js";
 import { validateConfig } from "./mcp/config-loader.js";
 import {
@@ -285,6 +286,7 @@ const runServer = async () => {
     async (req: Request, res: Response) => {
       try {
         const name = decodeURIComponent(req.params.name);
+
         const isConnected = mcpClientManager.isConnected(name);
 
         res.json({
@@ -299,6 +301,9 @@ const runServer = async () => {
       }
     }
   );
+
+  // Schema API endpoints
+  app.use("/api", router);
 
   // MCP JSON-RPC endpoint
   app.post("/mcp", async (req: Request, res: Response) => {
@@ -315,9 +320,10 @@ const runServer = async () => {
     await transport.handleRequest(req, res, req.body);
   });
 
-  app.post("/api/sync/:configId", async (req: Request, res: Response) => {
+  app.post("/api/sync", async (req: Request, res: Response) => {
     try {
-      const config = await MCPServerConfigModel.findById(req.params.configId);
+      const configId = req.body.configId;
+      const config = await MCPServerConfigModel.findById(configId);
 
       if (!config) {
         res.status(404).json({
@@ -333,11 +339,15 @@ const runServer = async () => {
       }
 
       // Queue sync job
-      await syncMcpServerQueue.add(config._id.toString(), {
+      const job = await syncMcpServerQueue.add(config._id.toString(), {
         mcpConfig: config.toObject(),
       });
 
-      res.status(200).json({ success: true });
+      // Return jobId for progress tracking
+      res.status(200).json({
+        success: true,
+        data: { jobId: job.id },
+      });
     } catch (error) {
       res.status(500).json({
         success: false,

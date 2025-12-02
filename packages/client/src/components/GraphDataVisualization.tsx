@@ -4,6 +4,7 @@ import {
   Background,
   Controls,
   Edge,
+  Handle,
   MarkerType,
   MiniMap,
   Node,
@@ -37,18 +38,27 @@ function DataNode({ data }: { data: any }) {
   };
 
   return (
-    <div
-      className={`px-4 py-3 ${getNodeColor(
-        data.type
-      )} text-white rounded-lg shadow-lg min-w-[120px] border-2 border-white dark:border-gray-700`}
-    >
-      <div className="font-semibold text-center text-sm mb-1">
-        {data.title || data.id}
+    <>
+      {/* Add handles for connections */}
+      <Handle type="target" position={Position.Top} />
+      <Handle type="target" position={Position.Left} />
+
+      <div
+        className={`px-4 py-3 ${getNodeColor(
+          data.type
+        )} text-white rounded-lg shadow-lg min-w-[120px] border-2 border-white dark:border-gray-700`}
+      >
+        <div className="font-semibold text-center text-sm mb-1">
+          {data.title || data.id}
+        </div>
+        <div className="text-xs text-center opacity-80 border-t border-white/30 pt-1 mt-1">
+          {data.type}
+        </div>
       </div>
-      <div className="text-xs text-center opacity-80 border-t border-white/30 pt-1 mt-1">
-        {data.type}
-      </div>
-    </div>
+
+      <Handle type="source" position={Position.Right} />
+      <Handle type="source" position={Position.Bottom} />
+    </>
   );
 }
 
@@ -110,8 +120,6 @@ export function GraphDataVisualization({
             type: node.type,
             label: node.label,
           },
-          sourcePosition: Position.Right,
-          targetPosition: Position.Left,
         });
       });
 

@@ -8,7 +8,7 @@ import { useGraphData } from "../hooks/useGraphData";
 type ViewMode = "schema" | "data";
 
 export default function Schema() {
-  const [viewMode, setViewMode] = useState<ViewMode>("schema");
+  const [viewMode, setViewMode] = useState<ViewMode>("data");
   const [graphLimit, setGraphLimit] = useState(100);
   const { schema, isLoading, error, refetch } = useSchema();
   const {
@@ -26,11 +26,11 @@ export default function Schema() {
   };
 
   return (
-    <div className=" bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className=" bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Graph Schema
           </h1>
           <p className="text-gray-600 dark:text-gray-300 mt-1">
@@ -102,7 +102,7 @@ export default function Schema() {
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <div className="flex gap-2">
-            <button
+            {/* <button
               onClick={() => setViewMode("schema")}
               className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
                 viewMode === "schema"
@@ -112,8 +112,8 @@ export default function Schema() {
             >
               <Database className="w-4 h-4" />
               Schema Types
-            </button>
-            <button
+            </button> */}
+            {/* <button
               onClick={() => setViewMode("data")}
               className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
                 viewMode === "data"
@@ -123,7 +123,7 @@ export default function Schema() {
             >
               <Network className="w-4 h-4" />
               Graph Data
-            </button>
+            </button> */}
           </div>
           <button
             onClick={() =>

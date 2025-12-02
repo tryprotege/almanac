@@ -40,16 +40,6 @@ services:
     environment:
       - MEMGRAPH_LOG_LEVEL=WARNING
     restart: unless-stopped
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "echo 'RETURN 1;' | mgconsole --host 127.0.0.1 --port 7687 || exit 1",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
     networks:
       - ebee-network
 

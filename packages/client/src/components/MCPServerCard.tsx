@@ -17,7 +17,6 @@ import {
   useMCPServerStatus,
   useSyncMCPServer,
 } from "../hooks/useMCPServers";
-import { useSyncProgress } from "../hooks/useSyncProgress";
 import { MCPServerConfig } from "../lib/api";
 
 interface MCPServerCardProps {
@@ -33,16 +32,12 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
   const disconnectMutation = useDisconnectMCPServer();
   const deleteMutation = useDeleteMCPServer();
   const syncMutation = useSyncMCPServer();
-  const syncProgress = useSyncProgress(syncJobId);
   const { data: statusData, isLoading: statusLoading } = useMCPServerStatus(
     server.name,
     !server.isDisabled
   );
 
   const isConnected = statusData?.connected || false;
-  const isSyncing =
-    syncJobId !== null &&
-    (syncProgress.state === "active" || syncProgress.state === "waiting");
   const isLoading =
     statusLoading ||
     connectMutation.isPending ||
@@ -78,17 +73,6 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
       // Error already handled by mutation
     }
   };
-
-  // Show success/error toast when sync completes
-  useEffect(() => {
-    if (syncProgress.state === "completed") {
-      toast.success(`Sync completed for ${server.name}`);
-      setSyncJobId(null);
-    } else if (syncProgress.state === "failed") {
-      toast.error(syncProgress.error || `Sync failed for ${server.name}`);
-      setSyncJobId(null);
-    }
-  }, [syncProgress.state, server.name]);
 
   return (
     <div className="card relative">
@@ -184,7 +168,7 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
       </div>
 
       {/* Sync Progress Bar */}
-      {isSyncing && (
+      {/* {isSyncing && (
         <div className="mt-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -201,7 +185,7 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
             ></div>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Actions */}
       {!showDeleteConfirm ? (
@@ -230,11 +214,13 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
           {isConnected && (
             <button
               onClick={handleSync}
-              disabled={isLoading || isSyncing}
+              disabled={syncMutation.isPending || isLoading}
               className="btn btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw
-                className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`}
+                className={`w-4 h-4 ${
+                  syncMutation.isPending ? "animate-spin" : ""
+                }`}
               />
               Sync
             </button>

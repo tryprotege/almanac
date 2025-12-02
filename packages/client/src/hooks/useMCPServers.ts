@@ -138,8 +138,7 @@ export function useSyncMCPServer() {
       mcpServersApi.sync(configId),
     onSuccess: (response, { name }) => {
       queryClient.invalidateQueries({ queryKey: ["mcp-servers"] });
-      // Don't show success toast immediately - let the component handle it when job completes
-      // Return the jobId for the component to use
+      toast.loading(`Sync started for ${name}`);
       return response.data.data?.jobId;
     },
     onError: (error: any, { name }) => {

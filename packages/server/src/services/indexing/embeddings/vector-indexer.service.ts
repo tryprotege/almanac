@@ -74,6 +74,8 @@ export async function insertAllRecordsToVectorDB(
             vectorStore,
             record
           );
+          stats.processed++;
+          stats.chunks += vectorIds.length;
           return { success: true, chunks: vectorIds.length };
         } catch (error) {
           console.error(`  ⚠️  Error indexing record ${record._id}:`, error);

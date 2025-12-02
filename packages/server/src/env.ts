@@ -54,16 +54,6 @@ const envSchema = z.object({
     .default("https://api.deepinfra.com/v1/inference"),
   RERANKER_MODEL: z.string().default("Qwen/Qwen3-Reranker-8B"),
 
-  // Mock Data Feature Flag
-  ENABLE_MOCK_DATA: z.preprocess((val) => {
-    if (typeof val === "boolean") return val;
-    if (typeof val === "string") {
-      const lower = val.toLowerCase();
-      if (lower === "true" || lower === "1") return true;
-      if (lower === "false" || lower === "0") return false;
-    }
-    return val;
-  }, z.boolean().default(false)),
   DB_INDEXING_CONCURRENCY: z.coerce.number().default(32),
 
   // Schema Learning Configuration
@@ -84,8 +74,6 @@ const parsedEnv = envSchema.parse({
   ...process.env,
   RERANKER_ENABLED:
     process.env.RERANKER_ENABLED?.toLowerCase().trim() === "true",
-  ENABLE_MOCK_DATA:
-    process.env.ENABLE_MOCK_DATA?.toLowerCase().trim() === "true",
 });
 
 // TODO: Compute embedding dimensions based on model

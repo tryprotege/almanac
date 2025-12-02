@@ -1,12 +1,5 @@
 import { Request, Response, Router } from "express";
-import { env } from "../../env.js";
 import { initializeServices } from "../../mcp/initialization.js";
-import {
-  mockGraphStats,
-  mockOverviewStats,
-  mockRecordStats,
-  mockVectorStats,
-} from "../../mock/index.js";
 import { StatsService } from "../../services/stats/index.js";
 import { CacheStore } from "../../stores/cache.store.js";
 import { GraphStore } from "../../stores/graph.store.js";
@@ -39,15 +32,6 @@ async function getStatsService(): Promise<StatsService> {
 // GET /api/stats/overview - Get overview statistics
 statsRouter.get("/overview", async (_req: Request, res: Response) => {
   try {
-    // Return mock data if enabled
-    if (env.ENABLE_MOCK_DATA) {
-      res.json({
-        success: true,
-        data: mockOverviewStats,
-      });
-      return;
-    }
-
     const service = await getStatsService();
     const stats = await service.getOverview();
 
@@ -67,15 +51,6 @@ statsRouter.get("/overview", async (_req: Request, res: Response) => {
 // GET /api/stats/records - Get detailed record statistics
 statsRouter.get("/records", async (_req: Request, res: Response) => {
   try {
-    // Return mock data if enabled
-    if (env.ENABLE_MOCK_DATA) {
-      res.json({
-        success: true,
-        data: mockRecordStats,
-      });
-      return;
-    }
-
     const service = await getStatsService();
     const stats = await service.getRecordStats();
 
@@ -95,15 +70,6 @@ statsRouter.get("/records", async (_req: Request, res: Response) => {
 // GET /api/stats/vectors - Get vector database statistics
 statsRouter.get("/vectors", async (_req: Request, res: Response) => {
   try {
-    // Return mock data if enabled
-    if (env.ENABLE_MOCK_DATA) {
-      res.json({
-        success: true,
-        data: mockVectorStats,
-      });
-      return;
-    }
-
     const service = await getStatsService();
     const stats = await service.getVectorStats();
 
@@ -123,15 +89,6 @@ statsRouter.get("/vectors", async (_req: Request, res: Response) => {
 // GET /api/stats/graph - Get graph database statistics
 statsRouter.get("/graph", async (_req: Request, res: Response) => {
   try {
-    // Return mock data if enabled
-    if (env.ENABLE_MOCK_DATA) {
-      res.json({
-        success: true,
-        data: mockGraphStats,
-      });
-      return;
-    }
-
     const service = await getStatsService();
     const stats = await service.getGraphStats();
 

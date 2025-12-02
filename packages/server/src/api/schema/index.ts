@@ -1,6 +1,4 @@
 import { Request, Response, Router } from "express";
-import { env } from "../../env.js";
-import { mockSchema } from "../../mock/index.js";
 import { getSchema } from "../../stores/index.js";
 
 const schemaRouter: Router = Router();
@@ -8,15 +6,6 @@ const schemaRouter: Router = Router();
 // GET /api/schema - Get full schema with entity and relationship types
 schemaRouter.get("/schema", async (_req: Request, res: Response) => {
   try {
-    // Return mock data if enabled
-    if (env.ENABLE_MOCK_DATA) {
-      res.json({
-        success: true,
-        data: mockSchema,
-      });
-      return;
-    }
-
     const schema = await getSchema();
 
     if (!schema) {

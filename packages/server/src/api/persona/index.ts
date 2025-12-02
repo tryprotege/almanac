@@ -1,6 +1,4 @@
 import { Request, Response, Router } from "express";
-import { env } from "../../env.js";
-import { mockPersona } from "../../mock/index.js";
 import { getPersona, updatePersona } from "../../stores/index.js";
 
 const personaRouter: Router = Router();
@@ -8,15 +6,6 @@ const personaRouter: Router = Router();
 // GET /api/schema/persona - Get current persona
 personaRouter.get("/persona", async (_req: Request, res: Response) => {
   try {
-    // Return mock data if enabled
-    if (env.ENABLE_MOCK_DATA) {
-      res.json({
-        success: true,
-        data: mockPersona,
-      });
-      return;
-    }
-
     const persona = await getPersona();
 
     res.json({

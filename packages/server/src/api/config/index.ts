@@ -1,6 +1,5 @@
 import { Request, Response, Router } from "express";
 import { env } from "../../env.js";
-import { mockModelConfig } from "../../mock/index.js";
 import { ModelConfigModel } from "../../models/model-config.model.js";
 import { createLLMClient } from "../../services/llm/providers.js";
 
@@ -9,15 +8,6 @@ const configRouter: Router = Router();
 // GET /api/config/models - Get current model configuration
 configRouter.get("/models", async (_req: Request, res: Response) => {
   try {
-    // Return mock data if enabled
-    if (env.ENABLE_MOCK_DATA) {
-      res.json({
-        success: true,
-        data: mockModelConfig,
-      });
-      return;
-    }
-
     let config = await ModelConfigModel.findById("default");
 
     // If no config exists, create default from environment variables

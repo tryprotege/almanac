@@ -236,7 +236,7 @@ export const mcpServersApi = {
       `/mcp-servers/${encodeURIComponent(name)}/status`
     ),
   sync: (configId: string) =>
-    api.post<ApiResponse<void>>(`/sync`, { configId }),
+    api.post<ApiResponse<{ jobId: string }>>(`/sync`, { configId }),
 };
 
 // Statistics API Types

@@ -4,6 +4,8 @@ import { Record as TRecord } from "../../../models/record.model.js";
 import { SourceType } from "../../../types/index.js";
 import { BaseRecordAdapter } from "../../sync/adapters/base-adapter.js";
 import { MemgraphNode, MemgraphRelationship } from "../../../types/index.js";
+import { indexAllRecords } from "./graph-indexer.js";
+import { createLLMClient } from "../../llm/providers.js";
 
 /**
  * Graph Indexer Service
@@ -43,6 +45,7 @@ export class GraphIndexerService {
 
     console.log(`🔄 Starting graph indexing for source: ${source}`);
 
+    const openaiClient = createLLMClient();
     let skip = 0;
     let hasMore = true;
 
@@ -59,19 +62,87 @@ export class GraphIndexerService {
         break;
       }
 
-      try {
-        // Create nodes in batch
-        const nodes = records.map((record) => this.recordToNode(record));
-        await this.graphStore.createNodes(nodes);
-        stats.nodes += nodes.length;
+      // Records need indexing if:
+      // 1. Never indexed (lastGraphIndexDate is null)
+      // 2. Updated after last indexing (updatedAt > lastGraphIndexDate)
+      const needsIndexing = records.filter(
+        (record) =>
+          !record.lastGraphIndexDate ||
+          (record.updatedAt && record.updatedAt > record.lastGraphIndexDate)
+      );
 
-        // Update records with graph node IDs
-        for (const record of records) {
-          await this.recordStore.upsert({
-            _id: record._id,
-            lastGraphIndexDate: new Date(),
-          });
-        }
+      const alreadyIndexed = records.filter(
+        (record) =>
+          record.lastGraphIndexDate &&
+          record.updatedAt &&
+          record.updatedAt <= record.lastGraphIndexDate
+      );
+
+      console.log(`\n📊 Current Statistics:`);
+      console.log(`   Total Records: ${records.length}`);
+      console.log(`   Already Indexed: ${alreadyIndexed.length}`);
+      console.log(`   Needs Indexing: ${needsIndexing.length}`);
+      console.log(
+        `     - Never indexed: ${
+          records.filter((r) => !r.lastGraphIndexDate).length
+        }`
+      );
+      console.log(
+        `     - Updated since last index: ${
+          records.filter(
+            (r) =>
+              r.lastGraphIndexDate &&
+              r.updatedAt &&
+              r.updatedAt > r.lastGraphIndexDate
+          ).length
+        }`
+      );
+
+      if (needsIndexing.length === 0) {
+        skip += records.length;
+        console.log(`📊 Progress: ${stats.nodes} nodes created`);
+        continue;
+      }
+
+      try {
+        // Run LLM powered indexing
+        const result = await indexAllRecords(
+          source,
+          this.recordStore,
+          this.graphStore,
+          this.adapters,
+          openaiClient,
+          {
+            batchSize: batchSize,
+          }
+        );
+
+        console.log(`\n✅ Indexing Complete for ${source}`);
+        console.log(`   Nodes Created: ${result.nodes}`);
+        console.log(`   Relationships Created: ${result.relationships}`);
+        console.log(`   Errors: ${result.errors}`);
+        console.log(`   Skipped (toxic): ${result.skippedToxic}`);
+
+        stats.nodes += result.nodes;
+        stats.relationships += result.relationships;
+        stats.errors += result.errors;
+        // Get statistics after indexing
+        const allRecordsAfter = await this.recordStore.findBySourceAndType(
+          source,
+          "",
+          { includeDeleted: false }
+        );
+
+        const unindexedRecordsAfter = allRecordsAfter.filter(
+          (record) => !record.lastGraphIndexDate
+        );
+
+        console.log(`\n📊 Final Statistics:`);
+        console.log(`   Total Records: ${allRecordsAfter.length}`);
+        console.log(
+          `   Indexed: ${allRecordsAfter.length - unindexedRecordsAfter.length}`
+        );
+        console.log(`   Remaining Unindexed: ${unindexedRecordsAfter.length}`);
       } catch (error) {
         console.error(`❌ Error creating nodes for batch:`, error);
         stats.errors++;
@@ -79,48 +150,6 @@ export class GraphIndexerService {
 
       skip += records.length;
       console.log(`📊 Progress: ${stats.nodes} nodes created`);
-    }
-
-    // Second pass: Create relationships
-    if (includeRelationships) {
-      console.log(`🔗 Extracting relationships...`);
-      skip = 0;
-      hasMore = true;
-
-      while (hasMore) {
-        const records = await this.recordStore.findBySourceAndType(
-          source,
-          options?.recordType || "",
-          { limit: batchSize, skip, includeDeleted: false }
-        );
-
-        if (records.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        try {
-          const relationships = await this.extractRelationshipsFromRecords(
-            records,
-            source
-          );
-          if (relationships.length > 0) {
-            await this.graphStore.createRelationships(relationships);
-            stats.relationships += relationships.length;
-          }
-        } catch (error) {
-          console.error(
-            `❌ Error creating relationships for batch:`,
-            error instanceof Error ? error.message : error
-          );
-          stats.errors++;
-        }
-
-        skip += records.length;
-        console.log(
-          `📊 Progress: ${stats.relationships} relationships created`
-        );
-      }
     }
 
     console.log(`✅ Graph indexing complete for ${source}`);

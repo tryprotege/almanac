@@ -136,12 +136,14 @@ export function useSyncMCPServer() {
   return useMutation({
     mutationFn: ({ configId }: { configId: string; name: string }) =>
       mcpServersApi.sync(configId),
-    onSuccess: (_, { name }) => {
+    onSuccess: (response, { name }) => {
       queryClient.invalidateQueries({ queryKey: ["mcp-servers"] });
-      toast.success(`Sync completed for ${name}`);
+      // Don't show success toast immediately - let the component handle it when job completes
+      // Return the jobId for the component to use
+      return response.data.data?.jobId;
     },
-    onError: (error: any, configId) => {
-      toast.error(error.response?.data?.error || `Failed to sync ${configId}`);
+    onError: (error: any, { name }) => {
+      toast.error(error.response?.data?.error || `Failed to sync ${name}`);
     },
   });
 }

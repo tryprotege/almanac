@@ -8,7 +8,8 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import {
   useConnectMCPServer,
   useDeleteMCPServer,
@@ -16,6 +17,7 @@ import {
   useMCPServerStatus,
   useSyncMCPServer,
 } from "../hooks/useMCPServers";
+import { useSyncProgress } from "../hooks/useSyncProgress";
 import { MCPServerConfig } from "../lib/api";
 
 interface MCPServerCardProps {
@@ -25,19 +27,22 @@ interface MCPServerCardProps {
 
 export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(0);
+  const [syncJobId, setSyncJobId] = useState<string | null>(null);
 
   const connectMutation = useConnectMCPServer();
   const disconnectMutation = useDisconnectMCPServer();
   const deleteMutation = useDeleteMCPServer();
   const syncMutation = useSyncMCPServer();
+  const syncProgress = useSyncProgress(syncJobId);
   const { data: statusData, isLoading: statusLoading } = useMCPServerStatus(
     server.name,
     !server.isDisabled
   );
 
   const isConnected = statusData?.connected || false;
-  const isSyncing = syncMutation.isPending;
+  const isSyncing =
+    syncJobId !== null &&
+    (syncProgress.state === "active" || syncProgress.state === "waiting");
   const isLoading =
     statusLoading ||
     connectMutation.isPending ||
@@ -57,31 +62,33 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
     setShowDeleteConfirm(false);
   };
 
-  const handleSync = () => {
-    setSyncProgress(0);
-
-    // Simulate progress updates
-    const progressInterval = setInterval(() => {
-      setSyncProgress((prev) => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return 90;
-        }
-        return prev + 10;
+  const handleSync = async () => {
+    try {
+      const result = await syncMutation.mutateAsync({
+        configId: server._id,
+        name: server.name,
       });
-    }, 300);
 
-    syncMutation.mutate(
-      { configId: server._id, name: server.name },
-      {
-        onSettled: () => {
-          clearInterval(progressInterval);
-          setSyncProgress(100);
-          setTimeout(() => setSyncProgress(0), 1000);
-        },
+      // Get jobId from response
+      const jobId = result.data.data?.jobId;
+      if (jobId) {
+        setSyncJobId(jobId);
       }
-    );
+    } catch (error) {
+      // Error already handled by mutation
+    }
   };
+
+  // Show success/error toast when sync completes
+  useEffect(() => {
+    if (syncProgress.state === "completed") {
+      toast.success(`Sync completed for ${server.name}`);
+      setSyncJobId(null);
+    } else if (syncProgress.state === "failed") {
+      toast.error(syncProgress.error || `Sync failed for ${server.name}`);
+      setSyncJobId(null);
+    }
+  }, [syncProgress.state, server.name]);
 
   return (
     <div className="card relative">
@@ -177,20 +184,20 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
       </div>
 
       {/* Sync Progress Bar */}
-      {isSyncing && syncProgress > 0 && (
+      {isSyncing && (
         <div className="mt-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Syncing...
+              {syncProgress.state === "waiting" ? "Queued..." : "Syncing..."}
             </span>
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {syncProgress}%
+              {syncProgress.progress}%
             </span>
           </div>
           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
             <div
               className="bg-primary-600 dark:bg-primary-500 h-2.5 rounded-full transition-all duration-300"
-              style={{ width: `${syncProgress}%` }}
+              style={{ width: `${syncProgress.progress}%` }}
             ></div>
           </div>
         </div>

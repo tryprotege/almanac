@@ -356,16 +356,100 @@ const runServer = async () => {
       }
 
       // Queue sync job
-      await syncMcpServerQueue.add(config._id.toString(), {
+      const job = await syncMcpServerQueue.add(config._id.toString(), {
         mcpConfig: config.toObject(),
       });
 
-      res.status(200).json({ success: true });
+      // Return jobId for progress tracking
+      res.status(200).json({
+        success: true,
+        data: { jobId: job.id },
+      });
     } catch (error) {
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+  });
+
+  // GET /api/sync/:jobId/progress - SSE endpoint for real-time job progress
+  app.get("/api/sync/:jobId/progress", async (req: Request, res: Response) => {
+    const jobId = req.params.jobId;
+
+    // Set SSE headers
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no"); // Disable nginx buffering
+
+    try {
+      const job = await syncMcpServerQueue.getJob(jobId);
+
+      if (!job) {
+        res.write(`data: ${JSON.stringify({ error: "Job not found" })}\n\n`);
+        res.end();
+        return;
+      }
+
+      // Send initial state
+      const state = await job.getState();
+      const progress = (job.progress as number) || 0;
+      res.write(`data: ${JSON.stringify({ state, progress, jobId })}\n\n`);
+
+      // If job is already completed or failed, close immediately
+      if (state === "completed" || state === "failed") {
+        res.end();
+        return;
+      }
+
+      // Poll for job updates every 200ms for faster updates
+      const pollInterval = setInterval(async () => {
+        try {
+          const updatedJob = await syncMcpServerQueue.getJob(jobId);
+          if (!updatedJob) {
+            clearInterval(pollInterval);
+            res.end();
+            return;
+          }
+
+          const currentState = await updatedJob.getState();
+          const currentProgress = (updatedJob.progress as number) || 0;
+
+          console.log(
+            `[SSE] Job ${jobId} - State: ${currentState}, Progress: ${currentProgress}`
+          );
+
+          res.write(
+            `data: ${JSON.stringify({
+              state: currentState,
+              progress: currentProgress,
+              jobId,
+            })}\n\n`
+          );
+
+          // Close connection if job is done
+          if (currentState === "completed" || currentState === "failed") {
+            clearInterval(pollInterval);
+            res.end();
+          }
+        } catch (pollError) {
+          clearInterval(pollInterval);
+          res.end();
+        }
+      }, 200);
+
+      // Cleanup on client disconnect
+      req.on("close", () => {
+        clearInterval(pollInterval);
+      });
+    } catch (error) {
+      res.write(
+        `data: ${JSON.stringify({
+          error: error instanceof Error ? error.message : "Unknown error",
+        })}\n\n`
+      );
+      res.end();
     }
   });
 

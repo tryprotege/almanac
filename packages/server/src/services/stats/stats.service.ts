@@ -5,6 +5,7 @@ import { CacheStore } from "../../stores/cache.store.js";
 import { GraphStore } from "../../stores/graph.store.js";
 import { RecordStore } from "../../stores/record.store.js";
 import { VectorStore } from "../../stores/vector.store.js";
+import { SourceType } from "../../types/index.js";
 
 /**
  * Statistics Service
@@ -222,8 +223,7 @@ export class StatsService {
       await Promise.all(
         sources.map(async (source: string) => {
           const count = await this.recordStore.countBySource(
-            source as any,
-            false
+            source as SourceType
           );
 
           // Get the most recent sync time for this source

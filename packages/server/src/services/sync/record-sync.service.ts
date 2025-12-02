@@ -33,6 +33,10 @@ async function syncRecord(
       return { action: "skipped" };
     }
 
+    // Preserve graph indexing metadata - let the graph indexer decide if re-indexing is needed
+    record.lastGraphIndexDate = existing.lastGraphIndexDate;
+    record.lastEmbedDate = existing.lastEmbedDate;
+
     await recordStore.upsert(record);
     return { action: "updated" };
   } else {
@@ -73,11 +77,11 @@ export async function syncAllRecords(
   const errors: Array<{ recordId: string; error: string }> = [];
 
   try {
-    // Fetch all entities in batches
+    // Fetch all records in batches
     const iterator = adapter.fetchAll({ batchSize: 50 });
 
     for await (const batch of iterator) {
-      console.log(`  Processing batch of ${batch.length} entities...`);
+      console.log(`  Processing batch of ${batch.length} records...`);
 
       await Promise.all(
         batch.map(

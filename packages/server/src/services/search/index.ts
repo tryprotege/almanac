@@ -1,8 +1,7 @@
 /**
- * Search services exports
+ * Search Services Barrel Export
+ * Functional LightRAG implementation
  */
 
-export * from "./vector-search.service.js";
-export * from "./graph-expansion.service.js";
-export * from "./scoring.service.js";
-export * from "./search.service.js";
+export { lightragQuery, type LightRAGDependencies } from "./lightrag-query.js";
+export { registerLightRAGTool } from "./lightrag-tool.js";

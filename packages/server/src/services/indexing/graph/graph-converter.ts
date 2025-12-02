@@ -10,8 +10,10 @@ import {
 } from "./schema/entity-deduplication.js";
 
 export interface GraphNode {
-  id: string; // MongoDB _id only
-  checksum: string; // Content checksum
+  id: string; // Global entity ID
+  type: string; // Entity type
+  title: string; // Entity name/title
+  description?: string; // Optional entity description
 }
 
 export interface GraphRelationship {
@@ -26,28 +28,40 @@ export interface GraphRelationship {
 // ============================================================================
 
 /**
- * Convert entities to minimal graph nodes
+ * Generate a global entity ID from name and type
+ * Uses normalization to ensure consistent IDs across documents
+ * @example generateGlobalEntityId("John Smith", "Person") => "entity_person_john_smith"
+ */
+export const generateGlobalEntityId = (
+  entityName: string,
+  entityType: string
+): string => {
+  const normalized = normalizeEntityName(entityName).replace(/\s+/g, "_");
+  return `entity_${entityType.toLowerCase()}_${normalized}`;
+};
+
+/**
+ * Convert entities to global graph nodes
  * Returns nodes and entity name to ID mapping
+ * NOTE: No longer scoped to individual records - entities are global
  */
 export const entitiesToGraphNodes = (
-  entities: Entity[],
-  recordId: string,
-  recordChecksum: string
+  entities: Entity[]
 ): { nodes: GraphNode[]; entityNameToId: Map<string, string> } => {
   const entityNameToId = new Map<string, string>();
   const nodes: GraphNode[] = [];
 
   for (const entity of entities) {
-    const nodeId = `${recordId}_${normalizeEntityName(entity.name).replace(
-      /\s+/g,
-      "_"
-    )}`;
+    // Use global ID instead of record-scoped ID
+    const nodeId = generateGlobalEntityId(entity.name, entity.type);
 
     if (!entityNameToId.has(entity.name)) {
       entityNameToId.set(entity.name, nodeId);
       nodes.push({
         id: nodeId,
-        checksum: recordChecksum, // Track which record version created this node
+        type: entity.type,
+        title: entity.name,
+        description: entity.description,
       });
     }
   }

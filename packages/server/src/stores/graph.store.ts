@@ -336,6 +336,289 @@ export class GraphStore {
   }
 
   /**
+   * Delete all entities extracted from a specific record
+   * Entities have IDs like: {recordId}_{entityName}
+   * Returns the number of nodes deleted
+   * @deprecated Use unlinkAllEntitiesFromDocument + deleteOrphanedEntities instead
+   */
+  async deleteRecordEntities(recordId: string): Promise<number> {
+    const query = `
+      MATCH (n)
+      WHERE n.id STARTS WITH $prefix
+      WITH n, count(n) AS nodeCount
+      DETACH DELETE n
+      RETURN nodeCount
+    `;
+
+    const results = await this.memgraph.executeQuery<{ nodeCount: number }>(
+      query,
+      { prefix: `${recordId}_` }
+    );
+
+    // Handle both Neo4j Integer objects and regular numbers
+    const count = results[0]?.nodeCount || 0;
+    return typeof count === "object" && count !== null && "toNumber" in count
+      ? (count as any).toNumber()
+      : count || 0;
+  }
+
+  /**
+   * Create or update an entity node (without document binding)
+   */
+  async upsertEntityNode(entity: {
+    id: string;
+    type: string;
+    title: string;
+    description?: string;
+  }): Promise<void> {
+    const query = `
+      MERGE (e:Entity {id: $id})
+      SET e.type = $type,
+          e.title = $title,
+          e.description = $description
+    `;
+    await this.memgraph.executeQuery(query, entity);
+  }
+
+  /**
+   * Link an entity to a document using MENTIONED_IN relationship
+   */
+  async linkEntityToDocument(
+    entityId: string,
+    documentId: string,
+    metadata?: { confidence?: number }
+  ): Promise<void> {
+    const query = `
+      MATCH (entity:Entity {id: $entityId})
+      MATCH (doc {id: $documentId})
+      MERGE (entity)-[r:MENTIONED_IN]->(doc)
+      SET r.extractedAt = datetime(),
+          r.confidence = $confidence
+    `;
+    await this.memgraph.executeQuery(query, {
+      entityId,
+      documentId,
+      confidence: metadata?.confidence || 1.0,
+    });
+  }
+
+  /**
+   * Remove all entity mentions from a specific document
+   * Returns the list of entity IDs that were unlinked
+   */
+  async unlinkAllEntitiesFromDocument(documentId: string): Promise<string[]> {
+    const query = `
+      MATCH (entity:Entity)-[r:MENTIONED_IN]->(doc {id: $documentId})
+      WITH entity, r
+      DELETE r
+      RETURN entity.id AS entityId
+    `;
+
+    const results = await this.memgraph.executeQuery<{ entityId: string }>(
+      query,
+      { documentId }
+    );
+
+    return results.map((r) => r.entityId);
+  }
+
+  /**
+   * Delete entities that have no document mentions (orphaned entities)
+   * Returns count of deleted entities
+   */
+  async deleteOrphanedEntities(): Promise<number> {
+    // First get the count
+    const countQuery = `
+      MATCH (entity:Entity)
+      WHERE NOT (entity)-[:MENTIONED_IN]->()
+      RETURN count(entity) AS count
+    `;
+
+    const countResults = await this.memgraph.executeQuery<{ count: number }>(
+      countQuery,
+      {}
+    );
+    const count = countResults[0]?.count || 0;
+    const finalCount =
+      typeof count === "object" && count !== null && "toNumber" in count
+        ? (count as any).toNumber()
+        : count || 0;
+
+    // Then delete the orphaned entities
+    if (finalCount > 0) {
+      const deleteQuery = `
+        MATCH (entity:Entity)
+        WHERE NOT (entity)-[:MENTIONED_IN]->()
+        DETACH DELETE entity
+      `;
+      await this.memgraph.executeQuery(deleteQuery, {});
+    }
+
+    return finalCount;
+  }
+
+  /**
+   * Get all entities mentioned in a document
+   */
+  async getDocumentEntities(documentId: string): Promise<
+    Array<{
+      id: string;
+      type: string;
+      title: string;
+    }>
+  > {
+    const query = `
+      MATCH (entity:Entity)-[:MENTIONED_IN]->(doc {id: $documentId})
+      RETURN entity.id AS id, entity.type AS type, entity.title AS title
+    `;
+
+    return this.memgraph.executeQuery(query, { documentId });
+  }
+
+  /**
+   * Create or update a semantic relationship (without document binding)
+   */
+  async upsertRelationship(relationship: {
+    sourceId: string;
+    targetId: string;
+    type: string;
+  }): Promise<void> {
+    const query = `
+      MATCH (source:Entity {id: $sourceId})
+      MATCH (target:Entity {id: $targetId})
+      MERGE (source)-[r:${relationship.type}]->(target)
+    `;
+    await this.memgraph.executeQuery(query, {
+      sourceId: relationship.sourceId,
+      targetId: relationship.targetId,
+    });
+  }
+
+  /**
+   * Link a document to a relationship it mentions
+   */
+  async linkDocumentToRelationship(
+    documentId: string,
+    relationshipType: string,
+    sourceEntityId: string,
+    targetEntityId: string,
+    metadata: { confidence: number }
+  ): Promise<void> {
+    const query = `
+      MATCH (doc {id: $documentId})
+      MATCH (source:Entity {id: $sourceEntityId})
+      MERGE (doc)-[r:MENTIONS_REL]->(source)
+      SET r.relationshipType = $relationshipType,
+          r.sourceEntityId = $sourceEntityId,
+          r.targetEntityId = $targetEntityId,
+          r.confidence = $confidence,
+          r.extractedAt = datetime()
+    `;
+
+    await this.memgraph.executeQuery(query, {
+      documentId,
+      relationshipType,
+      sourceEntityId,
+      targetEntityId,
+      confidence: metadata.confidence,
+    });
+  }
+
+  /**
+   * Remove all relationship mentions from a document
+   */
+  async unlinkRelationshipsFromDocument(documentId: string): Promise<number> {
+    const query = `
+      MATCH (doc {id: $documentId})-[r:MENTIONS_REL]->()
+      WITH count(r) AS count
+      MATCH (doc {id: $documentId})-[r:MENTIONS_REL]->()
+      DELETE r
+      RETURN count
+    `;
+
+    const results = await this.memgraph.executeQuery<{ count: number }>(query, {
+      documentId,
+    });
+
+    const count = results[0]?.count || 0;
+    return typeof count === "object" && count !== null && "toNumber" in count
+      ? (count as any).toNumber()
+      : count || 0;
+  }
+
+  /**
+   * Delete semantic relationships that have no document mentions
+   * Uses LEFT JOIN pattern to avoid complex nested EXISTS queries
+   */
+  async deleteOrphanedRelationships(): Promise<number> {
+    // First, count how many will be deleted
+    const countQuery = `
+      MATCH (source:Entity)-[r]->(target:Entity)
+      WHERE type(r) <> 'MENTIONED_IN' 
+        AND type(r) <> 'MENTIONS_REL'
+      OPTIONAL MATCH (doc)-[m:MENTIONS_REL]->(e)
+      WHERE m.relationshipType = type(r)
+        AND m.sourceEntityId = source.id
+        AND m.targetEntityId = target.id
+      WITH r, count(m) AS mentionCount
+      WHERE mentionCount = 0
+      RETURN count(r) AS count
+    `;
+
+    const countResults = await this.memgraph.executeQuery<{ count: number }>(
+      countQuery,
+      {}
+    );
+    const count = countResults[0]?.count || 0;
+    const finalCount =
+      typeof count === "object" && count !== null && "toNumber" in count
+        ? (count as any).toNumber()
+        : count || 0;
+
+    // Then delete if there are any orphans
+    if (finalCount > 0) {
+      const deleteQuery = `
+        MATCH (source:Entity)-[r]->(target:Entity)
+        WHERE type(r) <> 'MENTIONED_IN' 
+          AND type(r) <> 'MENTIONS_REL'
+        OPTIONAL MATCH (doc)-[m:MENTIONS_REL]->(e)
+        WHERE m.relationshipType = type(r)
+          AND m.sourceEntityId = source.id
+          AND m.targetEntityId = target.id
+        WITH r, count(m) AS mentionCount
+        WHERE mentionCount = 0
+        DELETE r
+      `;
+
+      await this.memgraph.executeQuery(deleteQuery, {});
+    }
+
+    return finalCount;
+  }
+
+  /**
+   * Get all relationships mentioned in a document
+   */
+  async getDocumentRelationships(documentId: string): Promise<
+    Array<{
+      type: string;
+      sourceId: string;
+      targetId: string;
+      confidence: number;
+    }>
+  > {
+    const query = `
+      MATCH (doc {id: $documentId})-[r:MENTIONS_REL]->()
+      RETURN r.relationshipType AS type,
+             r.sourceEntityId AS sourceId,
+             r.targetEntityId AS targetId,
+             r.confidence AS confidence
+    `;
+
+    return this.memgraph.executeQuery(query, { documentId });
+  }
+
+  /**
    * Delete all nodes and relationships
    */
   async deleteAll(): Promise<void> {

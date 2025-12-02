@@ -52,6 +52,7 @@ export interface IndexingOptions {
   concurrency?: number;
   enableToxicFilter?: boolean;
   maxEntitiesPerDoc?: number;
+  force?: boolean;
 }
 
 export interface IndexingStats {
@@ -78,8 +79,56 @@ export const extractGraphFromRecord = async (
   options: {
     enableToxicFilter?: boolean;
     maxEntitiesPerDoc?: number;
+    graphStore?: GraphStore;
+    force?: boolean;
   } = {}
 ): Promise<ExtractionResult> => {
+  // Check if record needs re-indexing (skip check if force=true)
+  if (
+    !options.force &&
+    record.lastGraphIndexDate &&
+    record.updatedAt &&
+    record.updatedAt <= record.lastGraphIndexDate
+  ) {
+    // Record is up-to-date, skip extraction
+    return {
+      entities: [],
+      relationships: [],
+      adapterRelationships: [],
+      recordId: record._id,
+      recordChecksum: record.checksum,
+    };
+  }
+
+  // Clean up old entity and relationship mentions before re-extraction if:
+  // 1. This is a re-index (lastGraphIndexDate exists), OR
+  // 2. Force mode is enabled (always clean)
+  if (options.graphStore && (record.lastGraphIndexDate || options.force)) {
+    // 1. Unlink entities from document
+    const unlinkedEntityIds =
+      await options.graphStore.unlinkAllEntitiesFromDocument(record._id);
+
+    // 2. Unlink relationships from document
+    const unlinkedRelCount =
+      await options.graphStore.unlinkRelationshipsFromDocument(record._id);
+
+    // 3. Delete orphaned entities
+    const deletedEntities = await options.graphStore.deleteOrphanedEntities();
+
+    // 4. Delete orphaned relationships
+    const deletedRelationships =
+      await options.graphStore.deleteOrphanedRelationships();
+
+    if (deletedEntities > 0 || deletedRelationships > 0) {
+      console.log(
+        `🧹 Cleaned up ${deletedEntities} entities and ${deletedRelationships} relationships ` +
+          `after unlinking from ${
+            options.force ? "force re-index" : "updated record"
+          } ${record._id}`
+      );
+    }
+  }
+
   // Extract explicit relationships using adapter
   let adapterRelationships: EntityRelationship[] = [];
   if (adapter && record.rawData) {
@@ -101,9 +150,38 @@ export const extractGraphFromRecord = async (
     existingRelTypes
   );
 
+  // Log empty extractions (0 entities AND 0 relationships)
+  if (entities.length === 0 && relationships.length === 0) {
+    console.warn(`⚠️  Empty extraction for record ${record._id}:`);
+    console.warn(`   - Content length: ${record.content.length} chars`);
+    console.warn(`   - Title: ${record.title}`);
+    console.warn(`   - MongoDB ID: ${record._id}`);
+    if (record.rawData && typeof record.rawData === "object") {
+      const rawData = record.rawData as any;
+      if (rawData.url) {
+        console.warn(`   - URL: ${rawData.url}`);
+      }
+    }
+  }
+
   // Apply toxic filtering if enabled
   if (options.enableToxicFilter && isToxicChunk(entities, relationships)) {
-    console.warn(`⚠️  Skipping toxic chunk for record ${record._id}`);
+    const avgNameLength =
+      entities.length > 0
+        ? entities.reduce((sum, e) => sum + e.name.length, 0) / entities.length
+        : 0;
+
+    console.warn(`⚠️  Skipping toxic chunk for record ${record._id}:`);
+    console.warn(`   - Entities: ${entities.length}`);
+    console.warn(`   - Relationships: ${relationships.length}`);
+    console.warn(`   - Avg name length: ${avgNameLength.toFixed(1)} chars`);
+    console.warn(
+      `   - Sample entities: ${entities
+        .slice(0, 5)
+        .map((e) => e.name)
+        .join(", ")}`
+    );
+
     return {
       entities: [],
       relationships: [],
@@ -165,12 +243,12 @@ export const processRecordsToGraph = (
   const entityNameToId = new Map<string, string>();
   const nodes: GraphNode[] = [];
 
-  // First pass: collect all unique entities with their checksums
+  // First pass: collect all unique entities (now global, not per-record)
   for (const data of recordsData) {
     const { nodes: recordNodes, entityNameToId: recordMapping } =
-      entitiesToGraphNodes(data.entities, data.recordId, data.recordChecksum);
+      entitiesToGraphNodes(data.entities);
 
-    // Merge mappings and nodes
+    // Merge mappings and nodes (deduplication happens naturally with global IDs)
     for (const [name, id] of recordMapping.entries()) {
       if (!entityNameToId.has(name)) {
         entityNameToId.set(name, id);
@@ -214,7 +292,18 @@ export const indexAllRecords = async (
     concurrency = 32,
     enableToxicFilter = true,
     maxEntitiesPerDoc = 200,
+    force = false,
   } = options;
+
+  console.log(`🔄 Starting graph indexing for source: ${source}`);
+  console.log(`   Configuration:`);
+  console.log(`   - Batch size: ${batchSize}`);
+  console.log(`   - Concurrency: ${concurrency}`);
+  console.log(
+    `   - Toxic filter: ${enableToxicFilter ? "enabled" : "disabled"}`
+  );
+  console.log(`   - Max entities per doc: ${maxEntitiesPerDoc}`);
+  console.log(`   - Force re-index: ${force ? "enabled" : "disabled"}`);
 
   const stats: IndexingStats = {
     nodes: 0,
@@ -222,8 +311,6 @@ export const indexAllRecords = async (
     errors: 0,
     skippedToxic: 0,
   };
-
-  console.log(`🔄 Starting graph indexing for source: ${source}`);
 
   // Get adapter for this source
   const adapter = adapters.get(source);
@@ -263,7 +350,7 @@ export const indexAllRecords = async (
             openaiClient,
             existingEntityTypes,
             existingRelTypes,
-            { enableToxicFilter, maxEntitiesPerDoc }
+            { enableToxicFilter, maxEntitiesPerDoc, graphStore, force }
           )
         )
       );
@@ -309,31 +396,55 @@ export const indexAllRecords = async (
         }
       }
 
-      // Store nodes + relationships SERIALLY (avoid Memgraph conflicts)
+      // Store nodes using new relationship-based approach
       if (nodes.length > 0) {
-        // Convert minimal nodes to Memgraph format
-        const memgraphNodes = nodes.map((node) => ({
-          label: "Entity", // Generic label for auto-discovered entities
-          id: node.id,
-          type: "entity",
-          title: node.id.split("_").pop() || node.id,
-        }));
+        // 1. Create/update each unique entity node
+        for (const node of nodes) {
+          await graphStore.upsertEntityNode({
+            id: node.id,
+            type: node.type,
+            title: node.title,
+            description: node.description,
+          });
+        }
 
-        await graphStore.createNodes(memgraphNodes);
+        // 2. Link each entity to the documents that mentioned it
+        for (const result of validResults) {
+          const { nodes: recordNodes } = entitiesToGraphNodes(result.entities);
+
+          for (const node of recordNodes) {
+            await graphStore.linkEntityToDocument(node.id, result.recordId);
+          }
+        }
+
         stats.nodes += nodes.length;
       }
 
       if (relationships.length > 0) {
-        // Convert to Memgraph format
-        const memgraphRels = relationships.map((rel) => ({
-          sourceId: rel.sourceId,
-          targetId: rel.targetId,
-          type: rel.type,
-          confidence: rel.confidence,
-          extractedBy: "llm" as const,
-        }));
+        // 1. Create semantic relationships (without document binding)
+        for (const rel of relationships) {
+          await graphStore.upsertRelationship({
+            sourceId: rel.sourceId,
+            targetId: rel.targetId,
+            type: rel.type,
+          });
+        }
 
-        await graphStore.createRelationships(memgraphRels);
+        // 2. Link documents to relationships they mention
+        for (const result of validResults) {
+          const { relationships: recordRels } = processRecordsToGraph([result]);
+
+          for (const rel of recordRels) {
+            await graphStore.linkDocumentToRelationship(
+              result.recordId,
+              rel.type,
+              rel.sourceId,
+              rel.targetId,
+              { confidence: rel.confidence }
+            );
+          }
+        }
+
         stats.relationships += relationships.length;
       }
 
@@ -397,7 +508,7 @@ export const indexSingleRecord = async (
     openaiClient,
     existingEntityTypes,
     existingRelTypes,
-    options
+    { ...options, graphStore }
   );
 
   // Process to graph

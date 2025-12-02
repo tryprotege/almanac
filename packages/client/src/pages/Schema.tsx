@@ -28,23 +28,21 @@ export default function Schema() {
   return (
     <div className=" bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Graph Schema
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-1">
-            Visualize and explore your knowledge graph structure
-          </p>
-        </div>
-        <button
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          Graph Schema
+        </h1>
+        <p className="text-gray-600 dark:text-gray-300 mt-1">
+          Visualize and explore your knowledge graph structure
+        </p>
+      </div>
+      {/* <button
           onClick={() => refetch()}
           className="btn btn-secondary flex items-center gap-2"
         >
           <RefreshCw className="w-4 h-4" />
           Refresh
-        </button>
-      </div>
+        </button> */}
 
       {/* Schema Stats - Only show if schema exists */}
       {schema && (

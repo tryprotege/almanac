@@ -170,9 +170,14 @@ export class RecordStore {
   /**
    * Count entities by source
    */
-  async countBySource(source: SourceType): Promise<number> {
+  async countBySource(
+    source: SourceType,
+    includeDeleted: boolean = false
+  ): Promise<number> {
     const filter: any = { source };
-
+    if (!includeDeleted) {
+      filter.isDeleted = false;
+    }
     return await RecordModel.countDocuments(filter);
   }
 

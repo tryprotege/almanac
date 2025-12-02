@@ -223,7 +223,8 @@ export class StatsService {
       await Promise.all(
         sources.map(async (source: string) => {
           const count = await this.recordStore.countBySource(
-            source as SourceType
+            source as SourceType,
+            true
           );
 
           // Get the most recent sync time for this source

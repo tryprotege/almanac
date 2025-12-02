@@ -58,7 +58,7 @@ export class RecordStore {
     const filter: any = { source, recordType };
 
     if (!options?.includeDeleted) {
-      filter.isDeleted = false;
+      filter.deletedAt = null;
     }
 
     let query = RecordModel.find();
@@ -176,7 +176,7 @@ export class RecordStore {
   ): Promise<number> {
     const filter: any = { source };
     if (!includeDeleted) {
-      filter.isDeleted = false;
+      filter.deletedAt = null;
     }
     return await RecordModel.countDocuments(filter);
   }
@@ -202,7 +202,7 @@ export class RecordStore {
   ): Promise<Record[]> {
     const filter: any = {
       $text: { $search: query },
-      isDeleted: false,
+      deletedAt: { $exists: false },
     };
 
     if (options?.source) {
@@ -235,7 +235,7 @@ export class RecordStore {
   ): Promise<Record[]> {
     const filter: any = {
       people: { $in: people },
-      isDeleted: false,
+      deletedAt: { $exists: false },
     };
 
     if (options?.source) {
@@ -265,7 +265,7 @@ export class RecordStore {
   ): Promise<Record[]> {
     const filter: any = {
       primaryDate: { $gte: startDate, $lte: endDate },
-      isDeleted: false,
+      deletedAt: { $exists: false },
     };
 
     if (options?.source) {
@@ -297,7 +297,7 @@ export class RecordStore {
   ): Promise<Record[]> {
     const filter: any = {
       tags: { $in: tags },
-      isDeleted: false,
+      deletedAt: { $exists: false },
     };
 
     if (options?.source) {

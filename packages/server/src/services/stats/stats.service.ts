@@ -63,7 +63,7 @@ export class StatsService {
       // Get recently updated count (last 24 hours)
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const recentlyUpdated = await RecordModel.find({
-        isDeleted: false,
+        deletedAt: { $exists: false },
         syncedAt: { $gte: oneDayAgo },
       })
         .countDocuments()
@@ -214,9 +214,7 @@ export class StatsService {
   }> {
     try {
       // Get all unique sources
-      const sources = await RecordModel.distinct("source", {
-        isDeleted: false,
-      }).exec();
+      const sources = await RecordModel.distinct("source").exec();
 
       const result: { [source: string]: { records: number; lastSync?: Date } } =
         {};
@@ -231,7 +229,6 @@ export class StatsService {
           // Get the most recent sync time for this source
           const recentRecord = await RecordModel.findOne({
             source,
-            isDeleted: false,
           })
             .sort({ syncedAt: -1 })
             .select("syncedAt")
@@ -258,7 +255,7 @@ export class StatsService {
   private async getRecordsByType(): Promise<{ [type: string]: number }> {
     try {
       const types = await RecordModel.aggregate([
-        { $match: { isDeleted: false } },
+        { $match: { deletedAt: { $exists: false } } },
         { $group: { _id: "$recordType", count: { $sum: 1 } } },
       ]).exec();
 
@@ -281,7 +278,9 @@ export class StatsService {
    */
   private async getDeletedRecordsCount(): Promise<number> {
     try {
-      return await RecordModel.countDocuments({ isDeleted: true }).exec();
+      return await RecordModel.countDocuments({
+        deletedAt: { $exists: true },
+      }).exec();
     } catch (error) {
       console.error("Error fetching deleted records count:", error);
       return 0;

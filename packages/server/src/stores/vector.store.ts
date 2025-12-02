@@ -168,46 +168,6 @@ export class VectorStore {
   }
 
   /**
-   * Check if points exist for a MongoDB record with a specific checksum
-   */
-  async hasPointsWithChecksum(
-    mongoId: string,
-    checksum: string
-  ): Promise<boolean> {
-    try {
-      const results = await this.qdrant.client.scroll(this.collectionName, {
-        filter: {
-          must: [
-            {
-              key: "mongoId",
-              match: {
-                value: mongoId,
-              },
-            },
-            {
-              key: "checksum",
-              match: {
-                value: checksum,
-              },
-            },
-          ],
-        },
-        limit: 1,
-        with_payload: false,
-        with_vector: false,
-      });
-
-      return results.points.length > 0;
-    } catch (error) {
-      console.error(
-        `Error checking points for mongoId ${mongoId} with checksum ${checksum}:`,
-        error
-      );
-      return false;
-    }
-  }
-
-  /**
    * Get point by ID
    */
   async getPoint(id: string): Promise<VectorPoint | null> {

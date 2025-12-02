@@ -74,12 +74,6 @@ export async function insertAllRecordsToVectorDB(
             vectorStore,
             record
           );
-          if (vectorIds.length === 0) {
-            stats.skipped++;
-          } else {
-            stats.processed++;
-            stats.chunks += vectorIds.length;
-          }
           return { success: true, chunks: vectorIds.length };
         } catch (error) {
           console.error(`  ⚠️  Error indexing record ${record._id}:`, error);
@@ -94,7 +88,7 @@ export async function insertAllRecordsToVectorDB(
     skip += records.length;
 
     // Log progress
-    const progress = `  ✓ Batch ${batchNumber} complete - ${stats.processed} processed, ${stats.chunks} chunks, ${stats.skipped} skipped, ${stats.errors} errors`;
+    const progress = `  ✓ Batch ${batchNumber} complete - ${stats.processed} processed, ${stats.chunks} chunks, ${stats.errors} errors`;
     console.log(progress);
   }
 
@@ -109,7 +103,6 @@ export async function insertAllRecordsToVectorDB(
 
 /**
  * Index a single record into Qdrant
- * Checks if vectors with the current checksum already exist to avoid re-indexing unchanged content
  */
 export async function insertRecordToVectorDB(
   recordStore: RecordStore,
@@ -118,20 +111,6 @@ export async function insertRecordToVectorDB(
 ): Promise<string[]> {
   // Skip if no content
   if (!record.content || record.content.trim().length === 0) {
-    return [];
-  }
-
-  // Check if vectors with current checksum already exist
-  const hasExistingVectors = await vectorStore.hasPointsWithChecksum(
-    record._id,
-    record.checksum
-  );
-
-  if (hasExistingVectors) {
-    // Vectors are up-to-date, no need to re-index
-    console.log(
-      `  ⏭️  Skipping record ${record._id} - vectors already up-to-date`
-    );
     return [];
   }
 

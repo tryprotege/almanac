@@ -10,17 +10,9 @@ const processor: Processor<
   SyncMcpServerJobData,
   SyncMcpServerJobResult,
   string
-> = async (job) => {
-  const { mcpConfig } = job.data;
-
-  // Initial progress - job started
-  await job.updateProgress(10);
-
-  // Sync records from MCP server to MongoDB
+> = async ({ data: { mcpConfig } }) => {
   await syncMcpServer(mcpConfig);
-  await job.updateProgress(50);
 
-  // Queue indexing jobs for vector and graph databases
   await Promise.all([
     indexVectorQueue.add(mcpConfig.name, {
       source: mcpConfig.name,
@@ -29,11 +21,6 @@ const processor: Processor<
       source: mcpConfig.name,
     }),
   ]);
-  await job.updateProgress(90);
-
-  // Job complete
-  await job.updateProgress(100);
-  return;
 };
 
 type SyncMcpServerJobData = {

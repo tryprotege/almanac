@@ -82,6 +82,44 @@ export const deduplicateEntities = (entities: Entity[]): Entity[] => {
 };
 
 // ============================================================================
+// Pure Functions - Relationship Filtering
+// ============================================================================
+
+// Define relationship blacklist (embedding-redundant types)
+const LOW_VALUE_RELATIONSHIP_TYPES = new Set([
+  "MENTIONED_WITH",
+  "APPEARS_WITH",
+  "RELATED_TO", // Too generic
+  "SIMILAR_TO", // Embeddings handle this
+  "ASSOCIATED_WITH",
+]);
+
+/**
+ * Filter out low-value relationships that embeddings already handle
+ */
+export const filterLowValueRelationships = (
+  relationships: Relationship[]
+): Relationship[] => {
+  return relationships.filter((rel) => {
+    // Filter out blacklisted types
+    if (LOW_VALUE_RELATIONSHIP_TYPES.has(rel.type.toUpperCase())) {
+      console.warn(`⚠️  Filtered low-value relationship: ${rel.type}`);
+      return false;
+    }
+
+    // Filter out weak relationships (strength < 5)
+    if (rel.strength && rel.strength < 5) {
+      console.warn(
+        `⚠️  Filtered weak relationship: ${rel.source} -> ${rel.target} (strength: ${rel.strength})`
+      );
+      return false;
+    }
+
+    return true;
+  });
+};
+
+// ============================================================================
 // Pure Functions - Relationship Merging
 // ============================================================================
 

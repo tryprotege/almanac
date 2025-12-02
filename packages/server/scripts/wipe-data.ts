@@ -213,13 +213,20 @@ async function wipeQdrant(qdrant: any): Promise<void> {
 
     if (!collections.collections || collections.collections.length === 0) {
       console.log("   ⊘ No collections to delete");
-      return;
+    } else {
+      for (const collection of collections.collections) {
+        await qdrant.client.deleteCollection(collection.name);
+        console.log(`   ✓ Deleted collection: ${collection.name}`);
+      }
     }
 
-    for (const collection of collections.collections) {
-      await qdrant.client.deleteCollection(collection.name);
-      console.log(`   ✓ Deleted collection: ${collection.name}`);
-    }
+    // Clear MongoDB vector timestamps so records will be re-indexed
+    console.log("   🔄 Clearing MongoDB vector timestamps...");
+    const result = await RecordModel.updateMany(
+      {},
+      { $unset: { lastEmbedDate: "" } }
+    );
+    console.log(`   ✓ Cleared timestamps for ${result.modifiedCount} records`);
   } catch (error) {
     console.error("   ❌ Error wiping Qdrant:", error);
     throw error;

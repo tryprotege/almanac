@@ -28,20 +28,6 @@ services:
     networks:
       - ebee-network
 
-  memgraph_ui:
-    image: memgraph/lab:latest
-    container_name: ebee_memgraph_ui
-    ports:
-      - "3001:3000"
-    depends_on:
-      - memgraph
-    restart: unless-stopped
-    networks:
-      - ebee-network
-    environment:
-      - QUICK_CONNECT_MG_HOST=memgraph
-      - QUICK_CONNECT_MG_PORT=7687
-
   memgraph:
     image: memgraph/memgraph:3.7.0
     container_name: ebee_memgraph

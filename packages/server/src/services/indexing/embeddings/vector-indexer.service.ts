@@ -116,8 +116,8 @@ export async function insertRecordToVectorDB(
     return [];
   }
 
-  // Delete existing vectors for this record
-  if (record.lastGraphIndexDate) {
+  // Delete existing vectors for this record (old versions with different checksum)
+  if (record.lastEmbedDate) {
     await vectorStore.deleteOutdatedPoints(record._id, record.checksum);
   }
 

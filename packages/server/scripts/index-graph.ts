@@ -2,11 +2,13 @@ import "dotenv/config";
 import { initializeServices } from "../src/mcp/initialization.js";
 import { RecordStore } from "../src/stores/record.store.js";
 import { GraphStore } from "../src/stores/graph.store.js";
-import { GraphIndexerService } from "../src/services/indexing/graph/graph-indexer.service.ts";
+import { indexAllRecords } from "../src/services/indexing/graph/graph-indexer.js";
+import { createLLMClient } from "../src/services/llm/providers.js";
 import { loadProxyConfig } from "../src/mcp/config-loader.js";
 import { NotionMCPClient } from "../src/services/sources/notion/mcpClient.js";
 import { NotionAdapter } from "../src/services/sync/adapters/notion-adapter.ts";
 import { SourceType } from "../src/types/index.js";
+import { env } from "../src/env.js";
 
 /**
  * Script to index unindexed records to the graph database
@@ -69,6 +71,9 @@ async function indexGraphRecords() {
   const { memgraph } = await initializeServices();
   const validConfigs = await loadProxyConfig();
 
+  // Create OpenAI client for LLM extraction
+  const openaiClient = createLLMClient();
+
   for (const config of validConfigs) {
     // Filter by source if specified
     if (options.source && config.name !== options.source) {
@@ -90,79 +95,93 @@ async function indexGraphRecords() {
       adapters.set("notion", notionAdapter);
     }
 
-    const graphIndexer = new GraphIndexerService(
-      recordStore,
-      graphStore,
-      adapters
+    // Get statistics before indexing
+    const allRecords = await recordStore.findBySourceAndType(
+      config.name as SourceType,
+      "",
+      { includeDeleted: false }
     );
 
-    // Get statistics before indexing
-    const statsBefore = await graphIndexer.getStats(config.name as SourceType);
-    console.log(`\n📊 Current Statistics:`);
-    console.log(`   Total Records: ${statsBefore.totalRecords}`);
-    console.log(`   Already Indexed: ${statsBefore.indexedNodes}`);
-    console.log(`   Unindexed: ${statsBefore.notIndexed}`);
+    // Records need indexing if:
+    // 1. Never indexed (lastGraphIndexDate is null)
+    // 2. Updated after last indexing (updatedAt > lastGraphIndexDate)
+    const needsIndexing = allRecords.filter(
+      (record) =>
+        !record.lastGraphIndexDate ||
+        (record.updatedAt && record.updatedAt > record.lastGraphIndexDate)
+    );
 
-    if (statsBefore.notIndexed === 0 && !options.force) {
+    const alreadyIndexed = allRecords.filter(
+      (record) =>
+        record.lastGraphIndexDate &&
+        record.updatedAt &&
+        record.updatedAt <= record.lastGraphIndexDate
+    );
+
+    console.log(`\n📊 Current Statistics:`);
+    console.log(`   Total Records: ${allRecords.length}`);
+    console.log(`   Already Indexed: ${alreadyIndexed.length}`);
+    console.log(`   Needs Indexing: ${needsIndexing.length}`);
+    console.log(
+      `     - Never indexed: ${
+        allRecords.filter((r) => !r.lastGraphIndexDate).length
+      }`
+    );
+    console.log(
+      `     - Updated since last index: ${
+        allRecords.filter(
+          (r) =>
+            r.lastGraphIndexDate &&
+            r.updatedAt &&
+            r.updatedAt > r.lastGraphIndexDate
+        ).length
+      }`
+    );
+
+    if (needsIndexing.length === 0 && !options.force) {
       console.log(`\n✅ All records already indexed for ${config.name}`);
       continue;
     }
 
-    if (options.force) {
-      console.log(`\n🔄 Force mode: Re-indexing all records...`);
-      const result = await graphIndexer.indexAll(config.name as SourceType, {
+    // Run LLM-powered indexing
+    const result = await indexAllRecords(
+      config.name as SourceType,
+      recordStore,
+      graphStore,
+      adapters,
+      openaiClient,
+      {
         batchSize: options.batchSize,
-        includeRelationships: options.includeRelationships,
-      });
-
-      console.log(`\n✅ Indexing Complete for ${config.name}`);
-      console.log(`   Nodes Created: ${result.nodes}`);
-      console.log(`   Relationships Created: ${result.relationships}`);
-      console.log(`   Errors: ${result.errors}`);
-    } else {
-      // Find unindexed records
-      console.log(`\n🔍 Finding unindexed records...`);
-
-      const allRecords = await recordStore.findBySourceAndType(
-        config.name as SourceType,
-        "",
-        { includeDeleted: false }
-      );
-
-      const unindexedRecords = allRecords.filter(
-        (record) => !record.lastGraphIndexDate
-      );
-
-      if (unindexedRecords.length === 0) {
-        console.log(`\n✅ No unindexed records found for ${config.name}`);
-        continue;
+        concurrency: env.GRAPH_EXTRACTION_CONCURRENCY,
+        enableToxicFilter: env.ENABLE_TOXIC_DOCUMENT_FILTER,
+        maxEntitiesPerDoc: env.MAX_ENTITIES_PER_DOCUMENT,
+        force: options.force,
       }
+    );
 
-      // Apply limit
-      const recordsToProcess = unindexedRecords.slice(0, options.limit);
-
-      console.log(`\n📝 Found ${unindexedRecords.length} unindexed records`);
-      console.log(
-        `🔄 Indexing ${recordsToProcess.length} records (limited)...`
-      );
-
-      const recordIds = recordsToProcess.map((r) => r._id);
-      const result = await graphIndexer.indexByIds(recordIds, {
-        includeRelationships: options.includeRelationships,
-      });
-
-      console.log(`\n✅ Indexing Complete for ${config.name}`);
-      console.log(`   Nodes Created: ${result.nodes}`);
-      console.log(`   Relationships Created: ${result.relationships}`);
-      console.log(`   Errors: ${result.errors}`);
-    }
+    console.log(`\n✅ Indexing Complete for ${config.name}`);
+    console.log(`   Nodes Created: ${result.nodes}`);
+    console.log(`   Relationships Created: ${result.relationships}`);
+    console.log(`   Errors: ${result.errors}`);
+    console.log(`   Skipped (toxic): ${result.skippedToxic}`);
 
     // Get statistics after indexing
-    const statsAfter = await graphIndexer.getStats(config.name as SourceType);
+    const allRecordsAfter = await recordStore.findBySourceAndType(
+      config.name as SourceType,
+      "",
+      { includeDeleted: false }
+    );
+
+    const unindexedRecordsAfter = allRecordsAfter.filter(
+      (record) => !record.lastGraphIndexDate
+    );
+
     console.log(`\n📊 Final Statistics:`);
-    console.log(`   Total Records: ${statsAfter.totalRecords}`);
-    console.log(`   Indexed: ${statsAfter.indexedNodes}`);
-    console.log(`   Remaining Unindexed: ${statsAfter.notIndexed}`);
+    console.log(`   Total Records: ${allRecordsAfter.length}`);
+    console.log(
+      `   Indexed: ${allRecordsAfter.length - unindexedRecordsAfter.length}`
+    );
+    console.log(`   Remaining Unindexed: ${unindexedRecordsAfter.length}`);
   }
 
   console.log(`\n✨ Graph indexing script completed`);

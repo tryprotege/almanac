@@ -120,7 +120,7 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
     }
 
     const title = this.extractTitle(sourceRecord);
-    const content = this.extractTextContent(sourceRecord);
+    const content = this.extractTextContent(sourceRecord, blocks);
     const people = this.extractPeople(sourceRecord);
     const primaryDate = this.extractPrimaryDate(sourceRecord);
     const tags = this.extractTags(sourceRecord);
@@ -218,18 +218,22 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   /**
    * Extract text content from record
    */
-  protected extractTextContent(sourceRecord: NotionRecord): string {
+  protected extractTextContent(
+    sourceRecord: NotionRecord,
+    blocks?: NotionBlock[]
+  ): string {
     const recordType = this.getRecordType(sourceRecord);
 
     if (recordType === "page") {
-      // For pages, we'll need to fetch blocks separately
-      // This is a simplified version
-      return this.extractTitle(sourceRecord);
+      // Extract markdown content from blocks
+      if (blocks && blocks.length > 0) {
+        return this.blocksToMarkdown(blocks);
+      }
+      return "";
     }
 
     if (recordType === "database") {
       const db = sourceRecord as NotionDatabase;
-      const title = this.extractRichText(db.title);
       const description = this.extractRichText(db.description || []);
       return description;
     }

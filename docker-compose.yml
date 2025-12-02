@@ -13,6 +13,12 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=admin123
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - ebee-network
 
@@ -25,6 +31,20 @@ services:
     volumes:
       - ./.data/qdrant:/qdrant/storage
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:6333/healthz",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - ebee-network
 
@@ -39,6 +59,16 @@ services:
     environment:
       - MEMGRAPH_LOG_LEVEL=WARNING
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "echo 'RETURN 1;' | mgconsole --host 127.0.0.1 --port 7687 || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - ebee-network
 
@@ -51,52 +81,74 @@ services:
       - ./.data/redis:/data
     command: redis-server --appendonly yes
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - ebee-network
 
-  # TODO: Enable when ready
-  # server:
-  #   build:
-  #     context: .
-  #     dockerfile: packages/server/Dockerfile
-  #   container_name: ebee_server
-  #   ports:
-  #     - "3000:3000"
-  #   volumes:
-  #     - ./packages/server:/app/packages/server
-  #     - /app/packages/server/node_modules
-  #     - /app/node_modules
-  #   environment:
-  #     - NODE_ENV=development
-  #   depends_on:
-  #     - mongodb
-  #     - qdrant
-  #     - memgraph
-  #     - redis
-  #   restart: unless-stopped
-  #   networks:
-  #     - ebee-network
-  #   command: pnpm --filter server run dev
+  server:
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile
+    container_name: ebee_server
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./packages/server:/app/packages/server
+      - /app/packages/server/node_modules
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+      - MONGO_USERNAME=admin
+      - MONGO_PASSWORD=admin123
+      - MONGO_DB_NAME=ebee
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - MEMGRAPH_HOST=memgraph
+      - MEMGRAPH_PORT=7687
+      - MEMGRAPH_USERNAME=admin
+      - MEMGRAPH_PASSWORD=
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_API_KEY=
+    env_file:
+      - packages/server/.env
+    depends_on:
+      - mongodb
+      - qdrant
+      - memgraph
+      - redis
+    restart: unless-stopped
+    networks:
+      - ebee-network
+    command: pnpm --filter server run dev
 
-  # client:
-  #   build:
-  #     context: .
-  #     dockerfile: packages/client/Dockerfile
-  #   container_name: ebee_client
-  #   ports:
-  #     - "5173:5173"
-  #   volumes:
-  #     - ./packages/client:/app/packages/client
-  #     - /app/packages/client/node_modules
-  #     - /app/node_modules
-  #   environment:
-  #     - NODE_ENV=development
-  #   depends_on:
-  #     - server
-  #   restart: unless-stopped
-  #   networks:
-  #     - ebee-network
-  #   command: pnpm --filter client run dev
+  client:
+    build:
+      context: .
+      dockerfile: packages/client/Dockerfile
+    container_name: ebee_client
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./packages/client:/app/packages/client
+      - /app/packages/client/node_modules
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_TARGET=http://server:3000
+    restart: unless-stopped
+    networks:
+      - ebee-network
+    command: pnpm --filter client run dev -- --host 0.0.0.0
 
 networks:
   ebee-network:

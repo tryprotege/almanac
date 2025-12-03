@@ -13,7 +13,6 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=admin123
     restart: unless-stopped
-
     networks:
       - ebee-network
 
@@ -56,6 +55,7 @@ services:
       - ebee-network
 
   server:
+    profiles: ["app"] # <-- only start when profile enabled
     build:
       context: .
       dockerfile: packages/server/Dockerfile
@@ -97,6 +97,7 @@ services:
     command: pnpm --filter server run dev
 
   client:
+    profiles: ["app"] # <-- only start when profile enabled
     build:
       context: .
       dockerfile: packages/client/Dockerfile

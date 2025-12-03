@@ -3,6 +3,11 @@ import "dotenv/config";
 import { z } from "zod";
 
 const envSchema = z.object({
+  // Logging Configuration
+  LOG_LEVEL: z
+    .enum(["trace", "debug", "info", "warn", "error", "fatal"])
+    .default("info"),
+
   // MongoDB Configuration
   MONGO_HOST: z.string().default("localhost"),
   MONGO_PORT: z.string().default("27017"),

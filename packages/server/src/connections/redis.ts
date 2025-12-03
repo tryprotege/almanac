@@ -1,5 +1,6 @@
 import { RedisOptions, Redis } from "ioredis";
 import { env } from "../env.js";
+import logger from "../utils/logger.js";
 
 export interface RedisConnection {
   client: Redis;
@@ -31,11 +32,11 @@ export const connectRedis = async (): Promise<RedisConnection> => {
       client.on("error", (err) => reject(err));
     });
 
-    console.log("✅ Redis connected successfully");
+    logger.info("Redis connected successfully");
 
     const close = async (): Promise<void> => {
       await client.quit();
-      console.log("Redis disconnected");
+      logger.info("Redis disconnected");
     };
 
     return {
@@ -43,7 +44,7 @@ export const connectRedis = async (): Promise<RedisConnection> => {
       close,
     };
   } catch (error) {
-    console.error("❌ Redis connection error:", error);
+    logger.error({ error }, "Redis connection error");
     throw error;
   }
 };

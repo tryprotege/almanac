@@ -18,12 +18,13 @@ import { loadProxyConfig } from "./config-loader.js";
 import { registerLightRAGTool } from "../services/search/lightrag-tool.js";
 import { initWorkers } from "../services/queue/index.js";
 import { VectorStore } from "../stores/vector.store.js";
+import logger from "../utils/logger.js";
 
 export async function initializeRemoteServers(
   configs: MCPServerConfig[],
   mcpSever: McpServer
 ): Promise<void> {
-  console.error("🔌 Connecting to remote MCP servers...");
+  logger.info("Connecting to remote MCP servers...");
 
   for (const config of configs) {
     try {
@@ -58,14 +59,15 @@ export async function initializeRemoteServers(
         );
       });
     } catch (error) {
-      console.error(`Failed to connect to ${config.name}:`, error);
+      logger.error(
+        { error, configName: config.name },
+        `Failed to connect to ${config.name}`
+      );
     }
   }
 
   const connectedServers = mcpClientManager.getConnectedServers();
-  console.error(
-    `✅ Connected to ${connectedServers.length} remote MCP server(s)`
-  );
+  logger.info(`Connected to ${connectedServers.length} remote MCP server(s)`);
 }
 
 const connectMcpServers = async () => {
@@ -82,7 +84,7 @@ const connectMcpServers = async () => {
       mcpServer
     );
   } else {
-    console.error("ℹ️  No remote MCP servers configured");
+    logger.info("No remote MCP servers configured");
   }
 };
 
@@ -106,7 +108,7 @@ export async function initializeServices(): Promise<ServiceConnections> {
     return services;
   }
 
-  console.error("🚀 Initializing eBee services...");
+  logger.info("Initializing eBee services...");
 
   const [mongoose, qdrant, memgraph, redis] = await Promise.all([
     connectMongoose(),
@@ -116,7 +118,7 @@ export async function initializeServices(): Promise<ServiceConnections> {
   ]);
 
   services = { mongoose, qdrant, memgraph, redis };
-  console.error("✅ All services initialized successfully!");
+  logger.info("All services initialized successfully!");
 
   // Register LightRAG tool
 
@@ -130,7 +132,9 @@ export async function initializeServices(): Promise<ServiceConnections> {
   ]);
 
   // start the bullmq workers. Don't wait for them, otherwise it'll hang
-  initWorkers().catch((e) => console.error(e));
+  initWorkers().catch((e) =>
+    logger.error({ error: e }, "Worker initialization error")
+  );
 
   return services;
 }

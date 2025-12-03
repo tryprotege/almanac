@@ -1,5 +1,6 @@
 import neo4j, { Driver, Session, AuthToken } from "neo4j-driver";
 import { env } from "../env.js";
+import logger from "../utils/logger.js";
 
 export const MEMGRAPH_SCHEMAS = {
   // Node constraints
@@ -42,7 +43,7 @@ export const connectMemgraph = async (): Promise<MemgraphConnection> => {
 
     // Test connection
     await driver.verifyConnectivity();
-    console.log("✅ Memgraph connected successfully");
+    logger.info("Memgraph connected successfully");
 
     const getSession = (): Session => driver.session();
 
@@ -56,7 +57,7 @@ export const connectMemgraph = async (): Promise<MemgraphConnection> => {
         const result = await session.run(query, parameters);
         return result.records.map((record) => record.toObject() as T);
       } catch (error) {
-        console.error("❌ Memgraph query error:", error);
+        logger.error({ error }, "Memgraph query error");
         throw error;
       } finally {
         await session.close();
@@ -65,7 +66,7 @@ export const connectMemgraph = async (): Promise<MemgraphConnection> => {
 
     const close = async (): Promise<void> => {
       await driver.close();
-      console.log("Memgraph disconnected");
+      logger.info("Memgraph disconnected");
     };
 
     return {
@@ -75,7 +76,7 @@ export const connectMemgraph = async (): Promise<MemgraphConnection> => {
       close,
     };
   } catch (error) {
-    console.error("❌ Memgraph connection error:", error);
+    logger.error({ error }, "Memgraph connection error");
     throw error;
   }
 };

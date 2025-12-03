@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 import { env } from "../env.js";
+import logger from "../utils/logger.js";
 
 const createMongoUri = (): string => {
   const { MONGO_HOST, MONGO_PORT, MONGO_USERNAME, MONGO_PASSWORD } = env;
@@ -23,11 +24,11 @@ export const connectMongoose = async (): Promise<MongooseConnection> => {
       dbName: env.MONGO_DB_NAME,
     });
 
-    console.log("✅ Mongoose connected successfully");
+    logger.info("Mongoose connected successfully");
 
     const close = async (): Promise<void> => {
       await mongoose.connection.close();
-      console.log("Mongoose disconnected");
+      logger.info("Mongoose disconnected");
     };
 
     return {
@@ -35,7 +36,7 @@ export const connectMongoose = async (): Promise<MongooseConnection> => {
       close,
     };
   } catch (error) {
-    console.error("❌ Mongoose connection error:", error);
+    logger.error({ error }, "Mongoose connection error");
     throw error;
   }
 };

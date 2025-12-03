@@ -2,37 +2,24 @@
   "name": "ebee-oss",
   "version": "0.1.0",
   "description": "Lightning fast data access for Agents",
+  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "type-check": "tsc --noEmit",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
-    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
-    "test:integration": "NODE_OPTIONS=--experimental-vm-modules jest src/__tests__/integration"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.22.0",
-    "@qdrant/js-client-rest": "^1.16.0",
-    "bullmq": "^5.64.1",
-    "dotenv": "^17.2.3",
-    "ioredis": "^5.8.2",
-    "mongodb": "^7.0.0",
-    "neo4j-driver": "^6.0.1",
-    "zod": "^4.1.13"
-  },
-  "devDependencies": {
-    "@jest/globals": "^30.2.0",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^24.10.1",
-    "jest": "^30.2.0",
-    "ts-jest": "^29.4.5",
-    "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "dev": "pnpm --parallel run dev",
+    "dev:server": "pnpm --filter server run dev",
+    "dev:client": "pnpm --filter client run dev",
+    "build": "pnpm --recursive run build",
+    "build:server": "pnpm --filter server run build",
+    "build:client": "pnpm --filter client run build",
+    "start": "pnpm --filter server run start",
+    "test": "pnpm --recursive run test",
+    "type-check": "pnpm --recursive run type-check"
   },
   "engines": {
-    "node": ">=24.0.0"
+    "node": ">=24.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
   }
 }

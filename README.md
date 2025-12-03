@@ -1,6 +1,91 @@
 # ebee-oss
 
-## Development Environment Setup
+A lightning-fast data access platform for AI Agents built with a modern monorepo architecture.
+
+## 📦 Monorepo Structure
+
+This project uses pnpm workspaces to manage multiple packages:
+
+```
+ebee-oss/
+├── packages/
+│   ├── client/          # React + Vite frontend
+│   └── server/          # Express.js backend
+├── pnpm-workspace.yaml  # Workspace configuration
+└── docker-compose.yml   # Docker services
+```
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Node.js >= 24.0.0
+- pnpm >= 8.0.0
+- Docker Desktop or Docker Engine
+- Docker Compose
+
+### Installation
+
+1. **Install dependencies:**
+
+   ```bash
+   pnpm install
+   ```
+
+2. **Start development servers:**
+
+   ```bash
+   # Start all services (client + server)
+   pnpm dev
+
+   # Or start individually
+   pnpm dev:client  # Client on http://localhost:5173
+   pnpm dev:server  # Server on http://localhost:3000
+   ```
+
+### Docker Development
+
+1. **Start all services (databases + application):**
+
+   ```bash
+   docker compose up -d
+   ```
+
+2. **Stop all services:**
+
+   ```bash
+   docker compose down
+   ```
+
+## 📚 Available Scripts
+
+### Root Level
+
+- `pnpm dev` - Start both client and server in development mode
+- `pnpm build` - Build all packages
+- `pnpm test` - Run tests across all packages
+- `pnpm type-check` - Type check all packages
+
+### Client Package
+
+```bash
+cd packages/client
+pnpm dev      # Start Vite dev server
+pnpm build    # Build for production
+pnpm preview  # Preview production build
+```
+
+### Server Package
+
+```bash
+cd packages/server
+pnpm dev           # Start server with hot reload
+pnpm build         # Build TypeScript
+pnpm start         # Start production server
+pnpm test          # Run tests
+```
+
+## 🗄️ Development Environment
 
 This project uses Docker Compose to manage the following services:
 
@@ -8,54 +93,21 @@ This project uses Docker Compose to manage the following services:
 - **Qdrant**: Vector database
 - **Memgraph**: Graph database
 - **Redis**: In-memory data store
-
-### Prerequisites
-
-- Docker Desktop or Docker Engine installed
-- Docker Compose (usually included with Docker Desktop)
-
-### Quick Start
-
-1. **Start all services:**
-
-   ```bash
-   docker-compose up -d
-   ```
-
-2. **Stop all services:**
-
-   ```bash
-   docker-compose down
-   ```
-
-3. **View logs:**
-
-   ```bash
-   # All services
-   docker-compose logs -f
-
-   # Specific service
-   docker-compose logs -f mongodb
-   ```
-
-4. **Stop and remove all data:**
-   ```bash
-   docker-compose down -v
-   rm -rf ./.data
-   ```
+- **Server**: Express.js backend (when using Docker)
+- **Client**: React frontend (when using Docker)
 
 ### Service Access
 
-All services are accessible from your local network:
-
 | Service  | Port(s)    | Connection Details                                |
 | -------- | ---------- | ------------------------------------------------- |
+| Client   | 5173       | `http://localhost:5173`                           |
+| Server   | 3000       | `http://localhost:3000`                           |
 | MongoDB  | 27017      | `mongodb://admin:admin123@localhost:27017`        |
 | Qdrant   | 6333, 6334 | HTTP: `http://localhost:6333`, gRPC: `6334`       |
 | Memgraph | 7687, 7444 | Bolt: `bolt://localhost:7687`, Monitoring: `7444` |
 | Redis    | 6379       | `redis://localhost:6379`                          |
 
-### Client Applications
+### Database Applications to Inspect the Data
 
 **Memgraph:**
 
@@ -69,71 +121,31 @@ All services are accessible from your local network:
 **MongoDB:**
 
 - [MongoDB Compass](https://www.mongodb.com/products/compass) - official GUI client
-- [DataGrip](https://www.jetbrains.com/datagrip/) - multi-database IDE (supports PostgreSQL, MongoDB, Redis, and more)
 
-**Redis:**
+## 🏗️ Architecture
 
-- [DataGrip](https://www.jetbrains.com/datagrip/) - multi-database IDE
-- Redis CLI (included in container): `docker-compose exec redis redis-cli`
+### Client (packages/client)
 
-### Data Persistence
+- **Framework**: React 18
+- **Build Tool**: Vite
+- **Language**: TypeScript
+- **Styling**: CSS
 
-All data is stored in the `./.data` directory:
+### Server (packages/server)
 
-- `./.data/mongodb` - MongoDB database files
-- `./.data/mongodb-config` - MongoDB configuration
-- `./.data/qdrant` - Qdrant vector storage
-- `./.data/memgraph` - Memgraph graph database
-- `./.data/redis` - Redis persistence files
+- **Framework**: Express.js
+- **Language**: TypeScript
+- **Databases**: MongoDB, Qdrant, Memgraph, Redis
+- **Features**: Vector search, graph indexing, schema learning
 
-This directory is git-ignored and will persist data across container restarts.
+## 📝 Environment Variables
 
-### Useful Commands
-
-```bash
-# Check service status
-docker-compose ps
-
-# Restart a specific service
-docker-compose restart mongodb
-
-# Pull latest images
-docker-compose pull
-
-# Rebuild and restart services
-docker-compose up -d --build
-
-# Execute commands in a service
-docker-compose exec mongodb mongosh
-docker-compose exec redis redis-cli
-```
-
-### Connection Examples
-
-**MongoDB (with mongosh):**
+Copy `.env.example` to `.env` in the server package and configure:
 
 ```bash
-mongosh "mongodb://admin:admin123@localhost:27017"
+cp packages/server/.env.example packages/server/.env
 ```
 
-**Redis:**
+## 📄 License
 
-```bash
-redis-cli -h localhost -p 6379
-```
-
-**Qdrant (HTTP API):**
-
-```bash
-curl http://localhost:6333/collections
-```
-
-**Memgraph:**
-Use any Bolt-compatible client with `bolt://localhost:7687`
-
-### Troubleshooting
-
-- If ports are already in use, modify the port mappings in `docker-compose.yml`
-- Ensure Docker daemon is running: `docker info`
-- Check service logs: `docker-compose logs <service-name>`
-- Remove all containers and start fresh: `docker-compose down && docker-compose up -d`
+This project is licensed under the terms specified in the LICENSE file.

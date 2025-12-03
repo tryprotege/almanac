@@ -1,3 +1,0 @@
-// Shared utility functions
-
-export {};

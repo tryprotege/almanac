@@ -12,7 +12,13 @@ const RecordSchema = new mongoose.Schema(
       type: String,
       required: true,
       index: true,
-      enum: ["notion", "slack", "calendar", "jira"] satisfies SourceType[],
+      enum: [
+        "notion",
+        "slack",
+        "calendar",
+        "jira",
+        "github",
+      ] satisfies SourceType[],
     },
     sourceId: { type: String, required: true, index: true }, // Original ID from source
     recordType: { type: String, required: true, index: true }, // 'page' | 'message' | 'event' | 'task' | 'issue' | etc.

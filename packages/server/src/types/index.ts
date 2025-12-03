@@ -15,7 +15,8 @@ export type SourceType =
   | "codebase"
   | "asana"
   | "jira"
-  | "google_drive";
+  | "google_drive"
+  | "github";
 
 // ============================================
 // Qdrant (Vector Search)

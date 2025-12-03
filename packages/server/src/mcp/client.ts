@@ -1,12 +1,13 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 export interface MCPServerConfig {
   name: string;
-  type: "stdio" | "sse";
+  type: "stdio" | "sse" | "streamable-http";
   command?: string | null;
   args?: string[] | null;
   env?: Record<string, string> | null;
@@ -63,6 +64,26 @@ class MCPClientManager {
       }
 
       transport = new SSEClientTransport(new URL(config.url), sseOpts);
+    } else if (config.type === "streamable-http") {
+      if (!config.url) {
+        throw new Error("streamable-http transport requires url");
+      }
+
+      // Build streamable HTTP transport options
+      const httpOpts: any = {};
+
+      // Pass requestInit if provided (for custom headers, method, etc.)
+      if (config.requestInit) {
+        httpOpts.requestInit = config.requestInit;
+      } else if (config.headers) {
+        // If only headers are provided, construct requestInit with headers
+        httpOpts.requestInit = { headers: config.headers };
+      }
+
+      transport = new StreamableHTTPClientTransport(
+        new URL(config.url),
+        httpOpts
+      );
     } else {
       throw new Error(`Unknown transport type: ${config.type}`);
     }

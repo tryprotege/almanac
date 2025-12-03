@@ -9,6 +9,8 @@ import { NotionMCPClient } from "../sources/notion/mcpClient.js";
 import { BaseRecordAdapter } from "../sync/adapters/base-adapter.js";
 import { NotionAdapter } from "../sync/adapters/notion-adapter.js";
 import { createRedisConnection, QUEUE_NAME } from "./config.js";
+import { GitHubMCPClient } from "../sources/github/mcpClient.js";
+import { GitHubAdapter } from "../sync/adapters/github-adapter.js";
 
 const processor: Processor<
   IndexGraphJobData,
@@ -27,6 +29,18 @@ const processor: Processor<
   if (source === "notion") {
     const notionClient = new NotionMCPClient();
     adapters.set("notion", new NotionAdapter(notionClient));
+  }
+
+  if (source === "github") {
+    const githubClient = new GitHubMCPClient();
+    adapters.set(
+      "github",
+      new GitHubAdapter(githubClient, {
+        includeArchived: false,
+        includeForks: true,
+        includePrivate: true,
+      })
+    );
   }
 
   const graphIndexer = new GraphIndexerService(

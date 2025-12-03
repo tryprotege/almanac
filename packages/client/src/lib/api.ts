@@ -195,7 +195,7 @@ export const graphApi = {
 export interface MCPServerConfig {
   _id: string;
   name: string;
-  type: "stdio" | "sse";
+  type: "stdio" | "sse" | "streamable-http";
   command?: string;
   args?: string[];
   env?: Record<string, string>;
@@ -212,7 +212,7 @@ export const mcpServersApi = {
     api.get<ApiResponse<MCPServerConfig>>(
       `/mcp-servers/${encodeURIComponent(name)}`
     ),
-  create: (config: Omit<MCPServerConfig, "createdAt" | "updatedAt">) =>
+  create: (config: Omit<MCPServerConfig, "_id" | "createdAt" | "updatedAt">) =>
     api.post<ApiResponse<MCPServerConfig>>("/mcp-servers", config),
   update: (name: string, config: Partial<MCPServerConfig>) =>
     api.put<ApiResponse<MCPServerConfig>>(

@@ -48,13 +48,19 @@ ebee-oss/
 1. **Start all services (databases + application):**
 
    ```bash
-   docker compose up -d
+   pnpm docker:all
    ```
 
-2. **Stop all services:**
+2. **Start only infra:**
 
    ```bash
-   docker compose down
+   pnpm docker:infra
+   ```
+
+3. **Stop all services:**
+
+   ```bash
+   pnpm docker:down
    ```
 
 ## 📚 Available Scripts

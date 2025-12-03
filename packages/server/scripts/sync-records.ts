@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { syncAllRemoteMcpServers } from "../src/services/sync/sync.service.js";
 import { initializeServices } from "../src/mcp/initialization.js";
+import logger from "../src/utils/logger.js";
 
 /**
  * Sync records from sources to MongoDB
@@ -30,7 +31,7 @@ const run = async () => {
 
 run()
   .then(() => process.exit(0))
-  .catch((e) => {
-    console.error("\n❌ Error during sync:", e);
+  .catch((err) => {
+    logger.error({ err }, "Error during sync");
     process.exit(1);
   });

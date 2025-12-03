@@ -40,11 +40,11 @@ statsRouter.get("/overview", async (_req: Request, res: Response) => {
       success: true,
       data: stats,
     });
-  } catch (error) {
-    logger.error({ error }, "Error fetching overview stats");
+  } catch (err) {
+    logger.error({ err }, "Error fetching overview stats");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });
@@ -59,11 +59,11 @@ statsRouter.get("/records", async (_req: Request, res: Response) => {
       success: true,
       data: stats,
     });
-  } catch (error) {
-    logger.error({ error }, "Error fetching record stats");
+  } catch (err) {
+    logger.error({ err }, "Error fetching record stats");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });
@@ -78,11 +78,11 @@ statsRouter.get("/vectors", async (_req: Request, res: Response) => {
       success: true,
       data: stats,
     });
-  } catch (error) {
-    logger.error({ error }, "Error fetching vector stats");
+  } catch (err) {
+    logger.error({ err }, "Error fetching vector stats");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });
@@ -97,11 +97,11 @@ statsRouter.get("/graph", async (_req: Request, res: Response) => {
       success: true,
       data: stats,
     });
-  } catch (error) {
-    logger.error({ error }, "Error fetching graph stats");
+  } catch (err) {
+    logger.error({ err }, "Error fetching graph stats");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });

@@ -62,12 +62,12 @@ export const connectQdrant = async (): Promise<QdrantConnection> => {
           },
         });
         logger.info(`Collection "${collectionName}" created successfully`);
-      } catch (error) {
+      } catch (err) {
         logger.error(
-          { error, collectionName },
+          { err, collectionName },
           `Error creating collection "${collectionName}"`
         );
-        throw error;
+        throw err;
       }
     };
 
@@ -81,8 +81,8 @@ export const connectQdrant = async (): Promise<QdrantConnection> => {
       createCollection,
       close,
     };
-  } catch (error) {
-    logger.error({ error }, "Qdrant connection error");
-    throw error;
+  } catch (err) {
+    logger.error({ err }, "Qdrant connection error");
+    throw err;
   }
 };

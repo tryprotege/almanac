@@ -6,6 +6,7 @@ import { Record } from "../../models/record.model.js";
 import { RecordStore } from "../../stores/record.store.js";
 import { SourceType } from "../../types/index.js";
 import { BaseRecordAdapter } from "./adapters/base-adapter.js";
+import logger from "../../utils/logger.js";
 
 // Create concurrency limiter. Have this outside of the function to ensure the limit applied to all invocations
 const limit = pLimit(env.DB_INDEXING_CONCURRENCY);
@@ -106,17 +107,17 @@ export async function syncAllRecords(
                     `  Progress: ${totalProcessed} processed (${totalCreated} created, ${totalUpdated} updated)`
                   );
                 }
-              } catch (error) {
+              } catch (err) {
                 totalFailed++;
                 const recordId = (sourceRecord as any).id || "unknown";
                 const errorMsg =
-                  error instanceof Error ? error.message : String(error);
+                  err instanceof Error ? err.message : String(err);
 
                 errors.push({ recordId, error: errorMsg });
 
-                console.error(
-                  `  ❌ Failed to sync record ${recordId}:`,
-                  errorMsg
+                logger.error(
+                  { err, recordId },
+                  `Failed to sync record ${recordId}`
                 );
               }
             })
@@ -145,11 +146,11 @@ export async function syncAllRecords(
       },
       errors,
     };
-  } catch (error) {
+  } catch (err) {
     const duration = Date.now() - startTime;
-    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorMsg = err instanceof Error ? err.message : String(err);
 
-    console.error(`\n❌ Sync failed for ${source}:`, errorMsg);
+    logger.error({ err, source }, `Sync failed for ${source}`);
 
     return {
       jobId,

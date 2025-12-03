@@ -35,8 +35,8 @@ export const connectMongoose = async (): Promise<MongooseConnection> => {
       connection: mongoose,
       close,
     };
-  } catch (error) {
-    logger.error({ error }, "Mongoose connection error");
-    throw error;
+  } catch (err) {
+    logger.error({ err }, "Mongoose connection error");
+    throw err;
   }
 };

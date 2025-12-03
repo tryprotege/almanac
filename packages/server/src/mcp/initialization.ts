@@ -58,9 +58,9 @@ export async function initializeRemoteServers(
           }
         );
       });
-    } catch (error) {
+    } catch (err) {
       logger.error(
-        { error, configName: config.name },
+        { err, configName: config.name },
         `Failed to connect to ${config.name}`
       );
     }
@@ -133,7 +133,7 @@ export async function initializeServices(): Promise<ServiceConnections> {
 
   // start the bullmq workers. Don't wait for them, otherwise it'll hang
   initWorkers().catch((e) =>
-    logger.error({ error: e }, "Worker initialization error")
+    logger.error({ err: e }, "Worker initialization error")
   );
 
   return services;

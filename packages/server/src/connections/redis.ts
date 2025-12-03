@@ -43,8 +43,8 @@ export const connectRedis = async (): Promise<RedisConnection> => {
       client,
       close,
     };
-  } catch (error) {
-    logger.error({ error }, "Redis connection error");
-    throw error;
+  } catch (err) {
+    logger.error({ err }, "Redis connection error");
+    throw err;
   }
 };

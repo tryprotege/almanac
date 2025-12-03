@@ -1,5 +1,6 @@
 import { Request, Response, Router } from "express";
 import { getSchema } from "../../stores/index.js";
+import logger from "../../utils/logger.js";
 
 const schemaRouter: Router = Router();
 
@@ -27,10 +28,11 @@ schemaRouter.get("/schema", async (_req: Request, res: Response) => {
         persona: schema.persona,
       },
     });
-  } catch (error) {
+  } catch (err) {
+    logger.error({ err }, "Error fetching schema");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });

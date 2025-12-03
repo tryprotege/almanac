@@ -51,11 +51,11 @@ graphRouter.get("/data", async (req: Request, res: Response) => {
         },
       },
     });
-  } catch (error) {
-    logger.error({ error }, "Error fetching graph data");
+  } catch (err) {
+    logger.error({ err }, "Error fetching graph data");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });

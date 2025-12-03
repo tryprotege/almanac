@@ -56,9 +56,9 @@ export const connectMemgraph = async (): Promise<MemgraphConnection> => {
       try {
         const result = await session.run(query, parameters);
         return result.records.map((record) => record.toObject() as T);
-      } catch (error) {
-        logger.error({ error }, "Memgraph query error");
-        throw error;
+      } catch (err) {
+        logger.error({ err }, "Memgraph query error");
+        throw err;
       } finally {
         await session.close();
       }
@@ -75,8 +75,8 @@ export const connectMemgraph = async (): Promise<MemgraphConnection> => {
       executeQuery,
       close,
     };
-  } catch (error) {
-    logger.error({ error }, "Memgraph connection error");
-    throw error;
+  } catch (err) {
+    logger.error({ err }, "Memgraph connection error");
+    throw err;
   }
 };

@@ -1,4 +1,5 @@
 import { env } from "../../env.js";
+import logger from "../../utils/logger.js";
 
 /**
  * Document to be reranked
@@ -125,9 +126,9 @@ export class RerankerService {
       }
 
       return results;
-    } catch (error) {
-      console.error("Reranker error:", error);
-      throw error;
+    } catch (err) {
+      logger.error({ err, query }, "Reranker error");
+      throw err;
     }
   }
 

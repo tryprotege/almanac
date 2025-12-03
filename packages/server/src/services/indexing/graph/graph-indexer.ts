@@ -16,6 +16,7 @@ import {
   Relationship,
   deduplicateEntities,
   mergeRelationships,
+  filterLowValueRelationships,
 } from "./schema/entity-deduplication.js";
 import {
   isToxicChunk,
@@ -150,8 +151,18 @@ export const extractGraphFromRecord = async (
     existingRelTypes
   );
 
+  // Filter out low-value relationships
+  const filteredRelationships = filterLowValueRelationships(relationships);
+
+  if (relationships.length !== filteredRelationships.length) {
+    console.log(`   - Relationships before filter: ${relationships.length}`);
+    console.log(
+      `   - Relationships after filter: ${filteredRelationships.length}`
+    );
+  }
+
   // Log empty extractions (0 entities AND 0 relationships)
-  if (entities.length === 0 && relationships.length === 0) {
+  if (entities.length === 0 && filteredRelationships.length === 0) {
     console.warn(`⚠️  Empty extraction for record ${record._id}:`);
     console.warn(`   - Content length: ${record.content.length} chars`);
     console.warn(`   - Title: ${record.title}`);
@@ -209,7 +220,7 @@ export const extractGraphFromRecord = async (
 
   return {
     entities: truncatedEntities,
-    relationships,
+    relationships: filteredRelationships,
     adapterRelationships: graphAdapterRels,
     recordId: record._id,
     recordChecksum: record.checksum,

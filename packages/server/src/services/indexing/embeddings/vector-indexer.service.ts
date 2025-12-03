@@ -60,13 +60,20 @@ export async function insertAllRecordsToVectorDB(
       break;
     }
 
+    // LastEmbedDate will be empty if never indexed, we will index it
+    // If source is updated and lastEmbedDate is older, we will re-index it
+    const recordsToProcess = records.filter((record) => {
+      if (!record.lastEmbedDate) return true;
+      return record.sourceUpdatedAt.getTime() > record.lastEmbedDate.getTime();
+    });
+
     batchNumber++;
     console.log(
       `\n🔄 Processing batch ${batchNumber} (${records.length} records)...`
     );
 
     // Process batch in parallel
-    const promises = records.map((record) =>
+    const promises = recordsToProcess.map((record) =>
       limit(async () => {
         try {
           const vectorIds = await insertRecordToVectorDB(

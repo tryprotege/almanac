@@ -146,11 +146,31 @@ export const getCurrentSchemaTypes = (
     return {
       entityTypes: ["Person", "Organization", "Project", "Task", "Document"],
       relationshipTypes: [
-        "WORKS_ON",
-        "ASSIGNED_TO",
-        "MENTIONS",
-        "RELATED_TO",
+        // Hierarchical
+        "REPORTS_TO",
+        "MANAGES",
+        "PART_OF",
+        "MEMBER_OF",
+        // Dependencies
         "BLOCKS",
+        "BLOCKED_BY",
+        "REQUIRES",
+        "DEPENDS_ON",
+        // Actions
+        "ASSIGNED_TO",
+        "CREATED_BY",
+        "APPROVED_BY",
+        "REVIEWED_BY",
+        "WORKS_ON",
+        // Temporal
+        "SUPERSEDES",
+        "REPLACES",
+        "VERSION_OF",
+        // Domain-specific
+        "REGULATES",
+        "APPLIES_TO",
+        "IMPLEMENTS",
+        "CITES",
       ],
       version: 0,
     };

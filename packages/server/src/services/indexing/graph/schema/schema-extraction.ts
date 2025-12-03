@@ -22,55 +22,78 @@ function buildExtractionPrompt(
   const personaContext = persona ? `USER CONTEXT:\n${persona}\n\n` : "";
 
   return `${personaContext}---Goal---
-Given a text document, extract ALL entities and relationships to build a knowledge graph.
+Given a text document, extract entities and HIGH-VALUE relationships for a knowledge graph.
+
+IMPORTANT: This graph complements a vector embedding system. Extract relationships that:
+✅ Enable multi-hop reasoning (e.g., "Who reports to X?", "What blocks Y?")
+✅ Capture structure/hierarchy (org charts, dependencies)
+✅ Express causality and dependencies
+✅ Represent temporal relationships (supersedes, versions)
+✅ Show ownership and responsibility
+
+❌ DO NOT extract relationships that embeddings already capture:
+- "mentioned_with", "appears_with" (just co-occurrence)
+- "related_to", "similar_to" (too vague - use embeddings for this)
+- Generic "associated_with" (semantic search handles this)
 
 ---Entity Types---
 ${entityTypes.join(", ")}
 
 ---Relationship Types---
-${relationshipTypes.map((rt) => `- ${rt}`).join("\n")}
+${relationshipTypes.join(", ")}
+
+PRIORITIZE these high-value relationship patterns:
+- Hierarchical: REPORTS_TO, MANAGES, PART_OF, MEMBER_OF
+- Dependencies: BLOCKS, BLOCKED_BY, REQUIRES, DEPENDS_ON
+- Actions: ASSIGNED_TO, CREATED_BY, APPROVED_BY, REVIEWED_BY
+- Temporal: SUPERSEDES, REPLACES, VERSION_OF
+- Domain: REGULATES, APPLIES_TO, IMPLEMENTS, CITES
 
 ---Steps---
 1. Identify entities:
-   - Extract named entities (people, places, organizations, concepts)
-   - Classify each entity using the entity types above
-   - Provide a brief description for each entity
+   - Extract named entities (people, organizations, projects, concepts)
+   - Use CONSISTENT NAMING (important for relationship matching!)
+   - Provide brief description for each
 
-2. Identify relationships:
-   - Extract semantic connections between entities
+2. Identify HIGH-VALUE relationships:
+   - Focus on structural, causal, and hierarchical connections
    - Use relationship types above when applicable
-   - Assign strength score (1-10):
-     * 9-10: Explicit mention (e.g., "Alex works on Project X")
+   - Strength scoring (only include if >= 5):
+     * 9-10: Explicit direct mention
      * 7-8: Strong contextual evidence
-     * 5-6: Moderate semantic connection
-     * 1-4: Weak or inferred connection
-   - Add keywords that describe the relationship context
+     * 5-6: Clear semantic connection
+     * Below 5: SKIP (too weak)
+   - ENSURE source/target names EXACTLY MATCH entity names
 
 3. Content keywords:
-   - Extract high-level themes and topics from the content
+   - High-level themes and topics
+
+---Examples of GOOD relationships (extract these)---
+✅ "Alex reports to Sarah" → { source: "Alex", target: "Sarah", type: "REPORTS_TO", strength: 10 }
+✅ "Project X depends on completing Task Y" → { source: "Project X", target: "Task Y", type: "DEPENDS_ON", strength: 9 }
+✅ "GDPR applies to EU residents" → { source: "GDPR", target: "EU residents", type: "APPLIES_TO", strength: 10 }
+
+---Examples of BAD relationships (skip these)---
+❌ "Alex and Sarah are mentioned together" → SKIP (use embeddings for co-occurrence)
+❌ "Project X is related to Marketing" → SKIP (too vague, embeddings handle this)
+❌ "Document mentions Company Y" → SKIP (just a mention, no structural relationship)
 
 ---Output Format---
-Return valid JSON with this structure:
-
 {
   "entities": [
-    {
-      "name": "Alex Smith",
-      "type": "Person",
-      "description": "Software engineer working on backend systems"
-    }
+    { "name": "Alex Smith", "type": "Person", "description": "..." }
   ],
   "relationships": [
     {
       "source": "Alex Smith",
-      "target": "API Project",
+      "target": "Project X",
       "type": "WORKS_ON",
-      "description": "Alex is the lead developer for the API project",
-      "keywords": ["development", "backend", "api"],
+      "description": "Alex is lead developer",
+      "keywords": ["development", "backend"],
       "strength": 9
     }
   ],
-  "keywords": ["engineering", "backend development", "apis"]
+  "keywords": ["engineering", "backend"]
 }
 
 ---Real Data---
@@ -122,6 +145,21 @@ export async function extractGraphFromContent(
       .replace(/```/g, "")
       .trim();
     const extracted = JSON.parse(cleaned);
+
+    // Diagnostic logging
+    console.log(`📊 LLM Extraction Results:`);
+    console.log(`   - Content length: ${content.length} chars`);
+    console.log(`   - Entities extracted: ${extracted.entities?.length || 0}`);
+    console.log(
+      `   - Relationships extracted: ${extracted.relationships?.length || 0}`
+    );
+
+    if (extracted.relationships && extracted.relationships.length > 0) {
+      console.log(
+        `   - Sample relationships:`,
+        JSON.stringify(extracted.relationships.slice(0, 3), null, 2)
+      );
+    }
 
     return {
       entities: extracted.entities || [],

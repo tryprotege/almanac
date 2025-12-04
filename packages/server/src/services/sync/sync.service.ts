@@ -7,6 +7,7 @@ import { syncAllRecords } from "./record-sync.service.js";
 import { MCPServerConfig } from "../../models/mcp-config.model.js";
 import { BaseRecordAdapter } from "./adapters/base-adapter.js";
 import { SlackAdapter } from "./adapters/slack-adapter.js";
+import logger from "../../utils/logger.js";
 
 export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
   const recordStore = new RecordStore();
@@ -22,7 +23,7 @@ export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
 
   await syncAllRecords(recordStore, mcpConfig.name, adapter);
 
-  console.log("✅ Saved records into document DB");
+  logger.info("✅ Saved records into document DB");
 };
 
 /**

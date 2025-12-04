@@ -39,8 +39,8 @@ export async function insertAllRecordsToVectorDB(
     skipped: 0,
   };
 
-  console.log(`🔄 Starting vector indexing for source: ${source}`);
-  console.log(
+  logger.info(`🔄 Starting vector indexing for source: ${source}`);
+  logger.info(
     `   Concurrency: ${env.VECTOR_INDEXING_CONCURRENCY} parallel records`
   );
 
@@ -69,7 +69,7 @@ export async function insertAllRecordsToVectorDB(
     });
 
     batchNumber++;
-    console.log(
+    logger.info(
       `\n🔄 Processing batch ${batchNumber} (${records.length} records)...`
     );
 
@@ -102,14 +102,14 @@ export async function insertAllRecordsToVectorDB(
 
     // Log progress
     const progress = `  ✓ Batch ${batchNumber} complete - ${stats.processed} processed, ${stats.chunks} chunks, ${stats.errors} errors`;
-    console.log(progress);
+    logger.info(progress);
   }
 
-  console.log(`\n✅ Vector indexing complete for ${source}`);
-  console.log(`   Processed: ${stats.processed} records`);
-  console.log(`   Chunks: ${stats.chunks} vectors`);
-  console.log(`   Errors: ${stats.errors}`);
-  console.log(`   Skipped: ${stats.skipped}`);
+  logger.info(`\n✅ Vector indexing complete for ${source}`);
+  logger.info(`   Processed: ${stats.processed} records`);
+  logger.info(`   Chunks: ${stats.chunks} vectors`);
+  logger.info(`   Errors: ${stats.errors}`);
+  logger.info(`   Skipped: ${stats.skipped}`);
 
   return stats;
 }

@@ -56,7 +56,7 @@ export class RerankerService {
     options?: RerankOptions
   ): Promise<RerankResult[]> {
     if (!this.isEnabled()) {
-      console.warn("Reranker is disabled. Returning documents as-is.");
+      logger.warn("Reranker is disabled. Returning documents as-is.");
       return documents.map((doc, i) => ({
         id: doc.id,
         score: 1.0 - i * 0.01, // Simple descending score

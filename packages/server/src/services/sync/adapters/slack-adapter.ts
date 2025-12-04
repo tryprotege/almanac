@@ -10,6 +10,7 @@ import { SlackClient } from "../../sources/slack/slackClient.js";
 import { BaseRecordAdapter } from "./base-adapter.js";
 import { createLLMClient } from "../../llm/providers.js";
 import { env } from "../../../env.js";
+import logger from "../../../utils/logger.js";
 
 type SlackRecord = SlackChannel | SlackMessage | SlackUser;
 
@@ -75,7 +76,7 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
 
     // Fetch messages from each channel
     for (const channel of channels) {
-      console.log(`Fetching messages from channel: ${channel.name}`);
+      logger.info(`Fetching messages from channel: ${channel.name}`);
       try {
         const messages = await this.client.getAllChannelMessagesWithThreads(
           channel.id!,
@@ -92,9 +93,9 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
           yield allRecords.slice(i, i + batchSize);
         }
       } catch (error: any) {
-        console.error(
-          `Failed to fetch messages from channel ${channel.name}:`,
-          error.message
+        logger.error(
+          { err: error },
+          `Failed to fetch messages from channel ${channel.name}`
         );
       }
     }
@@ -140,9 +141,9 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
           yield transformedMessages;
         }
       } catch (error: any) {
-        console.error(
-          `Failed to fetch incremental messages from channel ${channel.name}:`,
-          error.message
+        logger.error(
+          { err: error },
+          `Failed to fetch incremental messages from channel ${channel.name}`
         );
       }
     }
@@ -288,7 +289,7 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
   private async groupMessagesWithLLM(
     messages: SlackMessage[]
   ): Promise<Array<{ messageIndex: number; groupId: number }>> {
-    console.log(`Grouping ${messages.length} messages with LLM...`);
+    logger.info(`Grouping ${messages.length} messages with LLM...`);
     const allGroupings: Array<{
       startIndex: number;
       endIndex: number;
@@ -313,9 +314,9 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
           grouping: batchGrouping,
         });
       } catch (error) {
-        console.error(
-          `Batch grouping failed for batch starting at ${batchStart}:`,
-          error instanceof Error ? error.message : String(error)
+        logger.error(
+          { err: error instanceof Error ? error : new Error(String(error)) },
+          `Batch grouping failed for batch starting at ${batchStart}`
         );
         allGroupings.push({
           startIndex: batchStart,

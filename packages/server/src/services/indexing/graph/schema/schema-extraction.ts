@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { Entity, Relationship } from "./entity-deduplication.js";
 import { chat } from "../../../llm/llm.js";
+import logger from "../../../../utils/logger.js";
 
 // TODO: Replace with token counting based on model's context window
 // Most models support 128K tokens (~512K chars), but varies by model
@@ -166,8 +167,8 @@ export async function extractGraphFromContent(
       relationships: extracted.relationships || [],
       keywords: extracted.keywords || [],
     };
-  } catch (error) {
-    console.error("Failed to parse extraction response:", error);
+  } catch (err) {
+    logger.error({ err }, "Failed to parse extraction response");
     return {
       entities: [],
       relationships: [],

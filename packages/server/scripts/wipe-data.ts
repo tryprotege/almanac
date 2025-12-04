@@ -4,6 +4,7 @@ import { RecordModel } from "../src/models/record.model.js";
 import { GraphSchemaModel } from "../src/models/graph-schema.model.js";
 import { MCPServerConfigModel } from "../src/models/mcp-config.model.js";
 import readline from "readline";
+import logger from "../src/utils/logger.js";
 
 /**
  * Script to wipe all data from MongoDB, Memgraph, and Qdrant
@@ -75,11 +76,8 @@ async function getStatistics(
       "MATCH ()-[r]->() RETURN count(r) as count"
     );
     relCount = relResult[0]?.count?.toNumber?.() || relResult[0]?.count || 0;
-  } catch (error) {
-    console.warn(
-      "⚠️  Could not get Memgraph stats:",
-      error instanceof Error ? error.message : error
-    );
+  } catch (err) {
+    logger.warn({ err }, "Could not get Memgraph stats");
   }
 
   // Qdrant stats
@@ -94,11 +92,8 @@ async function getStatistics(
       const info = await qdrant.client.getCollection(collection.name);
       vectorCount += info.points_count || 0;
     }
-  } catch (error) {
-    console.warn(
-      "⚠️  Could not get Qdrant stats:",
-      error instanceof Error ? error.message : error
-    );
+  } catch (err) {
+    logger.warn({ err }, "Could not get Qdrant stats");
   }
 
   return {
@@ -184,7 +179,7 @@ async function wipeMemgraph(memgraph: any): Promise<void> {
       await memgraph.executeQuery("DROP INDEX ON :Resource(type)");
       await memgraph.executeQuery("DROP INDEX ON :Resource(source)");
       console.log("   ✓ Dropped indexes");
-    } catch (error) {
+    } catch (err) {
       // Indexes might not exist, that's okay
       console.log("   ⊘ No indexes to drop");
     }
@@ -195,13 +190,13 @@ async function wipeMemgraph(memgraph: any): Promise<void> {
         "DROP CONSTRAINT ON (n:Resource) ASSERT n.id IS UNIQUE"
       );
       console.log("   ✓ Dropped constraints");
-    } catch (error) {
+    } catch (err) {
       // Constraints might not exist, that's okay
       console.log("   ⊘ No constraints to drop");
     }
-  } catch (error) {
-    console.error("   ❌ Error wiping Memgraph:", error);
-    throw error;
+  } catch (err) {
+    logger.error({ err }, "Error wiping Memgraph");
+    throw err;
   }
 }
 
@@ -227,9 +222,9 @@ async function wipeQdrant(qdrant: any): Promise<void> {
       { $unset: { lastEmbedDate: "" } }
     );
     console.log(`   ✓ Cleared timestamps for ${result.modifiedCount} records`);
-  } catch (error) {
-    console.error("   ❌ Error wiping Qdrant:", error);
-    throw error;
+  } catch (err) {
+    logger.error({ err }, "Error wiping Qdrant");
+    throw err;
   }
 }
 
@@ -322,15 +317,15 @@ async function run() {
     console.log(
       "  3. Run 'pnpm tsx scripts/index-vectors.ts' to build embeddings"
     );
-  } catch (error) {
-    console.error("\n❌ Error during wipe:", error);
+  } catch (err) {
+    logger.error({ err }, "Error during wipe");
     process.exit(1);
   }
 }
 
 run()
   .then(() => process.exit(0))
-  .catch((error) => {
-    console.error("❌ Fatal error:", error);
+  .catch((err) => {
+    logger.error({ err }, "Fatal error");
     process.exit(1);
   });

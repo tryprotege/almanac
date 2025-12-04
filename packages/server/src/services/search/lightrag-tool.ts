@@ -16,6 +16,7 @@ import { resolveSerializedZodOutput } from "../../utils/resolveSerializedZodOutp
 import { env } from "../../env.js";
 import { MemgraphConnection } from "../../connections/memgraph.js";
 import { QdrantConnection } from "../../connections/qdrant.js";
+import logger from "../../utils/logger.js";
 
 /**
  * Register the LightRAG query tool with the MCP server
@@ -27,7 +28,7 @@ export function registerLightRAGTool(
     qdrant: QdrantConnection;
   }
 ): void {
-  console.error("🔍 Registering LightRAG query tool...");
+  console.error("� Registering eBee Search tool...");
 
   // Initialize OpenAI client
   const openaiClient = new OpenAI({
@@ -68,14 +69,17 @@ export function registerLightRAGTool(
             },
           ],
         };
-      } catch (error) {
-        console.error("[LightRAG Tool] Error:", error);
+      } catch (err) {
+        logger.error(
+          { err, query: (args as any).query },
+          "LightRAG Tool Error"
+        );
         return {
           content: [
             {
               type: "text",
               text: JSON.stringify({
-                error: error instanceof Error ? error.message : String(error),
+                error: err instanceof Error ? err.message : String(err),
                 query: (args as any).query,
               }),
             },
@@ -86,5 +90,5 @@ export function registerLightRAGTool(
     }
   );
 
-  console.error("✅ LightRAG query tool registered");
+  console.error("✅ eBee Search tool registered");
 }

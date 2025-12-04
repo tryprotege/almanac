@@ -3,6 +3,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
+import logger from "../utils/logger.js";
 
 export interface MCPServerConfig {
   name: string;
@@ -26,7 +27,10 @@ class MCPClientManager {
    */
   async connect(config: MCPServerConfig): Promise<void> {
     if (this.clients.has(config.name)) {
-      console.error(`Client ${config.name} already connected`);
+      logger.error(
+        { clientName: config.name },
+        `Client ${config.name} already connected`
+      );
       return;
     }
 
@@ -85,7 +89,7 @@ class MCPClientManager {
     // Fetch and cache tools from this server
     await this.refreshTools(config.name);
 
-    console.error(`✅ Connected to MCP server: ${config.name}`);
+    logger.info(`Connected to MCP server: ${config.name}`);
   }
 
   /**
@@ -101,7 +105,7 @@ class MCPClientManager {
       this.clients.delete(serverName);
       this.transports.delete(serverName);
       this.toolCache.delete(serverName);
-      console.error(`✅ Disconnected from MCP server: ${serverName}`);
+      logger.info(`Disconnected from MCP server: ${serverName}`);
     }
   }
 

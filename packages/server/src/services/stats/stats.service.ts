@@ -6,6 +6,7 @@ import { GraphStore } from "../../stores/graph.store.js";
 import { RecordStore } from "../../stores/record.store.js";
 import { VectorStore } from "../../stores/vector.store.js";
 import { SourceType } from "../../types/index.js";
+import logger from "../../utils/logger.js";
 
 /**
  * Statistics Service
@@ -124,8 +125,8 @@ export class StatsService {
           dimensions,
           model: process.env.LLM_EMBEDDING_MODEL || "text-embedding-3-small",
         };
-      } catch (error) {
-        console.error("Error fetching vector stats:", error);
+      } catch (err) {
+        logger.error({ err }, "Error fetching vector stats");
         return {
           collectionName: "embeddings",
           totalPoints: 0,
@@ -195,8 +196,8 @@ export class StatsService {
           nodesByLabel,
           relationshipsByType,
         };
-      } catch (error) {
-        console.error("Error fetching graph stats:", error);
+      } catch (err) {
+        logger.error({ err }, "Error fetching graph stats");
         return {
           totalNodes: 0,
           totalRelationships: 0,
@@ -244,8 +245,8 @@ export class StatsService {
       );
 
       return result;
-    } catch (error) {
-      console.error("Error fetching records by source:", error);
+    } catch (err) {
+      logger.error({ err }, "Error fetching records by source");
       return {};
     }
   }
@@ -268,8 +269,8 @@ export class StatsService {
       });
 
       return result;
-    } catch (error) {
-      console.error("Error fetching records by type:", error);
+    } catch (err) {
+      logger.error({ err }, "Error fetching records by type");
       return {};
     }
   }
@@ -282,8 +283,8 @@ export class StatsService {
       return await RecordModel.countDocuments({
         deletedAt: { $exists: true },
       }).exec();
-    } catch (error) {
-      console.error("Error fetching deleted records count:", error);
+    } catch (err) {
+      logger.error({ err }, "Error fetching deleted records count");
       return 0;
     }
   }
@@ -308,8 +309,8 @@ export class StatsService {
         connected,
         disconnected: total - connected,
       };
-    } catch (error) {
-      console.error("Error fetching MCP server stats:", error);
+    } catch (err) {
+      logger.error({ err }, "Error fetching MCP server stats");
       return {
         total: 0,
         connected: 0,
@@ -340,8 +341,8 @@ export class StatsService {
       await this.cacheStore.set(key, JSON.stringify(data), 5);
 
       return data;
-    } catch (error) {
-      console.error(`Cache error for key ${key}:`, error);
+    } catch (err) {
+      logger.error({ err, cacheKey: key }, `Cache error for key ${key}`);
       // If cache fails, just fetch the data
       return fetcher();
     }

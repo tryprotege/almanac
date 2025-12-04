@@ -1,5 +1,6 @@
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { env } from "../env.js";
+import logger from "../utils/logger.js";
 
 export const QDRANT_SCHEMAS = {
   // Collection naming pattern: embeddings_<model>_<dimensions>
@@ -46,7 +47,7 @@ export const connectQdrant = async (): Promise<QdrantConnection> => {
 
     // Test connection by getting collections
     await client.getCollections();
-    console.log("✅ Qdrant connected successfully");
+    logger.info("Qdrant connected successfully");
 
     const createCollection = async (
       collectionName: string,
@@ -60,19 +61,19 @@ export const connectQdrant = async (): Promise<QdrantConnection> => {
             distance: distance,
           },
         });
-        console.log(`✅ Collection "${collectionName}" created successfully`);
-      } catch (error) {
-        console.error(
-          `❌ Error creating collection "${collectionName}":`,
-          error
+        logger.info(`Collection "${collectionName}" created successfully`);
+      } catch (err) {
+        logger.error(
+          { err, collectionName },
+          `Error creating collection "${collectionName}"`
         );
-        throw error;
+        throw err;
       }
     };
 
     const close = async (): Promise<void> => {
       // Qdrant REST client doesn't require explicit disconnection
-      console.log("Qdrant disconnected");
+      logger.info("Qdrant disconnected");
     };
 
     return {
@@ -80,8 +81,8 @@ export const connectQdrant = async (): Promise<QdrantConnection> => {
       createCollection,
       close,
     };
-  } catch (error) {
-    console.error("❌ Qdrant connection error:", error);
-    throw error;
+  } catch (err) {
+    logger.error({ err }, "Qdrant connection error");
+    throw err;
   }
 };

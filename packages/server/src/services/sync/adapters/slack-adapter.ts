@@ -482,7 +482,7 @@ Group related messages together. Each message can only belong to ONE group.`;
       sourceId,
       recordType: "user",
       title,
-      content,
+      content: content || title,
       people: [],
       primaryDate,
       tags: [],

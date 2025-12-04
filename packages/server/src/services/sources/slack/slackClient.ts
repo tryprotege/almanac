@@ -1,4 +1,4 @@
-import { WebClient } from "@slack/web-api";
+import { ConversationsHistoryArguments, WebClient } from "@slack/web-api";
 import { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse.js";
 import { Channel } from "@slack/web-api/dist/types/response/ConversationsListResponse.js";
 import { Member } from "@slack/web-api/dist/types/response/UsersListResponse.js";
@@ -67,13 +67,12 @@ export class SlackClient {
     const messages: MessageElement[] = [];
     let cursor: string | undefined = undefined;
     let hasMore = true;
-    let totalLimit = 200;
     let total = 0;
 
-    while (hasMore && total < totalLimit) {
+    while (hasMore && (options.limit ? total < options.limit : true)) {
       await sleep(this.rateLimitDelay);
 
-      const params: any = {
+      const params: ConversationsHistoryArguments = {
         channel: channelId,
         limit: options.limit || 100,
         inclusive: true,
@@ -198,7 +197,7 @@ export class SlackClient {
     const mainMessages = await this.getChannelMessages(channelId, {
       oldest,
       latest,
-      limit: 100,
+      limit: maxMessages,
     });
 
     if (mainMessages.length > maxMessages) {

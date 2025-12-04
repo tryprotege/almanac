@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "dotenv/config";
 import express, { NextFunction, Request, Response } from "express";
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";

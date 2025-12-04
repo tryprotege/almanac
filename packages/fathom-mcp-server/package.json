@@ -9,8 +9,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/index.ts",
-    "start": "node dist/index.js",
+    "start": "tsx src/index.ts",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

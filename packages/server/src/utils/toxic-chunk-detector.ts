@@ -3,6 +3,8 @@
  * LightRAG-inspired filtering for low-quality content
  */
 
+import logger from "./logger.js";
+
 export interface ToxicChunkConfig {
   minEntitiesThreshold: number;
   maxRelationshipsForToxic: number;
@@ -56,9 +58,7 @@ export const truncateEntities = <T>(
   maxEntities: number = DEFAULT_CONFIG.maxEntitiesPerDoc
 ): T[] => {
   if (entities.length > maxEntities) {
-    console.warn(
-      `⚠️  Truncating ${entities.length} entities to ${maxEntities}`
-    );
+    logger.warn(`⚠️  Truncating ${entities.length} entities to ${maxEntities}`);
     return entities.slice(0, maxEntities);
   }
   return entities;

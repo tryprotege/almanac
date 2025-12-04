@@ -11,6 +11,7 @@ import { NotionAdapter } from "../sync/adapters/notion-adapter.js";
 import { createRedisConnection, QUEUE_NAME } from "./config.js";
 import { SlackAdapter } from "../sync/adapters/slack-adapter.js";
 import { MCPServerConfigModel } from "../../models/mcp-config.model.js";
+import logger from "../../utils/logger.js";
 
 const processor: Processor<
   IndexGraphJobData,
@@ -66,24 +67,24 @@ export const indexGraphWorker = new Worker<
 
 // Set up worker event handlers
 indexGraphWorker.on("completed", (job) => {
-  console.log(
+  logger.info(
     `✅ Graph index job completed: ${job.id} for record ${job.data.source}`
   );
 });
 
 indexGraphWorker.on("failed", (job, err) => {
-  console.error(
-    `❌ Graph index job failed: ${job?.id} for record ${job?.data.source}`,
-    err
+  logger.error(
+    { err },
+    `❌ Graph index job failed: ${job?.id} for record ${job?.data.source}`
   );
 });
 
 indexGraphWorker.on("error", (err) => {
-  console.error("Graph index worker error:", err);
+  logger.error({ err }, "Graph index worker error");
 });
 
 indexGraphWorker.on("active", (job) => {
-  console.log(
+  logger.info(
     `🔄 Graph index job started: ${job.id} for record ${job.data.source}`
   );
 });

@@ -4,6 +4,7 @@ import { Channel } from "@slack/web-api/dist/types/response/ConversationsListRes
 import { Member } from "@slack/web-api/dist/types/response/UsersListResponse.js";
 
 import sleep from "../../../utils/sleep.js";
+import logger from "../../../utils/logger.js";
 
 /**
  * Slack SDK Client wrapper for data extraction
@@ -191,7 +192,7 @@ export class SlackClient {
   ): Promise<MessageElement[]> {
     const { maxMessages = 1000, oldest, latest } = options;
 
-    console.log(`Fetching messages from channel ${channelId}...`);
+    logger.info(`Fetching messages from channel ${channelId}...`);
 
     // Fetch main channel messages
     const mainMessages = await this.getChannelMessages(channelId, {
@@ -204,17 +205,17 @@ export class SlackClient {
       mainMessages.splice(maxMessages);
     }
 
-    console.log(`Fetched ${mainMessages.length} main messages`);
+    logger.info(`Fetched ${mainMessages.length} main messages`);
 
     const allMessages = [...mainMessages];
 
     // Fetch thread replies
     const threadParents = mainMessages.filter((m) => (m.reply_count || 0) > 0);
-    console.log(`Found ${threadParents.length} threads to fetch`);
+    logger.info(`Found ${threadParents.length} threads to fetch`);
 
     for (let i = 0; i < threadParents.length; i++) {
       const parent = threadParents[i];
-      console.log(
+      logger.info(
         `Fetching thread ${i + 1}/${threadParents.length} (${
           parent.reply_count
         } replies)...`
@@ -231,13 +232,13 @@ export class SlackClient {
         );
 
         allMessages.push(...newReplies);
-        console.log(`  Added ${newReplies.length} new replies`);
+        logger.info(`  Added ${newReplies.length} new replies`);
       } catch (error: any) {
-        console.error(`Failed to fetch thread ${parent.ts}:`, error.message);
+        logger.error({ err: error }, `Failed to fetch thread ${parent.ts}`);
       }
     }
 
-    console.log(`Total messages fetched: ${allMessages.length}`);
+    logger.info(`Total messages fetched: ${allMessages.length}`);
 
     // Sort by timestamp
     allMessages.sort((a, b) => parseFloat(a.ts!) - parseFloat(b.ts!));

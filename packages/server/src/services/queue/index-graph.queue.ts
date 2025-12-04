@@ -9,6 +9,8 @@ import { NotionMCPClient } from "../sources/notion/mcpClient.js";
 import { BaseRecordAdapter } from "../sync/adapters/base-adapter.js";
 import { NotionAdapter } from "../sync/adapters/notion-adapter.js";
 import { createRedisConnection, QUEUE_NAME } from "./config.js";
+import { SlackAdapter } from "../sync/adapters/slack-adapter.js";
+import { MCPServerConfigModel } from "../../models/mcp-config.model.js";
 
 const processor: Processor<
   IndexGraphJobData,
@@ -27,6 +29,15 @@ const processor: Processor<
   if (source === "notion") {
     const notionClient = new NotionMCPClient();
     adapters.set("notion", new NotionAdapter(notionClient));
+  } else if (source === "slack") {
+    const slackMcp = await MCPServerConfigModel.findOne({
+      name: "slack",
+    });
+    const token = slackMcp?.env?.get("SLACK_BOT_TOKEN");
+
+    if (!token) throw new Error("Slack MCP server not configured");
+
+    adapters.set("slack", new SlackAdapter(token));
   }
 
   const graphIndexer = new GraphIndexerService(

@@ -81,25 +81,6 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   }
 
   /**
-   * Fetch single record by ID
-   */
-  async fetchById(id: string): Promise<NotionRecord | null> {
-    try {
-      // Try as page first
-      const page = await this.client.getPage(id);
-      return page as NotionRecord;
-    } catch {
-      try {
-        // Try as database
-        const database = await this.client.getDatabaseSchema(id);
-        return database as NotionRecord;
-      } catch {
-        return null;
-      }
-    }
-  }
-
-  /**
    * Transform Notion record to unified format
    */
   async transform(sourceRecord: NotionRecord): Promise<Record> {
@@ -201,22 +182,6 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
     }
 
     return relationships;
-  }
-
-  /**
-   * Check if record is deleted
-   */
-  isDeleted(sourceRecord: NotionRecord): boolean {
-    return (sourceRecord as any).archived === true;
-  }
-
-  /**
-   * Get deleted records (Notion doesn't provide this directly)
-   */
-  async *getDeletedRecords(since: Date): AsyncIterable<string[]> {
-    // Notion doesn't have a direct API for deleted records
-    // We would need to track this ourselves or fetch all and compare
-    yield [];
   }
 
   /**

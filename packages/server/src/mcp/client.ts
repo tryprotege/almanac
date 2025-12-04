@@ -48,7 +48,10 @@ class MCPClientManager {
       }
 
       // Build SSE transport options
-      const sseOpts: any = {};
+      const sseOpts: {
+        requestInit?: RequestInit;
+        eventSourceInit?: any;
+      } = {};
 
       // Pass requestInit if provided (for POST requests)
       if (config.requestInit) {
@@ -70,7 +73,9 @@ class MCPClientManager {
       }
 
       // Build streamable HTTP transport options
-      const httpOpts: any = {};
+      const httpOpts: {
+        requestInit?: RequestInit;
+      } = {};
 
       // Pass requestInit if provided (for custom headers, method, etc.)
       if (config.requestInit) {

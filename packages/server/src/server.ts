@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "dotenv/config";
 import express, { NextFunction, Request, Response } from "express";
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -13,6 +14,7 @@ import {
 } from "./mcp/initialization.js";
 import { MCPServerConfigModel } from "./models/mcp-config.model.js";
 import { syncMcpServerQueue } from "./services/queue/sync.queue.js";
+import logger from "./utils/logger.js";
 
 // Start server
 const runServer = async () => {
@@ -61,10 +63,11 @@ const runServer = async () => {
         createdAt: -1,
       });
       res.json({ success: true, data: configs });
-    } catch (error) {
+    } catch (err) {
+      logger.error({ err }, "Error fetching MCP server configs");
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   });
@@ -90,19 +93,20 @@ const runServer = async () => {
         try {
           await mcpClientManager.connect(configData);
         } catch (connectError) {
-          console.error(
-            `⚠️  Failed to auto-connect to ${configData.name}:`,
-            connectError
+          logger.error(
+            { err: connectError, serverName: configData.name },
+            `Failed to auto-connect to ${configData.name}`
           );
         }
       }
 
       res.status(201).json({ success: true, data: config });
-    } catch (error) {
-      const statusCode = (error as any).code === 11000 ? 409 : 500;
+    } catch (err) {
+      logger.error({ err }, "Error creating MCP server config");
+      const statusCode = (err as any).code === 11000 ? 409 : 500;
       res.status(statusCode).json({
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   });
@@ -122,10 +126,14 @@ const runServer = async () => {
       }
 
       res.json({ success: true, data: config });
-    } catch (error) {
+    } catch (err) {
+      logger.error(
+        { err, serverName: req.params.name },
+        "Error fetching MCP server config"
+      );
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   });
@@ -168,17 +176,27 @@ const runServer = async () => {
         try {
           await mcpClientManager.disconnect(name);
           await mcpClientManager.connect(config.toJSON() as MCPServerConfig);
-          console.error(`✅ Reconnected to updated MCP server: ${name}`);
+          logger.info(
+            { serverName: name },
+            `Reconnected to updated MCP server: ${name}`
+          );
         } catch (reconnectError) {
-          console.error(`⚠️  Failed to reconnect to ${name}:`, reconnectError);
+          logger.error(
+            { err: reconnectError, serverName: name },
+            `Failed to reconnect to ${name}`
+          );
         }
       }
 
       res.json({ success: true, data: config });
-    } catch (error) {
+    } catch (err) {
+      logger.error(
+        { err, serverName: req.params.name },
+        "Error updating MCP server config"
+      );
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   });
@@ -207,10 +225,14 @@ const runServer = async () => {
         success: true,
         message: "MCP server config deleted",
       });
-    } catch (error) {
+    } catch (err) {
+      logger.error(
+        { err, serverName: req.params.name },
+        "Error deleting MCP server config"
+      );
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   });
@@ -242,10 +264,14 @@ const runServer = async () => {
         await mcpClientManager.connect(config.toJSON() as MCPServerConfig);
 
         res.json({ success: true, message: `Connected to ${name}` });
-      } catch (error) {
+      } catch (err) {
+        logger.error(
+          { err, serverName: req.params.name },
+          "Error connecting to MCP server"
+        );
         res.status(500).json({
           success: false,
-          error: error instanceof Error ? error.message : String(error),
+          error: err instanceof Error ? err.message : String(err),
         });
       }
     }
@@ -271,10 +297,14 @@ const runServer = async () => {
           success: true,
           message: `Disconnected from ${name}`,
         });
-      } catch (error) {
+      } catch (err) {
+        logger.error(
+          { err, serverName: req.params.name },
+          "Error disconnecting from MCP server"
+        );
         res.status(500).json({
           success: false,
-          error: error instanceof Error ? error.message : String(error),
+          error: err instanceof Error ? err.message : String(err),
         });
       }
     }
@@ -293,10 +323,14 @@ const runServer = async () => {
           success: true,
           data: { name, connected: isConnected },
         });
-      } catch (error) {
+      } catch (err) {
+        logger.error(
+          { err, serverName: req.params.name },
+          "Error getting MCP server status"
+        );
         res.status(500).json({
           success: false,
-          error: error instanceof Error ? error.message : String(error),
+          error: err instanceof Error ? err.message : String(err),
         });
       }
     }
@@ -348,10 +382,11 @@ const runServer = async () => {
         success: true,
         data: { jobId: job.id },
       });
-    } catch (error) {
+    } catch (err) {
+      logger.error({ err }, "Error queueing sync job");
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   });

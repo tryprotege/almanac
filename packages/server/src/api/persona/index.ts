@@ -1,5 +1,6 @@
 import { Request, Response, Router } from "express";
 import { getPersona, updatePersona } from "../../stores/index.js";
+import logger from "../../utils/logger.js";
 
 const personaRouter: Router = Router();
 
@@ -15,10 +16,11 @@ personaRouter.get("/persona", async (_req: Request, res: Response) => {
         updatedAt: new Date().toISOString(),
       },
     });
-  } catch (error) {
+  } catch (err) {
+    logger.error({ err }, "Error fetching persona");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });
@@ -62,10 +64,11 @@ personaRouter.put("/persona", async (req: Request, res: Response) => {
       },
       message: "Persona updated successfully",
     });
-  } catch (error) {
+  } catch (err) {
+    logger.error({ err }, "Error updating persona");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });
@@ -87,10 +90,11 @@ personaRouter.delete("/persona", async (_req: Request, res: Response) => {
       success: true,
       message: "Persona cleared successfully",
     });
-  } catch (error) {
+  } catch (err) {
+    logger.error({ err }, "Error clearing persona");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });

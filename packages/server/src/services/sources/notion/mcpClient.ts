@@ -6,6 +6,7 @@ import {
   NotionBlock,
   NotionComment,
 } from "./types.js";
+import logger from "../../../utils/logger.js";
 
 /**
  * Notion MCP Client wrapper for data extraction
@@ -43,8 +44,8 @@ export class NotionMCPClient {
       if (textContent && textContent.text) {
         try {
           return JSON.parse(textContent.text) as T;
-        } catch (error) {
-          console.error("Failed to parse MCP response:", error);
+        } catch (err) {
+          logger.error({ err, toolName }, "Failed to parse MCP response");
           throw new Error(
             `Invalid JSON in MCP response: ${textContent.text.substring(
               0,

@@ -4,6 +4,7 @@ import { Record as TRecord } from "../../../models/record.model.js";
 import { SourceType } from "../../../types/index.js";
 import { BaseRecordAdapter } from "../../sync/adapters/base-adapter.js";
 import { MemgraphNode, MemgraphRelationship } from "../../../types/index.js";
+import logger from "../../../utils/logger.js";
 
 /**
  * Graph Indexer Service
@@ -72,8 +73,8 @@ export class GraphIndexerService {
             lastGraphIndexDate: new Date(),
           });
         }
-      } catch (error) {
-        console.error(`❌ Error creating nodes for batch:`, error);
+      } catch (err) {
+        logger.error({ err }, "Error creating nodes for batch");
         stats.errors++;
       }
 
@@ -108,11 +109,8 @@ export class GraphIndexerService {
             await this.graphStore.createRelationships(relationships);
             stats.relationships += relationships.length;
           }
-        } catch (error) {
-          console.error(
-            `❌ Error creating relationships for batch:`,
-            error instanceof Error ? error.message : error
-          );
+        } catch (err) {
+          logger.error({ err }, "Error creating relationships for batch");
           stats.errors++;
         }
 
@@ -204,10 +202,10 @@ export class GraphIndexerService {
         const result = await this.indexRecord(record, options);
         stats.nodes++;
         stats.relationships += result.relationships;
-      } catch (error) {
-        console.error(
-          `❌ Error indexing record ${record._id}:`,
-          error instanceof Error ? error.message : error
+      } catch (err) {
+        logger.error(
+          { err, recordId: record._id },
+          `Error indexing record ${record._id}`
         );
         stats.errors++;
       }
@@ -240,7 +238,7 @@ export class GraphIndexerService {
   ): Promise<MemgraphRelationship[]> {
     const adapter = this.adapters.get(source);
     if (!adapter) {
-      console.warn(`No adapter found for source: ${source}`);
+      logger.warn({ source }, `No adapter found for source: ${source}`);
       return [];
     }
 
@@ -265,10 +263,10 @@ export class GraphIndexerService {
             extractedBy: rel.extractedBy || "explicit",
           });
         }
-      } catch (error) {
-        console.error(
-          `Error extracting relationships for record ${record._id}:`,
-          error instanceof Error ? error.message : error
+      } catch (err) {
+        logger.error(
+          { err, recordId: record._id },
+          `Error extracting relationships for record ${record._id}`
         );
       }
     }
@@ -319,10 +317,10 @@ export class GraphIndexerService {
           _id: record._id,
           lastGraphIndexDate: null,
         });
-      } catch (error) {
-        console.error(
-          `Error deleting node for record ${record._id}:`,
-          error instanceof Error ? error.message : error
+      } catch (err) {
+        logger.error(
+          { err, recordId: record._id },
+          `Error deleting node for record ${record._id}`
         );
       }
     }
@@ -379,11 +377,8 @@ export class GraphIndexerService {
           await this.graphStore.createRelationships(relationships);
           stats.relationships += relationships.length;
         }
-      } catch (error) {
-        console.error(
-          `❌ Error rebuilding relationships for batch:`,
-          error instanceof Error ? error.message : error
-        );
+      } catch (err) {
+        logger.error({ err }, "Error rebuilding relationships for batch");
         stats.errors++;
       }
 

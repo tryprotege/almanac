@@ -8,6 +8,7 @@ import {
   NotionUser,
 } from "../../sources/notion/types.js";
 import { NotionMCPClient } from "../../sources/notion/mcpClient.js";
+import logger from "../../../utils/logger.js";
 
 type NotionRecord = NotionPage | NotionDatabase | NotionUser;
 
@@ -114,8 +115,11 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
       try {
         blocks = await this.client.getAllBlocksRecursive(sourceId);
         // comments = await this.client.getPageComments(sourceId);
-      } catch (error) {
-        console.warn(`Failed to fetch blocks for page ${sourceId}:`, error);
+      } catch (err) {
+        logger.warn(
+          { err, pageId: sourceId },
+          `Failed to fetch blocks for page ${sourceId}`
+        );
       }
     }
 

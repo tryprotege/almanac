@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { env } from "../env.js";
+import logger from "./logger.js";
 
 /**
  * Embedder service - Generates vector embeddings using any OpenAI-compatible API
@@ -28,8 +29,8 @@ export async function embed(texts: string[]): Promise<number[][]> {
     );
 
     return embeddings;
-  } catch (error) {
-    console.error("Error generating embeddings:", error);
-    throw error;
+  } catch (err) {
+    logger.error({ err }, "Error generating embeddings");
+    throw err;
   }
 }

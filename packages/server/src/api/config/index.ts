@@ -2,6 +2,7 @@ import { Request, Response, Router } from "express";
 import { env } from "../../env.js";
 import { ModelConfigModel } from "../../models/model-config.model.js";
 import { createLLMClient } from "../../services/llm/providers.js";
+import logger from "../../utils/logger.js";
 
 const configRouter: Router = Router();
 
@@ -45,10 +46,11 @@ configRouter.get("/models", async (_req: Request, res: Response) => {
       success: true,
       data: safeConfig,
     });
-  } catch (error) {
+  } catch (err) {
+    logger.error({ err }, "Error fetching model configuration");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });
@@ -124,10 +126,11 @@ configRouter.put("/models", async (req: Request, res: Response) => {
       data: safeConfig,
       message: "Model configuration updated successfully",
     });
-  } catch (error) {
+  } catch (err) {
+    logger.error({ err }, "Error updating model configuration");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });
@@ -172,11 +175,12 @@ configRouter.post("/models/test", async (req: Request, res: Response) => {
         provider: llmProvider,
       },
     });
-  } catch (error) {
+  } catch (err) {
+    logger.error({ err }, "Model connection test failed");
     res.status(500).json({
       success: false,
       error: `Connection test failed: ${
-        error instanceof Error ? error.message : String(error)
+        err instanceof Error ? err.message : String(err)
       }`,
     });
   }

@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { VectorPoint } from "../types/index.js";
 import { QdrantConnection } from "../connections/qdrant.js";
 import { env } from "../env.js";
+import logger from "../utils/logger.js";
 
 /**
  * Vector Store - Single-tenant Qdrant operations
@@ -30,13 +31,16 @@ export class VectorStore {
           dimensions,
           "Cosine"
         );
-        console.log(
-          `✅ Created Qdrant collection: ${this.collectionName} (${dimensions} dimensions, model: ${env.LLM_EMBEDDING_MODEL})`
+        logger.info(
+          `Created Qdrant collection: ${this.collectionName} (${dimensions} dimensions, model: ${env.LLM_EMBEDDING_MODEL})`
         );
       }
-    } catch (error) {
-      console.error(`Error ensuring collection ${this.collectionName}:`, error);
-      throw error;
+    } catch (err) {
+      logger.error(
+        { err, collectionName: this.collectionName },
+        `Error ensuring collection ${this.collectionName}`
+      );
+      throw err;
     }
   }
 
@@ -186,8 +190,8 @@ export class VectorStore {
         vector: point.vector as number[],
         payload: point.payload as VectorPoint["payload"],
       };
-    } catch (error) {
-      console.error(`Error getting point ${id}:`, error);
+    } catch (err) {
+      logger.error({ err, pointId: id }, `Error getting point ${id}`);
       return null;
     }
   }

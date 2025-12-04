@@ -17,12 +17,9 @@ import {
   GitHubUser,
   GitHubCommit,
   GitHubReview,
-  CreateIssueData,
-  UpdateIssueData,
   CreatePullRequestData,
   UpdatePullRequestData,
   CreateReleaseData,
-  CreateCommentData,
 } from "./types.js";
 
 /**
@@ -60,7 +57,6 @@ export class GitHubMCPClient {
       args
     );
 
-    // MCP response format: { content: [{ type: 'text', text: '...' }] }
     if (response && response.content && Array.isArray(response.content)) {
       const textContent = response.content.find((c: any) => c.type === "text");
       if (response.isError) {
@@ -69,13 +65,6 @@ export class GitHubMCPClient {
           "MCP tool error: " + (textContent?.text || "Unknown error")
         );
       } else if (textContent && textContent.text) {
-        if (toolName === "list_code_scanning_alerts") {
-          console.log(
-            `MCP response for tool ${toolName}:`,
-            textContent.text,
-            response
-          );
-        }
         try {
           return JSON.parse(textContent.text) as T;
         } catch (error) {
@@ -90,7 +79,6 @@ export class GitHubMCPClient {
       }
     }
 
-    // Fallback: return response as-is if it doesn't match expected format
     return response as T;
   }
 
@@ -106,24 +94,24 @@ export class GitHubMCPClient {
     let page = 1;
     const perPage = 100;
 
-    while (true) {
+    let results: T[] = [];
+    do {
       const response: any = await this.callTool(toolName, {
         ...params,
         page,
         perPage,
       });
 
-      const results = extractResults(response);
+      results = extractResults(response);
 
       if (results.length === 0 || (results as any)?.total_count === 0) break;
 
       allResults.push(...results);
 
-      // If we got less than perPage results, we're done
       if (results.length < perPage) break;
 
       page++;
-    }
+    } while (results.length === 0 || results.length < perPage);
 
     return allResults;
   }
@@ -153,14 +141,12 @@ export class GitHubMCPClient {
         allResults.push(...results);
       }
 
-      // Check if there are more pages using pageInfo
       if (response.pageInfo && response.pageInfo.hasNextPage) {
         after = response.pageInfo.endCursor;
       } else {
         break;
       }
 
-      // Safety check: if no results and no next page, break
       if (results.length === 0) break;
     }
 
@@ -204,59 +190,6 @@ export class GitHubMCPClient {
     });
   }
 
-  /**
-   * Create a new repository
-   */
-  async createRepository(data: {
-    name: string;
-    description?: string;
-    private?: boolean;
-    auto_init?: boolean;
-  }): Promise<GitHubRepository> {
-    return this.callTool<GitHubRepository>("create_repository", data);
-  }
-
-  /**
-   * Fork a repository
-   */
-  async forkRepository(
-    owner: string,
-    repo: string,
-    organization?: string
-  ): Promise<GitHubRepository> {
-    const params: Record<string, any> = { owner, repo };
-    if (organization) params.organization = organization;
-    return this.callTool<GitHubRepository>("fork_repository", params);
-  }
-
-  /**
-   * Create or update a file in a repository
-   */
-  async createOrUpdateFile(params: {
-    owner: string;
-    repo: string;
-    path: string;
-    content: string;
-    message: string;
-    branch: string;
-    sha?: string;
-  }): Promise<any> {
-    return this.callTool("create_or_update_file", params);
-  }
-
-  /**
-   * Push multiple files to a repository in a single commit
-   */
-  async pushFiles(params: {
-    owner: string;
-    repo: string;
-    branch: string;
-    files: Array<{ path: string; content: string }>;
-    message: string;
-  }): Promise<any> {
-    return this.callTool("push_files", params);
-  }
-
   // ============================================
   // Issue Management Methods
   // ============================================
@@ -285,60 +218,6 @@ export class GitHubMCPClient {
       repo,
       issue_number: issueNumber,
     });
-  }
-
-  /**
-   * Create a new issue
-   */
-  async createIssue(
-    owner: string,
-    repo: string,
-    data: CreateIssueData
-  ): Promise<GitHubIssue> {
-    return this.callTool<GitHubIssue>("create_issue", {
-      owner,
-      repo,
-      ...data,
-    });
-  }
-
-  /**
-   * Update an existing issue
-   */
-  async updateIssue(
-    owner: string,
-    repo: string,
-    issueNumber: number,
-    data: UpdateIssueData
-  ): Promise<GitHubIssue> {
-    return this.callTool<GitHubIssue>("update_issue", {
-      owner,
-      repo,
-      issue_number: issueNumber,
-      ...data,
-    });
-  }
-
-  /**
-   * Close an issue
-   */
-  async closeIssue(
-    owner: string,
-    repo: string,
-    issueNumber: number
-  ): Promise<GitHubIssue> {
-    return this.updateIssue(owner, repo, issueNumber, { state: "closed" });
-  }
-
-  /**
-   * Search issues across repositories
-   */
-  async searchIssues(query: string): Promise<GitHubIssue[]> {
-    return this.fetchAllPages<GitHubIssue>(
-      "search_issues",
-      { query },
-      (response) => response.items || []
-    );
   }
 
   // ============================================

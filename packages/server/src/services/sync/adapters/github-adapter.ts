@@ -75,27 +75,26 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
     // For each repository, fetch related entities
     for (const repo of repos) {
       const owner = repo.owner.login;
-
       const repoName = repo.name;
       // // Fetch issues
-      // try {
-      //   const issues = await this.client.listIssues(owner, repoName);
-      //   for (let i = 0; i < issues.length; i += batchSize) {
-      //     yield issues.slice(i, i + batchSize) as GitHubRecord[];
-      //   }
-      // } catch (error) {
-      //   console.warn(`Failed to fetch issues for ${owner}/${repoName}:`, error);
-      // }
+      try {
+        const issues = await this.client.listIssues(owner, repoName);
+        for (let i = 0; i < issues.length; i += batchSize) {
+          yield issues.slice(i, i + batchSize) as GitHubRecord[];
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch issues for ${owner}/${repoName}:`, error);
+      }
 
-      // // Fetch pull requests
-      // try {
-      //   const prs = await this.client.listPullRequests(owner, repoName, "all");
-      //   for (let i = 0; i < prs.length; i += batchSize) {
-      //     yield prs.slice(i, i + batchSize) as GitHubRecord[];
-      //   }
-      // } catch (error) {
-      //   console.warn(`Failed to fetch PRs for ${owner}/${repoName}:`, error);
-      // }
+      // Fetch pull requests
+      try {
+        const prs = await this.client.listPullRequests(owner, repoName, "all");
+        for (let i = 0; i < prs.length; i += batchSize) {
+          yield prs.slice(i, i + batchSize) as GitHubRecord[];
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch PRs for ${owner}/${repoName}:`, error);
+      }
 
       // Fetch workflows
       try {
@@ -123,64 +122,64 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         );
       }
 
-      // // Fetch releases
-      // try {
-      //   const releases = await this.client.listReleases(owner, repoName);
-      //   for (let i = 0; i < releases.length; i += batchSize) {
-      //     yield releases.slice(i, i + batchSize) as GitHubRecord[];
-      //   }
-      // } catch (error) {
-      //   console.warn(
-      //     `Failed to fetch releases for ${owner}/${repoName}:`,
-      //     error
-      //   );
-      // }
+      // Fetch releases
+      try {
+        const releases = await this.client.listReleases(owner, repoName);
+        for (let i = 0; i < releases.length; i += batchSize) {
+          yield releases.slice(i, i + batchSize) as GitHubRecord[];
+        }
+      } catch (error) {
+        console.warn(
+          `Failed to fetch releases for ${owner}/${repoName}:`,
+          error
+        );
+      }
 
-      // // Fetch discussions
-      // try {
-      //   const discussions = await this.client.listDiscussions(owner, repoName);
-      //   for (let i = 0; i < discussions.length; i += batchSize) {
-      //     yield discussions.slice(i, i + batchSize) as GitHubRecord[];
-      //   }
-      // } catch (error) {
-      //   console.warn(
-      //     `Failed to fetch discussions for ${owner}/${repoName}:`,
-      //     error
-      //   );
-      // }
+      // Fetch discussions
+      try {
+        const discussions = await this.client.listDiscussions(owner, repoName);
+        for (let i = 0; i < discussions.length; i += batchSize) {
+          yield discussions.slice(i, i + batchSize) as GitHubRecord[];
+        }
+      } catch (error) {
+        console.warn(
+          `Failed to fetch discussions for ${owner}/${repoName}:`,
+          error
+        );
+      }
 
-      // // Fetch security alerts
-      // try {
-      //   const codeScanningAlerts = await this.client.listCodeScanningAlerts(
-      //     owner,
-      //     repoName
-      //   );
+      // Fetch security alerts
+      try {
+        const codeScanningAlerts = await this.client.listCodeScanningAlerts(
+          owner,
+          repoName
+        );
 
-      //   for (let i = 0; i < codeScanningAlerts.length; i += batchSize) {
-      //     yield codeScanningAlerts.slice(i, i + batchSize) as GitHubRecord[];
-      //   }
-      // } catch (error) {
-      //   console.warn(
-      //     `Failed to fetch code scanning alerts for ${owner}/${repoName}:`,
-      //     error
-      //   );
-      // }
+        for (let i = 0; i < codeScanningAlerts.length; i += batchSize) {
+          yield codeScanningAlerts.slice(i, i + batchSize) as GitHubRecord[];
+        }
+      } catch (error) {
+        console.warn(
+          `Failed to fetch code scanning alerts for ${owner}/${repoName}:`,
+          error
+        );
+      }
 
-      // try {
-      //   const dependabotAlerts = await this.client.listDependabotAlerts(
-      //     owner,
-      //     repoName
-      //   );
+      try {
+        const dependabotAlerts = await this.client.listDependabotAlerts(
+          owner,
+          repoName
+        );
 
-      //   for (let i = 0; i < dependabotAlerts.length; i += batchSize) {
-      //     yield dependabotAlerts.slice(i, i + batchSize) as GitHubRecord[];
-      //   }
-      // } catch (error) {
-      //   console.warn(
-      //     `Failed to fetch Dependabot alerts for ${owner}/${repoName}:`,
-      //     error
-      //   );
-      // }
+        for (let i = 0; i < dependabotAlerts.length; i += batchSize) {
+          yield dependabotAlerts.slice(i, i + batchSize) as GitHubRecord[];
+        }
+      } catch (error) {
+        console.warn(
+          `Failed to fetch Dependabot alerts for ${owner}/${repoName}:`,
+          error
+        );
+      }
     }
   }
 
@@ -251,7 +250,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
    * Fetch single record by ID
    */
   async fetchById(id: string): Promise<GitHubRecord | null> {
-    // Parse ID format: github_<type>_<owner>_<repo>_<number/id>
     const parts = id.split("_");
     if (parts.length < 4) return null;
 
@@ -365,10 +363,8 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
     const sourceId = this.getSourceId(sourceRecord);
     const recordId = this.generateRecordId(recordType, sourceId);
 
-    // Repository relationships
     if (recordType === "repository") {
       const repo = sourceRecord as GitHubRepository;
-      // Owner relationship
       relationships.push({
         sourceId: recordId,
         targetId: this.generateRecordId("user", repo.owner.login),
@@ -378,12 +374,10 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
       });
     }
 
-    // Issue relationships
     if (recordType === "issue") {
       const issue = sourceRecord as GitHubIssue;
       const repoId = this.extractRepoIdFromUrl(issue.repository_url);
 
-      // Repository relationship
       if (repoId) {
         relationships.push({
           sourceId: recordId,
@@ -394,7 +388,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         });
       }
 
-      // Author relationship
       relationships.push({
         sourceId: recordId,
         targetId: this.generateRecordId("user", issue.user.login),
@@ -403,7 +396,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         extractedBy: "explicit",
       });
 
-      // Assignee relationships
       issue.assignees?.forEach((assignee) => {
         relationships.push({
           sourceId: recordId,
@@ -414,7 +406,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         });
       });
 
-      // Milestone relationship
       if (issue.milestone) {
         relationships.push({
           sourceId: recordId,
@@ -429,7 +420,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
       }
     }
 
-    // Pull Request relationships
     if (recordType === "pull_request") {
       const pr = sourceRecord as GitHubPullRequest;
       const repoId = this.generateRecordId(
@@ -437,7 +427,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         `${pr.base.repo.owner.login}_${pr.base.repo.name}`
       );
 
-      // Repository relationship
       relationships.push({
         sourceId: recordId,
         targetId: repoId,
@@ -446,7 +435,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         extractedBy: "explicit",
       });
 
-      // Author relationship
       relationships.push({
         sourceId: recordId,
         targetId: this.generateRecordId("user", pr.user.login),
@@ -455,7 +443,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         extractedBy: "explicit",
       });
 
-      // Assignee relationships
       pr.assignees?.forEach((assignee) => {
         relationships.push({
           sourceId: recordId,
@@ -466,7 +453,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         });
       });
 
-      // Reviewer relationships
       pr.requested_reviewers?.forEach((reviewer) => {
         relationships.push({
           sourceId: recordId,
@@ -477,7 +463,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         });
       });
 
-      // Extract "fixes #123" from PR body
       if (pr.body) {
         const fixesPattern =
           /(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s+#(\d+)/gi;
@@ -499,7 +484,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
       }
     }
 
-    // Workflow relationships
     if (recordType === "workflow") {
       const workflow = sourceRecord as GitHubWorkflow;
       const repoId = this.extractRepoIdFromUrl(workflow.url);
@@ -515,11 +499,9 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
       }
     }
 
-    // Workflow Run relationships
     if (recordType === "workflow_run") {
       const run = sourceRecord as GitHubWorkflowRun;
 
-      // Workflow relationship
       relationships.push({
         sourceId: recordId,
         targetId: this.generateRecordId(
@@ -531,7 +513,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         extractedBy: "explicit",
       });
 
-      // Repository relationship
       relationships.push({
         sourceId: recordId,
         targetId: this.generateRecordId(
@@ -543,7 +524,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         extractedBy: "explicit",
       });
 
-      // Actor relationship
       relationships.push({
         sourceId: recordId,
         targetId: this.generateRecordId("user", run.actor.login),
@@ -553,7 +533,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
       });
     }
 
-    // Security Alert relationships
     if (
       recordType === "code_scanning_alert" ||
       recordType === "dependabot_alert"
@@ -574,7 +553,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
       }
     }
 
-    // Discussion relationships
     if (recordType === "discussion") {
       const discussion = sourceRecord as GitHubDiscussion;
       const repoId = this.extractRepoIdFromUrl(discussion.repository_url);
@@ -589,7 +567,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         });
       }
 
-      // Author relationship
       relationships.push({
         sourceId: recordId,
         targetId: this.generateRecordId("user", discussion.user.login),
@@ -598,7 +575,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         extractedBy: "explicit",
       });
 
-      // Answer relationship
       if (discussion.answer_chosen_by) {
         relationships.push({
           sourceId: recordId,
@@ -643,8 +619,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
    * Get deleted records (GitHub doesn't provide this directly)
    */
   async *getDeletedRecords(_since: Date): AsyncIterable<string[]> {
-    // GitHub doesn't have a direct API for deleted records
-    // We would need to track this ourselves or fetch all and compare
     yield [];
   }
 
@@ -842,7 +816,7 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
       }
     }
 
-    return [...new Set(people)]; // Remove duplicates
+    return [...new Set(people)];
   }
 
   /**
@@ -983,10 +957,8 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
   private async getRepositoriesToSync(
     user: string
   ): Promise<GitHubRepository[]> {
-    // Fetch all repositories for the owner
     const allRepos = await this.client.listRepositories(user);
 
-    // Filter based on configuration
     return allRepos.filter((repo) => {
       if (!this.config.includeArchived && repo.archived) return false;
       if (!this.config.includeForks && repo.fork) return false;

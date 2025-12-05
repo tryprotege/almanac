@@ -185,6 +185,13 @@ class MCPClientManager {
   }
 
   /**
+   * Get tools from a specific server
+   */
+  getServerTools(serverName: string): Tool[] {
+    return this.toolCache.get(serverName) || [];
+  }
+
+  /**
    * Call a tool on a remote MCP server
    */
   async callTool(

@@ -15,6 +15,7 @@ const MCPServerConfigSchema = new mongoose.Schema(
         "calendar",
         "jira",
         "github",
+        "fathom",
       ] satisfies SourceType[],
     },
     type: {

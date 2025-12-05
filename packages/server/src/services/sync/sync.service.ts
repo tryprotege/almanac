@@ -5,9 +5,10 @@ import { NotionAdapter } from "./adapters/notion-adapter.js";
 import { GitHubMCPClient } from "../sources/github/mcpClient.js";
 import { GitHubAdapter } from "./adapters/github-adapter.js";
 import { syncAllRecords } from "./record-sync.service.js";
-import { SourceType } from "../../types/index.js";
 
 import { MCPServerConfig } from "../../models/mcp-config.model.js";
+import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
+import { FathomAdapter } from "./adapters/fathom-adapter.js";
 
 export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
   const recordStore = new RecordStore();
@@ -31,6 +32,22 @@ export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
     await syncAllRecords(recordStore, "github", githubAdapter);
 
     console.log("✅ Saved GitHub records into document DB");
+  }
+
+  if (mcpConfig.name === "fathom") {
+    const fathomClient = new FathomMCPClient();
+    // Get owner from environment or config
+    const fathomAdaptor = new FathomAdapter(fathomClient, {
+      includeActionItems: true,
+      includeNotes: true,
+      includeHighlights: true,
+      includeTeamMembers: true,
+      includeTeams: true,
+      includeTranscripts: true,
+    });
+    await syncAllRecords(recordStore, "fathom", fathomAdaptor);
+
+    console.log("✅ Saved Fathom records into document DB");
   }
 };
 

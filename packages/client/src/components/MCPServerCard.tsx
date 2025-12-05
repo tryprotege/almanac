@@ -8,8 +8,7 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
+import { useState } from "react";
 import {
   useConnectMCPServer,
   useDeleteMCPServer,
@@ -26,7 +25,7 @@ interface MCPServerCardProps {
 
 export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [syncJobId, setSyncJobId] = useState<string | null>(null);
+  const [_syncJobId, setSyncJobId] = useState<string | null>(null);
 
   const connectMutation = useConnectMCPServer();
   const disconnectMutation = useDisconnectMCPServer();

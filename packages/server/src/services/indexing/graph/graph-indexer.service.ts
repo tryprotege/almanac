@@ -42,7 +42,7 @@ export class GraphIndexerService {
       errors: 0,
     };
 
-    console.log(`🔄 Starting graph indexing for source: ${source}`);
+    logger.log(`🔄 Starting graph indexing for source: ${source}`);
 
     let skip = 0;
     let hasMore = true;
@@ -79,12 +79,12 @@ export class GraphIndexerService {
       }
 
       skip += records.length;
-      console.log(`📊 Progress: ${stats.nodes} nodes created`);
+      logger.log(`📊 Progress: ${stats.nodes} nodes created`);
     }
 
     // Second pass: Create relationships
     if (includeRelationships) {
-      console.log(`🔗 Extracting relationships...`);
+      logger.log(`🔗 Extracting relationships...`);
       skip = 0;
       hasMore = true;
 
@@ -115,16 +115,14 @@ export class GraphIndexerService {
         }
 
         skip += records.length;
-        console.log(
-          `📊 Progress: ${stats.relationships} relationships created`
-        );
+        logger.log(`📊 Progress: ${stats.relationships} relationships created`);
       }
     }
 
-    console.log(`✅ Graph indexing complete for ${source}`);
-    console.log(`   Nodes: ${stats.nodes}`);
-    console.log(`   Relationships: ${stats.relationships}`);
-    console.log(`   Errors: ${stats.errors}`);
+    logger.log(`✅ Graph indexing complete for ${source}`);
+    logger.log(`   Nodes: ${stats.nodes}`);
+    logger.log(`   Relationships: ${stats.relationships}`);
+    logger.log(`   Errors: ${stats.errors}`);
 
     return stats;
   }
@@ -192,7 +190,7 @@ export class GraphIndexerService {
       errors: 0,
     };
 
-    console.log(`🔄 Indexing ${ids.length} records by ID`);
+    logger.log(`🔄 Indexing ${ids.length} records by ID`);
 
     const records = await this.recordStore.findByIds(ids);
 
@@ -211,7 +209,7 @@ export class GraphIndexerService {
       }
     }
 
-    console.log(
+    logger.log(
       `✅ Indexed ${stats.nodes} nodes with ${stats.relationships} relationships`
     );
     return stats;
@@ -294,9 +292,7 @@ export class GraphIndexerService {
    * Clean up nodes for deleted records
    */
   async cleanupDeletedRecords(source: SourceType): Promise<number> {
-    console.log(
-      `🧹 Cleaning up graph nodes for deleted records from ${source}`
-    );
+    logger.log(`🧹 Cleaning up graph nodes for deleted records from ${source}`);
 
     const deletedRecords = await this.recordStore.findBySourceAndType(
       source,
@@ -325,7 +321,7 @@ export class GraphIndexerService {
       }
     }
 
-    console.log(
+    logger.log(
       `✅ Cleaned up ${cleaned} nodes from ${deleted.length} deleted records`
     );
     return cleaned;
@@ -351,7 +347,7 @@ export class GraphIndexerService {
       errors: 0,
     };
 
-    console.log(`🔄 Rebuilding relationships for source: ${source}`);
+    logger.log(`🔄 Rebuilding relationships for source: ${source}`);
 
     let skip = 0;
     let hasMore = true;
@@ -383,12 +379,12 @@ export class GraphIndexerService {
       }
 
       skip += records.length;
-      console.log(`📊 Progress: ${stats.relationships} relationships rebuilt`);
+      logger.log(`📊 Progress: ${stats.relationships} relationships rebuilt`);
     }
 
-    console.log(`✅ Relationship rebuild complete`);
-    console.log(`   Relationships: ${stats.relationships}`);
-    console.log(`   Errors: ${stats.errors}`);
+    logger.log(`✅ Relationship rebuild complete`);
+    logger.log(`   Relationships: ${stats.relationships}`);
+    logger.log(`   Errors: ${stats.errors}`);
 
     return stats;
   }

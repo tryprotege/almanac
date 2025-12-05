@@ -95,7 +95,7 @@ export const updateSchemaWithDiscovery = async (
 
   // Update entity types if any new ones found
   if (newEntityTypes.length > 0) {
-    console.log(
+    logger.log(
       `🔍 Auto-discovered ${newEntityTypes.length} new entity types:`,
       newEntityTypes.map((e) => e.name).join(", ")
     );
@@ -111,7 +111,7 @@ export const updateSchemaWithDiscovery = async (
 
   // Update relationship types if any new ones found
   if (newRelationshipTypes.length > 0) {
-    console.log(
+    logger.log(
       `🔍 Auto-discovered ${newRelationshipTypes.length} new relationship types:`,
       newRelationshipTypes.map((r) => r.name).join(", ")
     );

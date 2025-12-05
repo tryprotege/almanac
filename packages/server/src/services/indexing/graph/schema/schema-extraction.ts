@@ -148,15 +148,15 @@ export async function extractGraphFromContent(
     const extracted = JSON.parse(cleaned);
 
     // Diagnostic logging
-    console.log(`📊 LLM Extraction Results:`);
-    console.log(`   - Content length: ${content.length} chars`);
-    console.log(`   - Entities extracted: ${extracted.entities?.length || 0}`);
-    console.log(
+    logger.log(`📊 LLM Extraction Results:`);
+    logger.log(`   - Content length: ${content.length} chars`);
+    logger.log(`   - Entities extracted: ${extracted.entities?.length || 0}`);
+    logger.log(
       `   - Relationships extracted: ${extracted.relationships?.length || 0}`
     );
 
     if (extracted.relationships && extracted.relationships.length > 0) {
-      console.log(
+      logger.log(
         `   - Sample relationships:`,
         JSON.stringify(extracted.relationships.slice(0, 3), null, 2)
       );

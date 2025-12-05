@@ -397,21 +397,21 @@ const runServer = async () => {
   });
 
   app.listen(PORT, HOST, () => {
-    console.error(`🚀 eBee MCP server running on http://${HOST}:${PORT}`);
-    console.error(`📡 MCP endpoint: http://${HOST}:${PORT}/mcp`);
-    console.error(`💚 Health check: http://${HOST}:${PORT}/health`);
+    logger.error(`🚀 eBee MCP server running on http://${HOST}:${PORT}`);
+    logger.error(`📡 MCP endpoint: http://${HOST}:${PORT}/mcp`);
+    logger.error(`💚 Health check: http://${HOST}:${PORT}/health`);
   });
 };
 
 // Handle graceful shutdown
 process.on("SIGINT", async () => {
-  console.error("Shutting down MCP server...");
+  logger.error("Shutting down MCP server...");
   await mcpClientManager.disconnectAll();
   await shutdownServices();
   process.exit(0);
 });
 
 runServer().catch((error) => {
-  console.error("Fatal error in MCP server:", error);
+  logger.error("Fatal error in MCP server:", error);
   process.exit(1);
 });

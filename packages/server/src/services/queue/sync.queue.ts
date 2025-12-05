@@ -40,24 +40,24 @@ export const syncMcpServerWorker = new Worker<
 
 // Set up worker event handlers
 syncMcpServerWorker.on("completed", (job) => {
-  console.log(
+  logger.log(
     `✅ Sync job completed: jobId: ${job.id} for ${job.data.mcpConfig.name}`
   );
 });
 
 syncMcpServerWorker.on("failed", (job, err) => {
-  console.error(
+  logger.error(
     `❌ Sync job failed: jobId: ${job?.id} for ${job?.data.mcpConfig.name}`,
     err
   );
 });
 
 syncMcpServerWorker.on("error", (err) => {
-  console.error("Worker error:", err);
+  logger.error("Worker error:", err);
 });
 
 syncMcpServerWorker.on("active", (job) => {
-  console.log(
+  logger.log(
     `🔄 Sync job started: jobId: ${job.id} for ${job.data.mcpConfig.name}`
   );
 });

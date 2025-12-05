@@ -83,24 +83,24 @@ export const indexGraphWorker = new Worker<
 
 // Set up worker event handlers
 indexGraphWorker.on("completed", (job) => {
-  console.log(
+  logger.log(
     `✅ Graph index job completed: jobId: ${job.id} for record ${job.data.source}`
   );
 });
 
 indexGraphWorker.on("failed", (job, err) => {
-  console.error(
+  logger.error(
     `❌ Graph index job failed: jobId: ${job?.id} for record ${job?.data.source}`,
     err
   );
 });
 
 indexGraphWorker.on("error", (err) => {
-  console.error("Graph index worker error:", err);
+  logger.error("Graph index worker error:", err);
 });
 
 indexGraphWorker.on("active", (job) => {
-  console.log(
+  logger.log(
     `🔄 Graph index job started: jobId: ${job.id} for record ${job.data.source}`
   );
 });

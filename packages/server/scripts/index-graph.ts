@@ -58,16 +58,16 @@ function parseArgs(): ScriptOptions {
 async function indexGraphRecords() {
   const options = parseArgs();
 
-  console.log("🚀 Graph Indexing Script");
-  console.log("========================");
-  console.log(`Source: ${options.source || "all"}`);
-  console.log(`Limit: ${options.limit} records`);
-  console.log(`Batch Size: ${options.batchSize}`);
-  console.log(`Force Re-index: ${options.force ? "Yes" : "No"}`);
-  console.log(
+  logger.log("🚀 Graph Indexing Script");
+  logger.log("========================");
+  logger.log(`Source: ${options.source || "all"}`);
+  logger.log(`Limit: ${options.limit} records`);
+  logger.log(`Batch Size: ${options.batchSize}`);
+  logger.log(`Force Re-index: ${options.force ? "Yes" : "No"}`);
+  logger.log(
     `Include Relationships: ${options.includeRelationships ? "Yes" : "No"}`
   );
-  console.log("");
+  logger.log("");
 
   const { memgraph } = await initializeServices();
   const validConfigs = await loadProxyConfig();
@@ -81,8 +81,8 @@ async function indexGraphRecords() {
       continue;
     }
 
-    console.log(`\n📦 Processing source: ${config.name}`);
-    console.log("─".repeat(50));
+    logger.log(`\n📦 Processing source: ${config.name}`);
+    logger.log("─".repeat(50));
 
     const recordStore = new RecordStore();
     const graphStore = new GraphStore(memgraph);
@@ -119,16 +119,16 @@ async function indexGraphRecords() {
         record.updatedAt <= record.lastGraphIndexDate
     );
 
-    console.log(`\n📊 Current Statistics:`);
-    console.log(`   Total Records: ${allRecords.length}`);
-    console.log(`   Already Indexed: ${alreadyIndexed.length}`);
-    console.log(`   Needs Indexing: ${needsIndexing.length}`);
-    console.log(
+    logger.log(`\n📊 Current Statistics:`);
+    logger.log(`   Total Records: ${allRecords.length}`);
+    logger.log(`   Already Indexed: ${alreadyIndexed.length}`);
+    logger.log(`   Needs Indexing: ${needsIndexing.length}`);
+    logger.log(
       `     - Never indexed: ${
         allRecords.filter((r) => !r.lastGraphIndexDate).length
       }`
     );
-    console.log(
+    logger.log(
       `     - Updated since last index: ${
         allRecords.filter(
           (r) =>
@@ -140,7 +140,7 @@ async function indexGraphRecords() {
     );
 
     if (needsIndexing.length === 0 && !options.force) {
-      console.log(`\n✅ All records already indexed for ${config.name}`);
+      logger.log(`\n✅ All records already indexed for ${config.name}`);
       continue;
     }
 
@@ -160,11 +160,11 @@ async function indexGraphRecords() {
       }
     );
 
-    console.log(`\n✅ Indexing Complete for ${config.name}`);
-    console.log(`   Nodes Created: ${result.nodes}`);
-    console.log(`   Relationships Created: ${result.relationships}`);
-    console.log(`   Errors: ${result.errors}`);
-    console.log(`   Skipped (toxic): ${result.skippedToxic}`);
+    logger.log(`\n✅ Indexing Complete for ${config.name}`);
+    logger.log(`   Nodes Created: ${result.nodes}`);
+    logger.log(`   Relationships Created: ${result.relationships}`);
+    logger.log(`   Errors: ${result.errors}`);
+    logger.log(`   Skipped (toxic): ${result.skippedToxic}`);
 
     // Get statistics after indexing
     const allRecordsAfter = await recordStore.findBySourceAndType(
@@ -177,15 +177,15 @@ async function indexGraphRecords() {
       (record) => !record.lastGraphIndexDate
     );
 
-    console.log(`\n📊 Final Statistics:`);
-    console.log(`   Total Records: ${allRecordsAfter.length}`);
-    console.log(
+    logger.log(`\n📊 Final Statistics:`);
+    logger.log(`   Total Records: ${allRecordsAfter.length}`);
+    logger.log(
       `   Indexed: ${allRecordsAfter.length - unindexedRecordsAfter.length}`
     );
-    console.log(`   Remaining Unindexed: ${unindexedRecordsAfter.length}`);
+    logger.log(`   Remaining Unindexed: ${unindexedRecordsAfter.length}`);
   }
 
-  console.log(`\n✨ Graph indexing script completed`);
+  logger.log(`\n✨ Graph indexing script completed`);
 }
 
 const run = async () => {

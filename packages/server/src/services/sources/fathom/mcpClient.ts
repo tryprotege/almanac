@@ -75,13 +75,13 @@ export class FathomMCPClient {
               );
               return extractedJson as T;
             } catch (innerError) {
-              console.error("Failed to parse extracted JSON:", innerError);
+              logger.error("Failed to parse extracted JSON:", innerError);
             }
           }
 
           // If we still can't parse, throw a detailed error
-          console.error("Failed to parse MCP response:", error);
-          console.error("Response text:", text.substring(0, 500));
+          logger.error("Failed to parse MCP response:", error);
+          logger.error("Response text:", text.substring(0, 500));
           throw new Error(
             `Invalid JSON in MCP response: ${text.substring(0, 100)}...`
           );

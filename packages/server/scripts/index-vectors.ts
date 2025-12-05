@@ -71,13 +71,13 @@ async function getVectorStats(
 async function indexVectorRecords() {
   const options = parseArgs();
 
-  console.log("🚀 Vector Indexing Script");
-  console.log("========================");
-  console.log(`Source: ${options.source || "all"}`);
-  console.log(`Limit: ${options.limit} records`);
-  console.log(`Batch Size: ${options.batchSize}`);
-  console.log(`Force Re-index: ${options.force ? "Yes" : "No"}`);
-  console.log("");
+  logger.log("🚀 Vector Indexing Script");
+  logger.log("========================");
+  logger.log(`Source: ${options.source || "all"}`);
+  logger.log(`Limit: ${options.limit} records`);
+  logger.log(`Batch Size: ${options.batchSize}`);
+  logger.log(`Force Re-index: ${options.force ? "Yes" : "No"}`);
+  logger.log("");
 
   const { qdrant } = await initializeServices();
   const recordStore = new RecordStore();
@@ -90,23 +90,23 @@ async function indexVectorRecords() {
   const sources: SourceType[] = options.source ? [options.source] : ["notion"]; // Add more sources as needed
 
   for (const source of sources) {
-    console.log(`\n📦 Processing source: ${source}`);
-    console.log("─".repeat(50));
+    logger.log(`\n📦 Processing source: ${source}`);
+    logger.log("─".repeat(50));
 
     // Get statistics before indexing
     const statsBefore = await getVectorStats(recordStore, source);
-    console.log(`\n📊 Current Statistics:`);
-    console.log(`   Total Records: ${statsBefore.totalRecords}`);
-    console.log(`   Already Indexed: ${statsBefore.indexed}`);
-    console.log(`   Unindexed: ${statsBefore.unindexed}`);
+    logger.log(`\n📊 Current Statistics:`);
+    logger.log(`   Total Records: ${statsBefore.totalRecords}`);
+    logger.log(`   Already Indexed: ${statsBefore.indexed}`);
+    logger.log(`   Unindexed: ${statsBefore.unindexed}`);
 
     if (statsBefore.unindexed === 0 && !options.force) {
-      console.log(`\n✅ All records already indexed for ${source}`);
+      logger.log(`\n✅ All records already indexed for ${source}`);
       continue;
     }
 
     // Find unindexed or all records based on force flag
-    console.log(`\n🔍 Finding records to index...`);
+    logger.log(`\n🔍 Finding records to index...`);
 
     const allRecords = await recordStore.findBySourceAndType(source, "", {
       includeDeleted: false,
@@ -117,15 +117,15 @@ async function indexVectorRecords() {
       : allRecords.filter((record) => !record.lastEmbedDate);
 
     if (candidateRecords.length === 0) {
-      console.log(`\n✅ No records to index for ${source}`);
+      logger.log(`\n✅ No records to index for ${source}`);
       continue;
     }
 
     // Apply limit
     const recordsToIndex = candidateRecords.slice(0, options.limit);
 
-    console.log(`\n📝 Found ${candidateRecords.length} candidate records`);
-    console.log(`🔄 Processing ${recordsToIndex.length} records (limited)...`);
+    logger.log(`\n📝 Found ${candidateRecords.length} candidate records`);
+    logger.log(`🔄 Processing ${recordsToIndex.length} records (limited)...`);
 
     const stats = {
       processed: 0,
@@ -137,7 +137,7 @@ async function indexVectorRecords() {
     // Process in batches
     for (let i = 0; i < recordsToIndex.length; i += options.batchSize!) {
       const batch = recordsToIndex.slice(i, i + options.batchSize!);
-      console.log(
+      logger.log(
         `\n   Batch ${Math.floor(i / options.batchSize!) + 1}/${Math.ceil(
           recordsToIndex.length / options.batchSize!
         )}`
@@ -168,26 +168,26 @@ async function indexVectorRecords() {
         }
       }
 
-      console.log(
+      logger.log(
         `   Progress: ${stats.processed}/${recordsToIndex.length} processed, ${stats.chunks} chunks created`
       );
     }
 
-    console.log(`\n✅ Vector Indexing Complete for ${source}`);
-    console.log(`   Processed: ${stats.processed}`);
-    console.log(`   Total Chunks: ${stats.chunks}`);
-    console.log(`   Skipped (no content): ${stats.skipped}`);
-    console.log(`   Errors: ${stats.errors}`);
+    logger.log(`\n✅ Vector Indexing Complete for ${source}`);
+    logger.log(`   Processed: ${stats.processed}`);
+    logger.log(`   Total Chunks: ${stats.chunks}`);
+    logger.log(`   Skipped (no content): ${stats.skipped}`);
+    logger.log(`   Errors: ${stats.errors}`);
 
     // Get statistics after indexing
     const statsAfter = await getVectorStats(recordStore, source);
-    console.log(`\n📊 Final Statistics:`);
-    console.log(`   Total Records: ${statsAfter.totalRecords}`);
-    console.log(`   Indexed: ${statsAfter.indexed}`);
-    console.log(`   Remaining Unindexed: ${statsAfter.unindexed}`);
+    logger.log(`\n📊 Final Statistics:`);
+    logger.log(`   Total Records: ${statsAfter.totalRecords}`);
+    logger.log(`   Indexed: ${statsAfter.indexed}`);
+    logger.log(`   Remaining Unindexed: ${statsAfter.unindexed}`);
   }
 
-  console.log(`\n✨ Vector indexing script completed`);
+  logger.log(`\n✨ Vector indexing script completed`);
 }
 
 const run = async () => {

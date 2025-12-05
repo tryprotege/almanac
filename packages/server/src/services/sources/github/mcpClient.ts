@@ -68,7 +68,7 @@ export class GitHubMCPClient {
         try {
           return JSON.parse(textContent.text) as T;
         } catch (error) {
-          console.error("Failed to parse MCP response:", error);
+          logger.error("Failed to parse MCP response:", error);
           throw new Error(
             `Invalid JSON in MCP response: ${textContent.text.substring(
               0,

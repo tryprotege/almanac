@@ -10,6 +10,7 @@ import {
   FathomTeam,
   FathomTeamMember,
 } from "@ebee-oss/shared-util";
+import logger from "../../../utils/logger.js";
 
 /**
  * Fathom MCP Client wrapper for data extraction
@@ -75,12 +76,12 @@ export class FathomMCPClient {
               );
               return extractedJson as T;
             } catch (innerError) {
-              logger.error("Failed to parse extracted JSON:", innerError);
+              logger.error({ innerError }, "Failed to parse extracted JSON:");
             }
           }
 
           // If we still can't parse, throw a detailed error
-          logger.error("Failed to parse MCP response:", error);
+          logger.error({ error }, "Failed to parse MCP response:");
           logger.error("Response text:", text.substring(0, 500));
           throw new Error(
             `Invalid JSON in MCP response: ${text.substring(0, 100)}...`

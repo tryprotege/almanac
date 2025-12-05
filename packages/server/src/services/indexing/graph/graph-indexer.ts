@@ -121,7 +121,7 @@ export const extractGraphFromRecord = async (
       await options.graphStore.deleteOrphanedRelationships();
 
     if (deletedEntities > 0 || deletedRelationships > 0) {
-      logger.log(
+      logger.info(
         `🧹 Cleaned up ${deletedEntities} entities and ${deletedRelationships} relationships ` +
           `after unlinking from ${
             options.force ? "force re-index" : "updated record"
@@ -155,8 +155,8 @@ export const extractGraphFromRecord = async (
   const filteredRelationships = filterLowValueRelationships(relationships);
 
   if (relationships.length !== filteredRelationships.length) {
-    logger.log(`   - Relationships before filter: ${relationships.length}`);
-    logger.log(
+    logger.info(`   - Relationships before filter: ${relationships.length}`);
+    logger.info(
       `   - Relationships after filter: ${filteredRelationships.length}`
     );
   }
@@ -306,15 +306,15 @@ export const indexAllRecords = async (
     force = false,
   } = options;
 
-  logger.log(`🔄 Starting graph indexing for source: ${source}`);
-  logger.log(`   Configuration:`);
-  logger.log(`   - Batch size: ${batchSize}`);
-  logger.log(`   - Concurrency: ${concurrency}`);
-  logger.log(
+  logger.info(`🔄 Starting graph indexing for source: ${source}`);
+  logger.info(`   Configuration:`);
+  logger.info(`   - Batch size: ${batchSize}`);
+  logger.info(`   - Concurrency: ${concurrency}`);
+  logger.info(
     `   - Toxic filter: ${enableToxicFilter ? "enabled" : "disabled"}`
   );
-  logger.log(`   - Max entities per doc: ${maxEntitiesPerDoc}`);
-  logger.log(`   - Force re-index: ${force ? "enabled" : "disabled"}`);
+  logger.info(`   - Max entities per doc: ${maxEntitiesPerDoc}`);
+  logger.info(`   - Force re-index: ${force ? "enabled" : "disabled"}`);
 
   const stats: IndexingStats = {
     nodes: 0,
@@ -467,7 +467,7 @@ export const indexAllRecords = async (
         });
       }
 
-      logger.log(
+      logger.info(
         `📊 Progress: ${stats.nodes} nodes, ${stats.relationships} relationships, ${stats.skippedToxic} toxic`
       );
     } catch (err) {
@@ -478,11 +478,11 @@ export const indexAllRecords = async (
     skip += records.length;
   }
 
-  logger.log(`✅ Graph indexing complete for ${source}`);
-  logger.log(`   Nodes: ${stats.nodes}`);
-  logger.log(`   Relationships: ${stats.relationships}`);
-  logger.log(`   Errors: ${stats.errors}`);
-  logger.log(`   Skipped (toxic): ${stats.skippedToxic}`);
+  logger.info(`✅ Graph indexing complete for ${source}`);
+  logger.info(`   Nodes: ${stats.nodes}`);
+  logger.info(`   Relationships: ${stats.relationships}`);
+  logger.info(`   Errors: ${stats.errors}`);
+  logger.info(`   Skipped (toxic): ${stats.skippedToxic}`);
 
   return stats;
 };

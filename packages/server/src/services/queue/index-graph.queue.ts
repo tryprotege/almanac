@@ -13,6 +13,7 @@ import { GitHubMCPClient } from "../sources/github/mcpClient.js";
 import { GitHubAdapter } from "../sync/adapters/github-adapter.js";
 import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
 import { FathomAdapter } from "../sync/adapters/fathom-adapter.js";
+import logger from "../../utils/logger.js";
 
 const processor: Processor<
   IndexGraphJobData,
@@ -83,24 +84,24 @@ export const indexGraphWorker = new Worker<
 
 // Set up worker event handlers
 indexGraphWorker.on("completed", (job) => {
-  logger.log(
+  logger.info(
     `✅ Graph index job completed: jobId: ${job.id} for record ${job.data.source}`
   );
 });
 
 indexGraphWorker.on("failed", (job, err) => {
   logger.error(
-    `❌ Graph index job failed: jobId: ${job?.id} for record ${job?.data.source}`,
-    err
+    { err },
+    `❌ Graph index job failed: jobId: ${job?.id} for record ${job?.data.source}`
   );
 });
 
 indexGraphWorker.on("error", (err) => {
-  logger.error("Graph index worker error:", err);
+  logger.error({ err }, "Graph index worker error:");
 });
 
 indexGraphWorker.on("active", (job) => {
-  logger.log(
+  logger.info(
     `🔄 Graph index job started: jobId: ${job.id} for record ${job.data.source}`
   );
 });

@@ -69,7 +69,7 @@ export async function syncAllRecords(
   const jobId = randomUUID();
   const startTime = Date.now();
 
-  logger.log(`🚀 Starting full sync for ${source} (Job: ${jobId})`);
+  logger.info(`🚀 Starting full sync for ${source} (Job: ${jobId})`);
 
   let totalProcessed = 0;
   let totalCreated = 0;
@@ -82,7 +82,7 @@ export async function syncAllRecords(
     const iterator = adapter.fetchAll({ batchSize: 50 });
 
     for await (const batch of iterator) {
-      logger.log(`  Processing batch of ${batch.length} records...`);
+      logger.info(`  Processing batch of ${batch.length} records...`);
 
       await Promise.all(
         batch.map(
@@ -103,7 +103,7 @@ export async function syncAllRecords(
                 }
 
                 if (totalProcessed % 10 === 0) {
-                  logger.log(
+                  logger.info(
                     `  Progress: ${totalProcessed} processed (${totalCreated} created, ${totalUpdated} updated)`
                   );
                 }
@@ -127,12 +127,12 @@ export async function syncAllRecords(
 
     const duration = Date.now() - startTime;
 
-    logger.log(`\n✅ Sync completed for ${source}:`);
-    logger.log(`  Total: ${totalProcessed}`);
-    logger.log(`  Created: ${totalCreated}`);
-    logger.log(`  Updated: ${totalUpdated}`);
-    logger.log(`  Failed: ${totalFailed}`);
-    logger.log(`  Duration: ${duration}ms`);
+    logger.info(`\n✅ Sync completed for ${source}:`);
+    logger.info(`  Total: ${totalProcessed}`);
+    logger.info(`  Created: ${totalCreated}`);
+    logger.info(`  Updated: ${totalUpdated}`);
+    logger.info(`  Failed: ${totalFailed}`);
+    logger.info(`  Duration: ${duration}ms`);
 
     return {
       jobId,

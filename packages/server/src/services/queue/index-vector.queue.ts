@@ -6,6 +6,7 @@ import { VectorStore } from "../../stores/vector.store.js";
 import { initializeServices } from "../../mcp/initialization.js";
 import { createRedisConnection, QUEUE_NAME } from "./config.js";
 import { SourceType } from "../../types/index.js";
+import { logger } from "../../utils/logger.js";
 
 const processor: Processor<
   IndexVectorJobData,
@@ -39,24 +40,24 @@ export const indexVectorWorker = new Worker<
 
 // Set up worker event handlers
 indexVectorWorker.on("completed", (job) => {
-  logger.log(
+  logger.info(
     `✅ Vector index job completed: jobId: ${job.id} for ${job.data.source}`
   );
 });
 
 indexVectorWorker.on("failed", (job, err) => {
   logger.error(
-    `❌ Vector index job failed: jobId: ${job?.id} for ${job?.data.source}`,
-    err
+    { err },
+    `❌ Vector index job failed: jobId: ${job?.id} for ${job?.data.source}`
   );
 });
 
 indexVectorWorker.on("error", (err) => {
-  logger.error("Vector index worker error:", err);
+  logger.error({ err }, "Vector index worker error:");
 });
 
 indexVectorWorker.on("active", (job) => {
-  logger.log(
+  logger.info(
     `🔄 Vector index job started: jobId: ${job.id} for ${job.data.source}`
   );
 });

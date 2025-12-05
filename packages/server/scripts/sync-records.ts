@@ -13,18 +13,18 @@ import logger from "../src/utils/logger.js";
  */
 
 const run = async () => {
-  logger.log("🔄 Starting record sync (MongoDB only)");
-  logger.log("=======================================\n");
+  logger.info("🔄 Starting record sync (MongoDB only)");
+  logger.info("=======================================\n");
 
   // init db connections and mcp server
   await initializeServices();
 
   await syncAllRemoteMcpServers();
 
-  logger.log("\n✨ Record sync completed");
-  logger.log("\nNext steps:");
-  logger.log("  - Run 'pnpm tsx scripts/index-graph.ts' to index to graph DB");
-  logger.log(
+  logger.info("\n✨ Record sync completed");
+  logger.info("\nNext steps:");
+  logger.info("  - Run 'pnpm tsx scripts/index-graph.ts' to index to graph DB");
+  logger.info(
     "  - Run 'pnpm tsx scripts/index-vectors.ts' to index to vector DB"
   );
 };

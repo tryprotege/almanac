@@ -9,6 +9,7 @@ import { syncAllRecords } from "./record-sync.service.js";
 import { MCPServerConfig } from "../../models/mcp-config.model.js";
 import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
 import { FathomAdapter } from "./adapters/fathom-adapter.js";
+import logger from "../../utils/logger.js";
 
 export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
   const recordStore = new RecordStore();
@@ -18,7 +19,7 @@ export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
     const notionAdapter = new NotionAdapter(notionClient);
     await syncAllRecords(recordStore, "notion", notionAdapter);
 
-    logger.log("✅ Saved records into document DB");
+    logger.info("✅ Saved records into document DB");
   }
 
   if (mcpConfig.name === "github") {
@@ -31,7 +32,7 @@ export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
     });
     await syncAllRecords(recordStore, "github", githubAdapter);
 
-    logger.log("✅ Saved GitHub records into document DB");
+    logger.info("✅ Saved GitHub records into document DB");
   }
 
   if (mcpConfig.name === "fathom") {
@@ -47,7 +48,7 @@ export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
     });
     await syncAllRecords(recordStore, "fathom", fathomAdaptor);
 
-    logger.log("✅ Saved Fathom records into document DB");
+    logger.info("✅ Saved Fathom records into document DB");
   }
 };
 

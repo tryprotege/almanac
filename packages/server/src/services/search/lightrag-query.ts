@@ -49,7 +49,7 @@ export async function lightragQuery(
   const mode = query.mode || "mix";
   const responseFormat = query.response_format || "compact";
 
-  logger.log(`\n[LightRAG] Query: "${query.query}" (mode: ${mode})`);
+  logger.info(`\n[LightRAG] Query: "${query.query}" (mode: ${mode})`);
 
   // Apply defaults
   const params = applyDefaults(query);
@@ -61,7 +61,7 @@ export async function lightragQuery(
       : { high_level: [], low_level: [] };
 
   if (mode !== "naive") {
-    logger.log(
+    logger.info(
       `[LightRAG] Keywords - High: [${keywords.high_level.join(
         ", "
       )}], Low: [${keywords.low_level.join(", ")}]`
@@ -121,7 +121,7 @@ export async function lightragQuery(
 
   const processingTime = Date.now() - startTime;
 
-  logger.log(
+  logger.info(
     `[LightRAG] Complete in ${processingTime}ms - ${
       chunks.length
     } chunks from ${countUniqueDocuments(chunks)} documents\n`
@@ -157,7 +157,7 @@ async function naiveMode(
   params: LightRAGQuery,
   deps: LightRAGDependencies
 ): Promise<{ chunks: LightRAGChunk[]; vectorMatches: number }> {
-  logger.log(`[LightRAG] Running naive mode (vector-only)`);
+  logger.info(`[LightRAG] Running naive mode (vector-only)`);
 
   // Generate embedding
   const queryVector = (await embed([params.query]))[0];
@@ -187,7 +187,7 @@ async function localMode(
   vectorMatches: number;
   graphExpanded: number;
 }> {
-  logger.log(`[LightRAG] Running local mode (entity-focused)`);
+  logger.info(`[LightRAG] Running local mode (entity-focused)`);
 
   // Use low-level keywords for entity search
   const entities = await searchEntitiesByKeywords(
@@ -225,7 +225,7 @@ async function globalMode(
   vectorMatches: number;
   graphExpanded: number;
 }> {
-  logger.log(`[LightRAG] Running global mode (relationship-focused)`);
+  logger.info(`[LightRAG] Running global mode (relationship-focused)`);
 
   // Use high-level keywords for relationship search
   const relationships = await searchRelationshipsByKeywords(
@@ -266,7 +266,7 @@ async function hybridMode(
   vectorMatches: number;
   graphExpanded: number;
 }> {
-  logger.log(`[LightRAG] Running hybrid mode (local + global)`);
+  logger.info(`[LightRAG] Running hybrid mode (local + global)`);
 
   // Run both in parallel
   const [localResult, globalResult] = await Promise.all([
@@ -299,7 +299,7 @@ async function mixMode(
   graphExpanded: number;
   reranked: boolean;
 }> {
-  logger.log(`[LightRAG] Running mix mode (KG + vector + reranking)`);
+  logger.info(`[LightRAG] Running mix mode (KG + vector + reranking)`);
 
   // Run hybrid mode first
   const hybridResult = await hybridMode(params, keywords, deps);
@@ -310,7 +310,7 @@ async function mixMode(
     deps.reranker.isEnabled() &&
     hybridResult.chunks.length > 0
   ) {
-    logger.log(`[LightRAG] Applying reranking...`);
+    logger.info(`[LightRAG] Applying reranking...`);
     const rerankedChunks = await rerankChunks(
       params.query,
       hybridResult.chunks,

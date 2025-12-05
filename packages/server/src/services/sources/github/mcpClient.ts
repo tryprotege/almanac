@@ -1,4 +1,5 @@
 import { mcpClientManager } from "../../../mcp/client.js";
+import logger from "../../../utils/logger.js";
 import {
   GitHubRepository,
   GitHubOrganization,
@@ -68,7 +69,7 @@ export class GitHubMCPClient {
         try {
           return JSON.parse(textContent.text) as T;
         } catch (error) {
-          logger.error("Failed to parse MCP response:", error);
+          logger.error({ error }, "Failed to parse MCP response:");
           throw new Error(
             `Invalid JSON in MCP response: ${textContent.text.substring(
               0,

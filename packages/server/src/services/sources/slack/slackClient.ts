@@ -60,7 +60,9 @@ export class SlackClient {
   async getChannelMessages(
     channelId: string,
     options: {
+      /** Unix Timestamp in seconds. Only messages after this Unix timestamp will be included in results. */
       oldest?: string;
+      /** Unix Timestamp in seconds. Only messages after this Unix timestamp will be included in results. */
       latest?: string;
       limit?: number;
     } = {}
@@ -75,13 +77,11 @@ export class SlackClient {
 
       const params: ConversationsHistoryArguments = {
         channel: channelId,
-        limit: options.limit || 100,
+        limit: options.limit && options.limit < 999 ? options.limit : 999,
         inclusive: true,
       };
 
-      if (cursor) {
-        params.cursor = cursor;
-      }
+      if (cursor) params.cursor = cursor;
       if (options.oldest) params.oldest = options.oldest;
       if (options.latest) params.latest = options.latest;
 
@@ -185,12 +185,12 @@ export class SlackClient {
   async getAllChannelMessagesWithThreads(
     channelId: string,
     options: {
-      maxMessages?: number;
+      limit?: number;
       oldest?: string;
       latest?: string;
     } = {}
   ): Promise<MessageElement[]> {
-    const { maxMessages = 1000, oldest, latest } = options;
+    const { limit = 1000, oldest, latest } = options;
 
     logger.info(`Fetching messages from channel ${channelId}...`);
 
@@ -198,11 +198,11 @@ export class SlackClient {
     const mainMessages = await this.getChannelMessages(channelId, {
       oldest,
       latest,
-      limit: maxMessages,
+      limit,
     });
 
-    if (mainMessages.length > maxMessages) {
-      mainMessages.splice(maxMessages);
+    if (mainMessages.length > limit) {
+      mainMessages.splice(limit);
     }
 
     logger.info(`Fetched ${mainMessages.length} main messages`);

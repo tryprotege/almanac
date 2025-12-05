@@ -71,13 +71,20 @@ const envSchema = z.object({
   GRAPH_EXTRACTION_CONCURRENCY: z.coerce.number().default(32),
   ENABLE_TOXIC_DOCUMENT_FILTER: z.boolean().default(true),
   MAX_ENTITIES_PER_DOCUMENT: z.coerce.number().default(200),
+
+  // Sync limit
+  SYNC_CUTOFF_DATE: z.string().datetime().optional(),
+  SYNC_LIMIT_PER_QUERY: z.coerce.number().optional(),
 });
 
 const parsedEnv = envSchema.parse({
   ...process.env,
   RERANKER_ENABLED:
     process.env.RERANKER_ENABLED?.toLowerCase().trim() === "true",
-});
+  SYNC_LIMIT_PER_QUERY: process.env.SYNC_LIMIT_PER_QUERY
+    ? parseInt(process.env.SYNC_LIMIT_PER_QUERY)
+    : undefined,
+} satisfies Partial<z.infer<typeof envSchema>>);
 
 // TODO: Compute embedding dimensions based on model
 // This ensures dimension consistency across the application

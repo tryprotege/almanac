@@ -13,7 +13,10 @@
     "build:client": "pnpm --filter client run build",
     "start": "pnpm --filter server run start",
     "test": "pnpm --recursive run test",
-    "type-check": "pnpm --recursive run type-check"
+    "type-check": "pnpm --recursive run type-check",
+    "docker:infra": "docker compose up -d",
+    "docker:all": "docker compose --profile app up -d",
+    "docker:down": "docker compose --profile app down"
   },
   "engines": {
     "node": ">=24.0.0",

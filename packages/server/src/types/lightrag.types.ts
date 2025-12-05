@@ -167,15 +167,17 @@ export interface LightRAGResponse {
 // ============================================
 
 export const LIGHTRAG_QUERY_TOOL = {
-  name: "lightrag_query",
-  description: `Advanced knowledge retrieval using LightRAG architecture. Returns structured document chunks without LLM generation.
+  name: "ebee_search",
+  description: `🐝 eBee Fast Search - Advanced knowledge retrieval using LightRAG architecture. Returns structured document chunks without LLM generation.
+
+⚡ FASTEST SEARCH METHOD: Combines vector similarity + knowledge graph expansion + LLM reranking for optimal speed and accuracy.
 
 Query Modes:
-- naive: Pure vector similarity search (fastest, ~50ms, best for simple keyword lookups)
+- naive: Pure vector similarity search (⚡ FASTEST ~50ms, best for simple keyword lookups)
 - local: Entity-focused with 1-hop graph expansion (medium speed, best for "who/what/where" questions)
 - global: Relationship-centric using high-weight edges (medium speed, best for "how/why" and thematic queries)
 - hybrid: Combines local + global strategies (slower but comprehensive)
-- mix: Parallel graph + vector search with LLM reranking (slowest but most accurate, production default)
+- mix: Parallel graph + vector search with LLM reranking (most accurate, production default)
 
 Returns structured JSON with relevant document chunks, each containing title, snippet, source, score, and metadata.`,
 

@@ -22,6 +22,7 @@ import {
   ExtractedKeywords,
   LightRAGMode,
 } from "../../types/lightrag.types.js";
+import logger from "../../utils/logger.js";
 
 // ============================================
 // Dependencies Interface
@@ -362,10 +363,10 @@ Return ONLY valid JSON, no explanation.`;
       high_level: parsed.high_level || [],
       low_level: parsed.low_level || [],
     };
-  } catch (error) {
-    console.warn(
-      `[LightRAG] Keyword extraction failed, using query as-is:`,
-      error
+  } catch (err) {
+    logger.warn(
+      { err, query },
+      "LightRAG keyword extraction failed, using query as-is"
     );
     return {
       high_level: [query],

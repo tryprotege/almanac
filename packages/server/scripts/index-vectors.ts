@@ -5,6 +5,7 @@ import { insertRecordToVectorDB } from "../src/services/indexing/embeddings/vect
 import { RecordStore } from "../src/stores/record.store.js";
 import { VectorStore } from "../src/stores/vector.store.js";
 import { SourceType } from "../src/types/index.js";
+import logger from "../src/utils/logger.js";
 
 /**
  * Script to index unindexed records to the vector database
@@ -158,10 +159,10 @@ async function indexVectorRecords() {
 
           stats.processed++;
           stats.chunks += vectorIds.length;
-        } catch (error) {
-          console.error(
-            `   ❌ Error indexing record ${record._id}:`,
-            error instanceof Error ? error.message : error
+        } catch (err) {
+          logger.error(
+            { err, recordId: record._id },
+            `Error indexing record ${record._id}`
           );
           stats.errors++;
         }
@@ -195,7 +196,7 @@ const run = async () => {
 
 run()
   .then(() => process.exit(0))
-  .catch((e) => {
-    console.error("❌ Error:", e);
+  .catch((err) => {
+    logger.error({ err }, "Script error");
     process.exit(1);
   });

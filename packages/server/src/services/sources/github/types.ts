@@ -594,21 +594,6 @@ export interface GitHubNotification {
   subscription_url: string;
 }
 
-export interface GitHubTeam {
-  id: number;
-  node_id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  privacy: "secret" | "closed";
-  permission: string;
-  url: string;
-  html_url: string;
-  members_url: string;
-  repositories_url: string;
-  parent: GitHubTeam | null;
-}
-
 // ============================================
 // Commit & Code Types
 // ============================================
@@ -651,17 +636,6 @@ export interface GitHubCommit {
     url: string;
     html_url: string;
   }>;
-}
-
-// ============================================
-// Pagination & Response Types
-// ============================================
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  next_cursor?: string;
-  has_more: boolean;
-  total_count?: number;
 }
 
 // ============================================
@@ -727,10 +701,6 @@ export interface CreateReleaseData {
   draft?: boolean;
   prerelease?: boolean;
   generate_release_notes?: boolean;
-}
-
-export interface CreateCommentData {
-  body: string;
 }
 
 // ============================================

@@ -1,5 +1,6 @@
 import { MCPServerConfigModel } from "../models/mcp-config.model.js";
 import { MCPServerConfig } from "./client.js";
+import logger from "../utils/logger.js";
 
 /**
  * Load MCP proxy configuration from a file or environment variable
@@ -12,7 +13,10 @@ export async function loadProxyConfig() {
   const validConfigs = remoteServerConfigs.filter((config) => {
     const error = validateConfig(config);
     if (error) {
-      console.error(`Invalid config for ${config.name}: ${error}`);
+      logger.error(
+        { configName: config.name, error },
+        `Invalid config for ${config.name}: ${error}`
+      );
       return false;
     }
     return true;

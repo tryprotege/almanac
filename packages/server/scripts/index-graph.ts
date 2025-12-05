@@ -9,6 +9,7 @@ import { NotionMCPClient } from "../src/services/sources/notion/mcpClient.js";
 import { NotionAdapter } from "../src/services/sync/adapters/notion-adapter.ts";
 import { SourceType } from "../src/types/index.js";
 import { env } from "../src/env.js";
+import logger from "../src/utils/logger.js";
 
 /**
  * Script to index unindexed records to the graph database
@@ -193,7 +194,7 @@ const run = async () => {
 
 run()
   .then(() => process.exit(0))
-  .catch((e) => {
-    console.error("❌ Error:", e);
+  .catch((err) => {
+    logger.error({ err }, "Script error");
     process.exit(1);
   });

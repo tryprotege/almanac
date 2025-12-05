@@ -8,6 +8,7 @@ import { VectorStore } from "../../../stores/vector.store.js";
 import { VectorPoint, SourceType } from "../../../types/index.js";
 import { chunkText } from "../../../utils/chunking.js";
 import { embed } from "../../../utils/embedding.js";
+import logger from "../../../utils/logger.js";
 
 // Create concurrency limiter. Have this outside of the function to ensure the limit applied to all invocations
 const limit = pLimit(env.VECTOR_INDEXING_CONCURRENCY);
@@ -84,8 +85,11 @@ export async function insertAllRecordsToVectorDB(
           stats.processed++;
           stats.chunks += vectorIds.length;
           return { success: true, chunks: vectorIds.length };
-        } catch (error) {
-          console.error(`  ⚠️  Error indexing record ${record._id}:`, error);
+        } catch (err) {
+          logger.error(
+            { err, recordId: record._id },
+            `Error indexing record ${record._id}`
+          );
           stats.errors++;
           return { success: false, chunks: 0 };
         }

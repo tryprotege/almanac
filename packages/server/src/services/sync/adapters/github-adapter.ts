@@ -123,64 +123,64 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         );
       }
 
-      // // Fetch releases
-      // try {
-      //   const releases = await this.client.listReleases(owner, repoName);
-      //   for (let i = 0; i < releases.length; i += batchSize) {
-      //     yield releases.slice(i, i + batchSize) as GitHubRecord[];
-      //   }
-      // } catch (error) {
-      //   console.warn(
-      //     `Failed to fetch releases for ${owner}/${repoName}:`,
-      //     error
-      //   );
-      // }
+      // Fetch releases
+      try {
+        const releases = await this.client.listReleases(owner, repoName);
+        for (let i = 0; i < releases.length; i += batchSize) {
+          yield releases.slice(i, i + batchSize) as GitHubRecord[];
+        }
+      } catch (error) {
+        console.warn(
+          `Failed to fetch releases for ${owner}/${repoName}:`,
+          error
+        );
+      }
 
-      // // Fetch discussions
-      // try {
-      //   const discussions = await this.client.listDiscussions(owner, repoName);
-      //   for (let i = 0; i < discussions.length; i += batchSize) {
-      //     yield discussions.slice(i, i + batchSize) as GitHubRecord[];
-      //   }
-      // } catch (error) {
-      //   console.warn(
-      //     `Failed to fetch discussions for ${owner}/${repoName}:`,
-      //     error
-      //   );
-      // }
+      // Fetch discussions
+      try {
+        const discussions = await this.client.listDiscussions(owner, repoName);
+        for (let i = 0; i < discussions.length; i += batchSize) {
+          yield discussions.slice(i, i + batchSize) as GitHubRecord[];
+        }
+      } catch (error) {
+        console.warn(
+          `Failed to fetch discussions for ${owner}/${repoName}:`,
+          error
+        );
+      }
 
-      // // Fetch security alerts
-      // try {
-      //   const codeScanningAlerts = await this.client.listCodeScanningAlerts(
-      //     owner,
-      //     repoName
-      //   );
+      // Fetch security alerts
+      try {
+        const codeScanningAlerts = await this.client.listCodeScanningAlerts(
+          owner,
+          repoName
+        );
 
-      //   for (let i = 0; i < codeScanningAlerts.length; i += batchSize) {
-      //     yield codeScanningAlerts.slice(i, i + batchSize) as GitHubRecord[];
-      //   }
-      // } catch (error) {
-      //   console.warn(
-      //     `Failed to fetch code scanning alerts for ${owner}/${repoName}:`,
-      //     error
-      //   );
-      // }
+        for (let i = 0; i < codeScanningAlerts.length; i += batchSize) {
+          yield codeScanningAlerts.slice(i, i + batchSize) as GitHubRecord[];
+        }
+      } catch (error) {
+        console.warn(
+          `Failed to fetch code scanning alerts for ${owner}/${repoName}:`,
+          error
+        );
+      }
 
-      // try {
-      //   const dependabotAlerts = await this.client.listDependabotAlerts(
-      //     owner,
-      //     repoName
-      //   );
+      try {
+        const dependabotAlerts = await this.client.listDependabotAlerts(
+          owner,
+          repoName
+        );
 
-      //   for (let i = 0; i < dependabotAlerts.length; i += batchSize) {
-      //     yield dependabotAlerts.slice(i, i + batchSize) as GitHubRecord[];
-      //   }
-      // } catch (error) {
-      //   console.warn(
-      //     `Failed to fetch Dependabot alerts for ${owner}/${repoName}:`,
-      //     error
-      //   );
-      // }
+        for (let i = 0; i < dependabotAlerts.length; i += batchSize) {
+          yield dependabotAlerts.slice(i, i + batchSize) as GitHubRecord[];
+        }
+      } catch (error) {
+        console.warn(
+          `Failed to fetch Dependabot alerts for ${owner}/${repoName}:`,
+          error
+        );
+      }
     }
   }
 

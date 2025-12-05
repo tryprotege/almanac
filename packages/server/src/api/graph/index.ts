@@ -2,6 +2,7 @@ import { Request, Response, Router } from "express";
 import { env } from "../../env.js";
 import { GraphStore } from "../../stores/graph.store.js";
 import { connectMemgraph } from "../../connections/memgraph.js";
+import logger from "../../utils/logger.js";
 
 const graphRouter: Router = Router();
 
@@ -50,11 +51,11 @@ graphRouter.get("/data", async (req: Request, res: Response) => {
         },
       },
     });
-  } catch (error) {
-    console.error("Error fetching graph data:", error);
+  } catch (err) {
+    logger.error({ err }, "Error fetching graph data");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });

@@ -34,6 +34,7 @@ import {
   getCurrentSchemaTypes,
 } from "./schema-auto-discovery.js";
 import { getSchema } from "../../../stores/graph-schema.store.js";
+import logger from "../../../utils/logger.js";
 
 // ============================================================================
 // Types
@@ -135,10 +136,10 @@ export const extractGraphFromRecord = async (
   if (adapter && record.rawData) {
     try {
       adapterRelationships = await adapter.extractRelationships(record.rawData);
-    } catch (error) {
-      console.error(
-        `Error extracting adapter relationships for ${record._id}:`,
-        error instanceof Error ? error.message : error
+    } catch (err) {
+      logger.error(
+        { err, recordId: record._id },
+        `Error extracting adapter relationships for ${record._id}`
       );
     }
   }
@@ -470,8 +471,8 @@ export const indexAllRecords = async (
       console.log(
         `📊 Progress: ${stats.nodes} nodes, ${stats.relationships} relationships, ${stats.skippedToxic} toxic`
       );
-    } catch (error) {
-      console.error(`❌ Error processing batch:`, error);
+    } catch (err) {
+      logger.error({ err }, "Error processing batch");
       stats.errors++;
     }
 

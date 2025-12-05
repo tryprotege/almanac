@@ -5,6 +5,7 @@ import { CacheStore } from "../../stores/cache.store.js";
 import { GraphStore } from "../../stores/graph.store.js";
 import { RecordStore } from "../../stores/record.store.js";
 import { VectorStore } from "../../stores/vector.store.js";
+import logger from "../../utils/logger.js";
 
 const statsRouter: Router = Router();
 
@@ -39,11 +40,11 @@ statsRouter.get("/overview", async (_req: Request, res: Response) => {
       success: true,
       data: stats,
     });
-  } catch (error) {
-    console.error("Error fetching overview stats:", error);
+  } catch (err) {
+    logger.error({ err }, "Error fetching overview stats");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });
@@ -58,11 +59,11 @@ statsRouter.get("/records", async (_req: Request, res: Response) => {
       success: true,
       data: stats,
     });
-  } catch (error) {
-    console.error("Error fetching record stats:", error);
+  } catch (err) {
+    logger.error({ err }, "Error fetching record stats");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });
@@ -77,11 +78,11 @@ statsRouter.get("/vectors", async (_req: Request, res: Response) => {
       success: true,
       data: stats,
     });
-  } catch (error) {
-    console.error("Error fetching vector stats:", error);
+  } catch (err) {
+    logger.error({ err }, "Error fetching vector stats");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });
@@ -96,11 +97,11 @@ statsRouter.get("/graph", async (_req: Request, res: Response) => {
       success: true,
       data: stats,
     });
-  } catch (error) {
-    console.error("Error fetching graph stats:", error);
+  } catch (err) {
+    logger.error({ err }, "Error fetching graph stats");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 });

@@ -4,7 +4,7 @@
  * Returns structured chunks (entities, relationships, chunks)
  */
 
-import { RecordModel, Record } from "../../models/record.model.js";
+import { RecordModel } from "../../models/record.model.js";
 import { GraphStore } from "../../stores/graph.store.js";
 import { VectorStore } from "../../stores/vector.store.js";
 import { RecordStore } from "../../stores/record.store.js";
@@ -20,7 +20,6 @@ import {
   LightRAGEntity,
   LightRAGRelationship,
   ExtractedKeywords,
-  LightRAGMode,
 } from "../../types/lightrag.types.js";
 import logger from "../../utils/logger.js";
 
@@ -509,7 +508,7 @@ async function getEntityRelationships(
   const relationships: LightRAGRelationship[] = [];
 
   for (let i = 0; i < entityIds.length; i++) {
-    const entityId = entityIds[i];
+    // const entityId = entityIds[i];
     const rels = relationshipResults[i];
 
     for (const rel of rels) {
@@ -540,7 +539,7 @@ async function getEntityRelationships(
 async function getChunksForEntities(
   entities: LightRAGEntity[],
   limit: number,
-  recordStore: RecordStore
+  _recordStore: RecordStore
 ): Promise<LightRAGChunk[]> {
   const records = await RecordModel.find({
     _id: { $in: entities.map((e) => e.id) },
@@ -655,18 +654,18 @@ function calculateNodeRank(degree: number): number {
   return Math.min(Math.round((degree / 10) * 100), 100);
 }
 
-async function calculateEdgeRank(
-  sourceId: string,
-  targetId: string,
-  graphStore: GraphStore
-): Promise<number> {
-  const [sourceRels, targetRels] = await Promise.all([
-    graphStore.getNodeRelationships(sourceId),
-    graphStore.getNodeRelationships(targetId),
-  ]);
+// async function calculateEdgeRank(
+//   sourceId: string,
+//   targetId: string,
+//   graphStore: GraphStore
+// ): Promise<number> {
+//   const [sourceRels, targetRels] = await Promise.all([
+//     graphStore.getNodeRelationships(sourceId),
+//     graphStore.getNodeRelationships(targetId),
+//   ]);
 
-  return calculateNodeRank(sourceRels.length + targetRels.length);
-}
+//   return calculateNodeRank(sourceRels.length + targetRels.length);
+// }
 
 function deduplicateRelationships(
   relationships: LightRAGRelationship[]

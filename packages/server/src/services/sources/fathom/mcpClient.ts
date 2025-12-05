@@ -9,7 +9,7 @@ import {
   FathomUser,
   FathomTeam,
   FathomTeamMember,
-} from "./types.js";
+} from "@ebee-oss/shared-util";
 
 /**
  * Fathom MCP Client wrapper for data extraction

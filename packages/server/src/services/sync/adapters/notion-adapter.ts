@@ -213,7 +213,7 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   /**
    * Get deleted records (Notion doesn't provide this directly)
    */
-  async *getDeletedRecords(since: Date): AsyncIterable<string[]> {
+  async *getDeletedRecords(_since: Date): AsyncIterable<string[]> {
     // Notion doesn't have a direct API for deleted records
     // We would need to track this ourselves or fetch all and compare
     yield [];
@@ -295,7 +295,7 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
     // Extract from properties for pages
     if (this.getRecordType(sourceRecord) === "page") {
       const page = sourceRecord as NotionPage;
-      for (const [key, value] of Object.entries(page.properties)) {
+      for (const [_key, value] of Object.entries(page.properties)) {
         if ((value as any).type === "people" && (value as any).people) {
           (value as any).people.forEach((person: any) => {
             if (person.id) people.push(person.id);
@@ -324,7 +324,7 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
 
     if (this.getRecordType(sourceRecord) === "page") {
       const page = sourceRecord as NotionPage;
-      for (const [key, value] of Object.entries(page.properties)) {
+      for (const [_key, value] of Object.entries(page.properties)) {
         if (
           (value as any).type === "multi_select" &&
           (value as any).multi_select

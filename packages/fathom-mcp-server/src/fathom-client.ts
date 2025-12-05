@@ -1,70 +1,14 @@
 import axios, { AxiosInstance } from "axios";
+import type {
+  FathomSummary,
+  FathomTranscript,
+  FathomTeam,
+  FathomTeamMember,
+  ListMeetingsParams,
+} from "@ebee-oss/shared-util";
 
 // Based on Fathom API documentation at https://developers.fathom.ai/api-overview
-
-export interface FathomMeeting {
-  id: string;
-  title: string;
-  start_time: string;
-  end_time?: string;
-  share_url?: string;
-  created_at: string;
-  scheduled_start_time?: string;
-  scheduled_end_time?: string;
-  action_items?: FathomActionItem[];
-  summary?: string;
-  transcript?: string;
-}
-
-export interface FathomActionItem {
-  id: string;
-  description: string;
-  assignee?: string;
-  completed: boolean;
-}
-
-export interface FathomSummary {
-  summary: string;
-  action_items?: FathomActionItem[];
-}
-
-export interface FathomTranscript {
-  transcript: string;
-}
-
-export interface FathomUser {
-  id: string;
-  email: string;
-  name: string;
-}
-
-export interface FathomTeam {
-  id: string;
-  name: string;
-}
-
-export interface FathomTeamMember {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-}
-
-export interface ListMeetingsParams {
-  calendar_invitees_domains?: string[];
-  calendar_invitees_domains_type?:
-    | "all"
-    | "only_internal"
-    | "one_or_more_external";
-  created_after?: string;
-  created_before?: string;
-  cursor?: string;
-  include_action_items?: boolean;
-  include_crm_matches?: boolean;
-  include_summary?: boolean;
-  include_transcript?: boolean;
-  limit?: number;
-}
+// Types are imported from @ebee-oss/shared-util for consistency across packages
 
 export class FathomClient {
   private client: AxiosInstance;

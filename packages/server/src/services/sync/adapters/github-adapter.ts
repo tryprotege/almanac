@@ -1,10 +1,6 @@
 import { BaseRecordAdapter } from "./base-adapter.js";
 import { Record } from "../../../models/record.model.js";
-import {
-  EntityRelationship,
-  FetchOptions,
-  SourceType,
-} from "../../../types/index.js";
+import { EntityRelationship, FetchOptions } from "../../../types/index.js";
 import {
   GitHubRecord,
   GitHubRepository,

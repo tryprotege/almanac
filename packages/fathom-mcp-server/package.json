@@ -22,6 +22,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@ebee-oss/shared-util": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.24.2",
     "axios": "^1.13.2"
   },

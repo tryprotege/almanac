@@ -1,4 +1,60 @@
-// Fathom entity types for the indexer
+export interface FathomMeeting {
+  title: string;
+  meeting_title: string;
+  recording_id: number;
+  url: string;
+  share_url?: string;
+  created_at: string;
+  scheduled_start_time?: string;
+  scheduled_end_time?: string;
+  recording_start_time: string;
+  recording_end_time: string;
+  calendar_invitees_domains_type: string;
+  transcript_language: string;
+  calendar_invitees: FathomCalendarInvitee[];
+  recorded_by: FathomUser;
+  transcript?: FathomTranscriptSegment[];
+  default_summary?: {
+    template_name: string;
+    markdown_formatted: string;
+  };
+  action_items?: FathomActionItem[];
+}
+
+export interface FathomActionItem {
+  description: string;
+  user_generated: boolean;
+  completed: boolean;
+  record_timestamp: string;
+  recording_playback_url?: string;
+  assignee?: FathomTeamMember;
+}
+
+export interface FathomTeamMember {
+  id?: string;
+  team: string;
+  name: string;
+  email: string;
+  role: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListMeetingsParams {
+  calendar_invitees_domains?: string[];
+  calendar_invitees_domains_type?:
+    | "all"
+    | "only_internal"
+    | "one_or_more_external";
+  created_after?: string;
+  created_before?: string;
+  cursor?: string;
+  include_action_items?: boolean;
+  include_crm_matches?: boolean;
+  include_summary?: boolean;
+  include_transcript?: boolean;
+  limit?: number;
+}
 
 export interface FathomUser {
   name: string;
@@ -13,29 +69,6 @@ export interface FathomCalendarInvitee {
   email_domain?: string;
   is_external?: boolean;
   matched_speaker_display_name?: string;
-}
-
-export interface FathomMeeting {
-  title: string;
-  meeting_title: string;
-  recording_id: number;
-  url: string;
-  share_url: string;
-  created_at: string;
-  scheduled_start_time: string;
-  scheduled_end_time: string;
-  recording_start_time: string;
-  recording_end_time: string;
-  calendar_invitees_domains_type: string;
-  transcript_language: string;
-  calendar_invitees: FathomCalendarInvitee[];
-  recorded_by: FathomUser;
-  transcript: FathomTranscriptSegment[];
-  default_summary?: {
-    template_name: string;
-    markdown_formatted: string;
-  };
-  action_items?: FathomActionItem[];
 }
 
 export interface FathomParticipant {
@@ -77,15 +110,6 @@ export interface FathomNote {
   tags: string[];
 }
 
-export interface FathomActionItem {
-  description: string;
-  user_generated: boolean;
-  completed: boolean;
-  record_timestamp: string;
-  recording_playback_url: string;
-  assignee?: FathomTeamMember;
-}
-
 export interface FathomHighlight {
   id: string;
   meeting_id: string;
@@ -106,17 +130,8 @@ export interface FathomSummary {
 export interface FathomTeam {
   id: string;
   name: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface FathomTeamMember {
-  team: string;
-  name: string;
-  email: string;
-  role: string;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export type FathomRecord =

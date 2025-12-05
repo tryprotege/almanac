@@ -13,7 +13,7 @@ import {
   FathomTeam,
   FathomTeamMember,
   FathomAdapterConfig,
-} from "../../sources/fathom/types.js";
+} from "@ebee-oss/shared-util";
 import { FathomMCPClient } from "../../sources/fathom/mcpClient.js";
 
 /**
@@ -665,7 +665,9 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
 
     switch (recordType) {
       case "meeting":
-        return new Date((sourceRecord as FathomMeeting).scheduled_start_time);
+        return new Date(
+          (sourceRecord as FathomMeeting).scheduled_start_time ?? new Date()
+        );
 
       case "transcript": {
         return null;
@@ -687,7 +689,7 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
         return null; // FathomUser doesn't have a created_at field
 
       case "team":
-        return new Date((sourceRecord as FathomTeam).created_at);
+        return new Date((sourceRecord as FathomTeam).created_at ?? new Date());
 
       case "team_member":
         return new Date((sourceRecord as FathomTeamMember).created_at);

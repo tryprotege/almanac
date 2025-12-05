@@ -56,14 +56,34 @@ export class FathomMCPClient {
         );
       } else if (textContent && textContent.text) {
         try {
+          // First try to parse as-is
           return JSON.parse(textContent.text) as T;
         } catch (error) {
+          // If parsing fails, try to extract JSON from mixed content
+          // Handle cases where error messages are prefixed before JSON
+          const text = textContent.text;
+
+          // Try to find JSON object or array in the response
+          const jsonMatch = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+          if (jsonMatch) {
+            try {
+              const extractedJson = JSON.parse(jsonMatch[1]);
+              console.warn(
+                `MCP tool ${toolName} returned mixed content, extracted JSON successfully. Prefix: ${text
+                  .substring(0, jsonMatch.index)
+                  .trim()}`
+              );
+              return extractedJson as T;
+            } catch (innerError) {
+              console.error("Failed to parse extracted JSON:", innerError);
+            }
+          }
+
+          // If we still can't parse, throw a detailed error
           console.error("Failed to parse MCP response:", error);
+          console.error("Response text:", text.substring(0, 500));
           throw new Error(
-            `Invalid JSON in MCP response: ${textContent.text.substring(
-              0,
-              100
-            )}...`
+            `Invalid JSON in MCP response: ${text.substring(0, 100)}...`
           );
         }
       }
@@ -91,6 +111,15 @@ export class FathomMCPClient {
       }
 
       const response: any = await this.callTool(toolName, requestParams);
+
+      // Validate response structure
+      if (!response || typeof response !== "object") {
+        console.warn(
+          `MCP tool ${toolName} returned invalid response structure:`,
+          response
+        );
+        break;
+      }
 
       const results = extractResults(response);
       if (Array.isArray(results) && results.length > 0) {
@@ -175,7 +204,7 @@ export class FathomMCPClient {
    */
   async getTranscript(recordingId: number): Promise<FathomTranscript> {
     const response = await this.callTool<any>("get_transcript", {
-      recording_id: recordingId,
+      recording_id: recordingId.toString(),
     });
 
     // Transform the response to match our FathomTranscript type
@@ -191,7 +220,7 @@ export class FathomMCPClient {
    */
   async getSummary(recordingId: number): Promise<FathomSummary> {
     const response = await this.callTool<any>("get_summary", {
-      recording_id: recordingId,
+      recording_id: recordingId.toString(),
     });
 
     return {
@@ -263,14 +292,12 @@ export class FathomMCPClient {
 
   /**
    * List team members
+   * @param teamId - Required team ID to fetch members for
    */
-  async listTeamMembers(team?: string): Promise<FathomTeamMember[]> {
-    const params: Record<string, any> = {};
-    if (team) params.team = team;
-
+  async listTeamMembers(teamId: string): Promise<FathomTeamMember[]> {
     return this.fetchAllPagesCursor<FathomTeamMember>(
       "list_team_members",
-      params,
+      { team_id: teamId },
       (response) => response.items || []
     );
   }

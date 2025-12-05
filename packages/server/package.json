@@ -24,7 +24,7 @@
     "reindex-graph": "tsx scripts/reindex-graph.ts"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.22.0",
+    "@modelcontextprotocol/sdk": "^1.24.3",
     "@qdrant/js-client-rest": "^1.16.0",
     "bullmq": "^5.64.1",
     "dotenv": "^17.2.3",

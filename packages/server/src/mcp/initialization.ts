@@ -29,13 +29,14 @@ export async function initializeRemoteServers(
     try {
       await mcpClientManager.connect(config);
 
-      const tools = await mcpClientManager.getAllTools();
+      // Get tools only from the server we just connected to
+      const tools = mcpClientManager.getServerTools(config.name);
 
-      tools.forEach(({ tool }) => {
+      tools.forEach((tool) => {
         mcpSever.registerTool(
-          tool.name,
+          `${config.name}__${tool.name}`,
           {
-            description: tool.description,
+            description: `[${config.name}] ${tool.description}`,
             title: tool.title,
             _meta: tool._meta,
             annotations: tool.annotations,

@@ -48,9 +48,10 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
     const batchSize = options?.batchSize || 100;
 
     // Fetch teams
+    let teams: FathomTeam[] = [];
     if (this.config.includeTeams) {
       try {
-        const teams = await this.client.listTeams();
+        teams = await this.client.listTeams();
         if (teams.length > 0) {
           for (let i = 0; i < teams.length; i += batchSize) {
             yield teams.slice(i, i + batchSize) as FathomRecord[];
@@ -61,17 +62,32 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
       }
     }
 
-    // Fetch team members
+    // Fetch team members (requires teams to be fetched first)
     if (this.config.includeTeamMembers) {
-      try {
-        const teamMembers = await this.client.listTeamMembers();
-        if (teamMembers.length > 0) {
-          for (let i = 0; i < teamMembers.length; i += batchSize) {
-            yield teamMembers.slice(i, i + batchSize) as FathomRecord[];
-          }
+      // If we haven't fetched teams yet, fetch them now
+      if (teams.length === 0 && !this.config.includeTeams) {
+        try {
+          teams = await this.client.listTeams();
+        } catch (error) {
+          console.warn("Failed to fetch Fathom teams for team members:", error);
         }
-      } catch (error) {
-        console.warn("Failed to fetch Fathom team members:", error);
+      }
+
+      // Fetch team members for each team
+      for (const team of teams) {
+        try {
+          const teamMembers = await this.client.listTeamMembers(team.id);
+          if (teamMembers.length > 0) {
+            for (let i = 0; i < teamMembers.length; i += batchSize) {
+              yield teamMembers.slice(i, i + batchSize) as FathomRecord[];
+            }
+          }
+        } catch (error) {
+          console.warn(
+            `Failed to fetch Fathom team members for team ${team.id}:`,
+            error
+          );
+        }
       }
     }
 

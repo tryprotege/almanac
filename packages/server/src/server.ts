@@ -175,7 +175,7 @@ const runServer = async () => {
       if (mcpClientManager.isConnected(name)) {
         try {
           await mcpClientManager.disconnect(name);
-          await mcpClientManager.connect(config.toObject() as MCPServerConfig);
+          await mcpClientManager.connect(config.toJSON() as MCPServerConfig);
           logger.info(
             { serverName: name },
             `Reconnected to updated MCP server: ${name}`
@@ -261,7 +261,7 @@ const runServer = async () => {
           return;
         }
 
-        await mcpClientManager.connect(config.toObject() as MCPServerConfig);
+        await mcpClientManager.connect(config.toJSON() as MCPServerConfig);
 
         res.json({ success: true, message: `Connected to ${name}` });
       } catch (err) {

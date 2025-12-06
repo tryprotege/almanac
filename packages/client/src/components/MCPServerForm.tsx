@@ -11,7 +11,7 @@ interface MCPServerFormProps {
 
 interface FormData {
   name: string;
-  type: "stdio" | "sse";
+  type: "stdio" | "sse" | "streamable-http";
   command: string;
   args: string;
   env: Array<{ key: string; value: string; showValue: boolean }>;
@@ -88,9 +88,11 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
       if (!formData.command.trim()) {
         newErrors.command = "Command is required for stdio servers";
       }
-    } else if (formData.type === "sse") {
+    } else if (formData.type === "sse" || formData.type === "streamable-http") {
       if (!formData.url.trim()) {
-        newErrors.url = "URL is required for SSE servers";
+        newErrors.url = `URL is required for ${
+          formData.type === "sse" ? "SSE" : "Streamable HTTP"
+        } servers`;
       } else {
         try {
           new URL(formData.url);
@@ -111,7 +113,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
       return;
     }
 
-    const config: Omit<MCPServerConfig, "createdAt" | "updatedAt"> = {
+    const config: Omit<MCPServerConfig, "_id" | "createdAt" | "updatedAt"> = {
       name: formData.name.trim(),
       type: formData.type,
       isDisabled: formData.isDisabled,
@@ -132,7 +134,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
             .map((e) => [e.key, e.value])
         );
       }
-    } else if (formData.type === "sse") {
+    } else if (formData.type === "sse" || formData.type === "streamable-http") {
       config.url = formData.url.trim();
       if (formData.headers.length > 0) {
         config.headers = Object.fromEntries(
@@ -281,14 +283,15 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  type: e.target.value as "stdio" | "sse",
+                  type: e.target.value as "stdio" | "sse" | "streamable-http",
                 })
               }
               disabled={isLoading}
               className="input"
             >
               <option value="stdio">STDIO (Command-based)</option>
-              <option value="sse">SSE (URL-based)</option>
+              <option value="sse">SSE (Server-Sent Events)</option>
+              <option value="streamable-http">Streamable HTTP</option>
             </select>
           </div>
 
@@ -400,8 +403,8 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
             </>
           )}
 
-          {/* SSE Fields */}
-          {formData.type === "sse" && (
+          {/* SSE and Streamable HTTP Fields */}
+          {(formData.type === "sse" || formData.type === "streamable-http") && (
             <>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

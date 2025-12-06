@@ -22,6 +22,7 @@ const RecordSchema = new mongoose.Schema(
         "codebase",
         "asana",
         "google_drive",
+        "github",
       ] satisfies SourceType[],
     },
     sourceId: { type: String, required: true, index: true }, // Original ID from source

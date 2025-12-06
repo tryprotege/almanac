@@ -28,7 +28,7 @@ export function registerLightRAGTool(
     qdrant: QdrantConnection;
   }
 ): void {
-  console.error("� Registering eBee Search tool...");
+  logger.error("� Registering eBee Search tool...");
 
   // Initialize OpenAI client
   const openaiClient = new OpenAI({

@@ -35,15 +35,18 @@ export function validateConfig(
     return "Server name is required";
   }
 
-  if (!config.type || !["stdio", "sse"].includes(config.type)) {
-    return "Server type must be 'stdio' or 'sse'";
+  if (
+    !config.type ||
+    !["stdio", "sse", "streamable-http"].includes(config.type)
+  ) {
+    return "Server type must be 'stdio' or 'sse' or 'streamable-http'";
   }
 
   if (config.type === "stdio" && !config.command) {
     return "stdio server requires 'command' field";
   }
 
-  if (config.type === "sse" && !config.url) {
+  if (["sse", "streamable-http"].includes(config.type) && !config.url) {
     return "sse server requires 'url' field";
   }
 

@@ -185,6 +185,22 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   }
 
   /**
+   * Check if record is deleted
+   */
+  isDeleted(sourceRecord: NotionRecord): boolean {
+    return (sourceRecord as any).archived === true;
+  }
+
+  /**
+   * Get deleted records (Notion doesn't provide this directly)
+   */
+  async *getDeletedRecords(_since: Date): AsyncIterable<string[]> {
+    // Notion doesn't have a direct API for deleted records
+    // We would need to track this ourselves or fetch all and compare
+    yield [];
+  }
+
+  /**
    * Extract text content from record
    */
   protected extractTextContent(
@@ -260,7 +276,7 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
     // Extract from properties for pages
     if (this.getRecordType(sourceRecord) === "page") {
       const page = sourceRecord as NotionPage;
-      for (const [key, value] of Object.entries(page.properties)) {
+      for (const [_key, value] of Object.entries(page.properties)) {
         if ((value as any).type === "people" && (value as any).people) {
           (value as any).people.forEach((person: any) => {
             if (person.id) people.push(person.id);
@@ -289,7 +305,7 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
 
     if (this.getRecordType(sourceRecord) === "page") {
       const page = sourceRecord as NotionPage;
-      for (const [key, value] of Object.entries(page.properties)) {
+      for (const [_key, value] of Object.entries(page.properties)) {
         if (
           (value as any).type === "multi_select" &&
           (value as any).multi_select

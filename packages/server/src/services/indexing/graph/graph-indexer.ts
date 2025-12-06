@@ -14,7 +14,6 @@ import { extractGraphFromContent } from "./schema/schema-extraction.js";
 import {
   Entity,
   Relationship,
-  deduplicateEntities,
   mergeRelationships,
   filterLowValueRelationships,
 } from "./schema/entity-deduplication.js";
@@ -106,13 +105,13 @@ export const extractGraphFromRecord = async (
   // 1. This is a re-index (lastGraphIndexDate exists), OR
   // 2. Force mode is enabled (always clean)
   if (options.graphStore && (record.lastGraphIndexDate || options.force)) {
-    // 1. Unlink entities from document
-    const unlinkedEntityIds =
-      await options.graphStore.unlinkAllEntitiesFromDocument(record._id);
+    // // 1. Unlink entities from document
+    // const unlinkedEntityIds =
+    //   await options.graphStore.unlinkAllEntitiesFromDocument(record._id);
 
-    // 2. Unlink relationships from document
-    const unlinkedRelCount =
-      await options.graphStore.unlinkRelationshipsFromDocument(record._id);
+    // // 2. Unlink relationships from document
+    // const unlinkedRelCount =
+    //   await options.graphStore.unlinkRelationshipsFromDocument(record._id);
 
     // 3. Delete orphaned entities
     const deletedEntities = await options.graphStore.deleteOrphanedEntities();
@@ -238,11 +237,11 @@ export const processRecordsToGraph = (
   nodes: GraphNode[];
   relationships: GraphRelationship[];
 } => {
-  // Flatten all entities across records
-  const allEntities = recordsData.flatMap((data) => data.entities);
+  // // Flatten all entities across records
+  // const allEntities = recordsData.flatMap((data) => data.entities);
 
-  // Deduplicate entities
-  const dedupedEntities = deduplicateEntities(allEntities);
+  // // Deduplicate entities
+  // const dedupedEntities = deduplicateEntities(allEntities);
 
   // Flatten all relationships
   const allRelationships = recordsData.flatMap((data) => data.relationships);

@@ -33,8 +33,9 @@ export function useCreateMCPServer() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (config: Omit<MCPServerConfig, "createdAt" | "updatedAt">) =>
-      mcpServersApi.create(config),
+    mutationFn: (
+      config: Omit<MCPServerConfig, "_id" | "createdAt" | "updatedAt">
+    ) => mcpServersApi.create(config),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mcp-servers"] });
       toast.success("MCP server created successfully");

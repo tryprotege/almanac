@@ -12,8 +12,8 @@ import {
   updateEntityTypes,
   updateRelationshipTypes,
 } from "../../../stores/graph-schema.store.js";
-import { Entity, Relationship } from "./schema/entity-deduplication.js";
 import logger from "../../../utils/logger.js";
+import { Entity, Relationship } from "./schema/entity-deduplication.js";
 
 // ============================================================================
 // Pure Functions
@@ -99,7 +99,9 @@ export const updateSchemaWithDiscovery = async (
     logger.info(
       `🔍 Auto-discovered ${
         newEntityTypes.length
-      } new entity types: ${newEntityTypes.map((e) => e.name).join(", ")}`
+      } new entity types: ${JSON.stringify(
+        newEntityTypes.map((e) => e.name).join(", ")
+      )}`
     );
 
     await updateEntityTypes(
@@ -116,9 +118,9 @@ export const updateSchemaWithDiscovery = async (
     logger.info(
       `🔍 Auto-discovered ${
         newRelationshipTypes.length
-      } new relationship types: ${newRelationshipTypes
-        .map((r) => r.name)
-        .join(", ")}`
+      } new relationship types: ${JSON.stringify(
+        newRelationshipTypes.map((r) => r.name).join(", ")
+      )}`
     );
 
     await updateRelationshipTypes(

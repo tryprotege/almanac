@@ -37,8 +37,8 @@ function parseArgs(): WipeOptions {
     } else if (arg.startsWith("--only=")) {
       const value = arg.split("=")[1] as "mongodb" | "memgraph" | "qdrant";
       if (!["mongodb", "memgraph", "qdrant"].includes(value)) {
-        console.error(`❌ Invalid --only value: ${value}`);
-        console.error("   Valid values: mongodb, memgraph, qdrant");
+        logger.error(`❌ Invalid --only value: ${value}`);
+        logger.error("   Valid values: mongodb, memgraph, qdrant");
         process.exit(1);
       }
       options.only = value;
@@ -142,46 +142,46 @@ async function confirmWipe(options: WipeOptions): Promise<boolean> {
 }
 
 async function wipeMongoDB(keepMcpConfig: boolean): Promise<void> {
-  console.log("\n🗑️  Wiping MongoDB...");
+  logger.info("\n🗑️  Wiping MongoDB...");
 
   // Delete records
   const recordResult = await RecordModel.deleteMany({});
-  console.log(`   ✓ Deleted ${recordResult.deletedCount} records`);
+  logger.info(`   ✓ Deleted ${recordResult.deletedCount} records`);
 
   // Delete graph schemas
   const schemaResult = await GraphSchemaModel.deleteMany({});
-  console.log(`   ✓ Deleted ${schemaResult.deletedCount} graph schemas`);
+  logger.info(`   ✓ Deleted ${schemaResult.deletedCount} graph schemas`);
 
   // Optionally delete MCP configs
   if (!keepMcpConfig) {
     const mcpResult = await MCPServerConfigModel.deleteMany({});
-    console.log(`   ✓ Deleted ${mcpResult.deletedCount} MCP server configs`);
+    logger.info(`   ✓ Deleted ${mcpResult.deletedCount} MCP server configs`);
   } else {
-    console.log(`   ⊘ Kept MCP server configs (--keep-mcp-config)`);
+    logger.info(`   ⊘ Kept MCP server configs (--keep-mcp-config)`);
   }
 }
 
 async function wipeMemgraph(memgraph: any): Promise<void> {
-  console.log("\n🗑️  Wiping Memgraph...");
+  logger.info("\n🗑️  Wiping Memgraph...");
 
   try {
     // Delete all relationships first
     await memgraph.executeQuery("MATCH ()-[r]->() DELETE r");
-    console.log("   ✓ Deleted all relationships");
+    logger.info("   ✓ Deleted all relationships");
 
     // Delete all nodes
     await memgraph.executeQuery("MATCH (n) DELETE n");
-    console.log("   ✓ Deleted all nodes");
+    logger.info("   ✓ Deleted all nodes");
 
     // Drop indexes (they will be recreated on next index)
     try {
       await memgraph.executeQuery("DROP INDEX ON :Resource(id)");
       await memgraph.executeQuery("DROP INDEX ON :Resource(type)");
       await memgraph.executeQuery("DROP INDEX ON :Resource(source)");
-      console.log("   ✓ Dropped indexes");
+      logger.info("   ✓ Dropped indexes");
     } catch (err) {
       // Indexes might not exist, that's okay
-      console.log("   ⊘ No indexes to drop");
+      logger.info("   ⊘ No indexes to drop");
     }
 
     // Drop constraints (they will be recreated on next index)
@@ -189,10 +189,10 @@ async function wipeMemgraph(memgraph: any): Promise<void> {
       await memgraph.executeQuery(
         "DROP CONSTRAINT ON (n:Resource) ASSERT n.id IS UNIQUE"
       );
-      console.log("   ✓ Dropped constraints");
+      logger.info("   ✓ Dropped constraints");
     } catch (err) {
       // Constraints might not exist, that's okay
-      console.log("   ⊘ No constraints to drop");
+      logger.info("   ⊘ No constraints to drop");
     }
   } catch (err) {
     logger.error({ err }, "Error wiping Memgraph");
@@ -201,27 +201,27 @@ async function wipeMemgraph(memgraph: any): Promise<void> {
 }
 
 async function wipeQdrant(qdrant: any): Promise<void> {
-  console.log("\n🗑️  Wiping Qdrant...");
+  logger.info("\n🗑️  Wiping Qdrant...");
 
   try {
     const collections = await qdrant.client.getCollections();
 
     if (!collections.collections || collections.collections.length === 0) {
-      console.log("   ⊘ No collections to delete");
+      logger.info("   ⊘ No collections to delete");
     } else {
       for (const collection of collections.collections) {
         await qdrant.client.deleteCollection(collection.name);
-        console.log(`   ✓ Deleted collection: ${collection.name}`);
+        logger.info(`   ✓ Deleted collection: ${collection.name}`);
       }
     }
 
     // Clear MongoDB vector timestamps so records will be re-indexed
-    console.log("   🔄 Clearing MongoDB vector timestamps...");
+    logger.info("   🔄 Clearing MongoDB vector timestamps...");
     const result = await RecordModel.updateMany(
       {},
       { $unset: { lastEmbedDate: "" } }
     );
-    console.log(`   ✓ Cleared timestamps for ${result.modifiedCount} records`);
+    logger.info(`   ✓ Cleared timestamps for ${result.modifiedCount} records`);
   } catch (err) {
     logger.error({ err }, "Error wiping Qdrant");
     throw err;
@@ -231,52 +231,52 @@ async function wipeQdrant(qdrant: any): Promise<void> {
 async function run() {
   const options = parseArgs();
 
-  console.log("🧹 Data Wipe Script");
-  console.log("===================\n");
+  logger.info("🧹 Data Wipe Script");
+  logger.info("===================\n");
 
   if (options.only) {
-    console.log(`Scope: ${options.only.toUpperCase()} only`);
+    logger.info(`Scope: ${options.only.toUpperCase()} only`);
   } else {
-    console.log("Scope: All databases");
+    logger.info("Scope: All databases");
   }
 
   if (options.keepMcpConfig) {
-    console.log("Mode: Keep MCP server configs");
+    logger.info("Mode: Keep MCP server configs");
   }
 
-  console.log("");
+  logger.info("");
 
   // Initialize services
   const { memgraph, qdrant, mongoose } = await initializeServices();
 
   // Get current statistics
-  console.log("📊 Current Statistics:");
-  console.log("=====================");
+  logger.info("📊 Current Statistics:");
+  logger.info("=====================");
   const statsBefore = await getStatistics(memgraph, qdrant);
 
-  console.log("\nMongoDB:");
-  console.log(`  Records: ${statsBefore.mongodb.records}`);
-  console.log(`  Graph Schemas: ${statsBefore.mongodb.schemas}`);
-  console.log(`  MCP Configs: ${statsBefore.mongodb.mcpConfigs}`);
+  logger.info("\nMongoDB:");
+  logger.info(`  Records: ${statsBefore.mongodb.records}`);
+  logger.info(`  Graph Schemas: ${statsBefore.mongodb.schemas}`);
+  logger.info(`  MCP Configs: ${statsBefore.mongodb.mcpConfigs}`);
 
-  console.log("\nMemgraph:");
-  console.log(`  Nodes: ${statsBefore.memgraph.nodes}`);
-  console.log(`  Relationships: ${statsBefore.memgraph.relationships}`);
+  logger.info("\nMemgraph:");
+  logger.info(`  Nodes: ${statsBefore.memgraph.nodes}`);
+  logger.info(`  Relationships: ${statsBefore.memgraph.relationships}`);
 
-  console.log("\nQdrant:");
-  console.log(`  Collections: ${statsBefore.qdrant.collections}`);
-  console.log(`  Vectors: ${statsBefore.qdrant.vectors}`);
-  console.log("");
+  logger.info("\nQdrant:");
+  logger.info(`  Collections: ${statsBefore.qdrant.collections}`);
+  logger.info(`  Vectors: ${statsBefore.qdrant.vectors}`);
+  logger.info("");
 
   // Confirm deletion
   const confirmed = await confirmWipe(options);
 
   if (!confirmed) {
-    console.log("\n❌ Wipe cancelled");
+    logger.info("\n❌ Wipe cancelled");
     process.exit(0);
   }
 
-  console.log("\n🚀 Starting wipe process...");
+  logger.info("\n🚀 Starting wipe process...");
 
   // Perform wipes based on options
   try {
@@ -293,28 +293,28 @@ async function run() {
     }
 
     // Get final statistics
-    console.log("\n📊 Final Statistics:");
-    console.log("===================");
+    logger.info("\n📊 Final Statistics:");
+    logger.info("===================");
     const statsAfter = await getStatistics(memgraph, qdrant);
 
-    console.log("\nMongoDB:");
-    console.log(`  Records: ${statsAfter.mongodb.records}`);
-    console.log(`  Graph Schemas: ${statsAfter.mongodb.schemas}`);
-    console.log(`  MCP Configs: ${statsAfter.mongodb.mcpConfigs}`);
+    logger.info("\nMongoDB:");
+    logger.info(`  Records: ${statsAfter.mongodb.records}`);
+    logger.info(`  Graph Schemas: ${statsAfter.mongodb.schemas}`);
+    logger.info(`  MCP Configs: ${statsAfter.mongodb.mcpConfigs}`);
 
-    console.log("\nMemgraph:");
-    console.log(`  Nodes: ${statsAfter.memgraph.nodes}`);
-    console.log(`  Relationships: ${statsAfter.memgraph.relationships}`);
+    logger.info("\nMemgraph:");
+    logger.info(`  Nodes: ${statsAfter.memgraph.nodes}`);
+    logger.info(`  Relationships: ${statsAfter.memgraph.relationships}`);
 
-    console.log("\nQdrant:");
-    console.log(`  Collections: ${statsAfter.qdrant.collections}`);
-    console.log(`  Vectors: ${statsAfter.qdrant.vectors}`);
+    logger.info("\nQdrant:");
+    logger.info(`  Collections: ${statsAfter.qdrant.collections}`);
+    logger.info(`  Vectors: ${statsAfter.qdrant.vectors}`);
 
-    console.log("\n✨ Wipe completed successfully!");
-    console.log("\nNext steps:");
-    console.log("  1. Run 'pnpm tsx scripts/sync-records.ts' to sync records");
-    console.log("  2. Run 'pnpm tsx scripts/index-graph.ts' to build graph");
-    console.log(
+    logger.info("\n✨ Wipe completed successfully!");
+    logger.info("\nNext steps:");
+    logger.info("  1. Run 'pnpm tsx scripts/sync-records.ts' to sync records");
+    logger.info("  2. Run 'pnpm tsx scripts/index-graph.ts' to build graph");
+    logger.info(
       "  3. Run 'pnpm tsx scripts/index-vectors.ts' to build embeddings"
     );
   } catch (err) {

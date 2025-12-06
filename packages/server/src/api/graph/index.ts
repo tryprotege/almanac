@@ -1,5 +1,4 @@
 import { Request, Response, Router } from "express";
-import { env } from "../../env.js";
 import { GraphStore } from "../../stores/graph.store.js";
 import { connectMemgraph } from "../../connections/memgraph.js";
 import logger from "../../utils/logger.js";

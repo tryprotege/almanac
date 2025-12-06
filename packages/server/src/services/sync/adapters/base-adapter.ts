@@ -29,11 +29,6 @@ export abstract class BaseRecordAdapter<TSource = any> {
   ): AsyncIterable<TSource[]>;
 
   /**
-   * Fetch single record by ID
-   */
-  abstract fetchById(id: string): Promise<TSource | null>;
-
-  /**
    * Transform source record to unified format
    */
   abstract transform(sourceRecord: TSource): Promise<Record>;
@@ -44,16 +39,6 @@ export abstract class BaseRecordAdapter<TSource = any> {
   abstract extractRelationships(
     sourceRecord: TSource
   ): Promise<EntityRelationship[]>;
-
-  /**
-   * Check if record is deleted in source
-   */
-  abstract isDeleted(sourceRecord: TSource): boolean;
-
-  /**
-   * Get list of deleted record IDs since timestamp
-   */
-  abstract getDeletedRecords(since: Date): AsyncIterable<string[]>;
 
   /**
    * Compute checksum for change detection
@@ -76,29 +61,4 @@ export abstract class BaseRecordAdapter<TSource = any> {
   protected generateRecordId(recordType: string, sourceId: string): string {
     return `${this.source}_${recordType}_${sourceId}`;
   }
-
-  /**
-   * Extract text content from record (helper method)
-   */
-  protected abstract extractTextContent(sourceRecord: TSource): string;
-
-  /**
-   * Extract title from record (helper method)
-   */
-  protected abstract extractTitle(sourceRecord: TSource): string;
-
-  /**
-   * Extract people from record (helper method)
-   */
-  protected abstract extractPeople(sourceRecord: TSource): string[];
-
-  /**
-   * Extract primary date from record (helper method)
-   */
-  protected abstract extractPrimaryDate(sourceRecord: TSource): Date | null;
-
-  /**
-   * Extract tags from record (helper method)
-   */
-  protected abstract extractTags(sourceRecord: TSource): string[];
 }

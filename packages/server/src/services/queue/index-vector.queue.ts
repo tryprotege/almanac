@@ -6,7 +6,7 @@ import { VectorStore } from "../../stores/vector.store.js";
 import { initializeServices } from "../../mcp/initialization.js";
 import { createRedisConnection, QUEUE_NAME } from "./config.js";
 import { SourceType } from "../../types/index.js";
-import { logger } from "../../utils/logger.js";
+import logger from "../../utils/logger.js";
 
 const processor: Processor<
   IndexVectorJobData,

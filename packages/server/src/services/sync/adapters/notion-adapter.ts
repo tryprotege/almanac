@@ -81,25 +81,6 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   }
 
   /**
-   * Fetch single record by ID
-   */
-  async fetchById(id: string): Promise<NotionRecord | null> {
-    try {
-      // Try as page first
-      const page = await this.client.getPage(id);
-      return page as NotionRecord;
-    } catch {
-      try {
-        // Try as database
-        const database = await this.client.getDatabaseSchema(id);
-        return database as NotionRecord;
-      } catch {
-        return null;
-      }
-    }
-  }
-
-  /**
    * Transform Notion record to unified format
    */
   async transform(sourceRecord: NotionRecord): Promise<Record> {

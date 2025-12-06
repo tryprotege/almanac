@@ -163,14 +163,14 @@ export const extractGraphFromRecord = async (
 
   // Log empty extractions (0 entities AND 0 relationships)
   if (entities.length === 0 && filteredRelationships.length === 0) {
-    console.warn(`⚠️  Empty extraction for record ${record._id}:`);
-    console.warn(`   - Content length: ${record.content.length} chars`);
-    console.warn(`   - Title: ${record.title}`);
-    console.warn(`   - MongoDB ID: ${record._id}`);
+    logger.warn(`⚠️  Empty extraction for record ${record._id}:`);
+    logger.warn(`   - Content length: ${record.content.length} chars`);
+    logger.warn(`   - Title: ${record.title}`);
+    logger.warn(`   - MongoDB ID: ${record._id}`);
     if (record.rawData && typeof record.rawData === "object") {
       const rawData = record.rawData as any;
       if (rawData.url) {
-        console.warn(`   - URL: ${rawData.url}`);
+        logger.warn(`   - URL: ${rawData.url}`);
       }
     }
   }
@@ -182,11 +182,11 @@ export const extractGraphFromRecord = async (
         ? entities.reduce((sum, e) => sum + e.name.length, 0) / entities.length
         : 0;
 
-    console.warn(`⚠️  Skipping toxic chunk for record ${record._id}:`);
-    console.warn(`   - Entities: ${entities.length}`);
-    console.warn(`   - Relationships: ${relationships.length}`);
-    console.warn(`   - Avg name length: ${avgNameLength.toFixed(1)} chars`);
-    console.warn(
+    logger.warn(`⚠️  Skipping toxic chunk for record ${record._id}:`);
+    logger.warn(`   - Entities: ${entities.length}`);
+    logger.warn(`   - Relationships: ${relationships.length}`);
+    logger.warn(`   - Avg name length: ${avgNameLength.toFixed(1)} chars`);
+    logger.warn(
       `   - Sample entities: ${entities
         .slice(0, 5)
         .map((e) => e.name)

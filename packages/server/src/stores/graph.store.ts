@@ -199,6 +199,69 @@ export class GraphStore {
   }
 
   /**
+   * Get all relationships, optionally filtered by source
+   * Used by relationship embedder during indexing
+   */
+  async getAllRelationships(options?: {
+    source?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<MemgraphRelationship[]> {
+    let query = `
+      MATCH (source)-[r]->(target)
+      WHERE source.id IS NOT NULL AND target.id IS NOT NULL
+    `;
+
+    if (options?.source) {
+      query += ` AND source.id STARTS WITH $source`;
+    }
+
+    query += `
+      RETURN
+        source.id AS sourceId,
+        source.type AS sourceType,
+        target.id AS targetId,
+        target.type AS targetType,
+        type(r) AS relType,
+        r.confidence AS confidence,
+        r.extractedBy AS extractedBy
+    `;
+
+    if (options?.offset) {
+      query += ` SKIP ${options.offset}`;
+    }
+
+    if (options?.limit) {
+      query += ` LIMIT ${options.limit}`;
+    }
+
+    const results = await this.memgraph.executeQuery<{
+      sourceId: string;
+      sourceType: string;
+      targetId: string;
+      targetType: string;
+      relType: string;
+      confidence: number;
+      extractedBy: string;
+    }>(query, { source: options?.source });
+
+    return results.map((r) => ({
+      sourceId: r.sourceId,
+      targetId: r.targetId,
+      type: r.relType,
+      confidence: r.confidence || 1.0,
+      extractedBy: (r.extractedBy || "explicit") as
+        | "explicit"
+        | "llm"
+        | "heuristic",
+      metadata: {
+        sourceType: r.sourceType,
+        targetType: r.targetType,
+      },
+    }));
+  }
+
+  /**
    * Find all relationships for a node
    */
   async getNodeRelationships(

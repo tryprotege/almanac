@@ -1,5 +1,11 @@
 import { randomUUID } from "crypto";
-import { VectorPoint } from "../types/index.js";
+import {
+  VectorPoint,
+  VectorPayloadType,
+  EntityVectorPayload,
+  RelationshipVectorPayload,
+  SourceType,
+} from "../types/index.js";
 import { QdrantConnection } from "../connections/qdrant.js";
 import { env } from "../env.js";
 import logger from "../utils/logger.js";
@@ -194,6 +200,86 @@ export class VectorStore {
       logger.error({ err, pointId: id }, `Error getting point ${id}`);
       return null;
     }
+  }
+
+  /**
+   * Search for entities by embedding
+   */
+  async searchEntities(
+    vector: number[],
+    options?: {
+      limit?: number;
+      scoreThreshold?: number;
+      source?: SourceType;
+    }
+  ): Promise<
+    Array<{ id: string; score: number; payload: EntityVectorPayload }>
+  > {
+    const filter: any = {
+      must: [{ key: "type", match: { value: "entity" } }],
+    };
+
+    if (options?.source) {
+      filter.must.push({ key: "source", match: { value: options.source } });
+    }
+
+    const results = await this.search(vector, {
+      limit: options?.limit || 60,
+      scoreThreshold: options?.scoreThreshold || 0.6,
+      filter,
+    });
+
+    return results as Array<{
+      id: string;
+      score: number;
+      payload: EntityVectorPayload;
+    }>;
+  }
+
+  /**
+   * Search for relationships by embedding
+   */
+  async searchRelationships(
+    vector: number[],
+    options?: {
+      limit?: number;
+      scoreThreshold?: number;
+      relType?: string;
+    }
+  ): Promise<
+    Array<{ id: string; score: number; payload: RelationshipVectorPayload }>
+  > {
+    const filter: any = {
+      must: [{ key: "type", match: { value: "relationship" } }],
+    };
+
+    if (options?.relType) {
+      filter.must.push({ key: "relType", match: { value: options.relType } });
+    }
+
+    const results = await this.search(vector, {
+      limit: options?.limit || 60,
+      scoreThreshold: options?.scoreThreshold || 0.6,
+      filter,
+    });
+
+    return results as Array<{
+      id: string;
+      score: number;
+      payload: RelationshipVectorPayload;
+    }>;
+  }
+
+  /**
+   * Delete all vectors of a specific type
+   */
+  async deleteByType(type: VectorPayloadType): Promise<void> {
+    await this.qdrant.client.delete(this.collectionName, {
+      wait: true,
+      filter: {
+        must: [{ key: "type", match: { value: type } }],
+      },
+    });
   }
 }
 

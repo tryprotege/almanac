@@ -1,10 +1,15 @@
 import { RecordStore } from "../../../stores/record.store.js";
 import { GraphStore } from "../../../stores/graph.store.js";
+import { VectorStore } from "../../../stores/vector.store.js";
 import { Record as TRecord } from "../../../models/record.model.js";
 import { SourceType } from "../../../types/index.js";
 import { BaseRecordAdapter } from "../../sync/adapters/base-adapter.js";
 import { MemgraphNode, MemgraphRelationship } from "../../../types/index.js";
 import logger from "../../../utils/logger.js";
+import {
+  indexEntityEmbeddings,
+  indexRelationshipEmbeddings,
+} from "./graph-embeddings.js";
 
 /**
  * Graph Indexer Service
@@ -15,7 +20,8 @@ export class GraphIndexerService {
   constructor(
     private recordStore: RecordStore,
     private graphStore: GraphStore,
-    private adapters: Map<SourceType, BaseRecordAdapter>
+    private adapters: Map<SourceType, BaseRecordAdapter>,
+    private vectorStore?: VectorStore
   ) {}
 
   /**
@@ -27,10 +33,13 @@ export class GraphIndexerService {
       recordType?: string;
       batchSize?: number;
       includeRelationships?: boolean;
+      includeEmbeddings?: boolean;
     }
   ): Promise<{
     nodes: number;
     relationships: number;
+    entityEmbeddings?: number;
+    relationshipEmbeddings?: number;
     errors: number;
   }> {
     const batchSize = options?.batchSize || 100;
@@ -125,6 +134,28 @@ export class GraphIndexerService {
     logger.info(`   Nodes: ${stats.nodes}`);
     logger.info(`   Relationships: ${stats.relationships}`);
     logger.info(`   Errors: ${stats.errors}`);
+
+    // Create embeddings if requested
+    if (options?.includeEmbeddings && this.vectorStore) {
+      logger.info(`🔮 Creating graph embeddings...`);
+
+      const deps = {
+        vectorStore: this.vectorStore,
+        recordStore: this.recordStore,
+        graphStore: this.graphStore,
+      };
+
+      const entityStats = await indexEntityEmbeddings(source, deps);
+      const relStats = await indexRelationshipEmbeddings(source, deps);
+
+      return {
+        nodes: stats.nodes,
+        relationships: stats.relationships,
+        entityEmbeddings: entityStats.indexed,
+        relationshipEmbeddings: relStats.indexed,
+        errors: stats.errors,
+      };
+    }
 
     return stats;
   }

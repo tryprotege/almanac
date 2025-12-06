@@ -62,7 +62,7 @@ export class NotionMCPClient {
   }
 
   /**
-   * Generic pagination handler with support for SYNC_CUTOFF_DATE and SYNC_LIMIT_PER_QUERY
+   * Generic pagination handler with support for SYNC_CUTOFF_DATE and SYNC_MAX_RECORDS
    */
   private async fetchAllPages<T>(
     toolName: string,
@@ -74,14 +74,14 @@ export class NotionMCPClient {
     const cutoffDate = env.SYNC_CUTOFF_DATE
       ? new Date(env.SYNC_CUTOFF_DATE)
       : null;
-    const limit = env.SYNC_LIMIT_PER_QUERY;
+    const limit = env.SYNC_MAX_RECORDS;
 
     do {
       // Check if we've reached the limit
       if (limit && allResults.length >= limit) {
         logger.info(
           { limit, fetched: allResults.length },
-          "Reached SYNC_LIMIT_PER_QUERY, stopping pagination"
+          "Reached SYNC_MAX_RECORDS, stopping pagination"
         );
         break;
       }
@@ -123,7 +123,7 @@ export class NotionMCPClient {
         allResults.splice(limit);
         logger.info(
           { limit, fetched: allResults.length },
-          "Trimmed results to SYNC_LIMIT_PER_QUERY"
+          "Trimmed results to SYNC_MAX_RECORDS"
         );
         break;
       }

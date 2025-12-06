@@ -81,7 +81,7 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
         const messages = await this.client.getAllChannelMessagesWithThreads(
           channel.id!,
           {
-            limit: env.SYNC_LIMIT_PER_QUERY,
+            limit: env.SYNC_MAX_RECORDS,
             oldest: env.SYNC_CUTOFF_DATE
               ? (new Date(env.SYNC_CUTOFF_DATE).getTime() / 1000).toString()
               : undefined,
@@ -133,7 +133,7 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
           channel.id!,
           {
             oldest: sinceTs,
-            limit: env.SYNC_LIMIT_PER_QUERY,
+            limit: env.SYNC_MAX_RECORDS,
           }
         );
 

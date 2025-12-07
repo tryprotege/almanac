@@ -51,6 +51,7 @@ export interface RelationshipVectorPayload extends Record<string, unknown> {
   extractedBy: "explicit" | "llm" | "heuristic";
   sourceType: string;
   targetType: string;
+  checksum?: string;
 }
 
 export interface VectorPoint {

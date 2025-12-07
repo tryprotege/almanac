@@ -2,7 +2,13 @@ import "dotenv/config";
 import { initializeServices } from "../src/mcp/initialization.js";
 import { RecordStore } from "../src/stores/record.store.js";
 import { GraphStore } from "../src/stores/graph.store.js";
+import { VectorStore } from "../src/stores/vector.store.js";
 import { indexAllRecords } from "../src/services/indexing/graph/graph-indexer.js";
+import { cleanupDeletedRecords } from "../src/services/indexing/graph/graph-cleanup.js";
+import {
+  indexEntityEmbeddings,
+  indexRelationshipEmbeddings,
+} from "../src/services/indexing/graph/graph-embeddings.js";
 import { createLLMClient } from "../src/services/llm/providers.js";
 import { loadProxyConfig } from "../src/mcp/config-loader.js";
 import { NotionMCPClient } from "../src/services/sources/notion/mcpClient.js";
@@ -27,6 +33,8 @@ interface ScriptOptions {
   limit?: number;
   force?: boolean;
   includeRelationships?: boolean;
+  cleanup?: boolean;
+  embeddings?: boolean;
 }
 
 function parseArgs(): ScriptOptions {
@@ -36,6 +44,8 @@ function parseArgs(): ScriptOptions {
     limit: 100,
     force: false,
     includeRelationships: true,
+    cleanup: false,
+    embeddings: false,
   };
 
   for (const arg of args) {
@@ -49,6 +59,10 @@ function parseArgs(): ScriptOptions {
       options.force = true;
     } else if (arg === "--no-relationships") {
       options.includeRelationships = false;
+    } else if (arg === "--cleanup") {
+      options.cleanup = true;
+    } else if (arg === "--embeddings") {
+      options.embeddings = true;
     }
   }
 
@@ -69,7 +83,7 @@ async function indexGraphRecords() {
   );
   logger.info("");
 
-  const { memgraph } = await initializeServices();
+  const { memgraph, qdrant } = await initializeServices();
   const validConfigs = await loadProxyConfig();
 
   // Create OpenAI client for LLM extraction
@@ -86,6 +100,9 @@ async function indexGraphRecords() {
 
     const recordStore = new RecordStore();
     const graphStore = new GraphStore(memgraph);
+    const vectorStore = options.embeddings
+      ? new VectorStore(qdrant)
+      : undefined;
 
     // Set up adapters
     const adapters = new Map<SourceType, any>();
@@ -94,6 +111,30 @@ async function indexGraphRecords() {
       const notionClient = new NotionMCPClient();
       const notionAdapter = new NotionAdapter(notionClient);
       adapters.set("notion", notionAdapter);
+    }
+
+    // 1. Cleanup deleted records first (if requested)
+    if (options.cleanup) {
+      logger.info(`\n🧹 Cleaning up deleted records...`);
+      const cleanupStats = await cleanupDeletedRecords(
+        config.name as SourceType,
+        recordStore,
+        graphStore,
+        vectorStore,
+        { cleanupEmbeddings: options.embeddings }
+      );
+
+      logger.info(`   ✅ Cleaned up ${cleanupStats.nodes} nodes`);
+      if (cleanupStats.entityEmbeddings !== undefined) {
+        logger.info(
+          `   ✅ Cleaned up ${cleanupStats.entityEmbeddings} entity embeddings`
+        );
+      }
+      if (cleanupStats.relationshipEmbeddings !== undefined) {
+        logger.info(
+          `   ✅ Cleaned up ${cleanupStats.relationshipEmbeddings} relationship embeddings`
+        );
+      }
     }
 
     // Get statistics before indexing
@@ -183,6 +224,29 @@ async function indexGraphRecords() {
       `   Indexed: ${allRecordsAfter.length - unindexedRecordsAfter.length}`
     );
     logger.info(`   Remaining Unindexed: ${unindexedRecordsAfter.length}`);
+
+    // 2. Create embeddings (if requested)
+    if (options.embeddings && vectorStore) {
+      logger.info(`\n🔮 Creating embeddings...`);
+
+      const deps = { vectorStore, recordStore, graphStore };
+
+      const entityStats = await indexEntityEmbeddings(
+        config.name as SourceType,
+        deps
+      );
+      const relStats = await indexRelationshipEmbeddings(
+        config.name as SourceType,
+        deps
+      );
+
+      logger.info(
+        `   ✅ Entity embeddings: ${entityStats.indexed} indexed, ${entityStats.skipped} skipped`
+      );
+      logger.info(
+        `   ✅ Relationship embeddings: ${relStats.indexed} indexed, ${relStats.skipped} skipped`
+      );
+    }
   }
 
   logger.info(`\n✨ Graph indexing script completed`);

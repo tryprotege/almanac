@@ -15,6 +15,10 @@ import {
   FathomAdapterConfig,
 } from "@ebee-oss/shared-util";
 import { FathomMCPClient } from "../../sources/fathom/mcpClient.js";
+import pLimit from "p-limit";
+
+const MEETING_CONCURRENCY = 5; // Process 5 meetings concurrently for transcripts/summaries
+const TEAM_CONCURRENCY = 3; // Process 3 teams concurrently for members
 
 /**
  * Fathom adapter for syncing Fathom records
@@ -62,9 +66,8 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
       }
     }
 
-    // Fetch team members (requires teams to be fetched first)
+    // Fetch team members in parallel
     if (this.config.includeTeamMembers) {
-      // If we haven't fetched teams yet, fetch them now
       if (teams.length === 0 && !this.config.includeTeams) {
         try {
           teams = await this.client.listTeams();
@@ -73,25 +76,32 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
         }
       }
 
-      // Fetch team members for each team
-      for (const team of teams) {
-        try {
-          const teamMembers = await this.client.listTeamMembers(team.id);
-          if (teamMembers.length > 0) {
-            for (let i = 0; i < teamMembers.length; i += batchSize) {
-              yield teamMembers.slice(i, i + batchSize) as FathomRecord[];
-            }
+      const limit = pLimit(TEAM_CONCURRENCY);
+      const memberPromises = teams.map((team) =>
+        limit(async () => {
+          try {
+            return await this.client.listTeamMembers(team.id);
+          } catch (error) {
+            console.warn(
+              `Failed to fetch team members for team ${team.id}:`,
+              error
+            );
+            return [];
           }
-        } catch (error) {
-          console.warn(
-            `Failed to fetch Fathom team members for team ${team.id}:`,
-            error
-          );
+        })
+      );
+
+      const allMembers = await Promise.all(memberPromises);
+      for (const teamMembers of allMembers) {
+        if (teamMembers.length > 0) {
+          for (let i = 0; i < teamMembers.length; i += batchSize) {
+            yield teamMembers.slice(i, i + batchSize) as FathomRecord[];
+          }
         }
       }
     }
 
-    // Fetch meetings WITHOUT embedded data - we'll fetch those separately
+    // Fetch meetings WITHOUT embedded data
     const meetings = await this.client.listMeetings({
       include_summary: false,
       include_transcript: false,
@@ -103,62 +113,54 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
       yield meetings.slice(i, i + batchSize) as FathomRecord[];
     }
 
-    // Fetch transcripts separately for each meeting
+    // Fetch transcripts and summaries in parallel
+    const limit = pLimit(MEETING_CONCURRENCY);
+
     if (this.config.includeTranscripts !== false) {
-      const transcripts: FathomRecord[] = [];
-      for (const meeting of meetings) {
-        try {
-          const transcript = await this.client.getTranscript(
-            meeting.recording_id
-          );
-          transcripts.push(transcript as FathomRecord);
-
-          // Yield in batches
-          if (transcripts.length >= batchSize) {
-            yield transcripts.splice(0, batchSize);
+      const transcriptPromises = meetings.map((meeting) =>
+        limit(async () => {
+          try {
+            return await this.client.getTranscript(meeting.recording_id);
+          } catch (error) {
+            console.warn(
+              `Failed to fetch transcript for meeting ${meeting.recording_id}:`,
+              error
+            );
+            return null;
           }
-        } catch (error) {
-          console.warn(
-            `Failed to fetch transcript for meeting ${106125370}:`,
-            error
-          );
-        }
-        // }
-        // Yield remaining transcripts
-        if (transcripts.length > 0) {
-          yield transcripts;
-        }
+        })
+      );
+
+      const transcripts = (await Promise.all(transcriptPromises)).filter(
+        Boolean
+      ) as FathomRecord[];
+      for (let i = 0; i < transcripts.length; i += batchSize) {
+        yield transcripts.slice(i, i + batchSize);
       }
     }
 
-    // // Fetch summaries separately for each meeting
     if (this.config.includeSummaries !== false) {
-      const summaries: FathomRecord[] = [];
-      for (const meeting of meetings) {
-        try {
-          const summary = await this.client.getSummary(meeting.recording_id);
-          summaries.push(summary as FathomRecord);
-
-          // Yield in batches
-          if (summaries.length >= batchSize) {
-            yield summaries.splice(0, batchSize);
+      const summaryPromises = meetings.map((meeting) =>
+        limit(async () => {
+          try {
+            return await this.client.getSummary(meeting.recording_id);
+          } catch (error) {
+            console.warn(
+              `Failed to fetch summary for meeting ${meeting.recording_id}:`,
+              error
+            );
+            return null;
           }
-        } catch (error) {
-          console.warn(
-            `Failed to fetch summary for meeting ${meeting.recording_id}:`,
-            error
-          );
-        }
-      }
-      // Yield remaining summaries
-      if (summaries.length > 0) {
-        yield summaries;
+        })
+      );
+
+      const summaries = (await Promise.all(summaryPromises)).filter(
+        Boolean
+      ) as FathomRecord[];
+      for (let i = 0; i < summaries.length; i += batchSize) {
+        yield summaries.slice(i, i + batchSize);
       }
     }
-
-    // Note: Action items are embedded in meetings when fetched with include_action_items
-    // Since we're not including them in the meeting fetch, we'd need a separate API
-    // For now, action items will be handled if they're in the meeting data
   }
 
   /**
@@ -183,41 +185,50 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
     if (recentMeetings.length > 0) {
       yield recentMeetings as FathomRecord[];
 
-      // Fetch transcripts separately
+      // Fetch transcripts and summaries in parallel
+      const limit = pLimit(MEETING_CONCURRENCY);
+
       if (this.config.includeTranscripts !== false) {
-        const transcripts: FathomRecord[] = [];
-        for (const meeting of recentMeetings) {
-          try {
-            const transcript = await this.client.getTranscript(
-              meeting.recording_id
-            );
-            transcripts.push(transcript as FathomRecord);
-          } catch (error) {
-            console.warn(
-              `Failed to fetch transcript for meeting ${meeting.recording_id}:`,
-              error
-            );
-          }
-        }
+        const transcriptPromises = recentMeetings.map((meeting) =>
+          limit(async () => {
+            try {
+              return await this.client.getTranscript(meeting.recording_id);
+            } catch (error) {
+              console.warn(
+                `Failed to fetch transcript for meeting ${meeting.recording_id}:`,
+                error
+              );
+              return null;
+            }
+          })
+        );
+
+        const transcripts = (await Promise.all(transcriptPromises)).filter(
+          Boolean
+        ) as FathomRecord[];
         if (transcripts.length > 0) {
           yield transcripts;
         }
       }
 
-      // Fetch summaries separately
       if (this.config.includeSummaries !== false) {
-        const summaries: FathomRecord[] = [];
-        for (const meeting of recentMeetings) {
-          try {
-            const summary = await this.client.getSummary(meeting.recording_id);
-            summaries.push(summary as FathomRecord);
-          } catch (error) {
-            console.warn(
-              `Failed to fetch summary for meeting ${meeting.recording_id}:`,
-              error
-            );
-          }
-        }
+        const summaryPromises = recentMeetings.map((meeting) =>
+          limit(async () => {
+            try {
+              return await this.client.getSummary(meeting.recording_id);
+            } catch (error) {
+              console.warn(
+                `Failed to fetch summary for meeting ${meeting.recording_id}:`,
+                error
+              );
+              return null;
+            }
+          })
+        );
+
+        const summaries = (await Promise.all(summaryPromises)).filter(
+          Boolean
+        ) as FathomRecord[];
         if (summaries.length > 0) {
           yield summaries;
         }

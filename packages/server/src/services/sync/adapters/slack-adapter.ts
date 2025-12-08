@@ -3,6 +3,7 @@ import { Channel as SlackChannel } from "@slack/web-api/dist/types/response/Conv
 import { Member as SlackUser } from "@slack/web-api/dist/types/response/UsersListResponse.js";
 import { z } from "zod";
 import { zodResponseFormat } from "openai/helpers/zod";
+import pLimit from "p-limit";
 
 import { Record } from "../../../models/record.model.js";
 import { EntityRelationship, FetchOptions } from "../../../types/index.js";
@@ -16,6 +17,8 @@ type SlackRecord = SlackChannel | SlackMessage | SlackUser;
 
 const BATCH_SIZE = 50;
 const BATCH_OVERLAP = 10;
+const CHANNEL_CONCURRENCY = 5; // Process 5 channels concurrently
+const LLM_BATCH_CONCURRENCY = 3; // Process 3 LLM batches concurrently
 
 // Zod schema for message grouping response
 const MessageGroupingSchema = z.object({
@@ -74,32 +77,39 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
     );
     yield transformedChannels;
 
-    // Fetch messages from each channel
-    for (const channel of channels) {
-      logger.info(`Fetching messages from channel: ${channel.name}`);
-      try {
-        const messages = await this.client.getAllChannelMessagesWithThreads(
-          channel.id!,
-          {
-            limit: env.SYNC_MAX_RECORDS,
-            oldest: env.SYNC_CUTOFF_DATE
-              ? (new Date(env.SYNC_CUTOFF_DATE).getTime() / 1000).toString()
-              : undefined,
-          }
-        );
+    // Fetch messages from channels with controlled concurrency
+    const limit = pLimit(CHANNEL_CONCURRENCY);
+    const channelPromises = channels.map((channel) =>
+      limit(async () => {
+        logger.info(`Fetching messages from channel: ${channel.name}`);
+        try {
+          const messages = await this.client.getAllChannelMessagesWithThreads(
+            channel.id!,
+            {
+              limit: env.SYNC_MAX_RECORDS,
+              oldest: env.SYNC_CUTOFF_DATE
+                ? (new Date(env.SYNC_CUTOFF_DATE).getTime() / 1000).toString()
+                : undefined,
+            }
+          );
 
-        // Process and yield all records for this channel (messages, threads, and conversations)
-        const allRecords = await this.processChannelMessages(messages, channel);
-
-        // Yield in batches
-        for (let i = 0; i < allRecords.length; i += batchSize) {
-          yield allRecords.slice(i, i + batchSize);
+          return await this.processChannelMessages(messages, channel);
+        } catch (error: any) {
+          logger.error(
+            { err: error },
+            `Failed to fetch messages from channel ${channel.name}`
+          );
+          return [];
         }
-      } catch (error: any) {
-        logger.error(
-          { err: error },
-          `Failed to fetch messages from channel ${channel.name}`
-        );
+      })
+    );
+
+    // Wait for all channels to complete and yield results in batches
+    const allChannelRecords = await Promise.all(channelPromises);
+
+    for (const channelRecords of allChannelRecords) {
+      for (let i = 0; i < channelRecords.length; i += batchSize) {
+        yield channelRecords.slice(i, i + batchSize);
       }
     }
   }
@@ -126,28 +136,38 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
       yield transformedChannels;
     }
 
-    // Fetch messages from each channel since timestamp
-    for (const channel of channels) {
-      try {
-        const messages = await this.client.getAllChannelMessagesWithThreads(
-          channel.id!,
-          {
-            oldest: sinceTs,
-            limit: env.SYNC_MAX_RECORDS,
-          }
-        );
-
-        if (messages.length > 0) {
-          const transformedMessages = messages.map((msg) =>
-            this.transformMessage(msg)
+    // Fetch messages from channels with controlled concurrency
+    const limit = pLimit(CHANNEL_CONCURRENCY);
+    const channelPromises = channels.map((channel) =>
+      limit(async () => {
+        try {
+          const messages = await this.client.getAllChannelMessagesWithThreads(
+            channel.id!,
+            {
+              oldest: sinceTs,
+              limit: env.SYNC_MAX_RECORDS,
+            }
           );
-          yield transformedMessages;
+
+          if (messages.length > 0) {
+            return messages.map((msg) => this.transformMessage(msg));
+          }
+          return [];
+        } catch (error: any) {
+          logger.error(
+            { err: error },
+            `Failed to fetch incremental messages from channel ${channel.name}`
+          );
+          return [];
         }
-      } catch (error: any) {
-        logger.error(
-          { err: error },
-          `Failed to fetch incremental messages from channel ${channel.name}`
-        );
+      })
+    );
+
+    // Wait for all channels and yield results
+    const allResults = await Promise.all(channelPromises);
+    for (const messages of allResults) {
+      if (messages.length > 0) {
+        yield messages;
       }
     }
   }
@@ -287,16 +307,18 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
   }
 
   /**
-   * Group messages using LLM
+   * Group messages using LLM with parallel batch processing
    */
   private async groupMessagesWithLLM(
     messages: SlackMessage[]
   ): Promise<Array<{ messageIndex: number; groupId: number }>> {
     logger.info(`Grouping ${messages.length} messages with LLM...`);
-    const allGroupings: Array<{
-      startIndex: number;
-      endIndex: number;
-      grouping: Array<{ messageIndex: number; groupId: number }>;
+
+    // Prepare all batches
+    const batches: Array<{
+      batch: SlackMessage[];
+      batchStart: number;
+      batchEnd: number;
     }> = [];
 
     for (
@@ -309,30 +331,45 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
 
       if (batch.length === 0) break;
 
-      try {
-        const batchGrouping = await this.groupMessageBatch(batch, batchStart);
-        allGroupings.push({
-          startIndex: batchStart,
-          endIndex: batchEnd,
-          grouping: batchGrouping,
-        });
-      } catch (error) {
-        logger.error(
-          { err: error instanceof Error ? error : new Error(String(error)) },
-          `Batch grouping failed for batch starting at ${batchStart}`
-        );
-        allGroupings.push({
-          startIndex: batchStart,
-          endIndex: batchEnd,
-          grouping: batch.map((_, i) => ({
-            messageIndex: batchStart + i,
-            groupId: batchStart + i,
-          })),
-        });
-      }
+      batches.push({ batch, batchStart, batchEnd });
 
       if (batchEnd >= messages.length) break;
     }
+
+    // Process batches in parallel with concurrency control
+    const limit = pLimit(LLM_BATCH_CONCURRENCY);
+    const allGroupings = await Promise.all(
+      batches.map(({ batch, batchStart, batchEnd }) =>
+        limit(async () => {
+          try {
+            const batchGrouping = await this.groupMessageBatch(
+              batch,
+              batchStart
+            );
+            return {
+              startIndex: batchStart,
+              endIndex: batchEnd,
+              grouping: batchGrouping,
+            };
+          } catch (error) {
+            logger.error(
+              {
+                err: error instanceof Error ? error : new Error(String(error)),
+              },
+              `Batch grouping failed for batch starting at ${batchStart}`
+            );
+            return {
+              startIndex: batchStart,
+              endIndex: batchEnd,
+              grouping: batch.map((_, i) => ({
+                messageIndex: batchStart + i,
+                groupId: batchStart + i,
+              })),
+            };
+          }
+        })
+      )
+    );
 
     return this.consolidateBatchGroupings(allGroupings, messages.length);
   }

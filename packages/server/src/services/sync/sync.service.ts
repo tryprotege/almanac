@@ -18,25 +18,25 @@ export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
   let adapter: BaseRecordAdapter | null = null;
   if (mcpConfig.name === "notion") {
     const notionClient = new NotionMCPClient();
-    const notionAdapter = new NotionAdapter(notionClient);
-    await syncAllRecords(recordStore, "notion", notionAdapter);
+    adapter = new NotionAdapter(notionClient);
+    await syncAllRecords(recordStore, "notion", adapter);
 
     logger.info("✅ Saved records into document DB");
   } else if (mcpConfig.name === "github") {
     const githubClient = new GitHubMCPClient();
     // Get owner from environment or config
-    const githubAdapter = new GitHubAdapter(githubClient, {
+    adapter = new GitHubAdapter(githubClient, {
       includeArchived: false,
       includeForks: true,
       includePrivate: true,
     });
-    await syncAllRecords(recordStore, "github", githubAdapter);
+    await syncAllRecords(recordStore, "github", adapter);
 
     logger.info("✅ Saved GitHub records into document DB");
   } else if (mcpConfig.name === "fathom") {
     const fathomClient = new FathomMCPClient();
     // Get owner from environment or config
-    const fathomAdaptor = new FathomAdapter(fathomClient, {
+    adapter = new FathomAdapter(fathomClient, {
       includeActionItems: true,
       includeNotes: true,
       includeHighlights: true,
@@ -44,7 +44,7 @@ export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
       includeTeams: true,
       includeTranscripts: true,
     });
-    await syncAllRecords(recordStore, "fathom", fathomAdaptor);
+    await syncAllRecords(recordStore, "fathom", adapter);
 
     logger.info("✅ Saved Fathom records into document DB");
   } else if (mcpConfig.name === "slack") {

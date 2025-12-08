@@ -17,12 +17,17 @@ const RecordSchema = new mongoose.Schema(
         "slack",
         "calendar",
         "jira",
-        "github",
         "fathom",
+        "whatsapp",
+        "codebase",
+        "asana",
+        "google_drive",
+        "github",
       ] satisfies SourceType[],
     },
     sourceId: { type: String, required: true, index: true }, // Original ID from source
     recordType: { type: String, required: true, index: true }, // 'page' | 'message' | 'event' | 'task' | 'issue' | etc.
+    parentId: { type: String, index: true }, // Parent record ID (for threads, conversations, etc.)
 
     // Universal searchable fields (indexed for fast queries)
     title: { type: String, required: true, index: true },

@@ -3,6 +3,8 @@
  * LightRAG-inspired deduplication for knowledge graph extraction
  */
 
+import logger from "../../../../utils/logger.js";
+
 export interface Entity {
   name: string;
   type: string;
@@ -103,13 +105,13 @@ export const filterLowValueRelationships = (
   return relationships.filter((rel) => {
     // Filter out blacklisted types
     if (LOW_VALUE_RELATIONSHIP_TYPES.has(rel.type.toUpperCase())) {
-      console.warn(`⚠️  Filtered low-value relationship: ${rel.type}`);
+      logger.warn(`⚠️  Filtered low-value relationship: ${rel.type}`);
       return false;
     }
 
     // Filter out weak relationships (strength < 5)
     if (rel.strength && rel.strength < 5) {
-      console.warn(
+      logger.warn(
         `⚠️  Filtered weak relationship: ${rel.source} -> ${rel.target} (strength: ${rel.strength})`
       );
       return false;

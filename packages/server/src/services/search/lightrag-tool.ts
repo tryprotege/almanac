@@ -90,5 +90,5 @@ export function registerLightRAGTool(
     }
   );
 
-  logger.error("✅ eBee Search tool registered");
+  logger.info("✅ eBee Search tool registered");
 }

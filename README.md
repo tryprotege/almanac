@@ -1,156 +1,25 @@
-# ebee-oss
+# eBee-oss
 
-A lightning-fast data access platform for AI Agents built with a modern monorepo architecture.
+eBee implements a **GraphRAG (Graph Retrieval-Augmented Generation)** architecture that combines multiple database technologies to enable fast, accurate, and context-aware information retrieval for AI agents.
 
-## 📦 Monorepo Structure
+# About
 
-This project uses pnpm workspaces to manage multiple packages:
+@alex/@harry Verify this
 
-```
-ebee-oss/
-├── packages/
-│   ├── client/          # React + Vite frontend
-│   └── server/          # Express.js backend
-├── pnpm-workspace.yaml  # Workspace configuration
-└── docker-compose.yml   # Docker services
-```
+Traditional RAG systems rely solely on vector similarity search, which is fast but lacks understanding of relationships between entities. eBee's GraphRAG approach adds a knowledge graph layer that captures semantic relationships, enabling:
 
-## 🚀 Quick Start
+- **Relationship-aware retrieval**: Find information through entity connections
+- **Multi-hop reasoning**: Traverse the graph to discover indirect relationships
+- **Context expansion**: Automatically include related entities and their relationships
+- **Hybrid search**: Combine vector similarity with graph structure
 
-### Prerequisites
+# Getting Started
 
-- Node.js >= 24.0.0
-- pnpm >= 8.0.0
-- Docker Desktop or Docker Engine
-- Docker Compose
+Follow the [guide](./docs/Getting-started.md) for step by step setup.
 
-### Installation
+# Contributing
 
-1. **Install dependencies:**
-
-   ```bash
-   pnpm install
-   ```
-
-2. **Start development servers:**
-
-   ```bash
-   # Start all services (client + server)
-   pnpm dev
-
-   # Or start individually
-   pnpm dev:client  # Client on http://localhost:5173
-   pnpm dev:server  # Server on http://localhost:3000
-   ```
-
-### Docker Development
-
-1. **Start all services (databases + application):**
-
-   ```bash
-   pnpm docker:all
-   ```
-
-2. **Start only infra:**
-
-   ```bash
-   pnpm docker:infra
-   ```
-
-3. **Stop all services:**
-
-   ```bash
-   pnpm docker:down
-   ```
-
-## 📚 Available Scripts
-
-### Root Level
-
-- `pnpm dev` - Start both client and server in development mode
-- `pnpm build` - Build all packages
-- `pnpm test` - Run tests across all packages
-- `pnpm type-check` - Type check all packages
-
-### Client Package
-
-```bash
-cd packages/client
-pnpm dev      # Start Vite dev server
-pnpm build    # Build for production
-pnpm preview  # Preview production build
-```
-
-### Server Package
-
-```bash
-cd packages/server
-pnpm dev           # Start server with hot reload
-pnpm build         # Build TypeScript
-pnpm start         # Start production server
-pnpm test          # Run tests
-```
-
-## 🗄️ Development Environment
-
-This project uses Docker Compose to manage the following services:
-
-- **MongoDB**: Document database
-- **Qdrant**: Vector database
-- **Memgraph**: Graph database
-- **Redis**: In-memory data store
-- **Server**: Express.js backend (when using Docker)
-- **Client**: React frontend (when using Docker)
-
-### Service Access
-
-| Service  | Port(s)    | Connection Details                                |
-| -------- | ---------- | ------------------------------------------------- |
-| Client   | 5173       | `http://localhost:5173`                           |
-| Server   | 3000       | `http://localhost:3000`                           |
-| MongoDB  | 27017      | `mongodb://admin:admin123@localhost:27017`        |
-| Qdrant   | 6333, 6334 | HTTP: `http://localhost:6333`, gRPC: `6334`       |
-| Memgraph | 7687, 7444 | Bolt: `bolt://localhost:7687`, Monitoring: `7444` |
-| Redis    | 6379       | `redis://localhost:6379`                          |
-
-### Database Applications to Inspect the Data
-
-**Memgraph:**
-
-- Download [Memgraph Lab](https://memgraph.com/download) for visual graph database management
-- Connect using Bolt protocol: `bolt://localhost:7687`
-
-**Qdrant:**
-
-- Built-in web dashboard: [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
-
-**MongoDB:**
-
-- [MongoDB Compass](https://www.mongodb.com/products/compass) - official GUI client
-
-## 🏗️ Architecture
-
-### Client (packages/client)
-
-- **Framework**: React 18
-- **Build Tool**: Vite
-- **Language**: TypeScript
-- **Styling**: CSS
-
-### Server (packages/server)
-
-- **Framework**: Express.js
-- **Language**: TypeScript
-- **Databases**: MongoDB, Qdrant, Memgraph, Redis
-- **Features**: Vector search, graph indexing, schema learning
-
-## 📝 Environment Variables
-
-Copy `.env.example` to `.env` in the server package and configure:
-
-```bash
-cp packages/server/.env.example packages/server/.env
-```
+(@TODO)Need to fill in details and rules in contribution.md
 
 ## 📄 License
 

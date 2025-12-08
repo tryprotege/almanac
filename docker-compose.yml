@@ -64,8 +64,6 @@ services:
       - "3000:3000"
     volumes:
       - ./packages/server:/app/packages/server
-      - /app/packages/server/node_modules
-      - /app/node_modules
     environment:
       - NODE_ENV=development
       - MONGO_HOST=mongodb
@@ -106,8 +104,6 @@ services:
       - "5173:5173"
     volumes:
       - ./packages/client:/app/packages/client
-      - /app/packages/client/node_modules
-      - /app/node_modules
     environment:
       - NODE_ENV=development
       - VITE_API_TARGET=http://server:3000

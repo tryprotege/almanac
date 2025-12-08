@@ -74,24 +74,24 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
 
       const repoName = repo.name;
       // // Fetch issues
-      // try {
-      //   const issues = await this.client.listIssues(owner, repoName);
-      //   for (let i = 0; i < issues.length; i += batchSize) {
-      //     yield issues.slice(i, i + batchSize) as GitHubRecord[];
-      //   }
-      // } catch (error) {
-      //   console.warn(`Failed to fetch issues for ${owner}/${repoName}:`, error);
-      // }
+      try {
+        const issues = await this.client.listIssues(owner, repoName);
+        for (let i = 0; i < issues.length; i += batchSize) {
+          yield issues.slice(i, i + batchSize) as GitHubRecord[];
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch issues for ${owner}/${repoName}:`, error);
+      }
 
-      // // Fetch pull requests
-      // try {
-      //   const prs = await this.client.listPullRequests(owner, repoName, "all");
-      //   for (let i = 0; i < prs.length; i += batchSize) {
-      //     yield prs.slice(i, i + batchSize) as GitHubRecord[];
-      //   }
-      // } catch (error) {
-      //   console.warn(`Failed to fetch PRs for ${owner}/${repoName}:`, error);
-      // }
+      // Fetch pull requests
+      try {
+        const prs = await this.client.listPullRequests(owner, repoName, "all");
+        for (let i = 0; i < prs.length; i += batchSize) {
+          yield prs.slice(i, i + batchSize) as GitHubRecord[];
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch PRs for ${owner}/${repoName}:`, error);
+      }
 
       // Fetch workflows
       try {

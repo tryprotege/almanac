@@ -73,7 +73,7 @@ const envSchema = z.object({
   MAX_ENTITIES_PER_DOCUMENT: z.coerce.number().default(200),
 
   // Sync Configuration
-  SYNC_CUTOFF_DATE: z.string().datetime().default("2025-12-01T00:00:00.000Z"), // datetime in ISO format eg. "2023-06-01T00:00:00.000Z"
+  SYNC_CUTOFF_DATE: z.string().datetime().optional(), // datetime in ISO format eg. "2023-06-01T00:00:00.000Z"
   SYNC_MAX_RECORDS: z.coerce.number().optional(), // Maximum total number of records (per record type) to fetch during sync operations (optional, no limit if not set)
 });
 

@@ -22,19 +22,42 @@ export type SourceType =
 // Qdrant (Vector Search)
 // ============================================
 
+export type VectorPayloadType = "chunk" | "entity" | "relationship";
+
+export interface ChunkVectorPayload extends Record<string, unknown> {
+  type: "chunk";
+  mongoId: string;
+  checksum: string;
+  chunkIndex: number;
+  chunkStart: number;
+  chunkEnd: number;
+}
+
+export interface EntityVectorPayload extends Record<string, unknown> {
+  type: "entity";
+  mongoId: string; // Links to Record._id
+  recordType: string; // meeting, page, issue, etc.
+  source: SourceType;
+  degree: number; // Graph centrality (cached)
+  checksum: string;
+}
+
+export interface RelationshipVectorPayload extends Record<string, unknown> {
+  type: "relationship";
+  sourceId: string;
+  targetId: string;
+  relType: string;
+  confidence: number;
+  extractedBy: "explicit" | "llm" | "heuristic";
+  sourceType: string;
+  targetType: string;
+  checksum?: string;
+}
+
 export interface VectorPoint {
   id: string; // UUID
   vector: number[]; // Embedding dimensions
-
-  payload: {
-    mongoId: string; // Reference to MongoDB _id
-    checksum: string; // Record checksum
-
-    // For chunked documents
-    chunkIndex?: number; // 0, 1, 2, ... (which chunk)
-    chunkStart?: number; // Character offset start
-    chunkEnd?: number; // Character offset end
-  };
+  payload: ChunkVectorPayload | EntityVectorPayload | RelationshipVectorPayload;
 }
 
 // ============================================

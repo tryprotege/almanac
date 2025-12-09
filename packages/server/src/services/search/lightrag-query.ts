@@ -379,38 +379,42 @@ async function searchEntitiesByKeywords(
   limit: number,
   deps: LightRAGDependencies
 ): Promise<LightRAGEntity[]> {
+  // Use vector search instead of text search
   const searchQuery = keywords.join(" ");
-  const records = await RecordModel.find(
-    { $text: { $search: searchQuery } },
-    { score: { $meta: "textScore" } }
-  )
-    .sort({ score: { $meta: "textScore" } })
-    .limit(limit)
-    .lean();
+  const queryVector = (await embed([searchQuery]))[0];
 
-  // Batch fetch relationship counts for all entities
-  const recordIds = records.map((r) => r._id);
-  const degreeCounts = await deps.graphStore.getNodeRelationshipCounts(
-    recordIds
-  );
-
-  const entities: LightRAGEntity[] = records.map((record) => {
-    const degree = degreeCounts.get(record._id) || 0;
-
-    return {
-      id: record._id,
-      name: record.title,
-      type: record.recordType,
-      description: record.content.substring(0, 200),
-      degree,
-      rank: calculateNodeRank(degree),
-      source: record.source,
-      sourceId: record.sourceId,
-      date: record.primaryDate?.toISOString(),
-      relevance_score: (record as any).score || 0,
-    };
+  // Search entity embeddings in Qdrant
+  const results = await deps.vectorStore.searchEntities(queryVector, {
+    limit,
+    scoreThreshold: 0.5,
   });
 
+  // Fetch full records from MongoDB
+  const mongoIds = results.map((r) => r.payload.mongoId);
+  const records = await RecordModel.find({ _id: { $in: mongoIds } }).lean();
+  const recordMap = new Map(records.map((r) => [r._id, r]));
+
+  const entities: LightRAGEntity[] = results
+    .map((result) => {
+      const record = recordMap.get(result.payload.mongoId);
+      if (!record) return null;
+
+      return {
+        id: record._id,
+        name: record.title,
+        type: record.recordType,
+        description: record.content.substring(0, 200),
+        degree: result.payload.degree,
+        rank: calculateNodeRank(result.payload.degree),
+        source: record.source,
+        sourceId: record.sourceId,
+        date: record.primaryDate?.toISOString(),
+        relevance_score: result.score,
+      };
+    })
+    .filter((e) => e !== null) as LightRAGEntity[];
+
+  // Sort by degree (graph centrality)
   entities.sort((a, b) => b.degree - a.degree);
   return entities;
 }
@@ -420,48 +424,56 @@ async function searchRelationshipsByKeywords(
   limit: number,
   deps: LightRAGDependencies
 ): Promise<LightRAGRelationship[]> {
-  const entities = await searchEntitiesByKeywords(keywords, limit, deps);
+  // Use direct relationship vector search
+  const searchQuery = keywords.join(" ");
+  const queryVector = (await embed([searchQuery]))[0];
 
-  // Fetch relationships in parallel
-  const relationshipResults = await Promise.all(
-    entities.map(async (entity) => ({
-      entity,
-      rels: await deps.graphStore.getNodeRelationships(entity.id),
-    }))
-  );
-
-  const allRelationships: LightRAGRelationship[] = [];
-
-  for (const { entity, rels } of relationshipResults) {
-    for (const rel of rels) {
-      allRelationships.push({
-        id: `${rel.relationship.sourceId}_${rel.relationship.type}_${rel.relationship.targetId}`,
-        source: {
-          id: rel.relationship.sourceId,
-          name: entity.name,
-          type: entity.type,
-        },
-        target: {
-          id: rel.relatedNode.id,
-          name: rel.relatedNode.title,
-          type: rel.relatedNode.type,
-        },
-        type: rel.relationship.type,
-        confidence: rel.relationship.confidence,
-        weight: Math.round(rel.relationship.confidence * 10),
-        rank: entity.rank, // Use entity rank instead of expensive edge rank
-        extracted_by: rel.relationship.extractedBy,
-      });
-    }
-  }
-
-  const uniqueRels = deduplicateRelationships(allRelationships);
-  uniqueRels.sort((a, b) => {
-    if (b.rank !== a.rank) return b.rank - a.rank;
-    return b.weight - a.weight;
+  // Search relationship embeddings in Qdrant
+  const results = await deps.vectorStore.searchRelationships(queryVector, {
+    limit,
+    scoreThreshold: 0.5,
   });
 
-  return uniqueRels.slice(0, limit);
+  // Fetch entity details for source/target
+  const entityIds = new Set<string>();
+  results.forEach((r) => {
+    entityIds.add(r.payload.sourceId);
+    entityIds.add(r.payload.targetId);
+  });
+
+  const records = await RecordModel.find({
+    _id: { $in: Array.from(entityIds) },
+  }).lean();
+  const recordMap = new Map(records.map((r) => [r._id, r]));
+
+  // Build LightRAGRelationship objects
+  const relationships: LightRAGRelationship[] = results.map((result) => {
+    const source = recordMap.get(result.payload.sourceId);
+    const target = recordMap.get(result.payload.targetId);
+
+    return {
+      id: `${result.payload.sourceId}_${result.payload.relType}_${result.payload.targetId}`,
+      source: {
+        id: result.payload.sourceId,
+        name: source?.title || "Unknown",
+        type: result.payload.sourceType,
+      },
+      target: {
+        id: result.payload.targetId,
+        name: target?.title || "Unknown",
+        type: result.payload.targetType,
+      },
+      type: result.payload.relType,
+      confidence: result.payload.confidence,
+      weight: Math.round(result.payload.confidence * 10),
+      rank: Math.round(result.score * 100), // Use search score as rank
+      extracted_by: result.payload.extractedBy,
+    };
+  });
+
+  // Sort by confidence
+  relationships.sort((a, b) => b.confidence - a.confidence);
+  return relationships.slice(0, limit);
 }
 
 async function getEntitiesByIds(

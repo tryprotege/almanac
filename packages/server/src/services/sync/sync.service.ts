@@ -46,6 +46,8 @@ export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
 
   // Sync records for this source
   await syncAllRecords(recordStore, mcpConfig.name, adapter);
+
+  logger.info({ msg: `✅ Saved ${mcpConfig.name} records into document DB` });
 };
 
 /**

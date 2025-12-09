@@ -86,6 +86,8 @@ const connectMcpServers = async () => {
       })),
       mcpServer
     );
+  } else {
+    logger.info({ msg: "No remote MCP servers configured" });
   }
 };
 

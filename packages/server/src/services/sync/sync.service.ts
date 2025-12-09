@@ -46,8 +46,6 @@ export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
 
   // Sync records for this source
   await syncAllRecords(recordStore, mcpConfig.name, adapter);
-
-  logger.info(`✅ Saved ${mcpConfig.name} records into document DB`);
 };
 
 /**
@@ -65,25 +63,27 @@ export async function syncAllRemoteMcpServers(): Promise<void> {
   let successCount = 0;
   let failureCount = 0;
 
+  const failures: Array<{ source: string; error: any }> = [];
+
   results.forEach((result, index) => {
     const config = validConfigs[index];
     if (result.status === "fulfilled") {
       successCount++;
-      logger.info(`✅ Successfully synced ${config.name}`);
     } else {
       failureCount++;
+      failures.push({ source: config.name, error: result.reason });
       logger.error(
         { err: result.reason, source: config.name },
-        `❌ Failed to sync ${config.name}`
+        `❌ Failed to sync source`
       );
     }
   });
 
-  logger.info(
-    `\n📊 Sync Summary: ${successCount}/${validConfigs.length} sources synced successfully`
-  );
-
-  if (failureCount > 0) {
-    logger.warn(`⚠️  ${failureCount} source(s) failed to sync`);
-  }
+  logger.info({
+    msg: "📊 Sync Summary",
+    successful: successCount,
+    failed: failureCount,
+    total: validConfigs.length,
+    failures: failures.length > 0 ? failures.map((f) => f.source) : undefined,
+  });
 }

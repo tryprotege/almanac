@@ -43,7 +43,6 @@ export const connectMemgraph = async (): Promise<MemgraphConnection> => {
 
     // Test connection
     await driver.verifyConnectivity();
-    logger.info("Memgraph connected successfully");
 
     const getSession = (): Session => driver.session();
 
@@ -66,7 +65,6 @@ export const connectMemgraph = async (): Promise<MemgraphConnection> => {
 
     const close = async (): Promise<void> => {
       await driver.close();
-      logger.info("Memgraph disconnected");
     };
 
     return {

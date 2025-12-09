@@ -43,10 +43,7 @@ async function cleanupEmbeddings() {
     process.exit(1);
   }
 
-  logger.info("🧹 Cleanup Embeddings Script");
-  logger.info("============================");
-  logger.info(`Source: ${source}`);
-  logger.info("");
+  logger.info({ msg: "🧹 Cleanup Embeddings Script", source });
 
   const { memgraph, qdrant } = await initializeServices();
 
@@ -69,8 +66,7 @@ async function cleanupEmbeddings() {
   let totalRelDeleted = 0;
 
   for (const src of sources) {
-    logger.info(`\n📦 Processing source: ${src}`);
-    logger.info("─".repeat(50));
+    logger.info({ msg: `📦 Processing source: ${src}` });
 
     try {
       // Clean up entity embeddings
@@ -81,18 +77,15 @@ async function cleanupEmbeddings() {
       const relStats = await cleanupDeletedRelationshipEmbeddings(src, deps);
       totalRelDeleted += relStats.deleted;
 
-      logger.info(
-        `✅ Cleaned up ${entityStats.deleted} entity embeddings and ${relStats.deleted} relationship embeddings for ${src}`
-      );
+      logger.info({
+        msg: `✅ Cleaned up ${entityStats.deleted} entity embeddings and ${relStats.deleted} relationship embeddings for ${src}`,
+      });
     } catch (err) {
       logger.error({ err, source: src }, `Error cleaning up ${src}`);
     }
   }
 
-  logger.info("\n✨ Cleanup Complete");
-  logger.info("===================");
-  logger.info(`Total Entity Embeddings Deleted: ${totalEntityDeleted}`);
-  logger.info(`Total Relationship Embeddings Deleted: ${totalRelDeleted}`);
+  logger.info({ msg: "Cleanup Complete", totalEntityDeleted, totalRelDeleted });
 }
 
 const run = async () => {

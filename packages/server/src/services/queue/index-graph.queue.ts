@@ -108,26 +108,32 @@ export const indexGraphWorker = new Worker<
 
 // Set up worker event handlers
 indexGraphWorker.on("completed", (job) => {
-  logger.info(
-    `✅ Graph index job completed: jobId: ${job.id} for record ${job.data.source}`
-  );
+  logger.info({
+    msg: "✅ Graph index job completed",
+    jobId: job.id,
+    source: job.data.source,
+  });
 });
 
 indexGraphWorker.on("failed", (job, err) => {
-  logger.error(
-    { err },
-    `❌ Graph index job failed: jobId: ${job?.id} for record ${job?.data.source}`
-  );
+  logger.error({
+    msg: "❌ Graph index job failed",
+    err,
+    jobId: job?.id,
+    source: job?.data.source,
+  });
 });
 
 indexGraphWorker.on("error", (err) => {
-  logger.error({ err }, "Graph index worker error");
+  logger.error({ msg: "Graph index worker error", err });
 });
 
 indexGraphWorker.on("active", (job) => {
-  logger.info(
-    `🔄 Graph index job started: jobId: ${job.id} for record ${job.data.source}`
-  );
+  logger.info({
+    msg: "🔄 Graph index job started",
+    jobId: job.id,
+    source: job.data.source,
+  });
 });
 
 export const indexGraphQueue = new Queue<

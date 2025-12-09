@@ -24,8 +24,6 @@ export async function initializeRemoteServers(
   configs: MCPServerConfig[],
   mcpSever: McpServer
 ): Promise<void> {
-  logger.info("Connecting to remote MCP servers...");
-
   for (const config of configs) {
     try {
       await mcpClientManager.connect(config);
@@ -68,7 +66,11 @@ export async function initializeRemoteServers(
   }
 
   const connectedServers = mcpClientManager.getConnectedServers();
-  logger.info(`Connected to ${connectedServers.length} remote MCP server(s)`);
+  logger.info({
+    msg: "Connected to remote MCP servers",
+    count: connectedServers.length,
+    servers: connectedServers,
+  });
 }
 
 const connectMcpServers = async () => {
@@ -84,8 +86,6 @@ const connectMcpServers = async () => {
       })),
       mcpServer
     );
-  } else {
-    logger.info("No remote MCP servers configured");
   }
 };
 
@@ -109,8 +109,6 @@ export async function initializeServices(): Promise<ServiceConnections> {
     return services;
   }
 
-  logger.info("Initializing eBee services...");
-
   const [mongoose, qdrant, memgraph, redis] = await Promise.all([
     connectMongoose(),
     connectQdrant(),
@@ -119,7 +117,7 @@ export async function initializeServices(): Promise<ServiceConnections> {
   ]);
 
   services = { mongoose, qdrant, memgraph, redis };
-  logger.info("All services initialized successfully!");
+  logger.info({ msg: "✅ All services initialized successfully" });
 
   // Register LightRAG tool
 

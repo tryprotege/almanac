@@ -6,9 +6,9 @@
 </p>
 
 <p align="center">
-  <a href="[DEMO_LINK]">🎯 Live Demo</a> •
-  <a href="[DOCS_LINK]">📚 Documentation</a> •
-  <a href="[EXAMPLES_LINK]">💡 Examples</a> •
+  <a href="#">Live Demo</a> •
+  <a href="#">Documentation</a> •
+  <a href="#">Examples</a> •
 </p>
 
 ## See It In Action

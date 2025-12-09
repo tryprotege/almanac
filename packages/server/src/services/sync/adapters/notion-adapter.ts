@@ -35,18 +35,22 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   async *fetchAll(options?: FetchOptions): AsyncIterable<NotionRecord[]> {
     const batchSize = options?.batchSize || 100;
 
-    // Fetch users
-    const users = await this.client.getAllUsers();
+    // Fetch users, databases, and pages in parallel
+    const [users, databases, pages] = await Promise.all([
+      this.client.getAllUsers(),
+      this.client.searchAllDatabases(),
+      this.client.searchAllPages(),
+    ]);
+
+    // Yield users
     yield users as NotionRecord[];
 
-    // Fetch databases
-    const databases = await this.client.searchAllDatabases();
+    // Yield databases in batches
     for (let i = 0; i < databases.length; i += batchSize) {
       yield databases.slice(i, i + batchSize) as NotionRecord[];
     }
 
-    // Fetch pages
-    const pages = await this.client.searchAllPages();
+    // Yield pages in batches
     for (let i = 0; i < pages.length; i += batchSize) {
       yield pages.slice(i, i + batchSize) as NotionRecord[];
     }
@@ -59,10 +63,11 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
     since: Date,
     _cursor?: string
   ): AsyncIterable<NotionRecord[]> {
-    // Notion doesn't have a direct "modified since" API
-    // We need to fetch all and filter by last_edited_time
-    const allPages = await this.client.searchAllPages();
-    const allDatabases = await this.client.searchAllDatabases();
+    // Fetch pages and databases in parallel
+    const [allPages, allDatabases] = await Promise.all([
+      this.client.searchAllPages(),
+      this.client.searchAllDatabases(),
+    ]);
 
     const modifiedPages = allPages.filter(
       (p: NotionPage) => new Date(p.last_edited_time) > since

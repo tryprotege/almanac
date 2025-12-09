@@ -16,6 +16,10 @@ import {
   GitHubAdapterConfig,
 } from "../../sources/github/types.js";
 import { GitHubMCPClient } from "../../sources/github/mcpClient.js";
+import pLimit from "p-limit";
+
+const REPO_CONCURRENCY = 3; // Process 3 repositories concurrently
+const WORKFLOW_CONCURRENCY = 5; // Process 5 workflows concurrently
 
 /**
  * GitHub adapter for syncing GitHub records
@@ -49,7 +53,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
   async *fetchAll(options?: FetchOptions): AsyncIterable<GitHubRecord[]> {
     const batchSize = options?.batchSize || 100;
     const user = await this.client.getMe();
-    // Determine which repositories to sync
     if (!user) {
       throw new Error("Failed to fetch authenticated user info from GitHub");
     }
@@ -68,114 +71,135 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
       yield repos.slice(i, i + batchSize) as GitHubRecord[];
     }
 
-    // For each repository, fetch related entities
-    for (const repo of repos) {
-      const owner = repo.owner.login;
+    // Process repositories in parallel with controlled concurrency
+    const limit = pLimit(REPO_CONCURRENCY);
+    const repoPromises = repos.map((repo) =>
+      limit(async () => {
+        const owner = repo.owner.login;
+        const repoName = repo.name;
+        const allRecords: GitHubRecord[] = [];
 
-      const repoName = repo.name;
-      // // Fetch issues
-      // try {
-      //   const issues = await this.client.listIssues(owner, repoName);
-      //   for (let i = 0; i < issues.length; i += batchSize) {
-      //     yield issues.slice(i, i + batchSize) as GitHubRecord[];
-      //   }
-      // } catch (error) {
-      //   console.warn(`Failed to fetch issues for ${owner}/${repoName}:`, error);
-      // }
+        // Fetch issues
+        try {
+          const issues = await this.client.listIssues(owner, repoName);
+          allRecords.push(...(issues as GitHubRecord[]));
+        } catch (error) {
+          console.warn(
+            `Failed to fetch issues for ${owner}/${repoName}:`,
+            error
+          );
+        }
 
-      // // Fetch pull requests
-      // try {
-      //   const prs = await this.client.listPullRequests(owner, repoName, "all");
-      //   for (let i = 0; i < prs.length; i += batchSize) {
-      //     yield prs.slice(i, i + batchSize) as GitHubRecord[];
-      //   }
-      // } catch (error) {
-      //   console.warn(`Failed to fetch PRs for ${owner}/${repoName}:`, error);
-      // }
+        // Fetch pull requests
+        try {
+          const prs = await this.client.listPullRequests(
+            owner,
+            repoName,
+            "all"
+          );
+          allRecords.push(...(prs as GitHubRecord[]));
+        } catch (error) {
+          console.warn(`Failed to fetch PRs for ${owner}/${repoName}:`, error);
+        }
 
-      // Fetch workflows
-      try {
-        const workflows = await this.client.listWorkflows(owner, repoName);
+        // Fetch workflows and runs
+        try {
+          const workflows = await this.client.listWorkflows(owner, repoName);
+          if (workflows.length > 0) {
+            allRecords.push(...(workflows as GitHubRecord[]));
 
-        if (workflows.length > 0) {
-          yield workflows as GitHubRecord[];
-
-          for (const workflow of workflows) {
-            // Fetch recent workflow runs
-            const runs = await this.client.listWorkflowRuns(
-              owner,
-              repoName,
-              workflow.id
+            // Fetch workflow runs in parallel
+            const workflowLimit = pLimit(WORKFLOW_CONCURRENCY);
+            const runPromises = workflows.map((workflow) =>
+              workflowLimit(async () => {
+                try {
+                  return await this.client.listWorkflowRuns(
+                    owner,
+                    repoName,
+                    workflow.id
+                  );
+                } catch (error) {
+                  console.warn(
+                    `Failed to fetch runs for workflow ${workflow.id}:`,
+                    error
+                  );
+                  return [];
+                }
+              })
             );
-            for (let i = 0; i < runs.length; i += batchSize) {
-              yield runs.slice(i, i + batchSize) as GitHubRecord[];
-            }
+            const allRuns = await Promise.all(runPromises);
+            allRuns.forEach((runs) =>
+              allRecords.push(...(runs as GitHubRecord[]))
+            );
           }
+        } catch (error) {
+          console.warn(
+            `Failed to fetch workflows for ${owner}/${repoName}:`,
+            error
+          );
         }
-      } catch (error) {
-        console.warn(
-          `Failed to fetch workflows for ${owner}/${repoName}:`,
-          error
-        );
-      }
 
-      // Fetch releases
-      try {
-        const releases = await this.client.listReleases(owner, repoName);
-        for (let i = 0; i < releases.length; i += batchSize) {
-          yield releases.slice(i, i + batchSize) as GitHubRecord[];
+        // Fetch releases
+        try {
+          const releases = await this.client.listReleases(owner, repoName);
+          allRecords.push(...(releases as GitHubRecord[]));
+        } catch (error) {
+          console.warn(
+            `Failed to fetch releases for ${owner}/${repoName}:`,
+            error
+          );
         }
-      } catch (error) {
-        console.warn(
-          `Failed to fetch releases for ${owner}/${repoName}:`,
-          error
-        );
-      }
 
-      // Fetch discussions
-      try {
-        const discussions = await this.client.listDiscussions(owner, repoName);
-        for (let i = 0; i < discussions.length; i += batchSize) {
-          yield discussions.slice(i, i + batchSize) as GitHubRecord[];
+        // Fetch discussions
+        try {
+          const discussions = await this.client.listDiscussions(
+            owner,
+            repoName
+          );
+          allRecords.push(...(discussions as GitHubRecord[]));
+        } catch (error) {
+          console.warn(
+            `Failed to fetch discussions for ${owner}/${repoName}:`,
+            error
+          );
         }
-      } catch (error) {
-        console.warn(
-          `Failed to fetch discussions for ${owner}/${repoName}:`,
-          error
-        );
-      }
 
-      // Fetch security alerts
-      try {
-        const codeScanningAlerts = await this.client.listCodeScanningAlerts(
-          owner,
-          repoName
-        );
-
-        for (let i = 0; i < codeScanningAlerts.length; i += batchSize) {
-          yield codeScanningAlerts.slice(i, i + batchSize) as GitHubRecord[];
+        // Fetch security alerts
+        try {
+          const codeScanningAlerts = await this.client.listCodeScanningAlerts(
+            owner,
+            repoName
+          );
+          allRecords.push(...(codeScanningAlerts as GitHubRecord[]));
+        } catch (error) {
+          console.warn(
+            `Failed to fetch code scanning alerts for ${owner}/${repoName}:`,
+            error
+          );
         }
-      } catch (error) {
-        console.warn(
-          `Failed to fetch code scanning alerts for ${owner}/${repoName}:`,
-          error
-        );
-      }
 
-      try {
-        const dependabotAlerts = await this.client.listDependabotAlerts(
-          owner,
-          repoName
-        );
-
-        for (let i = 0; i < dependabotAlerts.length; i += batchSize) {
-          yield dependabotAlerts.slice(i, i + batchSize) as GitHubRecord[];
+        try {
+          const dependabotAlerts = await this.client.listDependabotAlerts(
+            owner,
+            repoName
+          );
+          allRecords.push(...(dependabotAlerts as GitHubRecord[]));
+        } catch (error) {
+          console.warn(
+            `Failed to fetch Dependabot alerts for ${owner}/${repoName}:`,
+            error
+          );
         }
-      } catch (error) {
-        console.warn(
-          `Failed to fetch Dependabot alerts for ${owner}/${repoName}:`,
-          error
-        );
+
+        return allRecords;
+      })
+    );
+
+    // Wait for all repos and yield results in batches
+    const allRepoRecords = await Promise.all(repoPromises);
+    for (const repoRecords of allRepoRecords) {
+      for (let i = 0; i < repoRecords.length; i += batchSize) {
+        yield repoRecords.slice(i, i + batchSize);
       }
     }
   }
@@ -188,57 +212,69 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
     _cursor?: string
   ): AsyncIterable<GitHubRecord[]> {
     const user = await this.client.getMe();
-
     const repos = await this.getRepositoriesToSync(user.login);
 
-    for (const repo of repos) {
-      const owner = repo.owner.login;
-      const repoName = repo.name;
+    // Process repositories in parallel
+    const limit = pLimit(REPO_CONCURRENCY);
+    const repoPromises = repos.map((repo) =>
+      limit(async () => {
+        const owner = repo.owner.login;
+        const repoName = repo.name;
+        const allRecords: GitHubRecord[] = [];
 
-      // Fetch recently updated issues
-      try {
-        const issues = await this.client.listIssues(owner, repoName);
-        const recentIssues = issues.filter(
-          (issue) => new Date(issue.updated_at) > since
-        );
-        if (recentIssues.length > 0) {
-          yield recentIssues as GitHubRecord[];
+        // Fetch recently updated issues
+        try {
+          const issues = await this.client.listIssues(owner, repoName);
+          const recentIssues = issues.filter(
+            (issue) => new Date(issue.updated_at) > since
+          );
+          allRecords.push(...(recentIssues as GitHubRecord[]));
+        } catch (error) {
+          console.warn(
+            `Failed to fetch recent issues for ${owner}/${repoName}:`,
+            error
+          );
         }
-      } catch (error) {
-        console.warn(
-          `Failed to fetch recent issues for ${owner}/${repoName}:`,
-          error
-        );
-      }
 
-      // Fetch recently updated PRs
-      try {
-        const prs = await this.client.listPullRequests(owner, repoName, "all");
-        const recentPRs = prs.filter((pr) => new Date(pr.updated_at) > since);
-        if (recentPRs.length > 0) {
-          yield recentPRs as GitHubRecord[];
+        // Fetch recently updated PRs
+        try {
+          const prs = await this.client.listPullRequests(
+            owner,
+            repoName,
+            "all"
+          );
+          const recentPRs = prs.filter((pr) => new Date(pr.updated_at) > since);
+          allRecords.push(...(recentPRs as GitHubRecord[]));
+        } catch (error) {
+          console.warn(
+            `Failed to fetch recent PRs for ${owner}/${repoName}:`,
+            error
+          );
         }
-      } catch (error) {
-        console.warn(
-          `Failed to fetch recent PRs for ${owner}/${repoName}:`,
-          error
-        );
-      }
 
-      // Fetch recent workflow runs
-      try {
-        const runs = await this.client.listWorkflowRuns(owner, repoName);
-        const recentRuns = runs.filter(
-          (run) => new Date(run.updated_at) > since
-        );
-        if (recentRuns.length > 0) {
-          yield recentRuns as GitHubRecord[];
+        // Fetch recent workflow runs
+        try {
+          const runs = await this.client.listWorkflowRuns(owner, repoName);
+          const recentRuns = runs.filter(
+            (run) => new Date(run.updated_at) > since
+          );
+          allRecords.push(...(recentRuns as GitHubRecord[]));
+        } catch (error) {
+          console.warn(
+            `Failed to fetch recent workflow runs for ${owner}/${repoName}:`,
+            error
+          );
         }
-      } catch (error) {
-        console.warn(
-          `Failed to fetch recent workflow runs for ${owner}/${repoName}:`,
-          error
-        );
+
+        return allRecords;
+      })
+    );
+
+    // Wait for all repos and yield results
+    const allResults = await Promise.all(repoPromises);
+    for (const records of allResults) {
+      if (records.length > 0) {
+        yield records;
       }
     }
   }

@@ -20,7 +20,7 @@
 - Graph visualization of relationship
 - Search results showing on using the ebee
 
-# Why Ebee?
+## Why Ebee?
 
 // @TODO Tell about problem and solution
 
@@ -70,6 +70,8 @@
 - [Run example queries](./docs/examples/First-queries.md)
 - [Explore the architecture](./docs/ARCHITECTURE.md)
 
+## Core Features
+
 ### MCP Server Integration
 
 Connect to any MCP-compatible data source with zero configuration.
@@ -85,6 +87,7 @@ Connect to any MCP-compatible data source with zero configuration.
 ### GraphRAG Architecture
 
 @TODO Small pointers and about graphrag and add link to learn more about graphRAG
+How it works
 
 ### Production Infrastructure
 
@@ -100,12 +103,17 @@ Connect to any MCP-compatible data source with zero configuration.
 
 ## Use Cases
 
+### AI Agent Memory
+
 @TODO tell users how it will help them
-like Fina all slack disucssion related to github issues for xyz project
+like Find all slack disucssion related to github issues for xyz project
+
+Intelligent search
+example:
+
+## Documentation & Resources
 
 ### Documentation
-
-@TODO more proper link
 
 - [Getting Started Guide](./docs/Getting-started.md) - Installation and setup
 - [Architecture Overview](./docs/ARCHITECTURE.md) - System design and components
@@ -115,15 +123,22 @@ like Fina all slack disucssion related to github issues for xyz project
 
 ### Examples
 
+- Queries -> Link to doc
+- Advanced queries -> link to doc
+- Custom mcp server -> link to doc
+
 ### Concepts
 
-- What is GraphRag?
-- What is MCP?
-- Hybrid search explanation
+- What is GraphRag? -> Link to doc
+- What is MCP? -> Link to doc
+- Hybrid search explanation -> Link to doc
 
 ### Tools & Integration
 
 - which tool can integrate with ebee
+  // Claude desktop
+  // Roocode
+  // api clients
 
 ## Community & Support
 
@@ -144,7 +159,9 @@ like Fina all slack disucssion related to github issues for xyz project
 
 //@TODO
 
-## Acknowledgements/Contributors list
+## Acknowledgements
+
+//@TODO
 
 ## Docs structure
 
@@ -167,7 +184,6 @@ docs/concepts/
 ├── mcp.md                             # @TODO: What is Model Context Protocol
 ├── hybrid-search.md                   # @TODO: How hybrid search works
 └── architecture.md                    # @TODO: System architecture overview
-```
 
 API section
 
@@ -178,18 +194,18 @@ docs/api-reference/
 ├── sync.md # @TODO: Data sync API
 └── graph.md # @TODO: Graph query API
 
-```
 
 Integration section
 
 docs/integrations/
-├── claude-desktop.md                  # @TODO: Claude Desktop integration
-└── api-clients.md                     # @TODO: Client library examples
+├── claude-desktop.md # @TODO: Claude Desktop integration
+└── api-clients.md # @TODO: Client library examples
 
 Guides Section
 
 docs/guides/
-├── custom-mcp-servers.md              # @TODO: Building custom MCP servers
-├── deployment.md                      # @TODO: Production deployment guide
-└── troubleshooting.md                 # @TODO: Common issues and solutions
+├── custom-mcp-servers.md # @TODO: Building custom MCP servers
+├── deployment.md # @TODO: Production deployment guide
+└── troubleshooting.md # @TODO: Common issues and solutions
+
 ```

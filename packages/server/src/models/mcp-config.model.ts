@@ -12,7 +12,6 @@ import { env } from "../env.js";
 let encryptionKey: Buffer;
 try {
   encryptionKey = hexToBuffer(env.ENCRYPTION_KEY);
-  logger.info("Encryption key loaded successfully");
 } catch (err) {
   logger.error({ err }, "Failed to load encryption key");
   throw err;

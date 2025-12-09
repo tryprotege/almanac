@@ -4,6 +4,7 @@ import {
   Video,
   HardDrive,
   Settings,
+  FileText,
 } from "lucide-react";
 
 export interface EnvVariable {
@@ -158,49 +159,85 @@ export const SERVICE_PRESETS: Record<string, ServicePreset> = {
     ],
   },
 
-  "google-drive": {
-    id: "google-drive",
-    name: "google-drive",
-    displayName: "Google Drive",
-    description: "Access files, folders, and documents from Google Drive",
-    icon: HardDrive,
+  // "google-drive": {
+  //   id: "google-drive",
+  //   name: "google-drive",
+  //   displayName: "Google Drive",
+  //   description: "Access files, folders, and documents from Google Drive",
+  //   icon: HardDrive,
+  //   type: "stdio",
+  //   command: "npx",
+  //   args: ["-y", "@modelcontextprotocol/server-gdrive"],
+  //   requiredEnv: [
+  //     {
+  //       key: "GOOGLE_CLIENT_ID",
+  //       label: "Google Client ID",
+  //       placeholder: "your-client-id.apps.googleusercontent.com",
+  //       helpText: "OAuth 2.0 Client ID from Google Cloud Console",
+  //       type: "text",
+  //     },
+  //     {
+  //       key: "GOOGLE_CLIENT_SECRET",
+  //       label: "Google Client Secret",
+  //       placeholder: "your-client-secret",
+  //       helpText: "OAuth 2.0 Client Secret from Google Cloud Console",
+  //       type: "password",
+  //     },
+  //     {
+  //       key: "GOOGLE_REFRESH_TOKEN",
+  //       label: "Google Refresh Token",
+  //       placeholder: "your-refresh-token",
+  //       helpText: "OAuth 2.0 Refresh Token obtained through OAuth flow",
+  //       type: "password",
+  //     },
+  //   ],
+  //   documentation: "https://developers.google.com/drive/api",
+  //   authGuide: "https://console.cloud.google.com/apis/credentials",
+  //   setupSteps: [
+  //     "Go to Google Cloud Console and create a new project",
+  //     "Enable the Google Drive API for your project",
+  //     "Create OAuth 2.0 credentials (Desktop app type)",
+  //     "Download the credentials JSON file",
+  //     "Use OAuth 2.0 Playground to get a refresh token",
+  //     "Enter the Client ID, Client Secret, and Refresh Token below",
+  //   ],
+  //   comingSoon: true,
+  // },
+
+  notion: {
+    id: "notion",
+    name: "notion",
+    displayName: "Notion",
+    description:
+      "Access pages, databases, and content from your Notion workspace",
+    icon: FileText,
     type: "stdio",
     command: "npx",
-    args: ["-y", "@modelcontextprotocol/server-gdrive"],
+    args: ["-y", "@notionhq/notion-mcp-server"],
     requiredEnv: [
       {
-        key: "GOOGLE_CLIENT_ID",
-        label: "Google Client ID",
-        placeholder: "your-client-id.apps.googleusercontent.com",
-        helpText: "OAuth 2.0 Client ID from Google Cloud Console",
+        key: "OPENAPI_MCP_HEADERS",
+        label: "Notion API Headers (JSON)",
+        placeholder:
+          '{"Authorization": "Bearer ntn_****", "Notion-Version": "2022-06-28"}',
+        helpText:
+          "JSON object with Authorization (Bearer ntn_****) and Notion-Version (2022-06-28) headers",
         type: "text",
-      },
-      {
-        key: "GOOGLE_CLIENT_SECRET",
-        label: "Google Client Secret",
-        placeholder: "your-client-secret",
-        helpText: "OAuth 2.0 Client Secret from Google Cloud Console",
-        type: "password",
-      },
-      {
-        key: "GOOGLE_REFRESH_TOKEN",
-        label: "Google Refresh Token",
-        placeholder: "your-refresh-token",
-        helpText: "OAuth 2.0 Refresh Token obtained through OAuth flow",
-        type: "password",
+        validation:
+          /^\{.*"Authorization".*"Bearer ntn_[a-zA-Z0-9]+".*"Notion-Version".*"2022-06-28".*\}$/,
+        validationMessage:
+          "Must be valid JSON with Authorization (Bearer ntn_...) and Notion-Version (2022-06-28)",
       },
     ],
-    documentation: "https://developers.google.com/drive/api",
-    authGuide: "https://console.cloud.google.com/apis/credentials",
+    documentation: "https://developers.notion.com/docs/getting-started",
+    authGuide: "https://www.notion.so/my-integrations",
     setupSteps: [
-      "Go to Google Cloud Console and create a new project",
-      "Enable the Google Drive API for your project",
-      "Create OAuth 2.0 credentials (Desktop app type)",
-      "Download the credentials JSON file",
-      "Use OAuth 2.0 Playground to get a refresh token",
-      "Enter the Client ID, Client Secret, and Refresh Token below",
+      "Go to https://www.notion.so/my-integrations and create a new integration",
+      "Give your integration a name and select the workspace",
+      "Copy the 'Internal Integration Token' (starts with ntn_)",
+      "Share the pages/databases you want to access with your integration",
+      'Enter as JSON: {"Authorization": "Bearer ntn_YOUR_TOKEN", "Notion-Version": "2022-06-28"}',
     ],
-    comingSoon: true,
   },
 };
 

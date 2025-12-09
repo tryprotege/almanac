@@ -11,6 +11,7 @@ import {
   Github,
   Video,
   HardDrive,
+  FileText,
   Server,
 } from "lucide-react";
 import { useState } from "react";
@@ -41,6 +42,8 @@ function getServiceIcon(serverName: string) {
     return Video;
   } else if (name.includes("google") || name.includes("drive")) {
     return HardDrive;
+  } else if (name.includes("notion")) {
+    return FileText;
   }
 
   return Server;

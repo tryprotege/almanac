@@ -10,8 +10,8 @@
     "./types/*": "./dist/types/*.js"
   },
   "scripts": {
-    "dev": "tsx watch src/server.ts | pino-pretty",
-    "dev:indexer": "tsx watch src/indexer-worker.ts | pino-pretty",
+    "dev": "tsx watch src/server.ts",
+    "dev:indexer": "tsx watch src/indexer-worker.ts",
     "indexer": "tsx src/indexer-worker.ts",
     "build": "tsc",
     "start": "node dist/server.js",

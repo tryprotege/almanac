@@ -124,12 +124,13 @@ export const extractGraphFromRecord = async (
       await options.graphStore.deleteOrphanedRelationships();
 
     if (deletedEntities > 0 || deletedRelationships > 0) {
-      logger.info(
-        `🧹 Cleaned up ${deletedEntities} entities and ${deletedRelationships} relationships ` +
-          `after unlinking from ${
-            options.force ? "force re-index" : "updated record"
-          } ${record._id}`
-      );
+      logger.info({
+        msg: "🧹 Cleaned up entities and relationships",
+        deletedEntities,
+        deletedRelationships,
+        recordId: record._id,
+        reason: options.force ? "force re-index" : "updated record",
+      });
     }
   }
 
@@ -158,24 +159,31 @@ export const extractGraphFromRecord = async (
   const filteredRelationships = filterLowValueRelationships(relationships);
 
   if (relationships.length !== filteredRelationships.length) {
-    logger.info(`   - Relationships before filter: ${relationships.length}`);
-    logger.info(
-      `   - Relationships after filter: ${filteredRelationships.length}`
-    );
+    logger.info({
+      msg: "Filtered low-value relationships",
+      before: relationships.length,
+      after: filteredRelationships.length,
+      filtered: relationships.length - filteredRelationships.length,
+    });
   }
 
   // Log empty extractions (0 entities AND 0 relationships)
   if (entities.length === 0 && filteredRelationships.length === 0) {
-    logger.warn(`⚠️  Empty extraction for record ${record._id}:`);
-    logger.warn(`   - Content length: ${record.content.length} chars`);
-    logger.warn(`   - Title: ${record.title}`);
-    logger.warn(`   - MongoDB ID: ${record._id}`);
+    const logData: any = {
+      msg: "⚠️  Empty extraction for record",
+      recordId: record._id,
+      contentLength: record.content.length,
+      title: record.title,
+    };
+
     if (record.rawData && typeof record.rawData === "object") {
       const rawData = record.rawData as any;
       if (rawData.url) {
-        logger.warn(`   - URL: ${rawData.url}`);
+        logData.url = rawData.url;
       }
     }
+
+    logger.warn(logData);
   }
 
   // Apply toxic filtering if enabled
@@ -185,16 +193,14 @@ export const extractGraphFromRecord = async (
         ? entities.reduce((sum, e) => sum + e.name.length, 0) / entities.length
         : 0;
 
-    logger.warn(`⚠️  Skipping toxic chunk for record ${record._id}:`);
-    logger.warn(`   - Entities: ${entities.length}`);
-    logger.warn(`   - Relationships: ${relationships.length}`);
-    logger.warn(`   - Avg name length: ${avgNameLength.toFixed(1)} chars`);
-    logger.warn(
-      `   - Sample entities: ${entities
-        .slice(0, 5)
-        .map((e) => e.name)
-        .join(", ")}`
-    );
+    logger.warn({
+      msg: "⚠️  Skipping toxic chunk",
+      recordId: record._id,
+      entities: entities.length,
+      relationships: relationships.length,
+      avgNameLength: parseFloat(avgNameLength.toFixed(1)),
+      sampleEntities: entities.slice(0, 5).map((e) => e.name),
+    });
 
     return {
       entities: [],
@@ -309,15 +315,17 @@ export const indexAllRecords = async (
     force = false,
   } = options;
 
-  logger.info(`🔄 Starting graph indexing for source: ${source}`);
-  logger.info(`   Configuration:`);
-  logger.info(`   - Batch size: ${batchSize}`);
-  logger.info(`   - Concurrency: ${concurrency}`);
-  logger.info(
-    `   - Toxic filter: ${enableToxicFilter ? "enabled" : "disabled"}`
-  );
-  logger.info(`   - Max entities per doc: ${maxEntitiesPerDoc}`);
-  logger.info(`   - Force re-index: ${force ? "enabled" : "disabled"}`);
+  logger.info({
+    msg: "🔄 Starting graph indexing",
+    source,
+    config: {
+      batchSize,
+      concurrency,
+      toxicFilter: enableToxicFilter,
+      maxEntitiesPerDoc,
+      forceReindex: force,
+    },
+  });
 
   const stats: IndexingStats = {
     nodes: 0,
@@ -421,18 +429,13 @@ export const indexAllRecords = async (
 
       // Log failed extractions
       if (failedExtractions.length > 0) {
-        logger.error(
-          `❌ ${failedExtractions.length} record(s) failed extraction in this batch:`
-        );
         failedExtractions.forEach(({ recordId, recordTitle, error }) => {
-          logger.error(
-            {
-              err: error,
-              recordId,
-              recordTitle,
-            },
-            `Failed to extract: ${recordTitle}`
-          );
+          logger.error({
+            msg: "❌ Failed to extract record",
+            err: error,
+            recordId,
+            recordTitle,
+          });
         });
 
         stats.errors += failedExtractions.length;
@@ -443,9 +446,12 @@ export const indexAllRecords = async (
       stats.processedRecords += records.length;
 
       // Log batch summary
-      logger.info(
-        `✅ Batch complete: ${extractionResults.length} successful, ${failedExtractions.length} failed`
-      );
+      logger.info({
+        msg: "✅ Batch complete",
+        successful: extractionResults.length,
+        failed: failedExtractions.length,
+        total: records.length,
+      });
 
       // Count skipped toxic chunks
       const toxicCount = extractionResults.filter(
@@ -569,11 +575,19 @@ export const indexAllRecords = async (
       // Update successful count
       stats.successfulRecords += validResults.length;
 
-      logger.info(
-        `📊 Progress: ${stats.successfulRecords}/${stats.processedRecords} records, ` +
-          `${stats.nodes} nodes, ${stats.relationships} relationships, ` +
-          `${stats.failedRecords} failed, ${stats.skippedToxic} toxic`
-      );
+      logger.info({
+        msg: "📊 Progress update",
+        progress: {
+          successful: stats.successfulRecords,
+          processed: stats.processedRecords,
+          failed: stats.failedRecords,
+          toxic: stats.skippedToxic,
+        },
+        created: {
+          nodes: stats.nodes,
+          relationships: stats.relationships,
+        },
+      });
     } catch (err) {
       logger.error({ err }, "Error processing batch");
       stats.errors++;
@@ -582,18 +596,24 @@ export const indexAllRecords = async (
     skip += records.length;
   }
 
-  logger.info(`✅ Graph indexing complete for ${source}`);
-  logger.info(`   Records processed: ${stats.processedRecords}`);
-  logger.info(`   Successful: ${stats.successfulRecords}`);
-  logger.info(`   Failed: ${stats.failedRecords}`);
-  logger.info(`   Skipped (toxic): ${stats.skippedToxic}`);
-  logger.info(`   Nodes created: ${stats.nodes}`);
-  logger.info(`   Relationships created: ${stats.relationships}`);
+  logger.info({
+    msg: "✅ Graph indexing complete",
+    source,
+    stats: {
+      processed: stats.processedRecords,
+      successful: stats.successfulRecords,
+      failed: stats.failedRecords,
+      skippedToxic: stats.skippedToxic,
+      nodesCreated: stats.nodes,
+      relationshipsCreated: stats.relationships,
+    },
+  });
 
   if (stats.failedRecords > 0) {
-    logger.warn(
-      `⚠️  ${stats.failedRecords} records failed to index. Check logs above for details.`
-    );
+    logger.warn({
+      msg: "⚠️  Some records failed to index",
+      failedRecords: stats.failedRecords,
+    });
   }
 
   return stats;

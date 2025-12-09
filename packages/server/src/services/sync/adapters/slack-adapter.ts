@@ -777,7 +777,6 @@ Group related messages together. Each message can only belong to ONE group.`;
           targetId: this.generateRecordId("channel", (message as any).channel),
           type: "IN_CHANNEL",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       }
 
@@ -788,7 +787,6 @@ Group related messages together. Each message can only belong to ONE group.`;
           targetId: this.generateRecordId("user", message.user),
           type: "POSTED_BY",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       }
 
@@ -799,7 +797,6 @@ Group related messages together. Each message can only belong to ONE group.`;
           targetId: this.generateRecordId("message", message.thread_ts),
           type: "REPLY_TO",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       }
 
@@ -813,8 +810,6 @@ Group related messages together. Each message can only belong to ONE group.`;
                 targetId: this.generateRecordId("user", userId),
                 type: "REACTED_BY",
                 confidence: 0.8,
-                extractedBy: "explicit",
-                metadata: { emoji: reaction.name },
               });
             }
           }
@@ -833,7 +828,6 @@ Group related messages together. Each message can only belong to ONE group.`;
           targetId: this.generateRecordId("channel", threadData.channel),
           type: "IN_CHANNEL",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       }
 
@@ -845,7 +839,6 @@ Group related messages together. Each message can only belong to ONE group.`;
             targetId: this.generateRecordId("message", messageTs),
             type: "CONTAINS_MESSAGE",
             confidence: 1.0,
-            extractedBy: "explicit",
           });
         }
       }
@@ -858,7 +851,6 @@ Group related messages together. Each message can only belong to ONE group.`;
             targetId: this.generateRecordId("user", userId),
             type: "PARTICIPATED_BY",
             confidence: 1.0,
-            extractedBy: "explicit",
           });
         }
       }
@@ -875,7 +867,6 @@ Group related messages together. Each message can only belong to ONE group.`;
           targetId: this.generateRecordId("channel", conversationData.channel),
           type: "IN_CHANNEL",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       }
 
@@ -890,7 +881,6 @@ Group related messages together. Each message can only belong to ONE group.`;
             targetId: this.generateRecordId("message", messageTs),
             type: "CONTAINS_MESSAGE",
             confidence: 1.0,
-            extractedBy: "explicit",
           });
         }
       }
@@ -903,7 +893,6 @@ Group related messages together. Each message can only belong to ONE group.`;
             targetId: this.generateRecordId("user", userId),
             type: "PARTICIPATED_BY",
             confidence: 1.0,
-            extractedBy: "explicit",
           });
         }
       }
@@ -920,7 +909,6 @@ Group related messages together. Each message can only belong to ONE group.`;
           targetId: this.generateRecordId("user", channel.creator),
           type: "CREATED_BY",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       }
     }

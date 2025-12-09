@@ -48,9 +48,6 @@ export interface RelationshipVectorPayload extends Record<string, unknown> {
   targetId: string;
   relType: string;
   confidence: number;
-  extractedBy: "explicit" | "llm" | "heuristic";
-  sourceType: string;
-  targetType: string;
   checksum?: string;
 }
 
@@ -76,8 +73,6 @@ export interface MemgraphRelationship {
   targetId: string;
   type: string; // "BLOCKS", "REQUIRES", "ASSIGNED_TO", "RELATED_TO"
   confidence: number; // 0.0 - 1.0
-  extractedBy: "explicit" | "llm" | "heuristic";
-  metadata?: Record<string, any>;
 }
 
 /**
@@ -97,8 +92,6 @@ export interface EntityRelationship {
   targetId: string;
   type: string; // "BLOCKS", "REQUIRES", "ASSIGNED_TO", "RELATED_TO", etc.
   confidence: number; // 0.0 - 1.0
-  extractedBy: "explicit" | "llm" | "heuristic";
-  metadata?: Record<string, any>;
 }
 
 // Re-export from new type files

@@ -80,15 +80,13 @@ export class GraphStore {
       MATCH (source {id: $sourceId})
       MATCH (target {id: $targetId})
       MERGE (source)-[r:${relationship.type}]->(target)
-      SET r.confidence = $confidence,
-          r.extractedBy = $extractedBy
+      SET r.confidence = $confidence
     `;
 
     await this.memgraph.executeQuery(query, {
       sourceId: relationship.sourceId,
       targetId: relationship.targetId,
       confidence: relationship.confidence,
-      extractedBy: relationship.extractedBy,
     });
   }
 
@@ -116,8 +114,7 @@ export class GraphStore {
         MATCH (source {id: relData.sourceId})
         MATCH (target {id: relData.targetId})
         MERGE (source)-[r:${type}]->(target)
-        SET r.confidence = relData.confidence,
-            r.extractedBy = relData.extractedBy
+        SET r.confidence = relData.confidence
       `;
 
       await this.memgraph.executeQuery(query, {
@@ -125,7 +122,6 @@ export class GraphStore {
           sourceId: r.sourceId,
           targetId: r.targetId,
           confidence: r.confidence,
-          extractedBy: r.extractedBy,
         })),
       });
     }
@@ -221,12 +217,9 @@ export class GraphStore {
     query += `
       RETURN
         source.id AS sourceId,
-        source.type AS sourceType,
         target.id AS targetId,
-        target.type AS targetType,
         type(r) AS relType,
-        r.confidence AS confidence,
-        r.extractedBy AS extractedBy
+        r.confidence AS confidence
     `;
 
     if (options?.offset) {
@@ -239,12 +232,9 @@ export class GraphStore {
 
     const results = await this.memgraph.executeQuery<{
       sourceId: string;
-      sourceType: string;
       targetId: string;
-      targetType: string;
       relType: string;
       confidence: number;
-      extractedBy: string;
     }>(query, { source: options?.source });
 
     return results.map((r) => ({
@@ -252,14 +242,6 @@ export class GraphStore {
       targetId: r.targetId,
       type: r.relType,
       confidence: r.confidence || 1.0,
-      extractedBy: (r.extractedBy || "explicit") as
-        | "explicit"
-        | "llm"
-        | "heuristic",
-      metadata: {
-        sourceType: r.sourceType,
-        targetType: r.targetType,
-      },
     }));
   }
 
@@ -300,7 +282,6 @@ export class GraphStore {
         related.id AS targetId,
         type(r) AS relType,
         r.confidence AS confidence,
-        r.extractedBy AS extractedBy,
         related.title AS relatedTitle,
         related.type AS relatedType,
         labels(related) AS relatedLabels
@@ -311,7 +292,6 @@ export class GraphStore {
       targetId: string;
       relType: string;
       confidence: number;
-      extractedBy: string;
       relatedTitle: string;
       relatedType: string;
       relatedLabels: string[];
@@ -323,7 +303,6 @@ export class GraphStore {
         targetId: r.targetId,
         type: r.relType,
         confidence: r.confidence,
-        extractedBy: r.extractedBy as "explicit" | "llm" | "heuristic",
       },
       relatedNode: {
         label: r.relatedLabels[0],
@@ -363,7 +342,6 @@ export class GraphStore {
         type: string;
         properties: {
           confidence: number;
-          extractedBy: string;
         };
       }>;
     }>(query, { sourceId, targetId });
@@ -380,10 +358,6 @@ export class GraphStore {
         targetId: r.nodes[idx + 1].id,
         type: rel.type,
         confidence: rel.properties.confidence,
-        extractedBy: rel.properties.extractedBy as
-          | "explicit"
-          | "llm"
-          | "heuristic",
       })),
     }));
   }
@@ -475,8 +449,7 @@ export class GraphStore {
           source.id AS sourceId,
           target.id AS targetId,
           type(r) AS relType,
-          r.confidence AS confidence,
-          r.extractedBy AS extractedBy
+          r.confidence AS confidence
       `;
     } else {
       relQuery = `
@@ -486,8 +459,7 @@ export class GraphStore {
           source.id AS sourceId,
           target.id AS targetId,
           type(r) AS relType,
-          r.confidence AS confidence,
-          r.extractedBy AS extractedBy
+          r.confidence AS confidence
       `;
     }
 
@@ -496,7 +468,6 @@ export class GraphStore {
       targetId: string;
       relType: string;
       confidence: number;
-      extractedBy: string;
     }>(relQuery, { nodeIds });
 
     const relationships: MemgraphRelationship[] = relResults.map((r) => ({
@@ -504,7 +475,6 @@ export class GraphStore {
       targetId: r.targetId,
       type: r.relType,
       confidence: r.confidence,
-      extractedBy: r.extractedBy as "explicit" | "llm" | "heuristic",
     }));
 
     return {

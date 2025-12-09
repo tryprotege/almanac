@@ -166,7 +166,6 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
           targetId,
           type: "CHILD_OF",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       }
     }
@@ -182,7 +181,6 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
         targetId: this.generateRecordId("database", databaseId),
         type: "ROW_OF",
         confidence: 1.0,
-        extractedBy: "explicit",
       });
     }
 

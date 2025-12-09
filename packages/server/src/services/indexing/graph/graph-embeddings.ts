@@ -311,9 +311,6 @@ export async function indexRelationshipEmbeddings(
             targetId: rel.targetId,
             relType: rel.type,
             confidence: rel.confidence,
-            extractedBy: rel.extractedBy,
-            sourceType: recordMap.get(rel.sourceId)?.recordType || "unknown",
-            targetType: recordMap.get(rel.targetId)?.recordType || "unknown",
             checksum: relChecksums.get(id),
           } as RelationshipVectorPayload,
         };

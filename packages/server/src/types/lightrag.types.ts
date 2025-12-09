@@ -76,7 +76,6 @@ export interface LightRAGRelationship {
   confidence: number;
   weight: number;
   rank: number;
-  extracted_by: "explicit" | "llm" | "heuristic";
   relevance_score?: number;
 }
 

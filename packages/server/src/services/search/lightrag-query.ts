@@ -456,18 +456,17 @@ async function searchRelationshipsByKeywords(
       source: {
         id: result.payload.sourceId,
         name: source?.title || "Unknown",
-        type: result.payload.sourceType,
+        type: source?.recordType || "unknown",
       },
       target: {
         id: result.payload.targetId,
         name: target?.title || "Unknown",
-        type: result.payload.targetType,
+        type: target?.recordType || "unknown",
       },
       type: result.payload.relType,
       confidence: result.payload.confidence,
       weight: Math.round(result.payload.confidence * 10),
       rank: Math.round(result.score * 100), // Use search score as rank
-      extracted_by: result.payload.extractedBy,
     };
   });
 
@@ -540,7 +539,6 @@ async function getEntityRelationships(
         confidence: rel.relationship.confidence,
         weight: Math.round(rel.relationship.confidence * 10),
         rank: 50, // Use fixed rank to avoid expensive calculations
-        extracted_by: rel.relationship.extractedBy,
       });
     }
   }

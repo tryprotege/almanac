@@ -75,6 +75,12 @@ const envSchema = z.object({
   // Sync Configuration
   SYNC_CUTOFF_DATE: z.string().datetime().default("2025-12-01T00:00:00.000Z"), // datetime in ISO format eg. "2023-06-01T00:00:00.000Z"
   SYNC_MAX_RECORDS: z.coerce.number().optional(), // Maximum total number of records (per record type) to fetch during sync operations (optional, no limit if not set)
+
+  // Encryption Configuration
+  ENCRYPTION_KEY: z
+    .string()
+    .length(64, "Encryption key must be 64 hex characters (32 bytes)")
+    .regex(/^[0-9a-f]{64}$/i, "Encryption key must be valid hexadecimal"),
 });
 
 const parsedEnv = envSchema.parse({

@@ -61,6 +61,9 @@ export interface IndexingStats {
   relationships: number;
   errors: number;
   skippedToxic: number;
+  processedRecords: number;
+  failedRecords: number;
+  successfulRecords: number;
 }
 
 // ============================================================================
@@ -299,7 +302,7 @@ export const indexAllRecords = async (
 ): Promise<IndexingStats> => {
   const {
     recordType = "",
-    batchSize = 100,
+    batchSize = 50,
     concurrency = 32,
     enableToxicFilter = true,
     maxEntitiesPerDoc = 200,
@@ -321,6 +324,9 @@ export const indexAllRecords = async (
     relationships: 0,
     errors: 0,
     skippedToxic: 0,
+    processedRecords: 0,
+    failedRecords: 0,
+    successfulRecords: 0,
   };
 
   // Get adapter for this source
@@ -352,7 +358,7 @@ export const indexAllRecords = async (
     }
 
     try {
-      // Extract in PARALLEL using p-limit
+      // Extract in PARALLEL using p-limit with error resilience
       const extractionPromises = records.map((record) =>
         limit(() =>
           extractGraphFromRecord(
@@ -362,11 +368,84 @@ export const indexAllRecords = async (
             existingEntityTypes,
             existingRelTypes,
             { enableToxicFilter, maxEntitiesPerDoc, graphStore, force }
-          )
+          ).catch((err) => {
+            // Wrap errors with record info for better logging
+            return {
+              error: err,
+              recordId: record._id,
+              recordTitle: record.title,
+              entities: [],
+              relationships: [],
+              adapterRelationships: [],
+              recordChecksum: record.checksum,
+            };
+          })
         )
       );
 
-      const extractionResults = await Promise.all(extractionPromises);
+      const settledResults = await Promise.allSettled(extractionPromises);
+
+      // Separate successful from failed extractions
+      const extractionResults: ExtractionResult[] = [];
+      const failedExtractions: Array<{
+        recordId: string;
+        recordTitle: string;
+        error: Error;
+      }> = [];
+
+      settledResults.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          const value = result.value;
+
+          // Check if it's an error wrapper
+          if ("error" in value && value.error) {
+            failedExtractions.push({
+              recordId: value.recordId as string,
+              recordTitle: value.recordTitle as string,
+              error: value.error as Error,
+            });
+          } else {
+            // Successful extraction
+            extractionResults.push(value as ExtractionResult);
+          }
+        } else {
+          // Promise was rejected (shouldn't happen with catch above, but handle it)
+          const record = records[index];
+          failedExtractions.push({
+            recordId: record._id,
+            recordTitle: record.title,
+            error: new Error(result.reason || "Unknown error"),
+          });
+        }
+      });
+
+      // Log failed extractions
+      if (failedExtractions.length > 0) {
+        logger.error(
+          `❌ ${failedExtractions.length} record(s) failed extraction in this batch:`
+        );
+        failedExtractions.forEach(({ recordId, recordTitle, error }) => {
+          logger.error(
+            {
+              err: error,
+              recordId,
+              recordTitle,
+            },
+            `Failed to extract: ${recordTitle}`
+          );
+        });
+
+        stats.errors += failedExtractions.length;
+        stats.failedRecords += failedExtractions.length;
+      }
+
+      // Update processed count
+      stats.processedRecords += records.length;
+
+      // Log batch summary
+      logger.info(
+        `✅ Batch complete: ${extractionResults.length} successful, ${failedExtractions.length} failed`
+      );
 
       // Count skipped toxic chunks
       const toxicCount = extractionResults.filter(
@@ -407,68 +486,93 @@ export const indexAllRecords = async (
         }
       }
 
-      // Store nodes using new relationship-based approach
+      // Store nodes using batch operations (FAST - no write conflicts)
       if (nodes.length > 0) {
-        // 1. Create/update each unique entity node
-        for (const node of nodes) {
-          await graphStore.upsertEntityNode({
+        // 1. Create/update ALL entity nodes in one batch
+        await graphStore.upsertEntityNodes(
+          nodes.map((node) => ({
             id: node.id,
             type: node.type,
             title: node.title,
             description: node.description,
-          });
-        }
+          }))
+        );
 
-        // 2. Link each entity to the documents that mentioned it
+        // 2. Collect all entity-to-document links
+        const entityLinks: Array<{
+          entityId: string;
+          documentId: string;
+        }> = [];
         for (const result of validResults) {
           const { nodes: recordNodes } = entitiesToGraphNodes(result.entities);
-
           for (const node of recordNodes) {
-            await graphStore.linkEntityToDocument(node.id, result.recordId);
+            entityLinks.push({
+              entityId: node.id,
+              documentId: result.recordId,
+            });
           }
         }
+
+        // 3. Link ALL entities to documents in one batch
+        await graphStore.linkEntitiesToDocuments(entityLinks);
 
         stats.nodes += nodes.length;
       }
 
       if (relationships.length > 0) {
-        // 1. Create semantic relationships (without document binding)
-        for (const rel of relationships) {
-          await graphStore.upsertRelationship({
+        // 1. Create ALL semantic relationships in one batch
+        await graphStore.upsertRelationshipsBatch(
+          relationships.map((rel) => ({
             sourceId: rel.sourceId,
             targetId: rel.targetId,
             type: rel.type,
-          });
-        }
+          }))
+        );
 
-        // 2. Link documents to relationships they mention
+        // 2. Collect all document-to-relationship links
+        const relLinks: Array<{
+          documentId: string;
+          relationshipType: string;
+          sourceEntityId: string;
+          targetEntityId: string;
+          confidence: number;
+        }> = [];
         for (const result of validResults) {
           const { relationships: recordRels } = processRecordsToGraph([result]);
-
           for (const rel of recordRels) {
-            await graphStore.linkDocumentToRelationship(
-              result.recordId,
-              rel.type,
-              rel.sourceId,
-              rel.targetId,
-              { confidence: rel.confidence }
-            );
+            relLinks.push({
+              documentId: result.recordId,
+              relationshipType: rel.type,
+              sourceEntityId: rel.sourceId,
+              targetEntityId: rel.targetId,
+              confidence: rel.confidence,
+            });
           }
         }
+
+        // 3. Link ALL documents to relationships in one batch
+        await graphStore.linkDocumentsToRelationshipsBatch(relLinks);
 
         stats.relationships += relationships.length;
       }
 
-      // Update record metadata with schema version (serial to avoid conflicts)
-      for (const result of validResults) {
-        await recordStore.upsert({
-          _id: result.recordId,
-          lastGraphIndexDate: new Date(),
-        });
-      }
+      // Update ALL record metadata in parallel (MongoDB handles concurrency)
+      await Promise.all(
+        validResults.map((result) =>
+          recordStore.upsert({
+            _id: result.recordId,
+            lastGraphIndexDate: new Date(),
+          })
+        )
+      );
+
+      // Update successful count
+      stats.successfulRecords += validResults.length;
 
       logger.info(
-        `📊 Progress: ${stats.nodes} nodes, ${stats.relationships} relationships, ${stats.skippedToxic} toxic`
+        `📊 Progress: ${stats.successfulRecords}/${stats.processedRecords} records, ` +
+          `${stats.nodes} nodes, ${stats.relationships} relationships, ` +
+          `${stats.failedRecords} failed, ${stats.skippedToxic} toxic`
       );
     } catch (err) {
       logger.error({ err }, "Error processing batch");
@@ -479,10 +583,18 @@ export const indexAllRecords = async (
   }
 
   logger.info(`✅ Graph indexing complete for ${source}`);
-  logger.info(`   Nodes: ${stats.nodes}`);
-  logger.info(`   Relationships: ${stats.relationships}`);
-  logger.info(`   Errors: ${stats.errors}`);
+  logger.info(`   Records processed: ${stats.processedRecords}`);
+  logger.info(`   Successful: ${stats.successfulRecords}`);
+  logger.info(`   Failed: ${stats.failedRecords}`);
   logger.info(`   Skipped (toxic): ${stats.skippedToxic}`);
+  logger.info(`   Nodes created: ${stats.nodes}`);
+  logger.info(`   Relationships created: ${stats.relationships}`);
+
+  if (stats.failedRecords > 0) {
+    logger.warn(
+      `⚠️  ${stats.failedRecords} records failed to index. Check logs above for details.`
+    );
+  }
 
   return stats;
 };

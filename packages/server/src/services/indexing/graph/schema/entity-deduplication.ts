@@ -17,7 +17,6 @@ export interface Relationship {
   type: string;
   strength: number;
   description: string;
-  keywords: string[];
 }
 
 // ============================================================================
@@ -139,7 +138,6 @@ export const mergeRelationships = (
     } else {
       existing.strengthSum += rel.strength;
       existing.count += 1;
-      existing.keywords = [...new Set([...existing.keywords, ...rel.keywords])];
     }
 
     return map;
@@ -151,6 +149,5 @@ export const mergeRelationships = (
     type: rel.type,
     strength: Math.round(rel.strengthSum / rel.count),
     description: rel.description,
-    keywords: rel.keywords,
   }));
 };

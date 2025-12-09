@@ -1,5 +1,7 @@
 import { MemgraphNode, MemgraphRelationship } from "../types/index.js";
 import { MemgraphConnection } from "../connections/memgraph.js";
+import sleep from "../utils/sleep.js";
+import logger from "../utils/logger.js";
 
 /**
  * Generate Memgraph label from type
@@ -571,6 +573,31 @@ export class GraphStore {
   }
 
   /**
+   * Batch create or update multiple entity nodes
+   * Uses UNWIND for efficient batch processing - no write conflicts
+   */
+  async upsertEntityNodes(
+    entities: Array<{
+      id: string;
+      type: string;
+      title: string;
+      description?: string;
+    }>
+  ): Promise<void> {
+    if (entities.length === 0) return;
+
+    const query = `
+      UNWIND $entities AS entity
+      MERGE (e:Entity {id: entity.id})
+      SET e.type = entity.type,
+          e.title = entity.title,
+          e.description = COALESCE(entity.description, e.description)
+    `;
+
+    await this.memgraph.executeQuery(query, { entities });
+  }
+
+  /**
    * Link an entity to a document using MENTIONED_IN relationship
    */
   async linkEntityToDocument(
@@ -589,6 +616,37 @@ export class GraphStore {
       entityId,
       documentId,
       confidence: metadata?.confidence || 1.0,
+    });
+  }
+
+  /**
+   * Batch link multiple entities to documents
+   * Uses UNWIND for efficient batch processing - no write conflicts
+   */
+  async linkEntitiesToDocuments(
+    links: Array<{
+      entityId: string;
+      documentId: string;
+      confidence?: number;
+    }>
+  ): Promise<void> {
+    if (links.length === 0) return;
+
+    const query = `
+      UNWIND $links AS link
+      MATCH (entity:Entity {id: link.entityId})
+      MATCH (doc {id: link.documentId})
+      MERGE (entity)-[r:MENTIONED_IN]->(doc)
+      SET r.extractedAt = datetime(),
+          r.confidence = link.confidence
+    `;
+
+    await this.memgraph.executeQuery(query, {
+      links: links.map((l) => ({
+        entityId: l.entityId,
+        documentId: l.documentId,
+        confidence: l.confidence || 1.0,
+      })),
     });
   }
 
@@ -615,36 +673,66 @@ export class GraphStore {
   /**
    * Delete entities that have no document mentions (orphaned entities)
    * Returns count of deleted entities
+   * Includes retry logic for Memgraph transaction conflicts
    */
-  async deleteOrphanedEntities(): Promise<number> {
-    // First get the count
-    const countQuery = `
-      MATCH (entity:Entity)
-      WHERE NOT (entity)-[:MENTIONED_IN]->()
-      RETURN count(entity) AS count
-    `;
+  async deleteOrphanedEntities(maxRetries: number = 3): Promise<number> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // First get the count
+        const countQuery = `
+          MATCH (entity:Entity)
+          WHERE NOT (entity)-[:MENTIONED_IN]->()
+          RETURN count(entity) AS count
+        `;
 
-    const countResults = await this.memgraph.executeQuery<{ count: number }>(
-      countQuery,
-      {}
-    );
-    const count = countResults[0]?.count || 0;
-    const finalCount =
-      typeof count === "object" && count !== null && "toNumber" in count
-        ? (count as any).toNumber()
-        : count || 0;
+        const countResults = await this.memgraph.executeQuery<{
+          count: number;
+        }>(countQuery, {});
+        const count = countResults[0]?.count || 0;
+        const finalCount =
+          typeof count === "object" && count !== null && "toNumber" in count
+            ? (count as any).toNumber()
+            : count || 0;
 
-    // Then delete the orphaned entities
-    if (finalCount > 0) {
-      const deleteQuery = `
-        MATCH (entity:Entity)
-        WHERE NOT (entity)-[:MENTIONED_IN]->()
-        DETACH DELETE entity
-      `;
-      await this.memgraph.executeQuery(deleteQuery, {});
+        // Then delete the orphaned entities
+        if (finalCount > 0) {
+          const deleteQuery = `
+            MATCH (entity:Entity)
+            WHERE NOT (entity)-[:MENTIONED_IN]->()
+            DETACH DELETE entity
+          `;
+          await this.memgraph.executeQuery(deleteQuery, {});
+        }
+
+        return finalCount;
+      } catch (err: any) {
+        // Check if it's a retriable Memgraph transaction conflict
+        const isTransientError =
+          err.code?.includes("TransientError") ||
+          err.retriable === true ||
+          err.retryable === true;
+
+        if (isTransientError && attempt < maxRetries) {
+          const delayMs = 1000 * Math.pow(2, attempt - 1); // 1s, 2s, 4s
+          logger.warn(
+            `⚠️  Memgraph transaction conflict in deleteOrphanedEntities, retrying in ${delayMs}ms (attempt ${
+              attempt + 1
+            }/${maxRetries})`
+          );
+          await sleep(delayMs);
+        } else {
+          // Not retriable or max retries reached
+          logger.error(
+            { err, attempt, maxRetries },
+            `❌ Failed to delete orphaned entities after ${attempt} attempts`
+          );
+          throw err;
+        }
+      }
     }
 
-    return finalCount;
+    // Should never reach here
+    return 0;
   }
 
   /**
@@ -685,6 +773,46 @@ export class GraphStore {
   }
 
   /**
+   * Batch create or update multiple semantic relationships
+   * Uses UNWIND for efficient batch processing - no write conflicts
+   * Groups by relationship type to handle dynamic relationship types in Cypher
+   */
+  async upsertRelationshipsBatch(
+    relationships: Array<{
+      sourceId: string;
+      targetId: string;
+      type: string;
+    }>
+  ): Promise<void> {
+    if (relationships.length === 0) return;
+
+    // Group by relationship type (Cypher requirement for dynamic relationship types)
+    const relsByType = new Map<string, typeof relationships>();
+    for (const rel of relationships) {
+      const existing = relsByType.get(rel.type) || [];
+      existing.push(rel);
+      relsByType.set(rel.type, existing);
+    }
+
+    // Process each type sequentially (UNWIND within each type for batch efficiency)
+    for (const [type, typeRels] of relsByType.entries()) {
+      const query = `
+        UNWIND $rels AS rel
+        MATCH (source:Entity {id: rel.sourceId})
+        MATCH (target:Entity {id: rel.targetId})
+        MERGE (source)-[r:${type}]->(target)
+      `;
+
+      await this.memgraph.executeQuery(query, {
+        rels: typeRels.map((r) => ({
+          sourceId: r.sourceId,
+          targetId: r.targetId,
+        })),
+      });
+    }
+  }
+
+  /**
    * Link a document to a relationship it mentions
    */
   async linkDocumentToRelationship(
@@ -712,6 +840,36 @@ export class GraphStore {
       targetEntityId,
       confidence: metadata.confidence,
     });
+  }
+
+  /**
+   * Batch link multiple documents to relationships
+   * Uses UNWIND for efficient batch processing - no write conflicts
+   */
+  async linkDocumentsToRelationshipsBatch(
+    links: Array<{
+      documentId: string;
+      relationshipType: string;
+      sourceEntityId: string;
+      targetEntityId: string;
+      confidence: number;
+    }>
+  ): Promise<void> {
+    if (links.length === 0) return;
+
+    const query = `
+      UNWIND $links AS link
+      MATCH (doc {id: link.documentId})
+      MATCH (source:Entity {id: link.sourceEntityId})
+      MERGE (doc)-[r:MENTIONS_REL]->(source)
+      SET r.relationshipType = link.relationshipType,
+          r.sourceEntityId = link.sourceEntityId,
+          r.targetEntityId = link.targetEntityId,
+          r.confidence = link.confidence,
+          r.extractedAt = datetime()
+    `;
+
+    await this.memgraph.executeQuery(query, { links });
   }
 
   /**

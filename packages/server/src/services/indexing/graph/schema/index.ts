@@ -1,5 +1,2 @@
 // Schema extraction functions for graph indexing
-export {
-  extractGraphFromContent,
-  extractGraphRelationships,
-} from "./schema-extraction.js";
+export { extractGraphFromContent } from "./schema-extraction.js";

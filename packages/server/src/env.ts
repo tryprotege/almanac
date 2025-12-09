@@ -70,7 +70,12 @@ const envSchema = z.object({
   // Graph Extraction Configuration
   GRAPH_EXTRACTION_CONCURRENCY: z.coerce.number().default(32),
   ENABLE_TOXIC_DOCUMENT_FILTER: z.boolean().default(true),
-  MAX_ENTITIES_PER_DOCUMENT: z.coerce.number().default(200),
+
+  // Dynamic Entity Limit Configuration
+  // Ratio: 1 entity per X characters (optional, no limit if not set)
+  ENTITY_CHARS_PER_ENTITY: z.coerce.number().optional(),
+  // Maximum entities per document cap (optional, no limit if not set)
+  MAX_ENTITIES_PER_DOCUMENT: z.coerce.number().optional(),
 
   // Sync Configuration
   SYNC_CUTOFF_DATE: z.string().datetime().optional(), // datetime in ISO format eg. "2023-06-01T00:00:00.000Z"

@@ -51,15 +51,67 @@ export const isToxicChunk = (
 };
 
 /**
- * Truncate entities if exceeding max limit
+ * Truncate entities using dynamic limit based on content length
+ * Formula: min(contentLength / charsPerEntity, maxEntities)
+ * If charsPerEntity or maxEntities are undefined, no limit is applied
  */
-export const truncateEntities = <T>(
-  entities: T[],
-  maxEntities: number = DEFAULT_CONFIG.maxEntitiesPerDoc
-): T[] => {
-  if (entities.length > maxEntities) {
-    logger.warn(`⚠️  Truncating ${entities.length} entities to ${maxEntities}`);
-    return entities.slice(0, maxEntities);
+export const truncateEntities = <T>({
+  entities,
+  contentLength,
+  charsPerEntity,
+  maxEntities,
+}: {
+  entities: T[];
+  contentLength: number;
+  charsPerEntity?: number;
+  maxEntities?: number;
+}): T[] => {
+  // If no limits configured, return all entities
+  if (!charsPerEntity && !maxEntities) {
+    logger.info(
+      `✅ No entity limits configured - keeping all ${entities.length} entities`
+    );
+    return entities;
   }
+
+  // Calculate dynamic limit based on content length
+  let dynamicLimit: number;
+
+  if (charsPerEntity) {
+    // Use ratio-based calculation
+    dynamicLimit = Math.ceil(contentLength / charsPerEntity);
+
+    // Apply cap if maxEntities is defined
+    if (maxEntities) {
+      dynamicLimit = Math.min(dynamicLimit, maxEntities);
+    }
+  } else if (maxEntities) {
+    // Only maxEntities is defined, use it as static limit
+    dynamicLimit = maxEntities;
+  } else {
+    // Should not reach here, but return all entities as fallback
+    return entities;
+  }
+
+  if (entities.length > dynamicLimit) {
+    const limitReason = charsPerEntity
+      ? `${contentLength} chars @ 1:${charsPerEntity} ratio`
+      : `static limit`;
+    const capInfo =
+      maxEntities && charsPerEntity ? `, capped at ${maxEntities}` : "";
+
+    logger.warn(
+      `⚠️  Truncating ${entities.length} entities to ${dynamicLimit} ` +
+        `(${limitReason}${capInfo})`
+    );
+    return entities.slice(0, dynamicLimit);
+  }
+
+  const limitInfo = charsPerEntity
+    ? `limit: ${dynamicLimit} from ${contentLength} chars @ 1:${charsPerEntity}`
+    : `limit: ${dynamicLimit}`;
+
+  logger.info(`✅ Kept all ${entities.length} entities (${limitInfo})`);
+
   return entities;
 };

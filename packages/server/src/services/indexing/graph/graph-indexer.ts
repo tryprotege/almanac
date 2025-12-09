@@ -34,6 +34,7 @@ import {
 } from "./schema-auto-discovery.js";
 import { getSchema } from "../../../stores/graph-schema.store.js";
 import logger from "../../../utils/logger.js";
+import { env } from "../../../env.js";
 
 // ============================================================================
 // Types
@@ -107,30 +108,11 @@ export const extractGraphFromRecord = async (
   // Clean up old entity and relationship mentions before re-extraction if:
   // 1. This is a re-index (lastGraphIndexDate exists), OR
   // 2. Force mode is enabled (always clean)
+  // NOTE: Orphaned entity/relationship cleanup is now done in batch after all records
+  // are processed to improve performance and reduce transaction conflicts.
   if (options.graphStore && (record.lastGraphIndexDate || options.force)) {
-    // // 1. Unlink entities from document
-    // const unlinkedEntityIds =
-    //   await options.graphStore.unlinkAllEntitiesFromDocument(record._id);
-
-    // // 2. Unlink relationships from document
-    // const unlinkedRelCount =
-    //   await options.graphStore.unlinkRelationshipsFromDocument(record._id);
-
-    // 3. Delete orphaned entities
-    const deletedEntities = await options.graphStore.deleteOrphanedEntities();
-
-    // 4. Delete orphaned relationships
-    const deletedRelationships =
-      await options.graphStore.deleteOrphanedRelationships();
-
-    if (deletedEntities > 0 || deletedRelationships > 0) {
-      logger.info(
-        `🧹 Cleaned up ${deletedEntities} entities and ${deletedRelationships} relationships ` +
-          `after unlinking from ${
-            options.force ? "force re-index" : "updated record"
-          } ${record._id}`
-      );
-    }
+    // Cleanup is handled in batch after indexing completes
+    // See indexAllRecords() for the cleanup logic
   }
 
   // Extract explicit relationships using adapter
@@ -206,10 +188,12 @@ export const extractGraphFromRecord = async (
   }
 
   // Truncate if exceeds max entities
-  const truncatedEntities = truncateEntities(
+  const truncatedEntities = truncateEntities({
     entities,
-    options.maxEntitiesPerDoc
-  );
+    contentLength: record.content.length,
+    charsPerEntity: env.ENTITY_CHARS_PER_ENTITY,
+    maxEntities: env.MAX_ENTITIES_PER_DOCUMENT,
+  });
 
   // Convert adapter relationships to graph format
   const graphAdapterRels: GraphRelationship[] = adapterRelationships.map(
@@ -594,6 +578,26 @@ export const indexAllRecords = async (
     logger.warn(
       `⚠️  ${stats.failedRecords} records failed to index. Check logs above for details.`
     );
+  }
+
+  // Batch cleanup: Delete orphaned entities and relationships after all indexing is complete
+  // This is more efficient than cleaning up after each record and reduces transaction conflicts
+  logger.info(
+    `\n🧹 Cleaning up orphaned entities and relationships for ${source}...`
+  );
+  try {
+    const deletedEntities = await graphStore.deleteOrphanedEntities();
+    const deletedRelationships = await graphStore.deleteOrphanedRelationships();
+
+    if (deletedEntities > 0 || deletedRelationships > 0) {
+      logger.info(
+        `   ✅ Cleaned up ${deletedEntities} orphaned entities and ${deletedRelationships} orphaned relationships`
+      );
+    } else {
+      logger.info(`   ✅ No orphaned entities or relationships found`);
+    }
+  } catch (err) {
+    logger.error({ err }, `⚠️  Error during cleanup phase for ${source}`);
   }
 
   return stats;

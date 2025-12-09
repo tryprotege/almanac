@@ -55,13 +55,18 @@ export class RecordStore {
     recordType?: string,
     options?: { limit?: number; skip?: number; includeDeleted?: boolean }
   ): Promise<Record[]> {
-    const filter: any = { source, recordType };
+    const filter: any = { source };
+
+    // Only add recordType to filter if it's provided and not empty
+    if (recordType) {
+      filter.recordType = recordType;
+    }
 
     if (!options?.includeDeleted) {
       filter.isDeleted = false;
     }
 
-    let query = RecordModel.find();
+    let query = RecordModel.find(filter);
 
     if (options?.skip) query = query.skip(options.skip);
     if (options?.limit) query = query.limit(options.limit);

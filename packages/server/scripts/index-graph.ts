@@ -160,8 +160,8 @@ async function indexGraphRecords() {
         record.updatedAt <= record.lastGraphIndexDate
     );
 
-    logger.info(`\n📊 Current Statistics:`);
-    logger.info(`   Total Records: ${allRecords.length}`);
+    logger.info(`\n📊 Statistics for ${config.name}:`);
+    logger.info(`   ${config.name} Records: ${allRecords.length}`);
     logger.info(`   Already Indexed: ${alreadyIndexed.length}`);
     logger.info(`   Needs Indexing: ${needsIndexing.length}`);
     logger.info(
@@ -218,8 +218,8 @@ async function indexGraphRecords() {
       (record) => !record.lastGraphIndexDate
     );
 
-    logger.info(`\n📊 Final Statistics:`);
-    logger.info(`   Total Records: ${allRecordsAfter.length}`);
+    logger.info(`\n📊 Final Statistics for ${config.name}:`);
+    logger.info(`   Total ${config.name} Records: ${allRecordsAfter.length}`);
     logger.info(
       `   Indexed: ${allRecordsAfter.length - unindexedRecordsAfter.length}`
     );

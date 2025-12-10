@@ -6,7 +6,8 @@ import { Schema, model } from "mongoose";
  */
 
 export interface IGraphEmbeddingMetadata {
-  _id: string; // Format: "entity_{globalId}" or "rel_{sourceId}_{type}_{targetId}" - Also used as Qdrant point ID
+  _id: string; // Format: "entity_{globalId}" or "rel_{sourceId}_{type}_{targetId}" - Semantic MongoDB ID
+  qdrantId?: string; // UUID for Qdrant point ID (required by Qdrant, generated on first embedding)
   itemType: "entity" | "relationship";
 
   // For entities
@@ -41,6 +42,11 @@ const graphEmbeddingMetadataSchema = new Schema<IGraphEmbeddingMetadata>(
     _id: {
       type: String,
       required: true,
+    },
+    qdrantId: {
+      type: String,
+      index: true,
+      sparse: true,
     },
     itemType: {
       type: String,

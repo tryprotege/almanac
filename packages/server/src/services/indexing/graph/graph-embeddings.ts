@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { embed } from "../../../utils/embedding.js";
 import { VectorStore } from "../../../stores/vector.store.js";
 import { RecordStore } from "../../../stores/record.store.js";
@@ -119,19 +120,29 @@ export async function indexEntityEmbeddings(
       // Generate embeddings
       const embeddings = await embed(entityTexts);
 
-      // Create vector points
-      const points = batch.map((entity, index) => ({
-        id: `entity_${entity.entityId}`,
-        vector: embeddings[index],
-        payload: {
-          type: "entity" as const,
-          entityId: entity.entityId,
-          entityType: entity.type,
-          source: source,
-          degree: degreeCounts.get(entity.entityId) || 0,
-          checksum: computeChecksum(entityTexts[index]),
-        } as EntityVectorPayload,
-      }));
+      // Get or create qdrantIds for each entity
+      const metadataRecords = await Promise.all(
+        batch.map((entity) => GraphEmbeddingMetadata.findById(entity.entityId))
+      );
+
+      // Create vector points with UUIDs
+      const points = batch.map((entity, index) => {
+        const existingQdrantId = metadataRecords[index]?.qdrantId;
+        const qdrantId = existingQdrantId || randomUUID();
+
+        return {
+          id: qdrantId,
+          vector: embeddings[index],
+          payload: {
+            type: "entity" as const,
+            entityId: entity.entityId,
+            entityType: entity.type,
+            source: source,
+            degree: degreeCounts.get(entity.entityId) || 0,
+            checksum: computeChecksum(entityTexts[index]),
+          } as EntityVectorPayload,
+        };
+      });
 
       // Upsert to Qdrant
       await deps.vectorStore.upsertPoints(points);
@@ -141,6 +152,7 @@ export async function indexEntityEmbeddings(
       for (let j = 0; j < batch.length; j++) {
         const entity = batch[j];
         const embeddedChecksum = computeChecksum(entityTexts[j]);
+        const qdrantId = points[j].id;
 
         await GraphEmbeddingMetadata.findOneAndUpdate(
           { _id: entity.entityId },
@@ -149,6 +161,7 @@ export async function indexEntityEmbeddings(
               itemType: "entity",
               entityId: entity.entityId,
               entityType: entity.type,
+              qdrantId: qdrantId,
               embeddedChecksum: embeddedChecksum,
               embeddedAt: new Date(),
               embeddingModelVersion: env.LLM_EMBEDDING_MODEL,
@@ -266,11 +279,21 @@ export async function indexRelationshipEmbeddings(
       // Generate embeddings
       const embeddings = await embed(relTexts);
 
-      // Create vector points
+      // Get or create qdrantIds for each relationship
+      const relIds = batch.map(
+        (rel) => `rel_${rel.sourceId}_${rel.type}_${rel.targetId}`
+      );
+      const metadataRecords = await Promise.all(
+        relIds.map((relId) => GraphEmbeddingMetadata.findById(relId))
+      );
+
+      // Create vector points with UUIDs
       const points = batch.map((rel, index) => {
-        const relId = `rel_${rel.sourceId}_${rel.type}_${rel.targetId}`;
+        const existingQdrantId = metadataRecords[index]?.qdrantId;
+        const qdrantId = existingQdrantId || randomUUID();
+
         return {
-          id: relId,
+          id: qdrantId,
           vector: embeddings[index],
           payload: {
             type: "relationship" as const,
@@ -292,6 +315,7 @@ export async function indexRelationshipEmbeddings(
         const rel = batch[j];
         const relId = `rel_${rel.sourceId}_${rel.type}_${rel.targetId}`;
         const embeddedChecksum = computeChecksum(relTexts[j]);
+        const qdrantId = points[j].id;
 
         await GraphEmbeddingMetadata.findOneAndUpdate(
           { _id: relId },
@@ -301,6 +325,7 @@ export async function indexRelationshipEmbeddings(
               sourceId: rel.sourceId,
               targetId: rel.targetId,
               relType: rel.type,
+              qdrantId: qdrantId,
               embeddedChecksum: embeddedChecksum,
               embeddedAt: new Date(),
               embeddingModelVersion: env.LLM_EMBEDDING_MODEL,
@@ -365,9 +390,10 @@ export async function cleanupDeletedEntityEmbeddings(
 
     if (allDeleted) {
       try {
-        // Delete from Qdrant using entity point ID format
-        const qdrantPointId = `entity_${metadata._id}`;
-        await deps.vectorStore.deleteByIds([qdrantPointId]);
+        // Delete from Qdrant using the stored qdrantId
+        if (metadata.qdrantId) {
+          await deps.vectorStore.deleteByIds([metadata.qdrantId]);
+        }
 
         // Delete metadata
         await GraphEmbeddingMetadata.deleteOne({ _id: metadata._id });
@@ -423,8 +449,10 @@ export async function cleanupDeletedRelationshipEmbeddings(
 
     if (!exists) {
       try {
-        // Delete from Qdrant using relationship point ID (which is the _id)
-        await deps.vectorStore.deleteByIds([metadata._id]);
+        // Delete from Qdrant using the stored qdrantId
+        if (metadata.qdrantId) {
+          await deps.vectorStore.deleteByIds([metadata.qdrantId]);
+        }
 
         // Delete metadata
         await GraphEmbeddingMetadata.deleteOne({ _id: metadata._id });

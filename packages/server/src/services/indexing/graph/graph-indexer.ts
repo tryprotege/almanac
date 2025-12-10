@@ -32,7 +32,7 @@ import {
   updateSchemaWithDiscovery,
   getCurrentSchemaTypes,
 } from "./schema-auto-discovery.js";
-import { getSchema } from "../../../stores/graph-schema.store.js";
+import { getSchema, createSchema } from "../../../stores/graph-schema.store.js";
 import { GraphEmbeddingMetadata } from "../../../models/graph-embedding-metadata.model.js";
 import logger from "../../../utils/logger.js";
 import { env } from "../../../env.js";
@@ -141,7 +141,13 @@ export const extractGraphFromRecord = async (
     openaiClient,
     record.content,
     existingEntityTypes,
-    existingRelTypes
+    existingRelTypes,
+    undefined, // persona
+    3, // maxRetries
+    {
+      recordId: record._id,
+      recordTitle: record.title,
+    }
   );
 
   // Filter out low-value relationships
@@ -298,7 +304,7 @@ export const indexAllRecords = async (
     batchSize = 50,
     concurrency = 32,
     enableToxicFilter = true,
-    maxEntitiesPerDoc = 200,
+    maxEntitiesPerDoc = undefined,
     force = false,
   } = options;
 
@@ -323,6 +329,14 @@ export const indexAllRecords = async (
 
   logger.info(`   - Force re-index: ${force ? "enabled" : "disabled"}`);
 
+  // Ensure schema exists before indexing
+  let currentSchema = await getSchema();
+  if (!currentSchema) {
+    logger.info(`📝 No schema found, creating default schema...`);
+    currentSchema = await createSchema();
+    logger.info(`✅ Schema created with version ${currentSchema.version}`);
+  }
+
   // Track start time for performance metrics
   const startTime = Date.now();
   const batchTimes: number[] = [];
@@ -345,8 +359,7 @@ export const indexAllRecords = async (
   // Get adapter for this source
   const adapter = adapters.get(source);
 
-  // Get current schema and types
-  const currentSchema = await getSchema();
+  // Get schema types (schema already ensured to exist above)
   const {
     entityTypes: existingEntityTypes,
     relationshipTypes: existingRelTypes,
@@ -787,8 +800,13 @@ export const indexSingleRecord = async (
   nodeId: string;
   relationships: number;
 }> => {
-  // Get current schema
-  const currentSchema = await getSchema();
+  // Ensure schema exists before indexing
+  let currentSchema = await getSchema();
+  if (!currentSchema) {
+    logger.info(`📝 No schema found, creating default schema...`);
+    currentSchema = await createSchema();
+    logger.info(`✅ Schema created with version ${currentSchema.version}`);
+  }
   const {
     entityTypes: existingEntityTypes,
     relationshipTypes: existingRelTypes,

@@ -449,7 +449,11 @@ async function extractBothFromContent(
         })
       );
 
-      logger.info(`📊 Combined Extraction Results:`);
+      // Log with record context
+      const recordInfo = recordContext
+        ? ` for "${recordContext.recordTitle}" (ID: ${recordContext.recordId})`
+        : "";
+      logger.info(`📊 Combined Extraction Results${recordInfo}:`);
       logger.info(`   - Content length: ${content.length} chars`);
       logger.info(`   - Entities extracted: ${entities.length}`);
       logger.info(`   - Relationships extracted: ${relationships.length}`);
@@ -548,12 +552,25 @@ export async function extractGraphFromContent(
 
   // Fallback extraction for missing entities
   if (missingEntitiesMap.size > 0) {
+    // Build list of missing entity names
+    const missingEntityNames = Array.from(missingEntitiesMap.keys());
+    const recordInfo = recordContext
+      ? ` for "${recordContext.recordTitle}" (ID: ${recordContext.recordId})`
+      : "";
+
     logger.warn(
-      `⚠️  Found ${missingEntitiesMap.size} missing entities in relationships, attempting fallback extraction...`
+      `⚠️  Found ${missingEntitiesMap.size} missing entities in relationships${recordInfo}`
+    );
+    logger.warn(
+      `   Missing entities: ${missingEntityNames
+        .map((n) => `"${n}"`)
+        .join(", ")}`
     );
 
     const fallbackLimit = 10; // Limit fallback attempts
     let fallbackCount = 0;
+    let extractedCount = 0;
+    let inferredCount = 0;
 
     for (const [missingName, relContexts] of missingEntitiesMap) {
       if (fallbackCount >= fallbackLimit) {
@@ -583,6 +600,7 @@ export async function extractGraphFromContent(
         logger.info(
           `   ✅ Fallback extracted: "${entity.name}" (${entity.type})`
         );
+        extractedCount++;
       } else {
         // Last resort: Create inferential entity
         const inferredEntity = createInferentialEntity(
@@ -594,6 +612,7 @@ export async function extractGraphFromContent(
         logger.info(
           `   🔮 Inferential entity created: "${inferredEntity.name}" (${inferredEntity.type})`
         );
+        inferredCount++;
       }
 
       fallbackCount++;
@@ -635,9 +654,10 @@ export async function extractGraphFromContent(
   const filteredCount = relationships.length - validatedRelationships.length;
 
   // Summary logging
-  logger.info(
-    `✅ Single-pass extraction complete: ${recordContext?.recordTitle}`
-  );
+  const recordInfo = recordContext
+    ? `"${recordContext.recordTitle}" (ID: ${recordContext.recordId})`
+    : "unknown record";
+  logger.info(`✅ Single-pass extraction complete: ${recordInfo}`);
   logger.info(`   - Entities: ${entities.length}`);
   logger.info(`   - Relationships: ${relationships.length}`);
   if (filteredCount > 0) {

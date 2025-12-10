@@ -11,6 +11,8 @@ import {
   FathomTeamMember,
 } from "@ebee-oss/shared-util";
 import logger from "../../../utils/logger.js";
+import pThrottle from "p-throttle";
+import sleep from "../../../utils/sleep.js";
 
 /**
  * Fathom MCP Client wrapper for data extraction
@@ -22,76 +24,156 @@ import logger from "../../../utils/logger.js";
  */
 export class FathomMCPClient {
   private serverName = "fathom";
-  private rateLimitDelay = 500; // 500ms = ~2 requests per second
+  private readonly MAX_RETRIES = 10;
+  private readonly INITIAL_RETRY_DELAY = 1000; // 1 second
+  private throttledCallTool: <T>(
+    toolName: string,
+    args: Record<string, any>
+  ) => Promise<T>;
 
-  constructor() {}
+  constructor() {
+    // Create throttled version of callTool: 60 requests per 60 seconds
+    const throttle = pThrottle({
+      limit: 55,
+      interval: 60000, // 60 seconds in milliseconds
+    });
 
-  /**
-   * Sleep utility for rate limiting
-   */
-  private async sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    this.throttledCallTool = throttle(this.callToolInternal.bind(this));
   }
 
   /**
-   * Call MCP tool with rate limiting and parse response
+   * Internal method to call MCP tool with retry logic and parse response
+   * This is wrapped by throttledCallTool to enforce rate limiting
+   */
+  private async callToolInternal<T>(
+    toolName: string,
+    args: Record<string, any>
+  ): Promise<T> {
+    let lastError: Error | null = null;
+
+    // Retry loop with exponential backoff for 429 errors
+    for (let attempt = 0; attempt <= this.MAX_RETRIES; attempt++) {
+      try {
+        const response = await mcpClientManager.callTool(
+          this.serverName,
+          toolName,
+          args
+        );
+
+        // MCP response format: { content: [{ type: 'text', text: '...' }] }
+        if (response && response.content && Array.isArray(response.content)) {
+          const textContent = response.content.find(
+            (c: any) => c.type === "text"
+          );
+
+          if (response.isError) {
+            const errorText = textContent?.text || "Unknown error";
+
+            // Check if it's a 429 rate limit error
+            if (errorText.includes("429")) {
+              // Calculate exponential backoff delay with jitter
+              const baseDelay = this.INITIAL_RETRY_DELAY * Math.pow(2, attempt);
+              const jitter = Math.random() * 0.3 * baseDelay; // ±30% jitter
+              const delay = Math.floor(baseDelay + jitter);
+
+              logger.warn(
+                `Rate limit (429) hit for ${toolName}, attempt ${attempt + 1}/${
+                  this.MAX_RETRIES + 1
+                }. ` + `Retrying after ${delay}ms...`
+              );
+
+              // If we haven't exhausted retries, wait and continue
+              if (attempt < this.MAX_RETRIES) {
+                await sleep(delay);
+                continue; // Retry
+              }
+
+              // If we've exhausted retries, throw error
+              throw new Error(
+                `Rate limit exceeded after ${this.MAX_RETRIES} retries: ${errorText}`
+              );
+            }
+
+            // For non-429 errors, throw immediately
+            console.warn(
+              `MCP tool ${toolName} returned an error:`,
+              textContent
+            );
+            throw new Error("MCP tool error: " + errorText);
+          } else if (textContent && textContent.text) {
+            try {
+              // First try to parse as-is
+              return JSON.parse(textContent.text) as T;
+            } catch (error) {
+              // If parsing fails, try to extract JSON from mixed content
+              // Handle cases where error messages are prefixed before JSON
+              const text = textContent.text;
+
+              // Try to find JSON object or array in the response
+              const jsonMatch = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+              if (jsonMatch) {
+                try {
+                  const extractedJson = JSON.parse(jsonMatch[1]);
+                  console.warn(
+                    `MCP tool ${toolName} returned mixed content, extracted JSON successfully. Prefix: ${text
+                      .substring(0, jsonMatch.index)
+                      .trim()}`
+                  );
+                  return extractedJson as T;
+                } catch (innerError) {
+                  logger.error(
+                    { innerError },
+                    "Failed to parse extracted JSON:"
+                  );
+                }
+              }
+
+              // If we still can't parse, throw a detailed error
+              logger.error({ error }, "Failed to parse MCP response:");
+              logger.error("Response text:", text.substring(0, 500));
+              throw new Error(
+                `Invalid JSON in MCP response: ${text.substring(0, 100)}...`
+              );
+            }
+          }
+        }
+
+        // Fallback: return response as-is if it doesn't match expected format
+        return response as T;
+      } catch (error) {
+        lastError = error as Error;
+
+        // If it's a 429 error and we have retries left, continue
+        if (lastError.message.includes("429") && attempt < this.MAX_RETRIES) {
+          const baseDelay = this.INITIAL_RETRY_DELAY * Math.pow(2, attempt);
+          const jitter = Math.random() * 0.3 * baseDelay; // ±30% jitter
+          const delay = Math.floor(baseDelay + jitter);
+          logger.warn(
+            `Caught 429 error, attempt ${attempt + 1}/${
+              this.MAX_RETRIES + 1
+            }. ` + `Retrying after ${delay}ms...`
+          );
+          await sleep(delay);
+          continue;
+        }
+
+        // Otherwise, throw the error
+        throw lastError;
+      }
+    }
+
+    // This shouldn't be reached, but TypeScript needs it
+    throw lastError || new Error("Unexpected error in retry logic");
+  }
+
+  /**
+   * Call MCP tool with rate limiting (60 requests per 60 seconds) and parse response
    */
   private async callTool<T>(
     toolName: string,
     args: Record<string, any>
   ): Promise<T> {
-    await this.sleep(this.rateLimitDelay);
-    const response = await mcpClientManager.callTool(
-      this.serverName,
-      toolName,
-      args
-    );
-
-    // MCP response format: { content: [{ type: 'text', text: '...' }] }
-    if (response && response.content && Array.isArray(response.content)) {
-      const textContent = response.content.find((c: any) => c.type === "text");
-      if (response.isError) {
-        console.warn(`MCP tool ${toolName} returned an error:`, textContent);
-        throw new Error(
-          "MCP tool error: " + (textContent?.text || "Unknown error")
-        );
-      } else if (textContent && textContent.text) {
-        try {
-          // First try to parse as-is
-          return JSON.parse(textContent.text) as T;
-        } catch (error) {
-          // If parsing fails, try to extract JSON from mixed content
-          // Handle cases where error messages are prefixed before JSON
-          const text = textContent.text;
-
-          // Try to find JSON object or array in the response
-          const jsonMatch = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-          if (jsonMatch) {
-            try {
-              const extractedJson = JSON.parse(jsonMatch[1]);
-              console.warn(
-                `MCP tool ${toolName} returned mixed content, extracted JSON successfully. Prefix: ${text
-                  .substring(0, jsonMatch.index)
-                  .trim()}`
-              );
-              return extractedJson as T;
-            } catch (innerError) {
-              logger.error({ innerError }, "Failed to parse extracted JSON:");
-            }
-          }
-
-          // If we still can't parse, throw a detailed error
-          logger.error({ error }, "Failed to parse MCP response:");
-          logger.error("Response text:", text.substring(0, 500));
-          throw new Error(
-            `Invalid JSON in MCP response: ${text.substring(0, 100)}...`
-          );
-        }
-      }
-    }
-
-    // Fallback: return response as-is if it doesn't match expected format
-    return response as T;
+    return this.throttledCallTool<T>(toolName, args);
   }
 
   /**
@@ -301,12 +383,5 @@ export class FathomMCPClient {
       { team_id: teamId },
       (response) => response.items || []
     );
-  }
-
-  /**
-   * Set custom rate limit delay
-   */
-  setRateLimitDelay(delayMs: number): void {
-    this.rateLimitDelay = delayMs;
   }
 }

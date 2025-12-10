@@ -17,8 +17,8 @@ import {
 import { FathomMCPClient } from "../../sources/fathom/mcpClient.js";
 import pLimit from "p-limit";
 
-const MEETING_CONCURRENCY = 5; // Process 5 meetings concurrently for transcripts/summaries
-const TEAM_CONCURRENCY = 3; // Process 3 teams concurrently for members
+const MEETING_CONCURRENCY = 2; // Process 2 meetings concurrently for transcripts/summaries
+const TEAM_CONCURRENCY = 2; // Process 2 teams concurrently for members
 
 /**
  * Fathom adapter for syncing Fathom records

@@ -406,7 +406,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         targetId: this.generateRecordId("user", repo.owner.login),
         type: "OWNED_BY",
         confidence: 1.0,
-        extractedBy: "explicit",
       });
     }
 
@@ -422,7 +421,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
           targetId: repoId,
           type: "ISSUE_IN_REPO",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       }
 
@@ -432,7 +430,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         targetId: this.generateRecordId("user", issue.user.login),
         type: "CREATED_BY",
         confidence: 1.0,
-        extractedBy: "explicit",
       });
 
       // Assignee relationships
@@ -442,7 +439,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
           targetId: this.generateRecordId("user", assignee.login),
           type: "ASSIGNED_TO",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       });
 
@@ -456,7 +452,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
           ),
           type: "MILESTONE_OF",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       }
     }
@@ -475,7 +470,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         targetId: repoId,
         type: "PR_IN_REPO",
         confidence: 1.0,
-        extractedBy: "explicit",
       });
 
       // Author relationship
@@ -484,7 +478,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         targetId: this.generateRecordId("user", pr.user.login),
         type: "CREATED_BY",
         confidence: 1.0,
-        extractedBy: "explicit",
       });
 
       // Assignee relationships
@@ -494,7 +487,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
           targetId: this.generateRecordId("user", assignee.login),
           type: "ASSIGNED_TO",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       });
 
@@ -505,7 +497,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
           targetId: this.generateRecordId("user", reviewer.login),
           type: "REVIEWED_BY",
           confidence: 0.8,
-          extractedBy: "explicit",
         });
       });
 
@@ -524,8 +515,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
             ),
             type: "FIXES",
             confidence: 0.9,
-            extractedBy: "heuristic",
-            metadata: { pattern: "fixes_keyword" },
           });
         }
       }
@@ -542,7 +531,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
           targetId: repoId,
           type: "WORKFLOW_IN_REPO",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       }
     }
@@ -560,7 +548,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         ),
         type: "RUN_OF_WORKFLOW",
         confidence: 1.0,
-        extractedBy: "explicit",
       });
 
       // Repository relationship
@@ -572,7 +559,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         ),
         type: "RUN_IN_REPO",
         confidence: 1.0,
-        extractedBy: "explicit",
       });
 
       // Actor relationship
@@ -581,7 +567,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         targetId: this.generateRecordId("user", run.actor.login),
         type: "TRIGGERED_BY",
         confidence: 1.0,
-        extractedBy: "explicit",
       });
     }
 
@@ -601,7 +586,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
           targetId: repoId,
           type: "ALERT_IN_REPO",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       }
     }
@@ -617,7 +601,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
           targetId: repoId,
           type: "DISCUSSION_IN_REPO",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       }
 
@@ -627,7 +610,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
         targetId: this.generateRecordId("user", discussion.user.login),
         type: "CREATED_BY",
         confidence: 1.0,
-        extractedBy: "explicit",
       });
 
       // Answer relationship
@@ -640,7 +622,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
           ),
           type: "ANSWERED_BY",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       }
     }

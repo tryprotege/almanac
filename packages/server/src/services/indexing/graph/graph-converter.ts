@@ -8,6 +8,7 @@ import {
   Relationship,
   normalizeEntityName,
 } from "./schema/entity-deduplication.js";
+import logger from "../../../utils/logger.js";
 
 export interface GraphNode {
   id: string; // Global entity ID
@@ -55,8 +56,11 @@ export const entitiesToGraphNodes = (
     // Use global ID instead of record-scoped ID
     const nodeId = generateGlobalEntityId(entity.name, entity.type);
 
-    if (!entityNameToId.has(entity.name)) {
-      entityNameToId.set(entity.name, nodeId);
+    // Use normalized name as the key to ensure case-insensitive lookups
+    const normalizedKey = normalizeEntityName(entity.name);
+
+    if (!entityNameToId.has(normalizedKey)) {
+      entityNameToId.set(normalizedKey, nodeId);
       nodes.push({
         id: nodeId,
         type: entity.type,
@@ -75,19 +79,42 @@ export const entitiesToGraphNodes = (
 export const relationshipsToGraphRelationships = (
   relationships: Relationship[],
   entityNameToId: Map<string, string>
-): GraphRelationship[] =>
-  relationships
-    .map((rel) => {
-      const sourceId = entityNameToId.get(rel.source);
-      const targetId = entityNameToId.get(rel.target);
+): GraphRelationship[] => {
+  const validRelationships: GraphRelationship[] = [];
+  let skippedCount = 0;
 
-      return sourceId && targetId
-        ? {
-            sourceId,
-            targetId,
-            type: rel.type,
-            confidence: rel.strength / 10, // Convert 1-10 to 0.1-1.0
-          }
-        : null;
-    })
-    .filter((rel): rel is GraphRelationship => rel !== null);
+  for (const rel of relationships) {
+    // Normalize entity names when looking up IDs to ensure case-insensitive matching
+    const sourceId = entityNameToId.get(normalizeEntityName(rel.source));
+    const targetId = entityNameToId.get(normalizeEntityName(rel.target));
+
+    if (sourceId && targetId) {
+      validRelationships.push({
+        sourceId,
+        targetId,
+        type: rel.type,
+        confidence: rel.strength / 10, // Convert 1-10 to 0.1-1.0
+      });
+    } else {
+      skippedCount++;
+      if (!sourceId) {
+        logger.warn(
+          `⚠️  Skipping relationship - source entity not found: "${rel.source}" in ${rel.type} relationship`
+        );
+      }
+      if (!targetId) {
+        logger.warn(
+          `⚠️  Skipping relationship - target entity not found: "${rel.target}" in ${rel.type} relationship`
+        );
+      }
+    }
+  }
+
+  if (skippedCount > 0) {
+    logger.warn(
+      `⚠️  Skipped ${skippedCount} relationships due to missing entities`
+    );
+  }
+
+  return validRelationships;
+};

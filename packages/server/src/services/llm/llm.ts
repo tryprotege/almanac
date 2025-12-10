@@ -17,7 +17,18 @@ export async function chat(
     temperature?: number;
     maxTokens?: number;
     stream?: boolean;
-    reasoning_effort?: "low" | "medium" | "high";
+    reasoningEffort?: "low" | "medium" | "high";
+    frequencyPenalty?: number;
+    responseFormat?:
+      | { type: "json_object" }
+      | {
+          type: "json_schema";
+          json_schema: {
+            name: string;
+            schema: Record<string, unknown>;
+            strict?: boolean;
+          };
+        };
   }
 ): Promise<string> {
   const completion = await client.chat.completions.create({
@@ -26,8 +37,12 @@ export async function chat(
     temperature: options?.temperature ?? 0.7,
     max_tokens: options?.maxTokens,
     stream: false,
-    ...(options?.reasoning_effort && {
-      reasoning_effort: options.reasoning_effort,
+    frequency_penalty: options?.frequencyPenalty,
+    ...(options?.reasoningEffort && {
+      reasoning_effort: options.reasoningEffort,
+    }),
+    ...(options?.responseFormat && {
+      response_format: options.responseFormat,
     }),
   });
 

@@ -7,8 +7,15 @@ import {
   Settings,
   Trash2,
   XCircle,
+  MessageSquare,
+  Github,
+  Video,
+  HardDrive,
+  FileText,
+  Server,
 } from "lucide-react";
 import { useState } from "react";
+import { capitalCase } from "change-case";
 import {
   useConnectMCPServer,
   useDeleteMCPServer,
@@ -21,6 +28,25 @@ import { MCPServerConfig } from "../lib/api";
 interface MCPServerCardProps {
   server: MCPServerConfig;
   onEdit: (server: MCPServerConfig) => void;
+}
+
+// Helper function to get service icon based on server name
+function getServiceIcon(serverName: string) {
+  const name = serverName.toLowerCase();
+
+  if (name.includes("slack")) {
+    return MessageSquare;
+  } else if (name.includes("github")) {
+    return Github;
+  } else if (name.includes("fathom")) {
+    return Video;
+  } else if (name.includes("google") || name.includes("drive")) {
+    return HardDrive;
+  } else if (name.includes("notion")) {
+    return FileText;
+  }
+
+  return Server;
 }
 
 export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
@@ -73,6 +99,8 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
     }
   };
 
+  const ServiceIcon = getServiceIcon(server.name);
+
   return (
     <div className="card relative flex flex-col">
       {/* Connection Status Badge */}
@@ -88,9 +116,16 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
 
       {/* Server Info */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          {server.name}
-        </h3>
+        <div className="flex items-center gap-3 mb-3">
+          <div
+            className={`p-2.5 rounded-lg text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30`}
+          >
+            <ServiceIcon className="w-6 h-6" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {capitalCase(server.name)}
+          </h3>
+        </div>
         <div className="mt-2 space-y-1 grid grid-cols-[15%_85%] gap-2 text-left">
           <div className="flex items-left text-sm col-start-auto">
             <span className="text-gray-500 dark:text-gray-400 w-16">Type:</span>

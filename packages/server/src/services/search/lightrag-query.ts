@@ -378,7 +378,8 @@ async function searchEntitiesByKeywords(
 
   const entities: LightRAGEntity[] = results
     .map((result) => {
-      const recordId = result.payload.mongoId || result.payload.entityId;
+      const recordId: string =
+        (result.payload.mongoId as string) || result.payload.entityId;
       if (!recordId) return null;
 
       const record = recordMap.get(recordId);

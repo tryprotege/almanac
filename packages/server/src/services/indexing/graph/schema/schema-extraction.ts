@@ -101,6 +101,7 @@ const SINGLE_ENTITY_EXTRACTION_SCHEMA: Record<string, unknown> = {
 function buildCombinedExtractionPrompt(
   content: string,
   entityTypes: string[],
+  relationshipTypes: string[],
   persona?: string
 ): string {
   const personaContext = persona ? `USER CONTEXT:\n${persona}\n\n` : "";
@@ -108,8 +109,8 @@ function buildCombinedExtractionPrompt(
   return `${personaContext}---Goal---
 Extract named entities AND their relationships from the text document for a knowledge graph.
 
----Extracted Entities---
-${entityList}
+---Entity Types---
+${entityTypes.join(", ")}
 
 You may discover new entity types not in this list.
 
@@ -182,6 +183,9 @@ This graph complements a vector embedding system. Extract relationships that:
 
 ---Output Format---
 {
+  "entities": [
+    { "name": "Alex Smith", "type": "Person", "description": "..." }
+  ],
   "relationships": [
     {
       "source": "Alex Smith",

@@ -17,7 +17,7 @@ import {
 import { FathomMCPClient } from "../../sources/fathom/mcpClient.js";
 import pLimit from "p-limit";
 
-const MEETING_CONCURRENCY = 5; // Process 5 meetings concurrently for transcripts/summaries
+const MEETING_CONCURRENCY = 16; // Process 5 meetings concurrently for transcripts/summaries
 const TEAM_CONCURRENCY = 3; // Process 3 teams concurrently for members
 
 /**
@@ -113,52 +113,71 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
       yield meetings.slice(i, i + batchSize) as FathomRecord[];
     }
 
-    // Fetch transcripts and summaries in parallel
+    // Fetch transcripts and summaries in batches to avoid hanging on large datasets
     const limit = pLimit(MEETING_CONCURRENCY);
+    const TRANSCRIPT_BATCH_SIZE = 50; // Process meetings in groups of 50
 
     if (this.config.includeTranscripts !== false) {
-      const transcriptPromises = meetings.map((meeting) =>
-        limit(async () => {
-          try {
-            return await this.client.getTranscript(meeting.recording_id);
-          } catch (error) {
-            console.warn(
-              `Failed to fetch transcript for meeting ${meeting.recording_id}:`,
-              error
-            );
-            return null;
-          }
-        })
-      );
+      // Process meetings in batches
+      for (let i = 0; i < meetings.length; i += TRANSCRIPT_BATCH_SIZE) {
+        const meetingBatch = meetings.slice(i, i + TRANSCRIPT_BATCH_SIZE);
 
-      const transcripts = (await Promise.all(transcriptPromises)).filter(
-        Boolean
-      ) as FathomRecord[];
-      for (let i = 0; i < transcripts.length; i += batchSize) {
-        yield transcripts.slice(i, i + batchSize);
+        const transcriptPromises = meetingBatch.map((meeting) =>
+          limit(async () => {
+            try {
+              return await this.client.getTranscript(meeting.recording_id);
+            } catch (error) {
+              console.warn(
+                `Failed to fetch transcript for meeting ${meeting.recording_id}:`,
+                error
+              );
+              return null;
+            }
+          })
+        );
+
+        const transcripts = (await Promise.all(transcriptPromises)).filter(
+          Boolean
+        ) as FathomRecord[];
+
+        // Yield transcripts as they're fetched
+        if (transcripts.length > 0) {
+          for (let j = 0; j < transcripts.length; j += batchSize) {
+            yield transcripts.slice(j, j + batchSize);
+          }
+        }
       }
     }
 
     if (this.config.includeSummaries !== false) {
-      const summaryPromises = meetings.map((meeting) =>
-        limit(async () => {
-          try {
-            return await this.client.getSummary(meeting.recording_id);
-          } catch (error) {
-            console.warn(
-              `Failed to fetch summary for meeting ${meeting.recording_id}:`,
-              error
-            );
-            return null;
-          }
-        })
-      );
+      // Process meetings in batches
+      for (let i = 0; i < meetings.length; i += TRANSCRIPT_BATCH_SIZE) {
+        const meetingBatch = meetings.slice(i, i + TRANSCRIPT_BATCH_SIZE);
 
-      const summaries = (await Promise.all(summaryPromises)).filter(
-        Boolean
-      ) as FathomRecord[];
-      for (let i = 0; i < summaries.length; i += batchSize) {
-        yield summaries.slice(i, i + batchSize);
+        const summaryPromises = meetingBatch.map((meeting) =>
+          limit(async () => {
+            try {
+              return await this.client.getSummary(meeting.recording_id);
+            } catch (error) {
+              console.warn(
+                `Failed to fetch summary for meeting ${meeting.recording_id}:`,
+                error
+              );
+              return null;
+            }
+          })
+        );
+
+        const summaries = (await Promise.all(summaryPromises)).filter(
+          Boolean
+        ) as FathomRecord[];
+
+        // Yield summaries as they're fetched
+        if (summaries.length > 0) {
+          for (let j = 0; j < summaries.length; j += batchSize) {
+            yield summaries.slice(j, j + batchSize);
+          }
+        }
       }
     }
   }

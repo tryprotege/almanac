@@ -313,33 +313,25 @@ export const indexAllRecords = async (
     force = false,
   } = options;
 
-  logger.info(`🔄 Starting graph indexing for source: ${source}`);
-  logger.info(`   Configuration:`);
-  logger.info(`   - Batch size: ${batchSize}`);
-  logger.info(`   - Concurrency: ${concurrency}`);
-  logger.info(
-    `   - Toxic filter: ${enableToxicFilter ? "enabled" : "disabled"}`
-  );
-
-  // Entity limit configuration (log once here to avoid per-record spam)
-  if (!env.ENTITY_CHARS_PER_ENTITY && !maxEntitiesPerDoc) {
-    logger.info(`   - Entity limits: ✅ No limits (keeping all entities)`);
-  } else {
-    const ratioInfo = env.ENTITY_CHARS_PER_ENTITY
-      ? `1 entity per ${env.ENTITY_CHARS_PER_ENTITY} chars`
-      : "no ratio limit";
-    const capInfo = maxEntitiesPerDoc ? `, capped at ${maxEntitiesPerDoc}` : "";
-    logger.info(`   - Entity limits: ${ratioInfo}${capInfo}`);
-  }
-
-  logger.info(`   - Force re-index: ${force ? "enabled" : "disabled"}`);
+  logger.info({
+    msg: `🔄 Starting graph indexing`,
+    source,
+    batchSize,
+    concurrency,
+    toxicFilter: enableToxicFilter,
+    rationInfo: env.ENTITY_CHARS_PER_ENTITY,
+    capInfo: maxEntitiesPerDoc,
+    forceReIndex: force,
+  });
 
   // Ensure schema exists before indexing
   let currentSchema = await getSchema();
   if (!currentSchema) {
-    logger.info(`📝 No schema found, creating default schema...`);
     currentSchema = await createSchema();
-    logger.info(`✅ Schema created with version ${currentSchema.version}`);
+    logger.debug({
+      msg: `✅ Schema created with version ${currentSchema.version}`,
+      source,
+    });
   }
 
   // Track start time for performance metrics
@@ -472,7 +464,7 @@ export const indexAllRecords = async (
       stats.processedRecords += records.length;
 
       // Log batch summary
-      logger.info({
+      logger.debug({
         msg: "✅ Batch complete",
         successful: extractionResults.length,
         failed: failedExtractions.length,
@@ -717,7 +709,7 @@ export const indexAllRecords = async (
       // Update successful count
       stats.successfulRecords += validResults.length;
 
-      logger.info({
+      logger.debug({
         msg: "📊 Progress update",
         progress: {
           successful: stats.successfulRecords,
@@ -767,26 +759,22 @@ export const indexAllRecords = async (
     return `${minutes}m ${seconds}s`;
   };
 
-  logger.info(`✅ Graph indexing complete for ${source}`);
-  logger.info(`   Records processed: ${stats.processedRecords}`);
-  logger.info(`   Successful: ${stats.successfulRecords}`);
-  logger.info(`   Failed: ${stats.failedRecords}`);
-  logger.info(`   Empty extractions (no content): ${stats.emptyExtractions}`);
-  if (stats.skippedToxic > 0) {
-    logger.info(`   Filtered as toxic: ${stats.skippedToxic}`);
-  }
-  logger.info(`   Nodes created: ${stats.nodes}`);
-  logger.info(`   Relationships created: ${stats.relationships}`);
-  logger.info(``);
-  logger.info(`   ⏱️  Performance:`);
-  logger.info(`   - Total runtime: ${formatTime(stats.totalRuntimeMs)}`);
-  logger.info(
-    `   - Avg time per document: ${stats.avgTimePerDocMs.toFixed(0)}ms`
-  );
-  logger.info(`   - Avg batch time: ${formatTime(stats.avgBatchTimeMs)}`);
-  logger.info(
-    `   - Throughput: ${stats.throughputDocsPerSec.toFixed(2)} docs/sec`
-  );
+  logger.info({
+    msg: `✅ Graph indexing complete`,
+    source,
+    processedRecords: stats.processedRecords,
+    failedRecods: stats.failedRecords,
+    emptyExtraction: stats.emptyExtractions,
+    skippedToxic: stats.skippedToxic,
+    nodesCreated: stats.nodes,
+    relationshipCreated: stats.relationships,
+    performance: {
+      totalRuntime: formatTime(stats.totalRuntimeMs),
+      avgTimePerDocMs: `${stats.avgTimePerDocMs.toFixed(0)}ms`,
+      avgBatchTime: `${formatTime(stats.avgBatchTimeMs)}`,
+      throughput: `${stats.throughputDocsPerSec.toFixed(2)} docs/sec`,
+    },
+  });
 
   if (stats.failedRecords > 0) {
     logger.warn({
@@ -797,19 +785,20 @@ export const indexAllRecords = async (
 
   // Batch cleanup: Delete orphaned entities and relationships after all indexing is complete
   // This is more efficient than cleaning up after each record and reduces transaction conflicts
-  logger.info(
-    `\n🧹 Cleaning up orphaned entities and relationships for ${source}...`
-  );
+  logger.info({
+    msg: `🧹 Cleaning up orphaned entities and relationships`,
+    source,
+  });
   try {
     const deletedEntities = await graphStore.deleteOrphanedEntities();
     const deletedRelationships = await graphStore.deleteOrphanedRelationships();
 
     if (deletedEntities > 0 || deletedRelationships > 0) {
-      logger.info(
-        `   ✅ Cleaned up ${deletedEntities} orphaned entities and ${deletedRelationships} orphaned relationships`
-      );
+      logger.info({
+        msg: `✅ Cleaned up ${deletedEntities} orphaned entities and ${deletedRelationships} orphaned relationships`,
+      });
     } else {
-      logger.info(`   ✅ No orphaned entities or relationships found`);
+      logger.info({ msg: `✅ No orphaned entities or relationships found` });
     }
   } catch (err) {
     logger.error({ err }, `⚠️  Error during cleanup phase for ${source}`);
@@ -839,9 +828,10 @@ export const indexSingleRecord = async (
   // Ensure schema exists before indexing
   let currentSchema = await getSchema();
   if (!currentSchema) {
-    logger.info(`📝 No schema found, creating default schema...`);
     currentSchema = await createSchema();
-    logger.info(`✅ Schema created with version ${currentSchema.version}`);
+    logger.debug({
+      msg: `✅ Schema created with version ${currentSchema.version}`,
+    });
   }
   const {
     entityTypes: existingEntityTypes,

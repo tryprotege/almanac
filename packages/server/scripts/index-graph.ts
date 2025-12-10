@@ -176,7 +176,9 @@ async function indexGraphRecords() {
     });
 
     if (needsIndexing.length === 0 && !options.force) {
-      logger.info(`\n✅ All records already indexed for ${config.name}`);
+      logger.info({
+        msg: `✅ All records already indexed for ${config.name}`,
+      });
       continue;
     }
 
@@ -196,11 +198,13 @@ async function indexGraphRecords() {
       }
     );
 
-    logger.info(`\n✅ Indexing Complete for ${config.name}`);
-    logger.info(`   Nodes Created: ${result.nodes}`);
-    logger.info(`   Relationships Created: ${result.relationships}`);
-    logger.info(`   Errors: ${result.errors}`);
-    logger.info(`   Skipped (toxic): ${result.skippedToxic}`);
+    logger.info({
+      msg: `✅ Indexing Complete for ${config.name}`,
+      nodesCreated: result.nodes,
+      relationshipsCreated: result.relationships,
+      errors: result.errors,
+      skippedToxic: result.skippedToxic,
+    });
 
     // Get statistics after indexing
     const allRecordsAfter = await recordStore.findBySourceAndType(
@@ -213,20 +217,18 @@ async function indexGraphRecords() {
       (record) => !record.lastGraphIndexDate
     );
 
-    logger.info(`\n📊 Final Statistics for ${config.name}:`);
-    logger.info(`   Total ${config.name} Records: ${allRecordsAfter.length}`);
-    logger.info(
-      `   Indexed: ${allRecordsAfter.length - unindexedRecordsAfter.length}`
-    );
-    logger.info(`   Remaining Unindexed: ${unindexedRecordsAfter.length}`);
+    logger.info({
+      msg: `📊 Final Statistics`,
+      configName: config.name,
+      records: allRecords.length,
+      indexed: allRecordsAfter.length - unindexedRecordsAfter.length,
+      unIndexed: unindexedRecordsAfter.length,
+    });
 
     // 2. Create embeddings (if requested)
-    logger.info(`\n🔍 Embedding check:`);
-    logger.info(`   Embeddings enabled: ${options.embeddings}`);
-    logger.info(`   VectorStore available: ${!!vectorStore}`);
 
     if (options.embeddings && vectorStore) {
-      logger.info(`\n🔮 Creating embeddings...`);
+      logger.debug({ msg: `🔮 Creating embeddings...` });
 
       const deps = { vectorStore, recordStore, graphStore };
 
@@ -239,16 +241,17 @@ async function indexGraphRecords() {
         deps
       );
 
-      logger.info(
-        `   ✅ Entity embeddings: ${entityStats.indexed} indexed, ${entityStats.skipped} skipped`
-      );
-      logger.info(
-        `   ✅ Relationship embeddings: ${relStats.indexed} indexed, ${relStats.skipped} skipped`
-      );
+      logger.info({
+        msg: `Embedding created`,
+        entityEmbeddingIndexed: entityStats.indexed,
+        entitySkipped: entityStats.skipped,
+        relationshipIndexed: relStats.indexed,
+        relationshipSkipped: relStats.skipped,
+      });
     }
   }
 
-  logger.info(`\n✨ Graph indexing script completed`);
+  logger.info({ msg: `✨ Graph indexing script completed` });
 }
 
 const run = async () => {

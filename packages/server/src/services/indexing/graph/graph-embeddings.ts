@@ -38,7 +38,7 @@ export async function indexEntityEmbeddings(
   const stats = { indexed: 0, errors: 0, skipped: 0 };
   const BATCH_SIZE = 500;
 
-  logger.info(`🔮 Indexing entity embeddings for source: ${source}`);
+  logger.info({ msg: `🔮 Indexing entity embeddings`, source });
 
   // Query MongoDB directly for entities that need embedding (MUCH faster than Memgraph!)
   const entityMetadata = await GraphEmbeddingMetadata.find({
@@ -47,11 +47,9 @@ export async function indexEntityEmbeddings(
   });
 
   if (entityMetadata.length === 0) {
-    logger.info(`⚠️  No entity metadata found for ${source}`);
+    logger.info({ msg: `⚠️  No entity metadata found for ${source}` });
     return stats;
   }
-
-  logger.info(`   Found ${entityMetadata.length} entities in MongoDB metadata`);
 
   // Convert metadata to the format we need
   const globalEntities = entityMetadata.map((meta) => ({
@@ -59,8 +57,6 @@ export async function indexEntityEmbeddings(
     type: meta.entityType!,
     documentIds: meta.sourceDocumentIds,
   }));
-
-  logger.info(`   Found ${globalEntities.length} global entities to process`);
 
   // Filter entities that need embedding
   const entitiesToEmbed: typeof globalEntities = [];
@@ -87,13 +83,8 @@ export async function indexEntityEmbeddings(
   }
 
   if (entitiesToEmbed.length === 0) {
-    logger.info(`✅ All ${stats.skipped} entity embeddings are up to date`);
     return stats;
   }
-
-  logger.info(
-    `   Embedding ${entitiesToEmbed.length} entities (${stats.skipped} skipped)`
-  );
 
   // Get node degrees for all entities
   const nodeIds = entitiesToEmbed.map((e) => e.entityId);
@@ -105,9 +96,9 @@ export async function indexEntityEmbeddings(
     const batchNum = Math.floor(i / BATCH_SIZE) + 1;
     const totalBatches = Math.ceil(entitiesToEmbed.length / BATCH_SIZE);
 
-    logger.info(
-      `   Batch ${batchNum}/${totalBatches}: Processing ${batch.length} entities...`
-    );
+    logger.debug({
+      msg: `Batch ${batchNum}/${totalBatches}: Processing ${batch.length} entities...`,
+    });
 
     try {
       // Create entity texts for embedding
@@ -180,9 +171,12 @@ export async function indexEntityEmbeddings(
     }
   }
 
-  logger.info(
-    `✅ Indexed ${stats.indexed} entity embeddings (${stats.skipped} skipped, ${stats.errors} errors)`
-  );
+  logger.info({
+    msg: `✅ Entity embeddings Completed`,
+    skipped: stats.skipped,
+    errors: stats.errors,
+    indexed: stats.indexed,
+  });
   return stats;
 }
 
@@ -205,7 +199,7 @@ export async function indexRelationshipEmbeddings(
   const stats = { indexed: 0, errors: 0, skipped: 0 };
   const BATCH_SIZE = 500;
 
-  logger.info(`🔮 Indexing relationship embeddings for source: ${source}`);
+  logger.info({ msg: `🔮 Indexing relationship embeddings`, source });
 
   // Query MongoDB directly for relationships that need embedding (MUCH faster than Memgraph!)
   const relMetadata = await GraphEmbeddingMetadata.find({
@@ -214,13 +208,12 @@ export async function indexRelationshipEmbeddings(
   });
 
   if (relMetadata.length === 0) {
-    logger.info(`⚠️  No relationship metadata found for ${source}`);
     return stats;
   }
 
-  logger.info(
-    `   Found ${relMetadata.length} relationships in MongoDB metadata`
-  );
+  logger.debug({
+    msg: `Found ${relMetadata.length} relationships in MongoDB metadata`,
+  });
 
   // Convert metadata to the format we need
   const relationships = relMetadata.map((meta) => ({
@@ -230,7 +223,9 @@ export async function indexRelationshipEmbeddings(
     confidence: 1.0, // Default confidence
   }));
 
-  logger.info(`   Found ${relationships.length} relationships to process`);
+  logger.debug({
+    msg: `Found ${relationships.length} relationships to process`,
+  });
 
   // Filter relationships that need embedding
   const relsToEmbed: typeof relationships = [];
@@ -250,15 +245,12 @@ export async function indexRelationshipEmbeddings(
   }
 
   if (relsToEmbed.length === 0) {
-    logger.info(
-      `✅ All ${stats.skipped} relationship embeddings are up to date`
-    );
     return stats;
   }
 
-  logger.info(
-    `   Embedding ${relsToEmbed.length} relationships (${stats.skipped} skipped)`
-  );
+  logger.debug({
+    msg: `Embedding ${relsToEmbed.length} relationships (${stats.skipped} skipped)`,
+  });
 
   // Process in batches
   for (let i = 0; i < relsToEmbed.length; i += BATCH_SIZE) {
@@ -266,9 +258,9 @@ export async function indexRelationshipEmbeddings(
     const batchNum = Math.floor(i / BATCH_SIZE) + 1;
     const totalBatches = Math.ceil(relsToEmbed.length / BATCH_SIZE);
 
-    logger.info(
-      `   Batch ${batchNum}/${totalBatches}: Processing ${batch.length} relationships...`
-    );
+    logger.debug({
+      msg: `Batch ${batchNum}/${totalBatches}: Processing ${batch.length} relationships...`,
+    });
 
     try {
       // Create relationship texts for embedding
@@ -341,9 +333,12 @@ export async function indexRelationshipEmbeddings(
     }
   }
 
-  logger.info(
-    `✅ Indexed ${stats.indexed} relationship embeddings (${stats.skipped} skipped, ${stats.errors} errors)`
-  );
+  logger.info({
+    msg: `✅ Indexed relationship embeddings`,
+    indexed: stats.indexed,
+    skipped: stats.skipped,
+    errors: stats.errors,
+  });
   return stats;
 }
 

@@ -41,30 +41,24 @@ export const indexVectorWorker = new Worker<
 // Set up worker event handlers
 indexVectorWorker.on("completed", (job) => {
   logger.info({
-    msg: "✅ Vector index job completed",
-    jobId: job.id,
-    source: job.data.source,
+    msg: `✅ Vector index job completed: jobId: ${job.id} for ${job.data.source}`,
   });
 });
 
 indexVectorWorker.on("failed", (job, err) => {
-  logger.error({
-    msg: "❌ Vector index job failed",
-    err,
-    jobId: job?.id,
-    source: job?.data.source,
-  });
+  logger.error(
+    { err },
+    `❌ Vector index job failed: jobId: ${job?.id} for ${job?.data.source}`
+  );
 });
 
 indexVectorWorker.on("error", (err) => {
-  logger.error({ msg: "Vector index worker error", err });
+  logger.error({ err }, "Vector index worker error:");
 });
 
 indexVectorWorker.on("active", (job) => {
   logger.info({
-    msg: "🔄 Vector index job started",
-    jobId: job.id,
-    source: job.data.source,
+    msg: `🔄 Vector index job started: jobId: ${job.id} for ${job.data.source}`,
   });
 });
 

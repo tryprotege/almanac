@@ -11,7 +11,7 @@ import { env } from "../env.js";
 // Get encryption key once at module load
 let encryptionKey: Buffer;
 try {
-  encryptionKey = hexToBuffer(env.ENCRYPTION_KEY);
+  if (env.ENCRYPTION_KEY) encryptionKey = hexToBuffer(env.ENCRYPTION_KEY);
 } catch (err) {
   logger.error({ err }, "Failed to load encryption key");
   throw err;
@@ -68,13 +68,13 @@ MCPServerConfigSchema.pre("save", function () {
   }
 
   // Encrypt env values if modified
-  if (this.isModified("env") && this.env) {
+  if (this.isModified("env") && this.env && encryptionKey) {
     this.env = encryptMapValues(this.env, encryptionKey);
     logger.debug({ configName: this.name }, "Encrypted env values for config");
   }
 
   // Encrypt headers values if modified
-  if (this.isModified("headers") && this.headers) {
+  if (this.isModified("headers") && this.headers && encryptionKey) {
     this.headers = encryptMapValues(this.headers, encryptionKey);
     logger.debug(
       { configName: this.name },
@@ -85,20 +85,22 @@ MCPServerConfigSchema.pre("save", function () {
 
 // Decrypt after finding multiple documents
 MCPServerConfigSchema.post("find", function (docs: any[]) {
-  docs.forEach((doc) => {
-    if (doc.env) {
-      doc.env = decryptMapValues(doc.env, encryptionKey);
-    }
-    if (doc.headers) {
-      doc.headers = decryptMapValues(doc.headers, encryptionKey);
-    }
-  });
+  if (encryptionKey) {
+    docs.forEach((doc) => {
+      if (doc.env) {
+        doc.env = decryptMapValues(doc.env, encryptionKey);
+      }
+      if (doc.headers) {
+        doc.headers = decryptMapValues(doc.headers, encryptionKey);
+      }
+    });
+  }
 });
 
 // Decrypt after finding single document
 MCPServerConfigSchema.post("findOne", function (doc: any) {
-  if (doc) {
-    if (doc.env) {
+  if (doc && encryptionKey) {
+    if (doc.env && encryptionKey) {
       doc.env = decryptMapValues(doc.env, encryptionKey);
     }
     if (doc.headers) {
@@ -109,7 +111,7 @@ MCPServerConfigSchema.post("findOne", function (doc: any) {
 
 // Decrypt after findOneAndUpdate
 MCPServerConfigSchema.post("findOneAndUpdate", function (doc: any) {
-  if (doc) {
+  if (doc && encryptionKey) {
     if (doc.env) {
       doc.env = decryptMapValues(doc.env, encryptionKey);
     }

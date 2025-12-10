@@ -85,7 +85,8 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z
     .string()
     .length(64, "Encryption key must be 64 hex characters (32 bytes)")
-    .regex(/^[0-9a-f]{64}$/i, "Encryption key must be valid hexadecimal"),
+    .regex(/^[0-9a-f]{64}$/i, "Encryption key must be valid hexadecimal")
+    .optional(),
 });
 
 const parsedEnv = envSchema.parse({

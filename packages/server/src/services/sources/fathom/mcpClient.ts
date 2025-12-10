@@ -91,7 +91,6 @@ export class FathomMCPClient {
               `MCP tool ${toolName} returned an error:`,
               textContent
             );
-            console.log("🚀🚀🚀🚀", JSON.stringify(response));
             throw new Error("MCP tool error: " + errorText);
           } else if (textContent && textContent.text) {
             try {

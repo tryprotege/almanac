@@ -3,7 +3,11 @@ import { initializeServices } from "../src/mcp/initialization.js";
 import { RecordModel } from "../src/models/record.model.js";
 import { GraphSchemaModel } from "../src/models/graph-schema.model.js";
 import { MCPServerConfigModel } from "../src/models/mcp-config.model.js";
-import readline from "readline";
+import { GraphEmbeddingMetadata } from "../src/models/graph-embedding-metadata.model.js";
+import { GraphStore } from "../src/stores/graph.store.js";
+import { VectorStore } from "../src/stores/vector.store.js";
+import { cleanupOrphanedEmbeddings } from "../src/services/cleanup/embedding-cleanup.service.js";
+import * as readline from "readline";
 import logger from "../src/utils/logger.js";
 
 /**
@@ -152,6 +156,12 @@ async function wipeMongoDB(keepMcpConfig: boolean): Promise<void> {
   const schemaResult = await GraphSchemaModel.deleteMany({});
   logger.info(`   ✓ Deleted ${schemaResult.deletedCount} graph schemas`);
 
+  // Delete graph embedding metadata
+  const embeddingResult = await GraphEmbeddingMetadata.deleteMany({});
+  logger.info(
+    `   ✓ Deleted ${embeddingResult.deletedCount} graph embedding metadata records`
+  );
+
   // Optionally delete MCP configs
   if (!keepMcpConfig) {
     const mcpResult = await MCPServerConfigModel.deleteMany({});
@@ -161,7 +171,7 @@ async function wipeMongoDB(keepMcpConfig: boolean): Promise<void> {
   }
 }
 
-async function wipeMemgraph(memgraph: any): Promise<void> {
+async function wipeMemgraph(memgraph: any, qdrant: any): Promise<void> {
   logger.info("\n🗑️  Wiping Memgraph...");
 
   try {
@@ -194,6 +204,28 @@ async function wipeMemgraph(memgraph: any): Promise<void> {
       // Constraints might not exist, that's okay
       logger.info("   ⊘ No constraints to drop");
     }
+
+    // Clean up orphaned embeddings (since graph nodes are gone)
+    logger.info("   🧹 Cleaning up orphaned embeddings...");
+    const graphStore = new GraphStore(memgraph);
+    const vectorStore = new VectorStore(qdrant);
+    const { deleted, errors } = await cleanupOrphanedEmbeddings(
+      graphStore,
+      vectorStore
+    );
+    logger.info(
+      `   ✓ Cleaned up ${deleted} orphaned embeddings${
+        errors > 0 ? ` (${errors} errors)` : ""
+      }`
+    );
+
+    // Clear MongoDB graph timestamps so records will be re-indexed
+    logger.info("   🔄 Clearing MongoDB graph timestamps...");
+    const result = await RecordModel.updateMany(
+      {},
+      { $unset: { lastGraphIndexDate: "" } }
+    );
+    logger.info(`   ✓ Cleared timestamps for ${result.modifiedCount} records`);
   } catch (err) {
     logger.error({ err }, "Error wiping Memgraph");
     throw err;
@@ -215,13 +247,20 @@ async function wipeQdrant(qdrant: any): Promise<void> {
       }
     }
 
+    // Clean up orphaned embedding metadata (since vectors are gone)
+    logger.info("   🧹 Cleaning up orphaned embedding metadata...");
+    const result = await GraphEmbeddingMetadata.deleteMany({});
+    logger.info(`   ✓ Deleted ${result.deletedCount} metadata records`);
+
     // Clear MongoDB vector timestamps so records will be re-indexed
     logger.info("   🔄 Clearing MongoDB vector timestamps...");
-    const result = await RecordModel.updateMany(
+    const timestampResult = await RecordModel.updateMany(
       {},
-      { $unset: { lastEmbedDate: "" } }
+      { $unset: { lastEmbedDate: "", lastEmbeddedAt: "" } }
     );
-    logger.info(`   ✓ Cleared timestamps for ${result.modifiedCount} records`);
+    logger.info(
+      `   ✓ Cleared timestamps for ${timestampResult.modifiedCount} records`
+    );
   } catch (err) {
     logger.error({ err }, "Error wiping Qdrant");
     throw err;
@@ -285,7 +324,7 @@ async function run() {
     }
 
     if (!options.only || options.only === "memgraph") {
-      await wipeMemgraph(memgraph);
+      await wipeMemgraph(memgraph, qdrant);
     }
 
     if (!options.only || options.only === "qdrant") {

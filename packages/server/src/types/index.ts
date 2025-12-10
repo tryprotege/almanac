@@ -35,8 +35,10 @@ export interface ChunkVectorPayload extends Record<string, unknown> {
 
 export interface EntityVectorPayload extends Record<string, unknown> {
   type: "entity";
-  mongoId: string; // Links to Record._id
-  recordType: string; // meeting, page, issue, etc.
+  // Global entity from Memgraph
+  entityId: string; // Global entity ID from Memgraph (required)
+  entityType: string; // Entity type from Memgraph (required)
+  // Shared fields
   source: SourceType;
   degree: number; // Graph centrality (cached)
   checksum: string;

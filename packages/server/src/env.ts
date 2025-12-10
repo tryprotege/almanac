@@ -69,7 +69,7 @@ const envSchema = z.object({
 
   // Graph Extraction Configuration
   GRAPH_EXTRACTION_CONCURRENCY: z.coerce.number().default(32),
-  ENABLE_TOXIC_DOCUMENT_FILTER: z.boolean().default(true),
+  ENABLE_TOXIC_DOCUMENT_FILTER: z.boolean().default(false),
 
   // Dynamic Entity Limit Configuration
   // Ratio: 1 entity per X characters (optional, no limit if not set)

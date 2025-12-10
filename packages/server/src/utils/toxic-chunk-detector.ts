@@ -66,11 +66,8 @@ export const truncateEntities = <T>({
   charsPerEntity?: number;
   maxEntities?: number;
 }): T[] => {
-  // If no limits configured, return all entities
+  // If no limits configured, return all entities (logged once in graph-indexer config)
   if (!charsPerEntity && !maxEntities) {
-    logger.info(
-      `✅ No entity limits configured - keeping all ${entities.length} entities`
-    );
     return entities;
   }
 

@@ -33,8 +33,10 @@ import {
   getCurrentSchemaTypes,
 } from "./schema-auto-discovery.js";
 import { getSchema } from "../../../stores/graph-schema.store.js";
+import { GraphEmbeddingMetadata } from "../../../models/graph-embedding-metadata.model.js";
 import logger from "../../../utils/logger.js";
 import { env } from "../../../env.js";
+import { calculateEmbeddingChecksum } from "../../../utils/checksum.js";
 
 // ============================================================================
 // Types
@@ -46,6 +48,7 @@ export interface ExtractionResult {
   adapterRelationships: GraphRelationship[];
   recordId: string;
   recordChecksum: string;
+  wasFilteredAsToxic?: boolean;
 }
 
 export interface IndexingOptions {
@@ -62,9 +65,14 @@ export interface IndexingStats {
   relationships: number;
   errors: number;
   skippedToxic: number;
+  emptyExtractions: number;
   processedRecords: number;
   failedRecords: number;
   successfulRecords: number;
+  totalRuntimeMs: number;
+  avgTimePerDocMs: number;
+  avgBatchTimeMs: number;
+  throughputDocsPerSec: number;
 }
 
 // ============================================================================
@@ -184,6 +192,7 @@ export const extractGraphFromRecord = async (
       adapterRelationships: [],
       recordId: record._id,
       recordChecksum: record.checksum,
+      wasFilteredAsToxic: true,
     };
   }
 
@@ -300,17 +309,37 @@ export const indexAllRecords = async (
   logger.info(
     `   - Toxic filter: ${enableToxicFilter ? "enabled" : "disabled"}`
   );
-  logger.info(`   - Max entities per doc: ${maxEntitiesPerDoc}`);
+
+  // Entity limit configuration (log once here to avoid per-record spam)
+  if (!env.ENTITY_CHARS_PER_ENTITY && !maxEntitiesPerDoc) {
+    logger.info(`   - Entity limits: ✅ No limits (keeping all entities)`);
+  } else {
+    const ratioInfo = env.ENTITY_CHARS_PER_ENTITY
+      ? `1 entity per ${env.ENTITY_CHARS_PER_ENTITY} chars`
+      : "no ratio limit";
+    const capInfo = maxEntitiesPerDoc ? `, capped at ${maxEntitiesPerDoc}` : "";
+    logger.info(`   - Entity limits: ${ratioInfo}${capInfo}`);
+  }
+
   logger.info(`   - Force re-index: ${force ? "enabled" : "disabled"}`);
+
+  // Track start time for performance metrics
+  const startTime = Date.now();
+  const batchTimes: number[] = [];
 
   const stats: IndexingStats = {
     nodes: 0,
     relationships: 0,
     errors: 0,
     skippedToxic: 0,
+    emptyExtractions: 0,
     processedRecords: 0,
     failedRecords: 0,
     successfulRecords: 0,
+    totalRuntimeMs: 0,
+    avgTimePerDocMs: 0,
+    avgBatchTimeMs: 0,
+    throughputDocsPerSec: 0,
   };
 
   // Get adapter for this source
@@ -340,6 +369,9 @@ export const indexAllRecords = async (
       hasMore = false;
       break;
     }
+
+    // Track batch start time
+    const batchStartTime = Date.now();
 
     try {
       // Extract in PARALLEL using p-limit with error resilience
@@ -431,13 +463,21 @@ export const indexAllRecords = async (
         `✅ Batch complete: ${extractionResults.length} successful, ${failedExtractions.length} failed`
       );
 
-      // Count skipped toxic chunks
-      const toxicCount = extractionResults.filter(
-        (r) => r.entities.length === 0 && r.relationships.length === 0
-      ).length;
-      stats.skippedToxic += toxicCount;
+      // Separate toxic-filtered from empty extractions
+      const toxicFiltered = extractionResults.filter(
+        (r) => r.wasFilteredAsToxic === true
+      );
+      const emptyExtractions = extractionResults.filter(
+        (r) =>
+          r.entities.length === 0 &&
+          r.relationships.length === 0 &&
+          !r.wasFilteredAsToxic
+      );
 
-      // Filter out toxic results
+      stats.skippedToxic += toxicFiltered.length;
+      stats.emptyExtractions += emptyExtractions.length;
+
+      // Filter out empty results
       const validResults = extractionResults.filter(
         (r) => r.entities.length > 0 || r.relationships.length > 0
       );
@@ -500,6 +540,52 @@ export const indexAllRecords = async (
         // 3. Link ALL entities to documents in one batch
         await graphStore.linkEntitiesToDocuments(entityLinks);
 
+        // 4. Create MongoDB metadata for all entities (for embedding tracking)
+        const entityMetadataOps = nodes.map((node) => {
+          // Calculate content checksum for this entity
+          const contentChecksum = calculateEmbeddingChecksum({
+            entityType: node.type,
+            description: node.description,
+            text: node.title,
+          });
+
+          return {
+            updateOne: {
+              filter: { _id: node.id },
+              update: {
+                $set: {
+                  itemType: "entity",
+                  entityId: node.id,
+                  entityType: node.type,
+                  source: source,
+                  contentChecksum: contentChecksum,
+                  lastUpdatedBy: source,
+                },
+                $addToSet: {
+                  sources: source,
+                  sourceDocumentIds: {
+                    $each: validResults
+                      .filter((r) =>
+                        r.entities.some((e) => {
+                          const entityId = `${e.type.toLowerCase()}_${e.name
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]+/g, "_")}`;
+                          return entityId === node.id;
+                        })
+                      )
+                      .map((r) => r.recordId),
+                  },
+                },
+              },
+              upsert: true,
+            },
+          };
+        });
+
+        if (entityMetadataOps.length > 0) {
+          await GraphEmbeddingMetadata.bulkWrite(entityMetadataOps);
+        }
+
         stats.nodes += nodes.length;
       }
 
@@ -537,6 +623,44 @@ export const indexAllRecords = async (
         // 3. Link ALL documents to relationships in one batch
         await graphStore.linkDocumentsToRelationshipsBatch(relLinks);
 
+        // 4. Create MongoDB metadata for all relationships (for embedding tracking)
+        const relMetadataOps = relationships.map((rel) => {
+          const relId = `rel_${rel.sourceId}_${rel.type}_${rel.targetId}`;
+
+          // Calculate content checksum for this relationship
+          const contentChecksum = calculateEmbeddingChecksum({
+            sourceId: rel.sourceId,
+            targetId: rel.targetId,
+            relType: rel.type,
+          });
+
+          return {
+            updateOne: {
+              filter: { _id: relId },
+              update: {
+                $set: {
+                  itemType: "relationship",
+                  sourceId: rel.sourceId,
+                  targetId: rel.targetId,
+                  relType: rel.type,
+                  source: source,
+                  contentChecksum: contentChecksum,
+                  lastUpdatedBy: source,
+                },
+                $addToSet: {
+                  sources: source,
+                  sourceDocumentIds: source,
+                },
+              },
+              upsert: true,
+            },
+          };
+        });
+
+        if (relMetadataOps.length > 0) {
+          await GraphEmbeddingMetadata.bulkWrite(relMetadataOps);
+        }
+
         stats.relationships += relationships.length;
       }
 
@@ -563,16 +687,58 @@ export const indexAllRecords = async (
       stats.errors++;
     }
 
+    // Track batch end time
+    const batchEndTime = Date.now();
+    batchTimes.push(batchEndTime - batchStartTime);
+
     skip += records.length;
   }
+
+  // Calculate performance metrics
+  const endTime = Date.now();
+  stats.totalRuntimeMs = endTime - startTime;
+  stats.avgTimePerDocMs =
+    stats.processedRecords > 0
+      ? stats.totalRuntimeMs / stats.processedRecords
+      : 0;
+  stats.avgBatchTimeMs =
+    batchTimes.length > 0
+      ? batchTimes.reduce((sum, time) => sum + time, 0) / batchTimes.length
+      : 0;
+  stats.throughputDocsPerSec =
+    stats.totalRuntimeMs > 0
+      ? (stats.processedRecords / stats.totalRuntimeMs) * 1000
+      : 0;
+
+  // Format time helper
+  const formatTime = (ms: number): string => {
+    if (ms < 1000) return `${ms.toFixed(0)}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+    const minutes = Math.floor(ms / 60000);
+    const seconds = ((ms % 60000) / 1000).toFixed(0);
+    return `${minutes}m ${seconds}s`;
+  };
 
   logger.info(`✅ Graph indexing complete for ${source}`);
   logger.info(`   Records processed: ${stats.processedRecords}`);
   logger.info(`   Successful: ${stats.successfulRecords}`);
   logger.info(`   Failed: ${stats.failedRecords}`);
-  logger.info(`   Skipped (toxic): ${stats.skippedToxic}`);
+  logger.info(`   Empty extractions (no content): ${stats.emptyExtractions}`);
+  if (stats.skippedToxic > 0) {
+    logger.info(`   Filtered as toxic: ${stats.skippedToxic}`);
+  }
   logger.info(`   Nodes created: ${stats.nodes}`);
   logger.info(`   Relationships created: ${stats.relationships}`);
+  logger.info(``);
+  logger.info(`   ⏱️  Performance:`);
+  logger.info(`   - Total runtime: ${formatTime(stats.totalRuntimeMs)}`);
+  logger.info(
+    `   - Avg time per document: ${stats.avgTimePerDocMs.toFixed(0)}ms`
+  );
+  logger.info(`   - Avg batch time: ${formatTime(stats.avgBatchTimeMs)}`);
+  logger.info(
+    `   - Throughput: ${stats.throughputDocsPerSec.toFixed(2)} docs/sec`
+  );
 
   if (stats.failedRecords > 0) {
     logger.warn(

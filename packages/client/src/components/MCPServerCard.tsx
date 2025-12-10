@@ -7,9 +7,15 @@ import {
   Settings,
   Trash2,
   XCircle,
+  MessageSquare,
+  Github,
+  Video,
+  HardDrive,
+  FileText,
+  Server,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
+import { useState } from "react";
+import { capitalCase } from "change-case";
 import {
   useConnectMCPServer,
   useDeleteMCPServer,
@@ -24,9 +30,28 @@ interface MCPServerCardProps {
   onEdit: (server: MCPServerConfig) => void;
 }
 
+// Helper function to get service icon based on server name
+function getServiceIcon(serverName: string) {
+  const name = serverName.toLowerCase();
+
+  if (name.includes("slack")) {
+    return MessageSquare;
+  } else if (name.includes("github")) {
+    return Github;
+  } else if (name.includes("fathom")) {
+    return Video;
+  } else if (name.includes("google") || name.includes("drive")) {
+    return HardDrive;
+  } else if (name.includes("notion")) {
+    return FileText;
+  }
+
+  return Server;
+}
+
 export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [syncJobId, setSyncJobId] = useState<string | null>(null);
+  const [_syncJobId, setSyncJobId] = useState<string | null>(null);
 
   const connectMutation = useConnectMCPServer();
   const disconnectMutation = useDisconnectMCPServer();
@@ -74,8 +99,10 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
     }
   };
 
+  const ServiceIcon = getServiceIcon(server.name);
+
   return (
-    <div className="card relative">
+    <div className="card relative flex flex-col">
       {/* Connection Status Badge */}
       <div className="absolute top-4 right-4">
         {isLoading ? (
@@ -89,9 +116,16 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
 
       {/* Server Info */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          {server.name}
-        </h3>
+        <div className="flex items-center gap-3 mb-3">
+          <div
+            className={`p-2.5 rounded-lg text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30`}
+          >
+            <ServiceIcon className="w-6 h-6" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {capitalCase(server.name)}
+          </h3>
+        </div>
         <div className="mt-2 space-y-1 grid grid-cols-[15%_85%] gap-2 text-left">
           <div className="flex items-left text-sm col-start-auto">
             <span className="text-gray-500 dark:text-gray-400 w-16">Type:</span>
@@ -148,23 +182,6 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
             </>
           )}
         </div>
-
-        {/* Status Badge */}
-        <div className="mt-3">
-          {server.isDisabled ? (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-              Disabled
-            </span>
-          ) : isConnected ? (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-100 dark:bg-success-900 text-success-800 dark:text-success-200">
-              Connected
-            </span>
-          ) : (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-              Disconnected
-            </span>
-          )}
-        </div>
       </div>
 
       {/* Sync Progress Bar */}
@@ -189,58 +206,76 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
 
       {/* Actions */}
       {!showDeleteConfirm ? (
-        <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
-          <button
-            onClick={handleConnect}
-            disabled={isLoading || server.isDisabled}
-            className={`btn flex items-center gap-2 ${
-              isConnected
-                ? "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600"
-                : "btn-primary"
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            {isConnected ? (
-              <>
-                <PowerOff className="w-4 h-4" />
-                Disconnect
-              </>
+        <div className="mt-auto ">
+          {/* Status Badge */}
+          <div className="mt-3">
+            {server.isDisabled ? (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                Disabled
+              </span>
+            ) : isConnected ? (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-100 dark:bg-success-900 text-success-800 dark:text-success-200">
+                Connected
+              </span>
             ) : (
-              <>
-                <Power className="w-4 h-4" />
-                Connect
-              </>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                Disconnected
+              </span>
             )}
-          </button>
-          {isConnected && (
+          </div>
+          <div className="pt-4 flex items-center justify-center gap-2 flex-wrap">
             <button
-              onClick={handleSync}
-              disabled={syncMutation.isPending || isLoading}
-              className="btn btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleConnect}
+              disabled={isLoading || server.isDisabled}
+              className={`btn flex items-center gap-2 ${
+                isConnected
+                  ? "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600"
+                  : "btn-primary"
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
-              <RefreshCw
-                className={`w-4 h-4 ${
-                  syncMutation.isPending ? "animate-spin" : ""
-                }`}
-              />
-              Sync
+              {isConnected ? (
+                <>
+                  <PowerOff className="w-4 h-4" />
+                  Disconnect
+                </>
+              ) : (
+                <>
+                  <Power className="w-4 h-4" />
+                  Connect
+                </>
+              )}
             </button>
-          )}
-          <button
-            onClick={() => onEdit(server)}
-            disabled={isLoading}
-            className="btn btn-secondary flex items-center gap-2"
-          >
-            <Settings className="w-4 h-4" />
-            Edit
-          </button>
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={isLoading}
-            className="btn bg-error-600 dark:bg-error-500 text-white hover:bg-error-700 dark:hover:bg-error-600 flex items-center gap-2"
-          >
-            <Trash2 className="w-4 h-4" />
-            Delete
-          </button>
+            {isConnected && (
+              <button
+                onClick={handleSync}
+                disabled={syncMutation.isPending || isLoading}
+                className="btn btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${
+                    syncMutation.isPending ? "animate-spin" : ""
+                  }`}
+                />
+                Sync
+              </button>
+            )}
+            <button
+              onClick={() => onEdit(server)}
+              disabled={isLoading}
+              className="btn btn-secondary flex items-center gap-2"
+            >
+              <Settings className="w-4 h-4" />
+              Edit
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={isLoading}
+              className="btn bg-error-600 dark:bg-error-500 text-white hover:bg-error-700 dark:hover:bg-error-600 flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </button>
+          </div>
         </div>
       ) : (
         <div className="mt-4 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg p-3">
@@ -248,7 +283,7 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
             Are you sure you want to delete this MCP server? This action cannot
             be undone.
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 justify-center">
             <button
               onClick={handleDelete}
               disabled={isLoading}

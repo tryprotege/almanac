@@ -8,7 +8,7 @@ import { useGraphData } from "../hooks/useGraphData";
 type ViewMode = "schema" | "data";
 
 export default function Schema() {
-  const [viewMode, setViewMode] = useState<ViewMode>("data");
+  const [viewMode, _setViewMode] = useState<ViewMode>("data");
   const [graphLimit, setGraphLimit] = useState(100);
   const { schema, isLoading, error, refetch } = useSchema();
   const {

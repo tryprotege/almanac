@@ -81,25 +81,6 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   }
 
   /**
-   * Fetch single record by ID
-   */
-  async fetchById(id: string): Promise<NotionRecord | null> {
-    try {
-      // Try as page first
-      const page = await this.client.getPage(id);
-      return page as NotionRecord;
-    } catch {
-      try {
-        // Try as database
-        const database = await this.client.getDatabaseSchema(id);
-        return database as NotionRecord;
-      } catch {
-        return null;
-      }
-    }
-  }
-
-  /**
    * Transform Notion record to unified format
    */
   async transform(sourceRecord: NotionRecord): Promise<Record> {
@@ -213,7 +194,7 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
   /**
    * Get deleted records (Notion doesn't provide this directly)
    */
-  async *getDeletedRecords(since: Date): AsyncIterable<string[]> {
+  async *getDeletedRecords(_since: Date): AsyncIterable<string[]> {
     // Notion doesn't have a direct API for deleted records
     // We would need to track this ourselves or fetch all and compare
     yield [];
@@ -295,7 +276,7 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
     // Extract from properties for pages
     if (this.getRecordType(sourceRecord) === "page") {
       const page = sourceRecord as NotionPage;
-      for (const [key, value] of Object.entries(page.properties)) {
+      for (const [_key, value] of Object.entries(page.properties)) {
         if ((value as any).type === "people" && (value as any).people) {
           (value as any).people.forEach((person: any) => {
             if (person.id) people.push(person.id);
@@ -324,7 +305,7 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
 
     if (this.getRecordType(sourceRecord) === "page") {
       const page = sourceRecord as NotionPage;
-      for (const [key, value] of Object.entries(page.properties)) {
+      for (const [_key, value] of Object.entries(page.properties)) {
         if (
           (value as any).type === "multi_select" &&
           (value as any).multi_select

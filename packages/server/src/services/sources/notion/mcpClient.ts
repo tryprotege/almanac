@@ -7,6 +7,7 @@ import {
   NotionComment,
 } from "./types.js";
 import logger from "../../../utils/logger.js";
+import { env } from "../../../env.js";
 
 /**
  * Notion MCP Client wrapper for data extraction
@@ -61,7 +62,7 @@ export class NotionMCPClient {
   }
 
   /**
-   * Generic pagination handler
+   * Generic pagination handler with support for SYNC_CUTOFF_DATE and SYNC_MAX_RECORDS
    */
   private async fetchAllPages<T>(
     toolName: string,
@@ -70,8 +71,21 @@ export class NotionMCPClient {
   ): Promise<T[]> {
     const allResults: T[] = [];
     let cursor: string | undefined = undefined;
+    const cutoffDate = env.SYNC_CUTOFF_DATE
+      ? new Date(env.SYNC_CUTOFF_DATE)
+      : null;
+    const limit = env.SYNC_MAX_RECORDS;
 
     do {
+      // Check if we've reached the limit
+      if (limit && allResults.length >= limit) {
+        logger.info(
+          { limit, fetched: allResults.length },
+          "Reached SYNC_MAX_RECORDS, stopping pagination"
+        );
+        break;
+      }
+
       const response: any = await this.callTool(toolName, {
         ...params,
         start_cursor: cursor,
@@ -79,7 +93,40 @@ export class NotionMCPClient {
       });
 
       const results = extractResults(response);
-      allResults.push(...results);
+
+      // Filter by cutoff date if specified (for records with last_edited_time)
+      let filteredResults = results;
+      if (cutoffDate) {
+        filteredResults = results.filter((result: any) => {
+          if (result.last_edited_time) {
+            return new Date(result.last_edited_time) >= cutoffDate;
+          }
+          // Include records without last_edited_time (like users)
+          return true;
+        });
+
+        // If we got fewer results after filtering and there are still results,
+        // it means we've gone past the cutoff date
+        if (filteredResults.length === 0 && results.length > 0) {
+          logger.info(
+            { cutoffDate },
+            "All results are before SYNC_CUTOFF_DATE, stopping pagination"
+          );
+          break;
+        }
+      }
+
+      allResults.push(...filteredResults);
+
+      // Apply limit if specified
+      if (limit && allResults.length > limit) {
+        allResults.splice(limit);
+        logger.info(
+          { limit, fetched: allResults.length },
+          "Trimmed results to SYNC_MAX_RECORDS"
+        );
+        break;
+      }
 
       cursor = response.next_cursor || undefined;
     } while (cursor);

@@ -12,6 +12,7 @@ import {
   updateEntityTypes,
   updateRelationshipTypes,
 } from "../../../stores/graph-schema.store.js";
+import logger from "../../../utils/logger.js";
 import { Entity, Relationship } from "./schema/entity-deduplication.js";
 
 // ============================================================================
@@ -95,9 +96,12 @@ export const updateSchemaWithDiscovery = async (
 
   // Update entity types if any new ones found
   if (newEntityTypes.length > 0) {
-    console.log(
-      `🔍 Auto-discovered ${newEntityTypes.length} new entity types:`,
-      newEntityTypes.map((e) => e.name).join(", ")
+    logger.info(
+      `🔍 Auto-discovered ${
+        newEntityTypes.length
+      } new entity types: ${JSON.stringify(
+        newEntityTypes.map((e) => e.name).join(", ")
+      )}`
     );
 
     await updateEntityTypes(
@@ -111,9 +115,12 @@ export const updateSchemaWithDiscovery = async (
 
   // Update relationship types if any new ones found
   if (newRelationshipTypes.length > 0) {
-    console.log(
-      `🔍 Auto-discovered ${newRelationshipTypes.length} new relationship types:`,
-      newRelationshipTypes.map((r) => r.name).join(", ")
+    logger.info(
+      `🔍 Auto-discovered ${
+        newRelationshipTypes.length
+      } new relationship types: ${JSON.stringify(
+        newRelationshipTypes.map((r) => r.name).join(", ")
+      )}`
     );
 
     await updateRelationshipTypes(

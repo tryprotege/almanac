@@ -9,9 +9,20 @@ const MCPServerConfigSchema = new mongoose.Schema(
       required: true,
       unique: true,
       index: true,
-      enum: ["notion", "slack", "calendar", "jira"] satisfies SourceType[],
+      enum: [
+        "notion",
+        "slack",
+        "calendar",
+        "jira",
+        "github",
+        "fathom",
+      ] satisfies SourceType[],
     },
-    type: { type: String, required: true, enum: ["stdio", "sse"] },
+    type: {
+      type: String,
+      required: true,
+      enum: ["stdio", "sse", "streamable-http"],
+    },
     command: { type: String },
     args: [{ type: String }],
     env: { type: Map, of: String },
@@ -32,8 +43,11 @@ MCPServerConfigSchema.index({ name: 1 }, { unique: true });
 MCPServerConfigSchema.pre("save", function () {
   if (this.type === "stdio" && !this.command) {
     throw new Error("stdio server requires 'command' field");
-  } else if (this.type === "sse" && !this.url) {
-    throw new Error("sse server requires 'url' field");
+  } else if (
+    (this.type === "sse" || this.type === "streamable-http") &&
+    !this.url
+  ) {
+    throw new Error(`${this.type} server requires 'url' field`);
   }
 });
 

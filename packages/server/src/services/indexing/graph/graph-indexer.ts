@@ -14,7 +14,6 @@ import { extractGraphFromContent } from "./schema/schema-extraction.js";
 import {
   Entity,
   Relationship,
-  deduplicateEntities,
   mergeRelationships,
   filterLowValueRelationships,
 } from "./schema/entity-deduplication.js";
@@ -106,13 +105,13 @@ export const extractGraphFromRecord = async (
   // 1. This is a re-index (lastGraphIndexDate exists), OR
   // 2. Force mode is enabled (always clean)
   if (options.graphStore && (record.lastGraphIndexDate || options.force)) {
-    // 1. Unlink entities from document
-    const unlinkedEntityIds =
-      await options.graphStore.unlinkAllEntitiesFromDocument(record._id);
+    // // 1. Unlink entities from document
+    // const unlinkedEntityIds =
+    //   await options.graphStore.unlinkAllEntitiesFromDocument(record._id);
 
-    // 2. Unlink relationships from document
-    const unlinkedRelCount =
-      await options.graphStore.unlinkRelationshipsFromDocument(record._id);
+    // // 2. Unlink relationships from document
+    // const unlinkedRelCount =
+    //   await options.graphStore.unlinkRelationshipsFromDocument(record._id);
 
     // 3. Delete orphaned entities
     const deletedEntities = await options.graphStore.deleteOrphanedEntities();
@@ -122,7 +121,7 @@ export const extractGraphFromRecord = async (
       await options.graphStore.deleteOrphanedRelationships();
 
     if (deletedEntities > 0 || deletedRelationships > 0) {
-      console.log(
+      logger.info(
         `🧹 Cleaned up ${deletedEntities} entities and ${deletedRelationships} relationships ` +
           `after unlinking from ${
             options.force ? "force re-index" : "updated record"
@@ -156,22 +155,22 @@ export const extractGraphFromRecord = async (
   const filteredRelationships = filterLowValueRelationships(relationships);
 
   if (relationships.length !== filteredRelationships.length) {
-    console.log(`   - Relationships before filter: ${relationships.length}`);
-    console.log(
+    logger.info(`   - Relationships before filter: ${relationships.length}`);
+    logger.info(
       `   - Relationships after filter: ${filteredRelationships.length}`
     );
   }
 
   // Log empty extractions (0 entities AND 0 relationships)
   if (entities.length === 0 && filteredRelationships.length === 0) {
-    console.warn(`⚠️  Empty extraction for record ${record._id}:`);
-    console.warn(`   - Content length: ${record.content.length} chars`);
-    console.warn(`   - Title: ${record.title}`);
-    console.warn(`   - MongoDB ID: ${record._id}`);
+    logger.warn(`⚠️  Empty extraction for record ${record._id}:`);
+    logger.warn(`   - Content length: ${record.content.length} chars`);
+    logger.warn(`   - Title: ${record.title}`);
+    logger.warn(`   - MongoDB ID: ${record._id}`);
     if (record.rawData && typeof record.rawData === "object") {
       const rawData = record.rawData as any;
       if (rawData.url) {
-        console.warn(`   - URL: ${rawData.url}`);
+        logger.warn(`   - URL: ${rawData.url}`);
       }
     }
   }
@@ -183,11 +182,11 @@ export const extractGraphFromRecord = async (
         ? entities.reduce((sum, e) => sum + e.name.length, 0) / entities.length
         : 0;
 
-    console.warn(`⚠️  Skipping toxic chunk for record ${record._id}:`);
-    console.warn(`   - Entities: ${entities.length}`);
-    console.warn(`   - Relationships: ${relationships.length}`);
-    console.warn(`   - Avg name length: ${avgNameLength.toFixed(1)} chars`);
-    console.warn(
+    logger.warn(`⚠️  Skipping toxic chunk for record ${record._id}:`);
+    logger.warn(`   - Entities: ${entities.length}`);
+    logger.warn(`   - Relationships: ${relationships.length}`);
+    logger.warn(`   - Avg name length: ${avgNameLength.toFixed(1)} chars`);
+    logger.warn(
       `   - Sample entities: ${entities
         .slice(0, 5)
         .map((e) => e.name)
@@ -238,11 +237,11 @@ export const processRecordsToGraph = (
   nodes: GraphNode[];
   relationships: GraphRelationship[];
 } => {
-  // Flatten all entities across records
-  const allEntities = recordsData.flatMap((data) => data.entities);
+  // // Flatten all entities across records
+  // const allEntities = recordsData.flatMap((data) => data.entities);
 
-  // Deduplicate entities
-  const dedupedEntities = deduplicateEntities(allEntities);
+  // // Deduplicate entities
+  // const dedupedEntities = deduplicateEntities(allEntities);
 
   // Flatten all relationships
   const allRelationships = recordsData.flatMap((data) => data.relationships);
@@ -307,15 +306,15 @@ export const indexAllRecords = async (
     force = false,
   } = options;
 
-  console.log(`🔄 Starting graph indexing for source: ${source}`);
-  console.log(`   Configuration:`);
-  console.log(`   - Batch size: ${batchSize}`);
-  console.log(`   - Concurrency: ${concurrency}`);
-  console.log(
+  logger.info(`🔄 Starting graph indexing for source: ${source}`);
+  logger.info(`   Configuration:`);
+  logger.info(`   - Batch size: ${batchSize}`);
+  logger.info(`   - Concurrency: ${concurrency}`);
+  logger.info(
     `   - Toxic filter: ${enableToxicFilter ? "enabled" : "disabled"}`
   );
-  console.log(`   - Max entities per doc: ${maxEntitiesPerDoc}`);
-  console.log(`   - Force re-index: ${force ? "enabled" : "disabled"}`);
+  logger.info(`   - Max entities per doc: ${maxEntitiesPerDoc}`);
+  logger.info(`   - Force re-index: ${force ? "enabled" : "disabled"}`);
 
   const stats: IndexingStats = {
     nodes: 0,
@@ -468,7 +467,7 @@ export const indexAllRecords = async (
         });
       }
 
-      console.log(
+      logger.info(
         `📊 Progress: ${stats.nodes} nodes, ${stats.relationships} relationships, ${stats.skippedToxic} toxic`
       );
     } catch (err) {
@@ -479,11 +478,11 @@ export const indexAllRecords = async (
     skip += records.length;
   }
 
-  console.log(`✅ Graph indexing complete for ${source}`);
-  console.log(`   Nodes: ${stats.nodes}`);
-  console.log(`   Relationships: ${stats.relationships}`);
-  console.log(`   Errors: ${stats.errors}`);
-  console.log(`   Skipped (toxic): ${stats.skippedToxic}`);
+  logger.info(`✅ Graph indexing complete for ${source}`);
+  logger.info(`   Nodes: ${stats.nodes}`);
+  logger.info(`   Relationships: ${stats.relationships}`);
+  logger.info(`   Errors: ${stats.errors}`);
+  logger.info(`   Skipped (toxic): ${stats.skippedToxic}`);
 
   return stats;
 };

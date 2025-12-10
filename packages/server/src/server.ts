@@ -175,7 +175,7 @@ const runServer = async () => {
       if (mcpClientManager.isConnected(name)) {
         try {
           await mcpClientManager.disconnect(name);
-          await mcpClientManager.connect(config.toObject() as MCPServerConfig);
+          await mcpClientManager.connect(config.toJSON() as MCPServerConfig);
           logger.info(
             { serverName: name },
             `Reconnected to updated MCP server: ${name}`
@@ -261,7 +261,7 @@ const runServer = async () => {
           return;
         }
 
-        await mcpClientManager.connect(config.toObject() as MCPServerConfig);
+        await mcpClientManager.connect(config.toJSON() as MCPServerConfig);
 
         res.json({ success: true, message: `Connected to ${name}` });
       } catch (err) {
@@ -397,21 +397,21 @@ const runServer = async () => {
   });
 
   app.listen(PORT, HOST, () => {
-    console.error(`🚀 eBee MCP server running on http://${HOST}:${PORT}`);
-    console.error(`📡 MCP endpoint: http://${HOST}:${PORT}/mcp`);
-    console.error(`💚 Health check: http://${HOST}:${PORT}/health`);
+    logger.info(`🚀 eBee MCP server running on http://${HOST}:${PORT}`);
+    logger.info(`📡 MCP endpoint: http://${HOST}:${PORT}/mcp`);
+    logger.info(`💚 Health check: http://${HOST}:${PORT}/health`);
   });
 };
 
 // Handle graceful shutdown
 process.on("SIGINT", async () => {
-  console.error("Shutting down MCP server...");
+  logger.info("Shutting down MCP server...");
   await mcpClientManager.disconnectAll();
   await shutdownServices();
   process.exit(0);
 });
 
 runServer().catch((error) => {
-  console.error("Fatal error in MCP server:", error);
+  logger.error({ err: error }, "Fatal error in MCP server");
   process.exit(1);
 });

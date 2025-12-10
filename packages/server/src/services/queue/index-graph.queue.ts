@@ -1,13 +1,20 @@
 import { Processor, Queue, Worker } from "bullmq";
 
 import { initializeServices } from "../../mcp/initialization.js";
+import { MCPServerConfigModel } from "../../models/mcp-config.model.js";
 import { GraphStore } from "../../stores/graph.store.js";
 import { RecordStore } from "../../stores/record.store.js";
 import { SourceType } from "../../types/index.js";
+import logger from "../../utils/logger.js";
 import { GraphIndexerService } from "../indexing/graph/graph-indexer.service.js";
+import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
+import { GitHubMCPClient } from "../sources/github/mcpClient.js";
 import { NotionMCPClient } from "../sources/notion/mcpClient.js";
 import { BaseRecordAdapter } from "../sync/adapters/base-adapter.js";
+import { FathomAdapter } from "../sync/adapters/fathom-adapter.js";
+import { GitHubAdapter } from "../sync/adapters/github-adapter.js";
 import { NotionAdapter } from "../sync/adapters/notion-adapter.js";
+import { SlackAdapter } from "../sync/adapters/slack-adapter.js";
 import { createRedisConnection, QUEUE_NAME } from "./config.js";
 
 const processor: Processor<
@@ -27,6 +34,39 @@ const processor: Processor<
   if (source === "notion") {
     const notionClient = new NotionMCPClient();
     adapters.set("notion", new NotionAdapter(notionClient));
+  } else if (source === "slack") {
+    const slackMcp = await MCPServerConfigModel.findOne({
+      name: "slack",
+    });
+    const token = slackMcp?.env?.get("SLACK_BOT_TOKEN");
+
+    if (!token) throw new Error("Slack MCP server not configured");
+
+    adapters.set("slack", new SlackAdapter(token));
+  }
+
+  if (source === "github") {
+    const githubClient = new GitHubMCPClient();
+    adapters.set(
+      "github",
+      new GitHubAdapter(githubClient, {
+        includeArchived: false,
+        includeForks: true,
+        includePrivate: true,
+      })
+    );
+  }
+
+  if (source === "fathom") {
+    const fathomClient = new FathomMCPClient();
+    adapters.set(
+      "fathom",
+      new FathomAdapter(fathomClient, {
+        includeActionItems: false,
+        includeSummaries: true,
+        includeTranscripts: true,
+      })
+    );
   }
 
   const graphIndexer = new GraphIndexerService(
@@ -55,25 +95,25 @@ export const indexGraphWorker = new Worker<
 
 // Set up worker event handlers
 indexGraphWorker.on("completed", (job) => {
-  console.log(
-    `✅ Graph index job completed: ${job.id} for record ${job.data.source}`
+  logger.info(
+    `✅ Graph index job completed: jobId: ${job.id} for record ${job.data.source}`
   );
 });
 
 indexGraphWorker.on("failed", (job, err) => {
-  console.error(
-    `❌ Graph index job failed: ${job?.id} for record ${job?.data.source}`,
-    err
+  logger.error(
+    { err },
+    `❌ Graph index job failed: jobId: ${job?.id} for record ${job?.data.source}`
   );
 });
 
 indexGraphWorker.on("error", (err) => {
-  console.error("Graph index worker error:", err);
+  logger.error({ err }, "Graph index worker error");
 });
 
 indexGraphWorker.on("active", (job) => {
-  console.log(
-    `🔄 Graph index job started: ${job.id} for record ${job.data.source}`
+  logger.info(
+    `🔄 Graph index job started: jobId: ${job.id} for record ${job.data.source}`
   );
 });
 

@@ -5,6 +5,7 @@ import { syncMcpServer } from "../sync/sync.service.js";
 import { indexGraphQueue } from "./index-graph.queue.js";
 import { indexVectorQueue } from "./index-vector.queue.js";
 import { createRedisConnection, QUEUE_NAME } from "./config.js";
+import logger from "../../utils/logger.js";
 
 const processor: Processor<
   SyncMcpServerJobData,
@@ -40,24 +41,26 @@ export const syncMcpServerWorker = new Worker<
 
 // Set up worker event handlers
 syncMcpServerWorker.on("completed", (job) => {
-  console.log(
-    `✅ Sync job completed: ${job.id} for ${job.data.mcpConfig.name}`
+  logger.info(
+    `✅ Sync job completed: jobId: ${job.id} for ${job.data.mcpConfig.name}`
   );
 });
 
 syncMcpServerWorker.on("failed", (job, err) => {
-  console.error(
-    `❌ Sync job failed: ${job?.id} for ${job?.data.mcpConfig.name}`,
-    err
+  logger.error(
+    { err },
+    `❌ Sync job failed: jobId: ${job?.id} for ${job?.data.mcpConfig.name}`
   );
 });
 
 syncMcpServerWorker.on("error", (err) => {
-  console.error("Worker error:", err);
+  logger.error({ err }, "Worker error:");
 });
 
 syncMcpServerWorker.on("active", (job) => {
-  console.log(`🔄 Sync job started: ${job.id} for ${job.data.mcpConfig.name}`);
+  logger.info(
+    `🔄 Sync job started: jobId: ${job.id} for ${job.data.mcpConfig.name}`
+  );
 });
 
 export const syncMcpServerQueue = new Queue<

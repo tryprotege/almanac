@@ -4,7 +4,7 @@
  * Returns structured chunks (entities, relationships, chunks)
  */
 
-import { RecordModel, Record } from "../../models/record.model.js";
+import { RecordModel } from "../../models/record.model.js";
 import { GraphStore } from "../../stores/graph.store.js";
 import { VectorStore } from "../../stores/vector.store.js";
 import { RecordStore } from "../../stores/record.store.js";
@@ -20,7 +20,6 @@ import {
   LightRAGEntity,
   LightRAGRelationship,
   ExtractedKeywords,
-  LightRAGMode,
 } from "../../types/lightrag.types.js";
 import logger from "../../utils/logger.js";
 
@@ -50,7 +49,7 @@ export async function lightragQuery(
   const mode = query.mode || "mix";
   const responseFormat = query.response_format || "compact";
 
-  console.log(`\n[LightRAG] Query: "${query.query}" (mode: ${mode})`);
+  logger.info(`\n[LightRAG] Query: "${query.query}" (mode: ${mode})`);
 
   // Apply defaults
   const params = applyDefaults(query);
@@ -62,7 +61,7 @@ export async function lightragQuery(
       : { high_level: [], low_level: [] };
 
   if (mode !== "naive") {
-    console.log(
+    logger.info(
       `[LightRAG] Keywords - High: [${keywords.high_level.join(
         ", "
       )}], Low: [${keywords.low_level.join(", ")}]`
@@ -122,7 +121,7 @@ export async function lightragQuery(
 
   const processingTime = Date.now() - startTime;
 
-  console.log(
+  logger.info(
     `[LightRAG] Complete in ${processingTime}ms - ${
       chunks.length
     } chunks from ${countUniqueDocuments(chunks)} documents\n`
@@ -158,7 +157,7 @@ async function naiveMode(
   params: LightRAGQuery,
   deps: LightRAGDependencies
 ): Promise<{ chunks: LightRAGChunk[]; vectorMatches: number }> {
-  console.log(`[LightRAG] Running naive mode (vector-only)`);
+  logger.info(`[LightRAG] Running naive mode (vector-only)`);
 
   // Generate embedding
   const queryVector = (await embed([params.query]))[0];
@@ -188,7 +187,7 @@ async function localMode(
   vectorMatches: number;
   graphExpanded: number;
 }> {
-  console.log(`[LightRAG] Running local mode (entity-focused)`);
+  logger.info(`[LightRAG] Running local mode (entity-focused)`);
 
   // Use low-level keywords for entity search
   const entities = await searchEntitiesByKeywords(
@@ -226,7 +225,7 @@ async function globalMode(
   vectorMatches: number;
   graphExpanded: number;
 }> {
-  console.log(`[LightRAG] Running global mode (relationship-focused)`);
+  logger.info(`[LightRAG] Running global mode (relationship-focused)`);
 
   // Use high-level keywords for relationship search
   const relationships = await searchRelationshipsByKeywords(
@@ -267,7 +266,7 @@ async function hybridMode(
   vectorMatches: number;
   graphExpanded: number;
 }> {
-  console.log(`[LightRAG] Running hybrid mode (local + global)`);
+  logger.info(`[LightRAG] Running hybrid mode (local + global)`);
 
   // Run both in parallel
   const [localResult, globalResult] = await Promise.all([
@@ -300,7 +299,7 @@ async function mixMode(
   graphExpanded: number;
   reranked: boolean;
 }> {
-  console.log(`[LightRAG] Running mix mode (KG + vector + reranking)`);
+  logger.info(`[LightRAG] Running mix mode (KG + vector + reranking)`);
 
   // Run hybrid mode first
   const hybridResult = await hybridMode(params, keywords, deps);
@@ -311,7 +310,7 @@ async function mixMode(
     deps.reranker.isEnabled() &&
     hybridResult.chunks.length > 0
   ) {
-    console.log(`[LightRAG] Applying reranking...`);
+    logger.info(`[LightRAG] Applying reranking...`);
     const rerankedChunks = await rerankChunks(
       params.query,
       hybridResult.chunks,
@@ -509,7 +508,7 @@ async function getEntityRelationships(
   const relationships: LightRAGRelationship[] = [];
 
   for (let i = 0; i < entityIds.length; i++) {
-    const entityId = entityIds[i];
+    // const entityId = entityIds[i];
     const rels = relationshipResults[i];
 
     for (const rel of rels) {
@@ -540,7 +539,7 @@ async function getEntityRelationships(
 async function getChunksForEntities(
   entities: LightRAGEntity[],
   limit: number,
-  recordStore: RecordStore
+  _recordStore: RecordStore
 ): Promise<LightRAGChunk[]> {
   const records = await RecordModel.find({
     _id: { $in: entities.map((e) => e.id) },
@@ -655,18 +654,18 @@ function calculateNodeRank(degree: number): number {
   return Math.min(Math.round((degree / 10) * 100), 100);
 }
 
-async function calculateEdgeRank(
-  sourceId: string,
-  targetId: string,
-  graphStore: GraphStore
-): Promise<number> {
-  const [sourceRels, targetRels] = await Promise.all([
-    graphStore.getNodeRelationships(sourceId),
-    graphStore.getNodeRelationships(targetId),
-  ]);
+// async function calculateEdgeRank(
+//   sourceId: string,
+//   targetId: string,
+//   graphStore: GraphStore
+// ): Promise<number> {
+//   const [sourceRels, targetRels] = await Promise.all([
+//     graphStore.getNodeRelationships(sourceId),
+//     graphStore.getNodeRelationships(targetId),
+//   ]);
 
-  return calculateNodeRank(sourceRels.length + targetRels.length);
-}
+//   return calculateNodeRank(sourceRels.length + targetRels.length);
+// }
 
 function deduplicateRelationships(
   relationships: LightRAGRelationship[]

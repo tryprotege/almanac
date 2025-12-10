@@ -22,19 +22,41 @@ export type SourceType =
 // Qdrant (Vector Search)
 // ============================================
 
+export type VectorPayloadType = "chunk" | "entity" | "relationship";
+
+export interface ChunkVectorPayload extends Record<string, unknown> {
+  type: "chunk";
+  mongoId: string;
+  checksum: string;
+  chunkIndex: number;
+  chunkStart: number;
+  chunkEnd: number;
+}
+
+export interface EntityVectorPayload extends Record<string, unknown> {
+  type: "entity";
+  // Global entity from Memgraph
+  entityId: string; // Global entity ID from Memgraph (required)
+  entityType: string; // Entity type from Memgraph (required)
+  // Shared fields
+  source: SourceType;
+  degree: number; // Graph centrality (cached)
+  checksum: string;
+}
+
+export interface RelationshipVectorPayload extends Record<string, unknown> {
+  type: "relationship";
+  sourceId: string;
+  targetId: string;
+  relType: string;
+  confidence: number;
+  checksum?: string;
+}
+
 export interface VectorPoint {
   id: string; // UUID
   vector: number[]; // Embedding dimensions
-
-  payload: {
-    mongoId: string; // Reference to MongoDB _id
-    checksum: string; // Record checksum
-
-    // For chunked documents
-    chunkIndex?: number; // 0, 1, 2, ... (which chunk)
-    chunkStart?: number; // Character offset start
-    chunkEnd?: number; // Character offset end
-  };
+  payload: ChunkVectorPayload | EntityVectorPayload | RelationshipVectorPayload;
 }
 
 // ============================================
@@ -53,8 +75,6 @@ export interface MemgraphRelationship {
   targetId: string;
   type: string; // "BLOCKS", "REQUIRES", "ASSIGNED_TO", "RELATED_TO"
   confidence: number; // 0.0 - 1.0
-  extractedBy: "explicit" | "llm" | "heuristic";
-  metadata?: Record<string, any>;
 }
 
 /**
@@ -74,8 +94,6 @@ export interface EntityRelationship {
   targetId: string;
   type: string; // "BLOCKS", "REQUIRES", "ASSIGNED_TO", "RELATED_TO", etc.
   confidence: number; // 0.0 - 1.0
-  extractedBy: "explicit" | "llm" | "heuristic";
-  metadata?: Record<string, any>;
 }
 
 // Re-export from new type files

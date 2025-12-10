@@ -1,5 +1,11 @@
 import { randomUUID } from "crypto";
-import { VectorPoint } from "../types/index.js";
+import {
+  VectorPoint,
+  VectorPayloadType,
+  EntityVectorPayload,
+  RelationshipVectorPayload,
+  SourceType,
+} from "../types/index.js";
 import { QdrantConnection } from "../connections/qdrant.js";
 import { env } from "../env.js";
 import logger from "../utils/logger.js";
@@ -194,6 +200,299 @@ export class VectorStore {
       logger.error({ err, pointId: id }, `Error getting point ${id}`);
       return null;
     }
+  }
+
+  /**
+   * Search for entities by embedding
+   */
+  async searchEntities(
+    vector: number[],
+    options?: {
+      limit?: number;
+      scoreThreshold?: number;
+      source?: SourceType;
+    }
+  ): Promise<
+    Array<{ id: string; score: number; payload: EntityVectorPayload }>
+  > {
+    const filter: any = {
+      must: [{ key: "type", match: { value: "entity" } }],
+    };
+
+    if (options?.source) {
+      filter.must.push({ key: "source", match: { value: options.source } });
+    }
+
+    const results = await this.search(vector, {
+      limit: options?.limit || 60,
+      scoreThreshold: options?.scoreThreshold || 0.6,
+      filter,
+    });
+
+    return results as Array<{
+      id: string;
+      score: number;
+      payload: EntityVectorPayload;
+    }>;
+  }
+
+  /**
+   * Search for relationships by embedding
+   */
+  async searchRelationships(
+    vector: number[],
+    options?: {
+      limit?: number;
+      scoreThreshold?: number;
+      relType?: string;
+    }
+  ): Promise<
+    Array<{ id: string; score: number; payload: RelationshipVectorPayload }>
+  > {
+    const filter: any = {
+      must: [{ key: "type", match: { value: "relationship" } }],
+    };
+
+    if (options?.relType) {
+      filter.must.push({ key: "relType", match: { value: options.relType } });
+    }
+
+    const results = await this.search(vector, {
+      limit: options?.limit || 60,
+      scoreThreshold: options?.scoreThreshold || 0.6,
+      filter,
+    });
+
+    return results as Array<{
+      id: string;
+      score: number;
+      payload: RelationshipVectorPayload;
+    }>;
+  }
+
+  /**
+   * Delete all vectors of a specific type
+   */
+  async deleteByType(type: VectorPayloadType): Promise<void> {
+    await this.qdrant.client.delete(this.collectionName, {
+      wait: true,
+      filter: {
+        must: [{ key: "type", match: { value: type } }],
+      },
+    });
+  }
+
+  /**
+   * Delete entity embedding by mongoId
+   */
+  async deleteEntityEmbedding(mongoId: string): Promise<void> {
+    await this.qdrant.client.delete(this.collectionName, {
+      wait: true,
+      filter: {
+        must: [
+          { key: "type", match: { value: "entity" } },
+          { key: "mongoId", match: { value: mongoId } },
+        ],
+      },
+    });
+  }
+
+  /**
+   * Delete relationship embedding by source/target/type
+   */
+  async deleteRelationshipEmbedding(
+    sourceId: string,
+    targetId: string,
+    type: string
+  ): Promise<void> {
+    await this.qdrant.client.delete(this.collectionName, {
+      wait: true,
+      filter: {
+        must: [
+          { key: "type", match: { value: "relationship" } },
+          { key: "sourceId", match: { value: sourceId } },
+          { key: "targetId", match: { value: targetId } },
+          { key: "relType", match: { value: type } },
+        ],
+      },
+    });
+  }
+
+  /**
+   * Delete all embeddings for a source
+   */
+  async deleteBySource(source: SourceType): Promise<{
+    entities: number;
+    relationships: number;
+  }> {
+    // Get counts before deletion
+    const entityCount = await this.qdrant.client.count(this.collectionName, {
+      filter: {
+        must: [
+          { key: "type", match: { value: "entity" } },
+          { key: "source", match: { value: source } },
+        ],
+      },
+    });
+
+    const relCount = await this.qdrant.client.count(this.collectionName, {
+      filter: {
+        must: [
+          { key: "type", match: { value: "relationship" } },
+          { key: "sourceId", match: { any: [`${source}_`] } },
+        ],
+      },
+    });
+
+    // Delete entity embeddings
+    await this.qdrant.client.delete(this.collectionName, {
+      wait: true,
+      filter: {
+        must: [
+          { key: "type", match: { value: "entity" } },
+          { key: "source", match: { value: source } },
+        ],
+      },
+    });
+
+    // Delete relationship embeddings (filter by sourceId prefix)
+    await this.qdrant.client.delete(this.collectionName, {
+      wait: true,
+      filter: {
+        must: [{ key: "type", match: { value: "relationship" } }],
+      },
+    });
+
+    return {
+      entities: entityCount.count,
+      relationships: relCount.count,
+    };
+  }
+
+  /**
+   * Delete entity embeddings in batch by mongoIds
+   */
+  async deleteEntityEmbeddingsBatch(mongoIds: string[]): Promise<number> {
+    if (mongoIds.length === 0) return 0;
+
+    // Get count before deletion
+    const countResult = await this.qdrant.client.count(this.collectionName, {
+      filter: {
+        must: [
+          { key: "type", match: { value: "entity" } },
+          { key: "mongoId", match: { any: mongoIds } },
+        ],
+      },
+    });
+
+    // Delete
+    await this.qdrant.client.delete(this.collectionName, {
+      wait: true,
+      filter: {
+        must: [
+          { key: "type", match: { value: "entity" } },
+          { key: "mongoId", match: { any: mongoIds } },
+        ],
+      },
+    });
+
+    return countResult.count;
+  }
+
+  /**
+   * Delete embeddings by their vector IDs
+   */
+  async deleteByIds(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    await this.qdrant.client.delete(this.collectionName, {
+      wait: true,
+      filter: {
+        must: [{ key: "id", match: { any: ids } }],
+      },
+    });
+  }
+
+  /**
+   * Clean up orphaned embeddings (not in MongoDB/Memgraph anymore)
+   */
+  async cleanupOrphanedEmbeddings(
+    validMongoIds: string[],
+    validRelationships: Array<{
+      sourceId: string;
+      targetId: string;
+      type: string;
+    }>
+  ): Promise<{ entities: number; relationships: number }> {
+    // Get all entity embeddings
+    const allEntities = await this.search([0, 0, 0], {
+      limit: 100000,
+      filter: {
+        must: [{ key: "type", match: { value: "entity" } }],
+      },
+    });
+
+    // Find orphaned entities (mongoId not in validMongoIds)
+    const validIdSet = new Set(validMongoIds);
+    const orphanedEntityIds: string[] = [];
+
+    for (const entity of allEntities) {
+      const payload = entity.payload as EntityVectorPayload;
+      if (!validIdSet.has(payload.mongoId as string)) {
+        orphanedEntityIds.push(entity.id);
+      }
+    }
+
+    // Delete orphaned entities
+    if (orphanedEntityIds.length > 0) {
+      await this.qdrant.client.delete(this.collectionName, {
+        wait: true,
+        filter: {
+          must: [{ key: "id", match: { any: orphanedEntityIds } }],
+        },
+      });
+    }
+
+    // Get all relationship embeddings
+    const allRelationships = await this.search([0, 0, 0], {
+      limit: 100000,
+      filter: {
+        must: [{ key: "type", match: { value: "relationship" } }],
+      },
+    });
+
+    // Build set of valid relationships
+    const validRelSet = new Set(
+      validRelationships.map((r) => `${r.sourceId}_${r.type}_${r.targetId}`)
+    );
+
+    const orphanedRelIds: string[] = [];
+    for (const rel of allRelationships) {
+      const payload = rel.payload as RelationshipVectorPayload;
+      const key = `${payload.sourceId}_${payload.relType}_${payload.targetId}`;
+      if (!validRelSet.has(key)) {
+        orphanedRelIds.push(rel.id);
+      }
+    }
+
+    // Delete orphaned relationships
+    if (orphanedRelIds.length > 0) {
+      await this.qdrant.client.delete(this.collectionName, {
+        wait: true,
+        filter: {
+          must: [{ key: "id", match: { any: orphanedRelIds } }],
+        },
+      });
+    }
+
+    logger.info(
+      `Cleaned up ${orphanedEntityIds.length} orphaned entity embeddings and ${orphanedRelIds.length} orphaned relationship embeddings`
+    );
+
+    return {
+      entities: orphanedEntityIds.length,
+      relationships: orphanedRelIds.length,
+    };
   }
 }
 

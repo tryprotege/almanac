@@ -52,8 +52,9 @@ const RecordSchema = new mongoose.Schema(
     deletedAt: { type: Date },
 
     // Indexing timestamps
-    lastEmbedDate: { type: Date }, // Last embedded to vector DB
     lastGraphIndexDate: { type: Date }, // Last indexed to graph DB
+    lastEmbeddedAt: { type: Date }, // Last embedded to vector DB
+    embeddingModelVersion: { type: String }, // Model used for embeddings (e.g., "text-embedding-3-large")
   },
   {
     collection: "records",
@@ -67,7 +68,7 @@ export type Record = InferSchemaType<typeof RecordSchema>;
 // Compound indexes for efficient queries
 RecordSchema.index({ source: 1, recordType: 1 });
 RecordSchema.index({ source: 1, sourceId: 1 }, { unique: true });
-RecordSchema.index({ isDeleted: 1, syncedAt: -1 });
+RecordSchema.index({ deletedAt: 1, syncedAt: -1 });
 RecordSchema.index({ sourceUpdatedAt: -1 });
 RecordSchema.index({ content: "text", title: "text" }); // Full-text search
 

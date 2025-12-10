@@ -15,28 +15,22 @@ import logger from "../../utils/logger.js";
 
 export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
   const recordStore = new RecordStore();
-  let adapter: BaseRecordAdapter | null = null;
+  let adapter: BaseRecordAdapter;
+
+  // Create adapter based on source type
   if (mcpConfig.name === "notion") {
     const notionClient = new NotionMCPClient();
-    const notionAdapter = new NotionAdapter(notionClient);
-    await syncAllRecords(recordStore, "notion", notionAdapter);
-
-    logger.info("✅ Saved records into document DB");
+    adapter = new NotionAdapter(notionClient);
   } else if (mcpConfig.name === "github") {
     const githubClient = new GitHubMCPClient();
-    // Get owner from environment or config
-    const githubAdapter = new GitHubAdapter(githubClient, {
+    adapter = new GitHubAdapter(githubClient, {
       includeArchived: false,
       includeForks: true,
       includePrivate: true,
     });
-    await syncAllRecords(recordStore, "github", githubAdapter);
-
-    logger.info("✅ Saved GitHub records into document DB");
   } else if (mcpConfig.name === "fathom") {
     const fathomClient = new FathomMCPClient();
-    // Get owner from environment or config
-    const fathomAdaptor = new FathomAdapter(fathomClient, {
+    adapter = new FathomAdapter(fathomClient, {
       includeActionItems: true,
       includeNotes: true,
       includeHighlights: true,
@@ -44,18 +38,16 @@ export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
       includeTeams: true,
       includeTranscripts: true,
     });
-    await syncAllRecords(recordStore, "fathom", fathomAdaptor);
-
-    logger.info("✅ Saved Fathom records into document DB");
   } else if (mcpConfig.name === "slack") {
     adapter = new SlackAdapter(mcpConfig.env?.get("SLACK_BOT_TOKEN") as string);
+  } else {
+    throw new Error(`Unsupported MCP server: ${mcpConfig.name}`);
   }
 
-  if (!adapter) throw new Error("Unsupported MCP server: " + mcpConfig.name);
-
+  // Sync records for this source
   await syncAllRecords(recordStore, mcpConfig.name, adapter);
 
-  logger.info("✅ Saved records into document DB");
+  logger.info(`✅ Saved ${mcpConfig.name} records into document DB`);
 };
 
 /**
@@ -66,5 +58,32 @@ export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
 export async function syncAllRemoteMcpServers(): Promise<void> {
   const validConfigs = await loadProxyConfig();
 
-  await Promise.all(validConfigs.map(syncMcpServer));
+  // Use allSettled to continue syncing even if one source fails
+  const results = await Promise.allSettled(validConfigs.map(syncMcpServer));
+
+  // Log results
+  let successCount = 0;
+  let failureCount = 0;
+
+  results.forEach((result, index) => {
+    const config = validConfigs[index];
+    if (result.status === "fulfilled") {
+      successCount++;
+      logger.info(`✅ Successfully synced ${config.name}`);
+    } else {
+      failureCount++;
+      logger.error(
+        { err: result.reason, source: config.name },
+        `❌ Failed to sync ${config.name}`
+      );
+    }
+  });
+
+  logger.info(
+    `\n📊 Sync Summary: ${successCount}/${validConfigs.length} sources synced successfully`
+  );
+
+  if (failureCount > 0) {
+    logger.warn(`⚠️  ${failureCount} source(s) failed to sync`);
+  }
 }

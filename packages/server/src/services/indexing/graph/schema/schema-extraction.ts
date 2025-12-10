@@ -2,19 +2,103 @@ import OpenAI from "openai";
 import { Entity, Relationship } from "./entity-deduplication.js";
 import { chat } from "../../../llm/llm.js";
 import logger from "../../../../utils/logger.js";
+import sleep from "../../../../utils/sleep.js";
 
 // TODO: Replace with token counting based on model's context window
 // Most models support 128K tokens (~512K chars), but varies by model
 const MAX_CONTENT_LENGTH = 200_000;
 
 // ============================================================================
-// Unified Graph Extraction Functions (No Chunking)
+// Utility Functions
 // ============================================================================
 
 /**
- * Build LightRAG-inspired extraction prompt
+ * Strip extra quotes from strings that the LLM sometimes adds
+ * e.g., ""Anthropic"" -> "Anthropic"
  */
-function buildExtractionPrompt(
+function stripExtraQuotes(str: string): string {
+  if (!str) return str;
+  let cleaned = str.trim();
+
+  // Remove leading/trailing quotes if they exist
+  while (
+    cleaned.startsWith('"') &&
+    cleaned.endsWith('"') &&
+    cleaned.length > 2
+  ) {
+    cleaned = cleaned.slice(1, -1);
+  }
+
+  return cleaned;
+}
+
+// ============================================================================
+// JSON Schemas for Structured Output
+// ============================================================================
+
+const COMBINED_EXTRACTION_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    entities: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          type: { type: "string" },
+          description: { type: "string" },
+        },
+        required: ["name", "type", "description"],
+        additionalProperties: false,
+      },
+    },
+    relationships: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          source: { type: "string" },
+          target: { type: "string" },
+          type: { type: "string" },
+          description: { type: "string" },
+          strength: { type: "number" },
+        },
+        required: ["source", "target", "type", "description", "strength"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["entities", "relationships"],
+  additionalProperties: false,
+};
+
+const SINGLE_ENTITY_EXTRACTION_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    entity: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        type: { type: "string" },
+        description: { type: "string" },
+      },
+      required: ["name", "type", "description"],
+      additionalProperties: false,
+    },
+    found: { type: "boolean" },
+  },
+  required: ["found"],
+  additionalProperties: false,
+};
+
+// ============================================================================
+// Single-Pass Graph Extraction with Fallback
+// ============================================================================
+
+/**
+ * Build combined extraction prompt (entities + relationships in one call)
+ */
+function buildCombinedExtractionPrompt(
   content: string,
   entityTypes: string[],
   relationshipTypes: string[],
@@ -23,22 +107,12 @@ function buildExtractionPrompt(
   const personaContext = persona ? `USER CONTEXT:\n${persona}\n\n` : "";
 
   return `${personaContext}---Goal---
-Given a text document, extract entities and HIGH-VALUE relationships for a knowledge graph.
-
-IMPORTANT: This graph complements a vector embedding system. Extract relationships that:
-✅ Enable multi-hop reasoning (e.g., "Who reports to X?", "What blocks Y?")
-✅ Capture structure/hierarchy (org charts, dependencies)
-✅ Express causality and dependencies
-✅ Represent temporal relationships (supersedes, versions)
-✅ Show ownership and responsibility
-
-❌ DO NOT extract relationships that embeddings already capture:
-- "mentioned_with", "appears_with" (just co-occurrence)
-- "related_to", "similar_to" (too vague - use embeddings for this)
-- Generic "associated_with" (semantic search handles this)
+Extract named entities AND their relationships from the text document for a knowledge graph.
 
 ---Entity Types---
 ${entityTypes.join(", ")}
+
+You may discover new entity types not in this list.
 
 ---Relationship Types---
 ${relationshipTypes.join(", ")}
@@ -50,13 +124,49 @@ PRIORITIZE these high-value relationship patterns:
 - Temporal: SUPERSEDES, REPLACES, VERSION_OF
 - Domain: REGULATES, APPLIES_TO, IMPLEMENTS, CITES
 
+---CRITICAL NAMING RULES---
+Follow these rules STRICTLY for entity names:
+
+1. PERSON entities:
+   ✅ Use "First Last" format: "Jane Doe", "John Smith"
+   ✅ If only first name: "Jane", "John"
+   ✅ If only last name: "Smith"
+   ❌ NEVER use: "Doe, Jane" or "Smith, John" (reversed)
+   ❌ NEVER use titles: "Dr. Smith", "Mr. Jones"
+   ❌ NEVER use initials only: "J.S."
+
+2. ALL entity types:
+   ✅ Use the EXACT SAME NAME throughout (case matters!)
+   ✅ Use consistent capitalization
+   ❌ DON'T use variations: "Task Manager" vs "taskManager"
+
+---CRITICAL MATCHING RULES---
+When creating relationships:
+1. Source and target MUST reference entities you extracted in the entities array
+2. Use EXACT entity names (including capitalization)
+3. If you want to create a relationship, you MUST extract both entities first
+
+---Relationship Quality Guidelines---
+This graph complements a vector embedding system. Extract relationships that:
+✅ Enable multi-hop reasoning (e.g., "Who reports to X?", "What blocks Y?")
+✅ Capture structure/hierarchy (org charts, dependencies)
+✅ Express causality and dependencies
+✅ Represent temporal relationships (supersedes, versions)
+✅ Show ownership and responsibility
+
+❌ DO NOT extract relationships that embeddings already capture:
+- "mentioned_with", "appears_with" (just co-occurrence)
+- "related_to", "similar_to" (too vague - use embeddings for this)
+- Generic "associated_with" (semantic search handles this)
+
 ---Steps---
-1. Identify entities:
-   - Extract named entities (people, organizations, projects, concepts)
-   - Use CONSISTENT NAMING (important for relationship matching!)
+1. Extract named entities:
+   - Extract all named entities (people, organizations, projects, concepts)
+   - Apply NAMING RULES above (especially for people!)
+   - Use CONSISTENT NAMING
    - Provide brief description for each
 
-2. Identify HIGH-VALUE relationships:
+2. Extract HIGH-VALUE relationships:
    - Focus on structural, causal, and hierarchical connections
    - Use relationship types above when applicable
    - Strength scoring (only include if >= 5):
@@ -64,20 +174,12 @@ PRIORITIZE these high-value relationship patterns:
      * 7-8: Strong contextual evidence
      * 5-6: Clear semantic connection
      * Below 5: SKIP (too weak)
-   - ENSURE source/target names EXACTLY MATCH entity names
+   - CRITICAL: Reference entity names EXACTLY as you extracted them in step 1
 
-3. Content keywords:
-   - High-level themes and topics
-
----Examples of GOOD relationships (extract these)---
-✅ "Alex reports to Sarah" → { source: "Alex", target: "Sarah", type: "REPORTS_TO", strength: 10 }
-✅ "Project X depends on completing Task Y" → { source: "Project X", target: "Task Y", type: "DEPENDS_ON", strength: 9 }
-✅ "GDPR applies to EU residents" → { source: "GDPR", target: "EU residents", type: "APPLIES_TO", strength: 10 }
-
----Examples of BAD relationships (skip these)---
-❌ "Alex and Sarah are mentioned together" → SKIP (use embeddings for co-occurrence)
-❌ "Project X is related to Marketing" → SKIP (too vague, embeddings handle this)
-❌ "Document mentions Company Y" → SKIP (just a mention, no structural relationship)
+3. VALIDATE before returning:
+   - Check: Does EVERY relationship source exist in entities array?
+   - Check: Does EVERY relationship target exist in entities array?
+   - Check: Are names EXACTLY the same (including capitalization)?
 
 ---Output Format---
 {
@@ -90,11 +192,9 @@ PRIORITIZE these high-value relationship patterns:
       "target": "Project X",
       "type": "WORKS_ON",
       "description": "Alex is lead developer",
-      "keywords": ["development", "backend"],
       "strength": 9
     }
-  ],
-  "keywords": ["engineering", "backend"]
+  ]
 }
 
 ---Real Data---
@@ -106,212 +206,469 @@ Return ONLY valid JSON, no other text.`;
 }
 
 /**
- * Extract entities and relationships from full document (no chunking)
- * LightRAG-inspired unified extraction
+ * Build fallback prompt to extract a single missing entity
+ */
+function buildSingleEntityExtractionPrompt(
+  content: string,
+  entityName: string,
+  existingEntityTypes: string[],
+  relationshipContext?: string
+): string {
+  const contextSection = relationshipContext
+    ? `---Why We're Looking---
+A relationship in the text references "${entityName}":
+${relationshipContext}
+
+This suggests the entity exists in the text.
+
+`
+    : "";
+
+  return `---Goal---
+Find and extract information about a specific entity from the text.
+
+---Entity Name to Find---
+"${entityName}"
+
+${contextSection}---Known Entity Types---
+${existingEntityTypes.join(", ")}
+
+---Instructions---
+1. Search the text for "${entityName}" or variations of it:
+   - Look for the exact name "${entityName}"
+   - Look for abbreviations or shortened versions
+   - Look for longer forms that include this name
+   - Look for context clues about what this entity is
+
+2. If found (directly or through variations), extract:
+   - The entity type (from the list above, or a new type if appropriate)
+   - A brief description of the entity based on the text
+
+3. If NOT found in the text at all, set "found": false
+
+---Output Format---
+If found:
+{
+  "found": true,
+  "entity": {
+    "name": "${entityName}",
+    "type": "Person",
+    "description": "Brief description from text"
+  }
+}
+
+If not found:
+{
+  "found": false
+}
+
+---Real Data---
+Text:
+${content.substring(0, MAX_CONTENT_LENGTH)}
+
+---Output---
+Return ONLY valid JSON, no other text.`;
+}
+
+/**
+ * Extract a single missing entity using fallback prompt
+ */
+async function extractMissingEntity(
+  client: OpenAI,
+  content: string,
+  entityName: string,
+  existingEntityTypes: string[],
+  relationshipContext?: string
+): Promise<Entity | null> {
+  try {
+    const prompt = buildSingleEntityExtractionPrompt(
+      content,
+      entityName,
+      existingEntityTypes,
+      relationshipContext
+    );
+
+    const response = await chat(
+      client,
+      [
+        {
+          role: "system",
+          content:
+            "You are a knowledge graph entity extraction system. Find the specific entity requested in the text. Always respond with valid JSON.",
+        },
+        { role: "user", content: prompt },
+      ],
+      {
+        temperature: 0,
+        reasoningEffort: "medium",
+        maxTokens: 1000,
+        responseFormat: {
+          type: "json_schema",
+          json_schema: {
+            name: "single_entity_extraction",
+            schema: SINGLE_ENTITY_EXTRACTION_SCHEMA,
+            strict: true,
+          },
+        },
+      }
+    );
+
+    const result = JSON.parse(response);
+
+    if (result.found && result.entity) {
+      return {
+        name: stripExtraQuotes(result.entity.name),
+        type: stripExtraQuotes(result.entity.type),
+        description: result.entity.description || "No description",
+      };
+    }
+
+    return null;
+  } catch (err) {
+    logger.error(
+      { err, entityName },
+      `❌ Failed to extract missing entity: "${entityName}"`
+    );
+    return null;
+  }
+}
+
+/**
+ * Infer entity type from relationship type
+ */
+function inferEntityTypeFromRelationship(relType: string): string {
+  // Map relationship types to likely entity types
+  const typeMap: Record<string, string> = {
+    MEMBER_OF: "Organization",
+    PART_OF: "Organization",
+    WORKS_ON: "Project",
+    ASSIGNED_TO: "Task",
+    REPORTS_TO: "Person",
+    MANAGES: "Person",
+    CREATED_BY: "Person",
+    APPROVED_BY: "Person",
+    REVIEWED_BY: "Person",
+  };
+
+  return typeMap[relType] || "Entity";
+}
+
+/**
+ * Create inferential entity when fallback extraction fails
+ */
+function createInferentialEntity(
+  entityName: string,
+  relationship: Relationship
+): Entity {
+  // Determine if this is the source or target
+  const isSource = relationship.source === entityName;
+  const relType = relationship.type;
+
+  // Infer entity type based on relationship
+  const inferredType = isSource
+    ? inferEntityTypeFromRelationship(relType)
+    : inferEntityTypeFromRelationship(relType);
+
+  return {
+    name: entityName,
+    type: inferredType,
+    description: `Inferred from relationship: ${relationship.source} -[${relationship.type}]-> ${relationship.target}`,
+  };
+}
+
+/**
+ * Extract entities and relationships using single-pass extraction with fallback
+ */
+async function extractBothFromContent(
+  client: OpenAI,
+  content: string,
+  existingEntityTypes: string[],
+  existingRelationshipTypes: string[],
+  persona?: string,
+  maxRetries: number = 3,
+  recordContext?: {
+    recordId: string;
+    recordTitle: string;
+  }
+): Promise<{
+  entities: Entity[];
+  relationships: Relationship[];
+}> {
+  let response = "";
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const prompt = buildCombinedExtractionPrompt(
+        content,
+        existingEntityTypes,
+        existingRelationshipTypes,
+        persona
+      );
+
+      response = await chat(
+        client,
+        [
+          {
+            role: "system",
+            content:
+              "You are a knowledge graph extraction system. Extract entities and relationships from content. Always respond with valid JSON.",
+          },
+          { role: "user", content: prompt },
+        ],
+        {
+          temperature: 0,
+          reasoningEffort: "low",
+          maxTokens: 10000,
+          responseFormat: {
+            type: "json_schema",
+            json_schema: {
+              name: "combined_extraction",
+              schema: COMBINED_EXTRACTION_SCHEMA,
+              strict: true,
+            },
+          },
+        }
+      );
+
+      const extracted = JSON.parse(response);
+
+      // Strip extra quotes from entity names and types
+      const entities = (extracted.entities || []).map((entity: Entity) => ({
+        ...entity,
+        name: stripExtraQuotes(entity.name),
+        type: stripExtraQuotes(entity.type),
+      }));
+
+      // Strip extra quotes from relationship fields
+      const relationships = (extracted.relationships || []).map(
+        (rel: Relationship) => ({
+          ...rel,
+          source: stripExtraQuotes(rel.source),
+          target: stripExtraQuotes(rel.target),
+          type: stripExtraQuotes(rel.type),
+        })
+      );
+
+      // Log with record context
+      const recordInfo = recordContext
+        ? ` for "${recordContext.recordTitle}" (ID: ${recordContext.recordId})`
+        : "";
+      logger.info(`📊 Combined Extraction Results${recordInfo}:`);
+      logger.info(`   - Content length: ${content.length} chars`);
+      logger.info(`   - Entities extracted: ${entities.length}`);
+      logger.info(`   - Relationships extracted: ${relationships.length}`);
+
+      if (attempt > 1) {
+        logger.info(
+          `✅ Combined extraction succeeded on retry attempt ${attempt}/${maxRetries}`
+        );
+      }
+
+      return { entities, relationships };
+    } catch (err) {
+      logger.error(
+        {
+          err,
+          attempt,
+          maxRetries,
+          rawResponse: response,
+          responseLength: response?.length,
+          responsePreview: response?.substring(0, 1000),
+        },
+        `❌ Failed to parse combined extraction response (attempt ${attempt}/${maxRetries})`
+      );
+
+      if (attempt === maxRetries) {
+        logger.error(
+          `❌ Combined extraction failed after ${maxRetries} attempts. Returning empty results.`
+        );
+        return { entities: [], relationships: [] };
+      }
+
+      const delayMs = 1000 * Math.pow(2, attempt - 1);
+      logger.warn(
+        `⚠️  Retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})...`
+      );
+      await sleep(delayMs);
+    }
+  }
+
+  return { entities: [], relationships: [] };
+}
+
+/**
+ * Extract entities and relationships using single-pass extraction with fallback entity recovery
  */
 export async function extractGraphFromContent(
   client: OpenAI,
   content: string,
   existingEntityTypes: string[],
   existingRelationshipTypes: string[],
-  persona?: string
+  persona?: string,
+  maxRetries: number = 3,
+  recordContext?: {
+    recordId: string;
+    recordTitle: string;
+  }
 ): Promise<{
   entities: Entity[];
   relationships: Relationship[];
-  keywords: string[];
 }> {
-  const prompt = buildExtractionPrompt(
+  // Single-pass extraction (entities + relationships together)
+  let { entities, relationships } = await extractBothFromContent(
+    client,
     content,
     existingEntityTypes,
     existingRelationshipTypes,
-    persona
+    persona,
+    maxRetries,
+    recordContext
   );
 
-  const response = await chat(
-    client,
-    [
-      {
-        role: "system",
-        content:
-          "You are a knowledge graph extraction system. Extract structured entities and relationships from content. Always respond with valid JSON.",
-      },
-      { role: "user", content: prompt },
-    ],
-    { temperature: 0.1 }
+  // Build a set of valid entity names (normalized) for validation
+  const validEntityNames = new Set(
+    entities.map((e) => e.name.toLowerCase().trim())
   );
 
-  try {
-    const cleaned = response
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
-    const extracted = JSON.parse(cleaned);
+  // Find missing entities referenced in relationships and group by relationship
+  const missingEntitiesMap = new Map<string, Relationship[]>();
+  for (const rel of relationships) {
+    const normalizedSource = rel.source.toLowerCase().trim();
+    const normalizedTarget = rel.target.toLowerCase().trim();
 
-    // Diagnostic logging
-    logger.info(`📊 LLM Extraction Results:`);
-    logger.info(`   - Content length: ${content.length} chars`);
-    logger.info(`   - Entities extracted: ${extracted.entities?.length || 0}`);
-    logger.info(
-      `   - Relationships extracted: ${extracted.relationships?.length || 0}`
+    if (!validEntityNames.has(normalizedSource)) {
+      if (!missingEntitiesMap.has(rel.source)) {
+        missingEntitiesMap.set(rel.source, []);
+      }
+      missingEntitiesMap.get(rel.source)!.push(rel);
+    }
+    if (!validEntityNames.has(normalizedTarget)) {
+      if (!missingEntitiesMap.has(rel.target)) {
+        missingEntitiesMap.set(rel.target, []);
+      }
+      missingEntitiesMap.get(rel.target)!.push(rel);
+    }
+  }
+
+  // Fallback extraction for missing entities
+  if (missingEntitiesMap.size > 0) {
+    // Build list of missing entity names
+    const missingEntityNames = Array.from(missingEntitiesMap.keys());
+    const recordInfo = recordContext
+      ? ` for "${recordContext.recordTitle}" (ID: ${recordContext.recordId})`
+      : "";
+
+    logger.warn(
+      `⚠️  Found ${missingEntitiesMap.size} missing entities in relationships${recordInfo}`
+    );
+    logger.warn(
+      `   Missing entities: ${missingEntityNames
+        .map((n) => `"${n}"`)
+        .join(", ")}`
     );
 
-    if (extracted.relationships && extracted.relationships.length > 0) {
-      logger.info(
-        `   - Sample relationships: ${JSON.stringify(
-          extracted.relationships.slice(0, 3),
-          null,
-          2
-        )}`
+    const fallbackLimit = 10; // Limit fallback attempts
+    let fallbackCount = 0;
+    let extractedCount = 0;
+    let inferredCount = 0;
+
+    for (const [missingName, relContexts] of missingEntitiesMap) {
+      if (fallbackCount >= fallbackLimit) {
+        logger.warn(
+          `⚠️  Reached fallback limit (${fallbackLimit}), skipping remaining missing entities`
+        );
+        break;
+      }
+
+      // Use first relationship as context
+      const relContext = `${relContexts[0].source} -[${relContexts[0].type}]-> ${relContexts[0].target}`;
+
+      logger.info(`   - Attempting fallback extraction for: "${missingName}"`);
+      logger.info(`     Context: ${relContext}`);
+
+      const entity = await extractMissingEntity(
+        client,
+        content,
+        missingName,
+        existingEntityTypes,
+        relContext
       );
+
+      if (entity) {
+        entities.push(entity);
+        validEntityNames.add(entity.name.toLowerCase().trim());
+        logger.info(
+          `   ✅ Fallback extracted: "${entity.name}" (${entity.type})`
+        );
+        extractedCount++;
+      } else {
+        // Last resort: Create inferential entity
+        const inferredEntity = createInferentialEntity(
+          missingName,
+          relContexts[0]
+        );
+        entities.push(inferredEntity);
+        validEntityNames.add(inferredEntity.name.toLowerCase().trim());
+        logger.info(
+          `   🔮 Inferential entity created: "${inferredEntity.name}" (${inferredEntity.type})`
+        );
+        inferredCount++;
+      }
+
+      fallbackCount++;
+    }
+  }
+
+  // Validate relationships after fallback - filter out those with missing entities
+  const validatedRelationships = relationships.filter((rel: Relationship) => {
+    const normalizedSource = rel.source.toLowerCase().trim();
+    const normalizedTarget = rel.target.toLowerCase().trim();
+
+    const hasValidSource = validEntityNames.has(normalizedSource);
+    const hasValidTarget = validEntityNames.has(normalizedTarget);
+
+    if (!hasValidSource || !hasValidTarget) {
+      logger.warn(
+        `⚠️  Filtered invalid relationship - entity not found even after fallback:`
+      );
+      if (recordContext) {
+        logger.warn(`   Record ID: ${recordContext.recordId}`);
+        logger.warn(`   Record: "${recordContext.recordTitle}"`);
+      }
+      logger.warn(
+        `   Relationship: ${rel.source} -[${rel.type}]-> ${rel.target}`
+      );
+      if (!hasValidSource) {
+        logger.warn(`   Missing source entity: "${rel.source}"`);
+      }
+      if (!hasValidTarget) {
+        logger.warn(`   Missing target entity: "${rel.target}"`);
+      }
+
+      return false;
     }
 
-    return {
-      entities: extracted.entities || [],
-      relationships: extracted.relationships || [],
-      keywords: extracted.keywords || [],
-    };
-  } catch (err) {
-    logger.error({ err }, "Failed to parse extraction response");
-    return {
-      entities: [],
-      relationships: [],
-      keywords: [],
-    };
-  }
-}
+    return true;
+  });
 
-/**
- * Extract graph relationships between specific entities
- * Used for graph indexing (finding actual instances, not types)
- */
-export async function extractGraphRelationships(
-  client: OpenAI,
-  sourceContent: string,
-  sourceType: string,
-  targetResources: Array<{
-    id: string;
-    title: string;
-    type: string;
-    content: string;
-  }>,
-  validRelationshipTypes: Array<{
-    name: string;
-    description: string;
-    sourceTypes: string[];
-    targetTypes: string[];
-  }>
-): Promise<
-  Array<{
-    targetId: string;
-    type: string;
-    confidence: number;
-  }>
-> {
-  // Filter valid relationships for this source type
-  const applicableRelTypes = validRelationshipTypes.filter((rel) =>
-    rel.sourceTypes.includes(sourceType)
-  );
+  const filteredCount = relationships.length - validatedRelationships.length;
 
-  if (applicableRelTypes.length === 0) {
-    return [];
+  // Summary logging
+  const recordInfo = recordContext
+    ? `"${recordContext.recordTitle}" (ID: ${recordContext.recordId})`
+    : "unknown record";
+  logger.info(`✅ Single-pass extraction complete: ${recordInfo}`);
+  logger.info(`   - Entities: ${entities.length}`);
+  logger.info(`   - Relationships: ${relationships.length}`);
+  if (filteredCount > 0) {
+    logger.warn(
+      `   - Filtered ${filteredCount} invalid relationships (entities not found)`
+    );
+    logger.info(`   - Valid relationships: ${validatedRelationships.length}`);
   }
 
-  // Build relationship type documentation
-  const relationshipDocs = applicableRelTypes
-    .map(
-      (rel, i) =>
-        `${i + 1}. ${rel.name}: ${
-          rel.description
-        } (connects ${rel.sourceTypes.join(",")} → ${rel.targetTypes.join(
-          ","
-        )})`
-    )
-    .join("\n");
-
-  // Build target resources list
-  const targetsList = targetResources
-    .map(
-      (r, i) =>
-        `${i + 1}. [${r.type}] ${r.title}: ${r.content.substring(
-          0,
-          MAX_CONTENT_LENGTH
-        )}`
-    )
-    .join("\n");
-
-  const prompt = `You are a knowledge graph relationship extraction system. Your job is to identify semantic relationships between entities that will be stored in a graph database for efficient querying.
-
-TASK: Analyze the source entity and identify ALL meaningful relationships with the target entities.
-
-SOURCE ENTITY:
-Type: ${sourceType}
-Content: ${sourceContent.substring(0, MAX_CONTENT_LENGTH)}
-
-TARGET ENTITIES:
-${targetsList}
-
-VALID RELATIONSHIP TYPES:
-${relationshipDocs}
-
-INSTRUCTIONS:
-1. Only use the relationship types listed above
-2. Only create relationships where there is clear semantic meaning
-3. Assign confidence scores:
-   - 0.9-1.0: Explicit mention or direct reference
-   - 0.7-0.89: Strong contextual evidence
-   - 0.5-0.69: Moderate semantic similarity or indirect reference
-   - Below 0.5: Do not create (too weak)
-
-4. Consider these relationship patterns:
-   - BLOCKS/DEPENDS_ON: One entity must wait for another
-   - MENTIONS: Direct reference by name/ID
-   - ASSIGNED_TO: Clear ownership or responsibility
-   - PART_OF: Hierarchical containment
-   - RELATED_TO: Topical or semantic similarity
-   - AUTHORED_BY: Creation or ownership attribution
-
-GRAPH DATABASE OPTIMIZATION:
-- Relationships enable fast graph traversal queries like "Show me all tasks blocked by this issue"
-- Each relationship should have clear semantic value for querying
-- Avoid creating redundant or overly generic relationships
-
-OUTPUT FORMAT:
-Return a JSON array of objects with:
-- targetId: number (1 to ${targetResources.length})
-- type: string (must be from VALID RELATIONSHIP TYPES)
-- confidence: number (0.5 to 1.0)
-
-Return empty array [] if no relationships found.
-
-EXAMPLES:
-[{"targetId": 2, "type": "BLOCKS", "confidence": 0.95}]
-[{"targetId": 1, "type": "MENTIONS", "confidence": 0.85}, {"targetId": 3, "type": "RELATED_TO", "confidence": 0.72}]
-[]`;
-
-  const response = await chat(
-    client,
-    [
-      {
-        role: "system",
-        content:
-          "You are a precise relationship extraction system for graph databases. Extract only high-confidence, semantically meaningful relationships. Always respond with valid JSON array.",
-      },
-      { role: "user", content: prompt },
-    ],
-    { temperature: 0.1 } // Low temperature for consistency
-  );
-
-  try {
-    const relationships = JSON.parse(response);
-    // Map numeric IDs back to actual resource IDs and filter by confidence
-    return relationships
-      .map((rel: any) => ({
-        targetId: targetResources[rel.targetId - 1]?.id,
-        type: rel.type,
-        confidence: rel.confidence,
-      }))
-      .filter((rel: any) => rel.targetId && rel.confidence >= 0.5);
-  } catch {
-    return [];
-  }
+  return {
+    entities,
+    relationships: validatedRelationships,
+  };
 }

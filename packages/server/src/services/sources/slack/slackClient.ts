@@ -1,9 +1,12 @@
-import { ConversationsHistoryArguments, WebClient } from "@slack/web-api";
+import {
+  ConversationsHistoryArguments,
+  ConversationsRepliesArguments,
+  WebClient,
+} from "@slack/web-api";
 import { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse.js";
 import { Channel } from "@slack/web-api/dist/types/response/ConversationsListResponse.js";
 import { Member } from "@slack/web-api/dist/types/response/UsersListResponse.js";
 
-import sleep from "../../../utils/sleep.js";
 import logger from "../../../utils/logger.js";
 
 /**
@@ -12,7 +15,6 @@ import logger from "../../../utils/logger.js";
  */
 export class SlackClient {
   private client: WebClient;
-  private rateLimitDelay = 1000; // 1000ms = 1 request per second (Slack rate limits)
 
   constructor(token: string) {
     this.client = new WebClient(token);
@@ -27,8 +29,6 @@ export class SlackClient {
     let hasMore = true;
 
     while (hasMore) {
-      await sleep(this.rateLimitDelay);
-
       const params: any = {
         limit: 200,
         exclude_archived: true,
@@ -73,8 +73,6 @@ export class SlackClient {
     let total = 0;
 
     while (hasMore && (options.limit ? total < options.limit : true)) {
-      await sleep(this.rateLimitDelay);
-
       const params: ConversationsHistoryArguments = {
         channel: channelId,
         limit: options.limit && options.limit < 999 ? options.limit : 999,
@@ -116,12 +114,10 @@ export class SlackClient {
     let hasMore = true;
 
     while (hasMore) {
-      await sleep(this.rateLimitDelay);
-
-      const params: any = {
+      const params: ConversationsRepliesArguments = {
         channel: channelId,
         ts: threadTs,
-        limit: options.limit || 100,
+        limit: options.limit || 999,
       };
 
       if (cursor) {
@@ -154,8 +150,6 @@ export class SlackClient {
     let hasMore = true;
 
     while (hasMore) {
-      await sleep(this.rateLimitDelay);
-
       const params: any = {
         limit: 200,
       };

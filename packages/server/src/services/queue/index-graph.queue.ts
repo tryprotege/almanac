@@ -6,7 +6,8 @@ import { GraphStore } from "../../stores/graph.store.js";
 import { RecordStore } from "../../stores/record.store.js";
 import { SourceType } from "../../types/index.js";
 import logger from "../../utils/logger.js";
-import { GraphIndexerService } from "../indexing/graph/graph-indexer.service.js";
+import { indexAllRecords } from "../indexing/graph/graph-indexer.js";
+import { createLLMClient } from "../llm/providers.js";
 import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
 import { GitHubMCPClient } from "../sources/github/mcpClient.js";
 import { NotionMCPClient } from "../sources/notion/mcpClient.js";
@@ -16,6 +17,7 @@ import { GitHubAdapter } from "../sync/adapters/github-adapter.js";
 import { NotionAdapter } from "../sync/adapters/notion-adapter.js";
 import { SlackAdapter } from "../sync/adapters/slack-adapter.js";
 import { createRedisConnection, QUEUE_NAME } from "./config.js";
+import { env } from "../../env.js";
 
 const processor: Processor<
   IndexGraphJobData,
@@ -69,13 +71,24 @@ const processor: Processor<
     );
   }
 
-  const graphIndexer = new GraphIndexerService(
+  // Create LLM client for extraction
+  const openaiClient = createLLMClient();
+
+  // Use functional approach for indexing
+  await indexAllRecords(
+    source,
     recordStore,
     graphStore,
-    adapters
+    adapters,
+    openaiClient,
+    {
+      batchSize: 100,
+      concurrency: env.GRAPH_EXTRACTION_CONCURRENCY,
+      enableToxicFilter: env.ENABLE_TOXIC_DOCUMENT_FILTER,
+      maxEntitiesPerDoc: env.MAX_ENTITIES_PER_DOCUMENT,
+      force: false,
+    }
   );
-
-  await graphIndexer.indexAll(source);
 };
 
 type IndexGraphJobData = {

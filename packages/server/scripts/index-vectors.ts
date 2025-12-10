@@ -71,13 +71,7 @@ async function getVectorStats(
 async function indexVectorRecords() {
   const options = parseArgs();
 
-  logger.info("🚀 Vector Indexing Script");
-  logger.info("========================");
-  logger.info(`Source: ${options.source || "all"}`);
-  logger.info(`Limit: ${options.limit} records`);
-  logger.info(`Batch Size: ${options.batchSize}`);
-  logger.info(`Force Re-index: ${options.force ? "Yes" : "No"}`);
-  logger.info("");
+  logger.info({ msg: "🚀 Vector Indexing Script", ...options });
 
   const { qdrant } = await initializeServices();
   const recordStore = new RecordStore();
@@ -90,23 +84,21 @@ async function indexVectorRecords() {
   const sources: SourceType[] = options.source ? [options.source] : ["notion"]; // Add more sources as needed
 
   for (const source of sources) {
-    logger.info(`\n📦 Processing source: ${source}`);
-    logger.info("─".repeat(50));
+    logger.debug({ msg: `📦 Processing source`, source });
 
     // Get statistics before indexing
     const statsBefore = await getVectorStats(recordStore, source);
-    logger.info(`\n📊 Current Statistics:`);
-    logger.info(`   Total Records: ${statsBefore.totalRecords}`);
-    logger.info(`   Already Indexed: ${statsBefore.indexed}`);
-    logger.info(`   Unindexed: ${statsBefore.unindexed}`);
+    logger.info({
+      msg: `📊 Current Statistics`,
+      totalRecords: statsBefore.totalRecords,
+      indexed: statsBefore.indexed,
+      unindexed: statsBefore.unindexed,
+    });
 
     if (statsBefore.unindexed === 0 && !options.force) {
-      logger.info(`\n✅ All records already indexed for ${source}`);
+      logger.info({ msg: `✅ All records already indexed`, source });
       continue;
     }
-
-    // Find unindexed or all records based on force flag
-    logger.info(`\n🔍 Finding records to index...`);
 
     const allRecords = await recordStore.findBySourceAndType(source, "", {
       includeDeleted: false,
@@ -117,15 +109,16 @@ async function indexVectorRecords() {
       : allRecords.filter((record) => !record.lastEmbedDate);
 
     if (candidateRecords.length === 0) {
-      logger.info(`\n✅ No records to index for ${source}`);
+      logger.info({ msg: `✅ No records to index`, source });
       continue;
     }
 
     // Apply limit
     const recordsToIndex = candidateRecords.slice(0, options.limit);
 
-    logger.info(`\n📝 Found ${candidateRecords.length} candidate records`);
-    logger.info(`🔄 Processing ${recordsToIndex.length} records (limited)...`);
+    logger.info({
+      msg: `🔄 Processing ${recordsToIndex.length} records (limited)...`,
+    });
 
     const stats = {
       processed: 0,
@@ -137,11 +130,11 @@ async function indexVectorRecords() {
     // Process in batches
     for (let i = 0; i < recordsToIndex.length; i += options.batchSize!) {
       const batch = recordsToIndex.slice(i, i + options.batchSize!);
-      logger.info(
-        `\n   Batch ${Math.floor(i / options.batchSize!) + 1}/${Math.ceil(
+      logger.debug({
+        msg: `Batch ${Math.floor(i / options.batchSize!) + 1}/${Math.ceil(
           recordsToIndex.length / options.batchSize!
-        )}`
-      );
+        )}`,
+      });
 
       for (const record of batch) {
         try {
@@ -168,23 +161,25 @@ async function indexVectorRecords() {
         }
       }
 
-      logger.info(
-        `   Progress: ${stats.processed}/${recordsToIndex.length} processed, ${stats.chunks} chunks created`
-      );
+      logger.debug({
+        msg: `Progress: ${stats.processed}/${recordsToIndex.length} processed, ${stats.chunks} chunks created`,
+      });
     }
-
-    logger.info(`\n✅ Vector Indexing Complete for ${source}`);
-    logger.info(`   Processed: ${stats.processed}`);
-    logger.info(`   Total Chunks: ${stats.chunks}`);
-    logger.info(`   Skipped (no content): ${stats.skipped}`);
-    logger.info(`   Errors: ${stats.errors}`);
 
     // Get statistics after indexing
     const statsAfter = await getVectorStats(recordStore, source);
-    logger.info(`\n📊 Final Statistics:`);
-    logger.info(`   Total Records: ${statsAfter.totalRecords}`);
-    logger.info(`   Indexed: ${statsAfter.indexed}`);
-    logger.info(`   Remaining Unindexed: ${statsAfter.unindexed}`);
+
+    logger.info({
+      msg: `✅ Vector Indexing Complete`,
+      source,
+      processed: stats.processed,
+      totalChunks: stats.chunks,
+      skipped: stats.skipped,
+      errors: stats.errors,
+      totalRecordsAfterIndexing: statsAfter.totalRecords,
+      indexed: statsAfter.indexed,
+      unindexed: statsAfter.unindexed,
+    });
   }
 
   logger.info(`\n✨ Vector indexing script completed`);

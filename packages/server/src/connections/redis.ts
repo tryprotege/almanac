@@ -32,11 +32,10 @@ export const connectRedis = async (): Promise<RedisConnection> => {
       client.on("error", (err) => reject(err));
     });
 
-    logger.info("Redis connected successfully");
-
+    logger.info({ msg: "Redis connected successfully" });
     const close = async (): Promise<void> => {
       await client.quit();
-      logger.info("Redis disconnected");
+      logger.info({ msg: "Redis disconnected" });
     };
 
     return {

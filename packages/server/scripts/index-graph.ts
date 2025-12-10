@@ -76,16 +76,14 @@ function parseArgs(): ScriptOptions {
 async function indexGraphRecords() {
   const options = parseArgs();
 
-  logger.info("🚀 Graph Indexing Script");
-  logger.info("========================");
-  logger.info(`Source: ${options.source || "all"}`);
-  logger.info(`Limit: ${options.limit} records`);
-  logger.info(`Batch Size: ${options.batchSize}`);
-  logger.info(`Force Re-index: ${options.force ? "Yes" : "No"}`);
-  logger.info(
-    `Include Relationships: ${options.includeRelationships ? "Yes" : "No"}`
-  );
-  logger.info("");
+  logger.info({
+    msg: "🚀 Graph Indexing Script",
+    source: options.source ?? "all",
+    limit: options.limit,
+    batchSize: options.batchSize,
+    forceReIndex: options.force,
+    includeRelationships: options.includeRelationships,
+  });
 
   const { memgraph, qdrant } = await initializeServices();
   const validConfigs = await loadProxyConfig();
@@ -99,8 +97,7 @@ async function indexGraphRecords() {
       continue;
     }
 
-    logger.info(`\n📦 Processing source: ${config.name}`);
-    logger.info("─".repeat(50));
+    logger.info({ msg: `📦 Processing source: ${config.name}` });
 
     const recordStore = new RecordStore();
     const graphStore = new GraphStore(memgraph);
@@ -119,7 +116,7 @@ async function indexGraphRecords() {
 
     // 1. Cleanup deleted records first (if requested)
     if (options.cleanup) {
-      logger.info(`\n🧹 Cleaning up deleted records...`);
+      logger.info({ msg: `🧹 Cleaning up deleted records...` });
       const cleanupStats = await cleanupDeletedRecords(
         config.name as SourceType,
         recordStore,
@@ -128,16 +125,16 @@ async function indexGraphRecords() {
         { cleanupEmbeddings: options.embeddings }
       );
 
-      logger.info(`   ✅ Cleaned up ${cleanupStats.nodes} nodes`);
+      logger.info({ msg: `✅ Cleaned up ${cleanupStats.nodes} nodes` });
       if (cleanupStats.entityEmbeddings !== undefined) {
-        logger.info(
-          `   ✅ Cleaned up ${cleanupStats.entityEmbeddings} entity embeddings`
-        );
+        logger.info({
+          msg: `✅ Cleaned up ${cleanupStats.entityEmbeddings} entity embeddings`,
+        });
       }
       if (cleanupStats.relationshipEmbeddings !== undefined) {
-        logger.info(
-          `   ✅ Cleaned up ${cleanupStats.relationshipEmbeddings} relationship embeddings`
-        );
+        logger.info({
+          msg: `✅ Cleaned up ${cleanupStats.relationshipEmbeddings} relationship embeddings`,
+        });
       }
     }
 
@@ -164,28 +161,24 @@ async function indexGraphRecords() {
         record.updatedAt <= record.lastGraphIndexDate
     );
 
-    logger.info(`\n📊 Statistics for ${config.name}:`);
-    logger.info(`   ${config.name} Records: ${allRecords.length}`);
-    logger.info(`   Already Indexed: ${alreadyIndexed.length}`);
-    logger.info(`   Needs Indexing: ${needsIndexing.length}`);
-    logger.info(
-      `     - Never indexed: ${
-        allRecords.filter((r) => !r.lastGraphIndexDate).length
-      }`
-    );
-    logger.info(
-      `     - Updated since last index: ${
-        allRecords.filter(
-          (r) =>
-            r.lastGraphIndexDate &&
-            r.updatedAt &&
-            r.updatedAt > r.lastGraphIndexDate
-        ).length
-      }`
-    );
+    logger.info({
+      msg: `📊 Current Statistics`,
+      totalRecords: allRecords.length,
+      alreadyIndexed: alreadyIndexed.length,
+      needsIndexing: needsIndexing.length,
+      neverIndexed: allRecords.filter((r) => !r.lastGraphIndexDate).length,
+      updatedSinceLastIndex: allRecords.filter(
+        (r) =>
+          r.lastGraphIndexDate &&
+          r.updatedAt &&
+          r.updatedAt > r.lastGraphIndexDate
+      ).length,
+    });
 
     if (needsIndexing.length === 0 && !options.force) {
-      logger.info(`\n✅ All records already indexed for ${config.name}`);
+      logger.info({
+        msg: `✅ All records already indexed for ${config.name}`,
+      });
       continue;
     }
 
@@ -205,11 +198,13 @@ async function indexGraphRecords() {
       }
     );
 
-    logger.info(`\n✅ Indexing Complete for ${config.name}`);
-    logger.info(`   Nodes Created: ${result.nodes}`);
-    logger.info(`   Relationships Created: ${result.relationships}`);
-    logger.info(`   Errors: ${result.errors}`);
-    logger.info(`   Skipped (toxic): ${result.skippedToxic}`);
+    logger.info({
+      msg: `✅ Indexing Complete for ${config.name}`,
+      nodesCreated: result.nodes,
+      relationshipsCreated: result.relationships,
+      errors: result.errors,
+      skippedToxic: result.skippedToxic,
+    });
 
     // Get statistics after indexing
     const allRecordsAfter = await recordStore.findBySourceAndType(
@@ -222,20 +217,18 @@ async function indexGraphRecords() {
       (record) => !record.lastGraphIndexDate
     );
 
-    logger.info(`\n📊 Final Statistics for ${config.name}:`);
-    logger.info(`   Total ${config.name} Records: ${allRecordsAfter.length}`);
-    logger.info(
-      `   Indexed: ${allRecordsAfter.length - unindexedRecordsAfter.length}`
-    );
-    logger.info(`   Remaining Unindexed: ${unindexedRecordsAfter.length}`);
+    logger.info({
+      msg: `📊 Final Statistics`,
+      configName: config.name,
+      records: allRecords.length,
+      indexed: allRecordsAfter.length - unindexedRecordsAfter.length,
+      unIndexed: unindexedRecordsAfter.length,
+    });
 
     // 2. Create embeddings (if requested)
-    logger.info(`\n🔍 Embedding check:`);
-    logger.info(`   Embeddings enabled: ${options.embeddings}`);
-    logger.info(`   VectorStore available: ${!!vectorStore}`);
 
     if (options.embeddings && vectorStore) {
-      logger.info(`\n🔮 Creating embeddings...`);
+      logger.debug({ msg: `🔮 Creating embeddings...` });
 
       const deps = { vectorStore, recordStore, graphStore };
 
@@ -248,16 +241,17 @@ async function indexGraphRecords() {
         deps
       );
 
-      logger.info(
-        `   ✅ Entity embeddings: ${entityStats.indexed} indexed, ${entityStats.skipped} skipped`
-      );
-      logger.info(
-        `   ✅ Relationship embeddings: ${relStats.indexed} indexed, ${relStats.skipped} skipped`
-      );
+      logger.info({
+        msg: `Embedding created`,
+        entityEmbeddingIndexed: entityStats.indexed,
+        entitySkipped: entityStats.skipped,
+        relationshipIndexed: relStats.indexed,
+        relationshipSkipped: relStats.skipped,
+      });
     }
   }
 
-  logger.info(`\n✨ Graph indexing script completed`);
+  logger.info({ msg: `✨ Graph indexing script completed` });
 }
 
 const run = async () => {

@@ -24,11 +24,10 @@ export const connectMongoose = async (): Promise<MongooseConnection> => {
       dbName: env.MONGO_DB_NAME,
     });
 
-    logger.info("Mongoose connected successfully");
-
+    logger.info({ msg: "Mongoose connected successfully" });
     const close = async (): Promise<void> => {
       await mongoose.connection.close();
-      logger.info("Mongoose disconnected");
+      logger.info({ msg: "Mongoose disconnected" });
     };
 
     return {

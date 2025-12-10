@@ -8,57 +8,79 @@ import {
 } from "./types.js";
 import logger from "../../../utils/logger.js";
 import { env } from "../../../env.js";
+import pThrottle from "p-throttle";
 
 /**
  * Notion MCP Client wrapper for data extraction
  */
 export class NotionMCPClient {
   private serverName = "notion";
-  private rateLimitDelay = 350; // 350ms = ~3 requests per second
+  private throttledCallTool: <T>(
+    toolName: string,
+    args: Record<string, any>
+  ) => Promise<T>;
 
-  constructor() {}
+  constructor() {
+    // Create throttled version of callTool: 3 requests per second
+    const throttle = pThrottle({
+      limit: 3,
+      interval: 1000, // 1 second in milliseconds
+    });
 
-  /**
-   * Sleep utility for rate limiting
-   */
-  private async sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    this.throttledCallTool = throttle(this.callToolInternal.bind(this));
   }
 
   /**
-   * Call MCP tool with rate limiting and parse response
+   * Internal method to call MCP tool and parse response
+   * This is wrapped by throttledCallTool to enforce rate limiting
+   */
+  private async callToolInternal<T>(
+    toolName: string,
+    args: Record<string, any>
+  ): Promise<T> {
+    try {
+      const response = await mcpClientManager.callTool(
+        this.serverName,
+        toolName,
+        args
+      );
+
+      // MCP response format: { content: [{ type: 'text', text: '...' }] }
+      if (response && response.content && Array.isArray(response.content)) {
+        const textContent = response.content.find(
+          (c: any) => c.type === "text"
+        );
+        if (textContent && textContent.text) {
+          try {
+            return JSON.parse(textContent.text) as T;
+          } catch (err) {
+            logger.error({ err, toolName }, "Failed to parse MCP response");
+            throw new Error(
+              `Invalid JSON in MCP response: ${textContent.text.substring(
+                0,
+                100
+              )}...`
+            );
+          }
+        }
+      }
+
+      // Fallback: return response as-is if it doesn't match expected format
+      return response as T;
+    } catch (e) {
+      logger.error({ err: e, toolName, args }, "Failed to call MCP tool");
+      throw e;
+    }
+  }
+
+  /**
+   * Call MCP tool with rate limiting (3 requests per second) and parse response
    */
   private async callTool<T>(
     toolName: string,
     args: Record<string, any>
   ): Promise<T> {
-    await this.sleep(this.rateLimitDelay);
-    const response = await mcpClientManager.callTool(
-      this.serverName,
-      toolName,
-      args
-    );
-
-    // MCP response format: { content: [{ type: 'text', text: '...' }] }
-    if (response && response.content && Array.isArray(response.content)) {
-      const textContent = response.content.find((c: any) => c.type === "text");
-      if (textContent && textContent.text) {
-        try {
-          return JSON.parse(textContent.text) as T;
-        } catch (err) {
-          logger.error({ err, toolName }, "Failed to parse MCP response");
-          throw new Error(
-            `Invalid JSON in MCP response: ${textContent.text.substring(
-              0,
-              100
-            )}...`
-          );
-        }
-      }
-    }
-
-    // Fallback: return response as-is if it doesn't match expected format
-    return response as T;
+    return this.throttledCallTool<T>(toolName, args);
   }
 
   /**
@@ -285,12 +307,5 @@ export class NotionMCPClient {
       },
       (response) => response.results
     );
-  }
-
-  /**
-   * Set custom rate limit delay
-   */
-  setRateLimitDelay(delayMs: number): void {
-    this.rateLimitDelay = delayMs;
   }
 }

@@ -438,7 +438,7 @@ export class VectorStore {
 
     for (const entity of allEntities) {
       const payload = entity.payload as EntityVectorPayload;
-      if (!validIdSet.has(payload.mongoId)) {
+      if (!validIdSet.has(payload.mongoId as string)) {
         orphanedEntityIds.push(entity.id);
       }
     }

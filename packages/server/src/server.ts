@@ -397,9 +397,15 @@ const runServer = async () => {
   });
 
   app.listen(PORT, HOST, () => {
-    logger.info(`🚀 eBee MCP server running on http://${HOST}:${PORT}`);
-    logger.info(`📡 MCP endpoint: http://${HOST}:${PORT}/mcp`);
-    logger.info(`💚 Health check: http://${HOST}:${PORT}/health`);
+    logger.info({
+      msg: "🚀 eBee MCP server running",
+      host: HOST,
+      port: PORT,
+      endpoints: {
+        mcp: `http://${HOST}:${PORT}/mcp`,
+        health: `http://${HOST}:${PORT}/health`,
+      },
+    });
   });
 };
 

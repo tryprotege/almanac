@@ -39,10 +39,11 @@ export async function insertAllRecordsToVectorDB(
     skipped: 0,
   };
 
-  logger.info(`🔄 Starting vector indexing for source: ${source}`);
-  logger.info(
-    `   Concurrency: ${env.VECTOR_INDEXING_CONCURRENCY} parallel records`
-  );
+  logger.info({
+    msg: "🔄 Starting vector indexing",
+    source,
+    concurrency: env.VECTOR_INDEXING_CONCURRENCY,
+  });
 
   let skip = 0;
   let hasMore = true;
@@ -105,11 +106,16 @@ export async function insertAllRecordsToVectorDB(
     logger.info(progress);
   }
 
-  logger.info(`\n✅ Vector indexing complete for ${source}`);
-  logger.info(`   Processed: ${stats.processed} records`);
-  logger.info(`   Chunks: ${stats.chunks} vectors`);
-  logger.info(`   Errors: ${stats.errors}`);
-  logger.info(`   Skipped: ${stats.skipped}`);
+  logger.info({
+    msg: "✅ Vector indexing complete",
+    source,
+    stats: {
+      processed: stats.processed,
+      chunks: stats.chunks,
+      errors: stats.errors,
+      skipped: stats.skipped,
+    },
+  });
 
   return stats;
 }

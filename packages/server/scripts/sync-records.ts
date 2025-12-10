@@ -39,9 +39,10 @@ function parseArgs(): ScriptOptions {
 const run = async () => {
   const options = parseArgs();
 
-  logger.info("🔄 Starting record sync (MongoDB only)");
-  logger.info("=======================================");
-  logger.info(`Source: ${options.source || "all"}\n`);
+  logger.info({
+    msg: "🔄 Starting record sync (MongoDB only)",
+    source: options.source,
+  });
 
   // init db connections and mcp server
   await initializeServices();
@@ -76,15 +77,14 @@ const run = async () => {
     }
   });
 
-  logger.info(
-    `\n📊 Sync Summary: ${successCount}/${filteredConfigs.length} source(s) synced successfully`
-  );
+  logger.info({
+    msg: `\n📊 Sync Summary: ${successCount}/${filteredConfigs.length} source(s) synced successfully`,
+  });
 
   if (failureCount > 0) {
     logger.warn(`⚠️  ${failureCount} source(s) failed to sync`);
   }
 
-  logger.info("\n✨ Record sync completed");
   logger.info("\nNext steps:");
   logger.info("  - Run 'pnpm tsx scripts/index-graph.ts' to index to graph DB");
   logger.info(

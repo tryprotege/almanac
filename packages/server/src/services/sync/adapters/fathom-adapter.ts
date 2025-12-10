@@ -329,7 +329,6 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
               targetId: this.generateRecordId("user", invitee.email),
               type: "HAS_PARTICIPANT",
               confidence: 1.0,
-              extractedBy: "explicit",
             });
           }
         });
@@ -342,7 +341,6 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
           targetId: this.generateRecordId("user", meeting.recorded_by.email),
           type: "RECORDED_BY",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       }
     }
@@ -360,7 +358,6 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
         ),
         type: "TRANSCRIPT_OF",
         confidence: 1.0,
-        extractedBy: "explicit",
       });
 
       // Extract speaker relationships from transcript
@@ -383,7 +380,6 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
             targetId: this.generateRecordId("user", speakerId),
             type: "HAS_SPEAKER",
             confidence: hasMatchedEmail ? 1.0 : 0.8,
-            extractedBy: "explicit",
           });
         });
       }
@@ -400,7 +396,6 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
         ),
         type: "SUMMARY_OF",
         confidence: 1.0,
-        extractedBy: "explicit",
       });
     }
 
@@ -412,7 +407,6 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
         targetId: this.generateRecordId("meeting", note.meeting_id),
         type: "NOTE_IN_MEETING",
         confidence: 1.0,
-        extractedBy: "explicit",
       });
 
       relationships.push({
@@ -420,7 +414,6 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
         targetId: this.generateRecordId("user", note.created_by),
         type: "CREATED_BY",
         confidence: 1.0,
-        extractedBy: "explicit",
       });
     }
 
@@ -434,7 +427,6 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
           targetId: this.generateRecordId("user", actionItem.assignee.email),
           type: "ASSIGNED_TO",
           confidence: 1.0,
-          extractedBy: "explicit",
         });
       }
     }
@@ -447,7 +439,6 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
         targetId: this.generateRecordId("meeting", highlight.meeting_id),
         type: "HIGHLIGHT_IN_MEETING",
         confidence: 1.0,
-        extractedBy: "explicit",
       });
 
       relationships.push({
@@ -455,7 +446,6 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
         targetId: this.generateRecordId("user", highlight.created_by),
         type: "CREATED_BY",
         confidence: 1.0,
-        extractedBy: "explicit",
       });
     }
 

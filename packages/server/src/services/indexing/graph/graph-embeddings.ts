@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { embed } from "../../../utils/embedding.js";
 import { VectorStore } from "../../../stores/vector.store.js";
 import { RecordStore } from "../../../stores/record.store.js";
@@ -7,23 +8,24 @@ import {
   EntityVectorPayload,
   RelationshipVectorPayload,
 } from "../../../types/index.js";
-import { Record } from "../../../models/record.model.js";
+import { GraphEmbeddingMetadata } from "../../../models/graph-embedding-metadata.model.js";
 import { computeChecksum } from "../../../utils/checksum.js";
+import {
+  getEntityEmbeddingText,
+  getRelationshipEmbeddingText,
+  shouldReembedEntity,
+  shouldReembedRelationship,
+} from "./entity-conflict-resolution.js";
+import { env } from "../../../env.js";
+import logger from "../../../utils/logger.js";
 
 // ============================================
-// Entity Embedding Functions
+// Entity Embedding Functions (Global)
 // ============================================
 
 /**
- * Create semantic text representation of an entity for embedding
- */
-function createEntityText(record: Record): string {
-  const description = record.content.substring(0, 300);
-  return `${record.title}\n${record.recordType}\n${description}`;
-}
-
-/**
- * Index all entity embeddings for a source (with batching)
+ * Index all entity embeddings for a source
+ * Uses GraphEmbeddingMetadata for efficient tracking at global entity level
  */
 export async function indexEntityEmbeddings(
   source: SourceType,
@@ -34,164 +36,163 @@ export async function indexEntityEmbeddings(
   }
 ): Promise<{ indexed: number; errors: number; skipped: number }> {
   const stats = { indexed: 0, errors: 0, skipped: 0 };
-  const BATCH_SIZE = 500; // Process 500 entities at a time
+  const BATCH_SIZE = 500;
 
-  console.log(`🔮 Indexing entity embeddings for source: ${source}`);
+  logger.info(`🔮 Indexing entity embeddings for source: ${source}`);
 
-  // Fetch all records for source
-  const records = await deps.recordStore.findBySourceAndType(source, "", {
-    includeDeleted: false,
+  // Query MongoDB directly for entities that need embedding (MUCH faster than Memgraph!)
+  const entityMetadata = await GraphEmbeddingMetadata.find({
+    itemType: "entity",
+    source: source,
   });
 
-  if (records.length === 0) {
-    console.log(`⚠️  No records found for ${source}`);
+  if (entityMetadata.length === 0) {
+    logger.info(`⚠️  No entity metadata found for ${source}`);
     return stats;
   }
 
-  console.log(`   Found ${records.length} entities to process`);
+  logger.info(`   Found ${entityMetadata.length} entities in MongoDB metadata`);
 
-  // Fetch existing embeddings to check checksums
-  const existingEmbeddings = new Map<string, string>();
-  try {
-    const existing = await deps.vectorStore.search([0, 0, 0], {
-      limit: records.length,
-      filter: {
-        must: [
-          { key: "type", match: { value: "entity" } },
-          { key: "source", match: { value: source } },
-        ],
-      },
-    });
-    existing.forEach((e) => {
-      if (e.payload.checksum) {
-        existingEmbeddings.set(
-          e.payload.mongoId as string,
-          e.payload.checksum as string
-        );
-      }
-    });
-  } catch (err) {
-    console.log(`   No existing embeddings found, creating all`);
-  }
+  // Convert metadata to the format we need
+  const globalEntities = entityMetadata.map((meta) => ({
+    entityId: meta.entityId!,
+    type: meta.entityType!,
+    documentIds: meta.sourceDocumentIds,
+  }));
 
-  // Batch fetch node degrees
-  const nodeIds = records.map((r) => r._id);
-  const degreeCounts = await deps.graphStore.getNodeRelationshipCounts(nodeIds);
+  logger.info(`   Found ${globalEntities.length} global entities to process`);
 
-  // Filter records that need embedding (checksum changed)
-  const recordsToEmbed = records.filter((record) => {
-    const existing = existingEmbeddings.get(record._id);
-    const needsUpdate = !existing || existing !== record.checksum;
-    if (!needsUpdate) {
+  // Filter entities that need embedding
+  const entitiesToEmbed: typeof globalEntities = [];
+
+  for (const entity of globalEntities) {
+    const entityText = await getEntityEmbeddingText(
+      entity.entityId,
+      entity.type,
+      deps.recordStore
+    );
+    const contentChecksum = computeChecksum(entityText);
+
+    const needsEmbedding = await shouldReembedEntity(
+      entity.entityId,
+      contentChecksum,
+      entity.documentIds[0]
+    );
+
+    if (needsEmbedding) {
+      entitiesToEmbed.push(entity);
+    } else {
       stats.skipped++;
     }
-    return needsUpdate;
-  });
+  }
 
-  if (recordsToEmbed.length === 0) {
-    console.log(`✅ All ${stats.skipped} entity embeddings are up to date`);
+  if (entitiesToEmbed.length === 0) {
+    logger.info(`✅ All ${stats.skipped} entity embeddings are up to date`);
     return stats;
   }
 
-  console.log(
-    `   Embedding ${recordsToEmbed.length} entities (${stats.skipped} skipped)`
+  logger.info(
+    `   Embedding ${entitiesToEmbed.length} entities (${stats.skipped} skipped)`
   );
 
-  // Process in batches
-  for (let i = 0; i < recordsToEmbed.length; i += BATCH_SIZE) {
-    const batch = recordsToEmbed.slice(i, i + BATCH_SIZE);
-    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-    const totalBatches = Math.ceil(recordsToEmbed.length / BATCH_SIZE);
+  // Get node degrees for all entities
+  const nodeIds = entitiesToEmbed.map((e) => e.entityId);
+  const degreeCounts = await deps.graphStore.getNodeRelationshipCounts(nodeIds);
 
-    console.log(
+  // Process in batches
+  for (let i = 0; i < entitiesToEmbed.length; i += BATCH_SIZE) {
+    const batch = entitiesToEmbed.slice(i, i + BATCH_SIZE);
+    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(entitiesToEmbed.length / BATCH_SIZE);
+
+    logger.info(
       `   Batch ${batchNum}/${totalBatches}: Processing ${batch.length} entities...`
     );
 
     try {
-      // Create entity text for embedding
-      const entityTexts = batch.map((record) => createEntityText(record));
+      // Create entity texts for embedding
+      const entityTexts = await Promise.all(
+        batch.map((entity) =>
+          getEntityEmbeddingText(entity.entityId, entity.type, deps.recordStore)
+        )
+      );
 
       // Generate embeddings
       const embeddings = await embed(entityTexts);
 
-      // Create vector points
-      const points = batch.map((record, index) => ({
-        id: `entity_${record._id}`,
-        vector: embeddings[index],
-        payload: {
-          type: "entity" as const,
-          mongoId: record._id,
-          recordType: record.recordType,
-          source: record.source,
-          degree: degreeCounts.get(record._id) || 0,
-          checksum: record.checksum,
-        } as EntityVectorPayload,
-      }));
+      // Get or create qdrantIds for each entity
+      const metadataRecords = await Promise.all(
+        batch.map((entity) => GraphEmbeddingMetadata.findById(entity.entityId))
+      );
+
+      // Create vector points with UUIDs
+      const points = batch.map((entity, index) => {
+        const existingQdrantId = metadataRecords[index]?.qdrantId;
+        const qdrantId = existingQdrantId || randomUUID();
+
+        return {
+          id: qdrantId,
+          vector: embeddings[index],
+          payload: {
+            type: "entity" as const,
+            entityId: entity.entityId,
+            entityType: entity.type,
+            source: source,
+            degree: degreeCounts.get(entity.entityId) || 0,
+            checksum: computeChecksum(entityTexts[index]),
+          } as EntityVectorPayload,
+        };
+      });
 
       // Upsert to Qdrant
       await deps.vectorStore.upsertPoints(points);
       stats.indexed += points.length;
 
-      // Update record metadata with embedding timestamp and model version
-      for (const record of batch) {
-        await deps.recordStore.upsert({
-          _id: record._id,
-          lastEmbeddedAt: new Date(),
-          embeddingModelVersion: process.env.LLM_EMBEDDING_MODEL || "unknown",
-        });
+      // Update or create GraphEmbeddingMetadata
+      for (let j = 0; j < batch.length; j++) {
+        const entity = batch[j];
+        const embeddedChecksum = computeChecksum(entityTexts[j]);
+        const qdrantId = points[j].id;
+
+        await GraphEmbeddingMetadata.findOneAndUpdate(
+          { _id: entity.entityId },
+          {
+            $set: {
+              itemType: "entity",
+              entityId: entity.entityId,
+              entityType: entity.type,
+              qdrantId: qdrantId,
+              embeddedChecksum: embeddedChecksum,
+              embeddedAt: new Date(),
+              embeddingModelVersion: env.LLM_EMBEDDING_MODEL,
+              lastUpdatedBy: entity.documentIds[entity.documentIds.length - 1],
+            },
+            $addToSet: {
+              sourceDocumentIds: { $each: entity.documentIds },
+            },
+          },
+          { upsert: true }
+        );
       }
     } catch (err) {
-      console.error(`   Error in batch ${batchNum}:`, err);
+      logger.error({ err, batchNum }, `Error in batch ${batchNum}`);
       stats.errors += batch.length;
     }
   }
 
-  console.log(
+  logger.info(
     `✅ Indexed ${stats.indexed} entity embeddings (${stats.skipped} skipped, ${stats.errors} errors)`
   );
   return stats;
 }
 
 // ============================================
-// Relationship Embedding Functions
+// Relationship Embedding Functions (Global)
 // ============================================
 
 /**
- * Create semantic text representation of a relationship for embedding
- */
-function createRelationshipText(
-  rel: { sourceId: string; targetId: string; type: string; confidence: number },
-  recordMap: Map<string, Record>
-): string {
-  const source = recordMap.get(rel.sourceId);
-  const target = recordMap.get(rel.targetId);
-
-  // Format: "SourceName\tTargetName\nRelationType\nConfidence: X.X"
-  return `${source?.title || "Unknown"}\t${target?.title || "Unknown"}\n${
-    rel.type
-  }\nConfidence: ${rel.confidence.toFixed(2)}`;
-}
-
-/**
- * Compute checksum for a relationship
- * Based on: sourceId, targetId, type, confidence
- */
-function computeRelationshipChecksum(rel: {
-  sourceId: string;
-  targetId: string;
-  type: string;
-  confidence: number;
-}): string {
-  return computeChecksum({
-    sourceId: rel.sourceId,
-    targetId: rel.targetId,
-    type: rel.type,
-    confidence: rel.confidence,
-  });
-}
-
-/**
- * Index all relationship embeddings for a source (with batching and checksum validation)
+ * Index all relationship embeddings for a source
+ * Uses GraphEmbeddingMetadata for efficient tracking at global relationship level
  */
 export async function indexRelationshipEmbeddings(
   source: SourceType,
@@ -202,83 +203,62 @@ export async function indexRelationshipEmbeddings(
   }
 ): Promise<{ indexed: number; errors: number; skipped: number }> {
   const stats = { indexed: 0, errors: 0, skipped: 0 };
-  const BATCH_SIZE = 500; // Process 500 relationships at a time
+  const BATCH_SIZE = 500;
 
-  console.log(`🔮 Indexing relationship embeddings for source: ${source}`);
+  logger.info(`🔮 Indexing relationship embeddings for source: ${source}`);
 
-  // Get all relationships from graph
-  const relationships = await deps.graphStore.getAllRelationships({ source });
+  // Query MongoDB directly for relationships that need embedding (MUCH faster than Memgraph!)
+  const relMetadata = await GraphEmbeddingMetadata.find({
+    itemType: "relationship",
+    source: source,
+  });
 
-  if (relationships.length === 0) {
-    console.log(`⚠️  No relationships found for ${source}`);
+  if (relMetadata.length === 0) {
+    logger.info(`⚠️  No relationship metadata found for ${source}`);
     return stats;
   }
 
-  console.log(`   Found ${relationships.length} relationships to process`);
+  logger.info(
+    `   Found ${relMetadata.length} relationships in MongoDB metadata`
+  );
 
-  // Compute checksums for all relationships
-  const relChecksums = new Map<string, string>();
-  relationships.forEach((rel) => {
-    const id = `rel_${rel.sourceId}_${rel.type}_${rel.targetId}`;
-    relChecksums.set(id, computeRelationshipChecksum(rel));
-  });
+  // Convert metadata to the format we need
+  const relationships = relMetadata.map((meta) => ({
+    sourceId: meta.sourceId!,
+    targetId: meta.targetId!,
+    type: meta.relType!,
+    confidence: 1.0, // Default confidence
+  }));
 
-  // Fetch existing embeddings to check checksums
-  const existingEmbeddings = new Map<string, string>();
-  try {
-    const existing = await deps.vectorStore.search([0, 0, 0], {
-      limit: relationships.length,
-      filter: {
-        must: [
-          { key: "type", match: { value: "relationship" } },
-          {
-            key: "sourceId",
-            match: { any: relationships.map((r) => r.sourceId) },
-          },
-        ],
-      },
-    });
-    existing.forEach((e) => {
-      if (e.payload.checksum) {
-        existingEmbeddings.set(e.id, e.payload.checksum as string);
-      }
-    });
-  } catch (err) {
-    console.log(`   No existing relationship embeddings found, creating all`);
-  }
+  logger.info(`   Found ${relationships.length} relationships to process`);
 
-  // Filter relationships that need embedding (checksum changed)
-  const relsToEmbed = relationships.filter((rel) => {
-    const id = `rel_${rel.sourceId}_${rel.type}_${rel.targetId}`;
-    const newChecksum = relChecksums.get(id);
-    const existing = existingEmbeddings.get(id);
-    const needsUpdate = !existing || existing !== newChecksum;
-    if (!needsUpdate) {
+  // Filter relationships that need embedding
+  const relsToEmbed: typeof relationships = [];
+
+  for (const rel of relationships) {
+    const relId = `rel_${rel.sourceId}_${rel.type}_${rel.targetId}`;
+    const relText = await getRelationshipEmbeddingText(rel, deps.recordStore);
+    const checksum = computeChecksum(relText);
+
+    const needsEmbedding = await shouldReembedRelationship(relId, checksum);
+
+    if (needsEmbedding) {
+      relsToEmbed.push(rel);
+    } else {
       stats.skipped++;
     }
-    return needsUpdate;
-  });
+  }
 
   if (relsToEmbed.length === 0) {
-    console.log(
+    logger.info(
       `✅ All ${stats.skipped} relationship embeddings are up to date`
     );
     return stats;
   }
 
-  console.log(
+  logger.info(
     `   Embedding ${relsToEmbed.length} relationships (${stats.skipped} skipped)`
   );
-
-  // Fetch entity details for source/target
-  const entityIds = new Set<string>();
-  relsToEmbed.forEach((rel) => {
-    entityIds.add(rel.sourceId);
-    entityIds.add(rel.targetId);
-  });
-
-  const records = await deps.recordStore.findByIds(Array.from(entityIds));
-  const recordMap = new Map(records.map((r) => [r._id, r]));
 
   // Process in batches
   for (let i = 0; i < relsToEmbed.length; i += BATCH_SIZE) {
@@ -286,24 +266,34 @@ export async function indexRelationshipEmbeddings(
     const batchNum = Math.floor(i / BATCH_SIZE) + 1;
     const totalBatches = Math.ceil(relsToEmbed.length / BATCH_SIZE);
 
-    console.log(
+    logger.info(
       `   Batch ${batchNum}/${totalBatches}: Processing ${batch.length} relationships...`
     );
 
     try {
-      // Create relationship text for embedding
-      const relTexts = batch.map((rel) =>
-        createRelationshipText(rel, recordMap)
+      // Create relationship texts for embedding
+      const relTexts = await Promise.all(
+        batch.map((rel) => getRelationshipEmbeddingText(rel, deps.recordStore))
       );
 
       // Generate embeddings
       const embeddings = await embed(relTexts);
 
-      // Create vector points
+      // Get or create qdrantIds for each relationship
+      const relIds = batch.map(
+        (rel) => `rel_${rel.sourceId}_${rel.type}_${rel.targetId}`
+      );
+      const metadataRecords = await Promise.all(
+        relIds.map((relId) => GraphEmbeddingMetadata.findById(relId))
+      );
+
+      // Create vector points with UUIDs
       const points = batch.map((rel, index) => {
-        const id = `rel_${rel.sourceId}_${rel.type}_${rel.targetId}`;
+        const existingQdrantId = metadataRecords[index]?.qdrantId;
+        const qdrantId = existingQdrantId || randomUUID();
+
         return {
-          id,
+          id: qdrantId,
           vector: embeddings[index],
           payload: {
             type: "relationship" as const,
@@ -311,10 +301,7 @@ export async function indexRelationshipEmbeddings(
             targetId: rel.targetId,
             relType: rel.type,
             confidence: rel.confidence,
-            extractedBy: rel.extractedBy,
-            sourceType: recordMap.get(rel.sourceId)?.recordType || "unknown",
-            targetType: recordMap.get(rel.targetId)?.recordType || "unknown",
-            checksum: relChecksums.get(id),
+            checksum: computeChecksum(relTexts[index]),
           } as RelationshipVectorPayload,
         };
       });
@@ -322,13 +309,39 @@ export async function indexRelationshipEmbeddings(
       // Upsert to Qdrant
       await deps.vectorStore.upsertPoints(points);
       stats.indexed += points.length;
+
+      // Update or create GraphEmbeddingMetadata
+      for (let j = 0; j < batch.length; j++) {
+        const rel = batch[j];
+        const relId = `rel_${rel.sourceId}_${rel.type}_${rel.targetId}`;
+        const embeddedChecksum = computeChecksum(relTexts[j]);
+        const qdrantId = points[j].id;
+
+        await GraphEmbeddingMetadata.findOneAndUpdate(
+          { _id: relId },
+          {
+            $set: {
+              itemType: "relationship",
+              sourceId: rel.sourceId,
+              targetId: rel.targetId,
+              relType: rel.type,
+              qdrantId: qdrantId,
+              embeddedChecksum: embeddedChecksum,
+              embeddedAt: new Date(),
+              embeddingModelVersion: env.LLM_EMBEDDING_MODEL,
+              lastUpdatedBy: source,
+            },
+          },
+          { upsert: true }
+        );
+      }
     } catch (err) {
-      console.error(`   Error in batch ${batchNum}:`, err);
+      logger.error({ err, batchNum }, `Error in batch ${batchNum}`);
       stats.errors += batch.length;
     }
   }
 
-  console.log(
+  logger.info(
     `✅ Indexed ${stats.indexed} relationship embeddings (${stats.skipped} skipped, ${stats.errors} errors)`
   );
   return stats;
@@ -336,6 +349,12 @@ export async function indexRelationshipEmbeddings(
 
 // ============================================
 // Cleanup Functions
+// ============================================
+//
+// These functions are used programmatically for targeted cleanup operations.
+// For comprehensive cleanup of orphaned embeddings, use cleanupOrphanedEmbeddings
+// from embedding-cleanup.service.ts, which is integrated into wipe-data.ts.
+//
 // ============================================
 
 /**
@@ -346,105 +365,107 @@ export async function cleanupDeletedEntityEmbeddings(
   deps: {
     vectorStore: VectorStore;
     recordStore: RecordStore;
+    graphStore: GraphStore;
   }
 ): Promise<{ deleted: number }> {
-  console.log(`🧹 Cleaning up deleted entity embeddings for source: ${source}`);
+  let deleted = 0;
 
-  // Get all active records from MongoDB
-  const activeRecords = await deps.recordStore.findBySourceAndType(source, "", {
-    includeDeleted: false,
+  // Find all entity embeddings for this source
+  const entityMetadata = await GraphEmbeddingMetadata.find({
+    itemType: "entity",
+    sourceDocumentIds: source,
   });
 
-  const activeMongoIds = new Set(activeRecords.map((r) => r._id));
+  for (const metadata of entityMetadata) {
+    // Skip if not yet embedded
+    if (!metadata.embeddedChecksum) {
+      continue;
+    }
 
-  // Get all entity embeddings for this source from Qdrant
-  const allEntities = await deps.vectorStore.search([0, 0, 0], {
-    limit: 100000,
-    filter: {
-      must: [
-        { key: "type", match: { value: "entity" } },
-        { key: "source", match: { value: source } },
-      ],
-    },
-  });
+    // Check if all source documents are deleted
+    const records = await deps.recordStore.findByIds(
+      metadata.sourceDocumentIds
+    );
+    const allDeleted = records.every((r) => r.deletedAt);
 
-  // Find embeddings for deleted records
-  const deletedMongoIds: string[] = [];
-  for (const entity of allEntities) {
-    const payload = entity.payload as any;
-    if (!activeMongoIds.has(payload.mongoId)) {
-      deletedMongoIds.push(payload.mongoId);
+    if (allDeleted) {
+      try {
+        // Delete from Qdrant using the stored qdrantId
+        if (metadata.qdrantId) {
+          await deps.vectorStore.deleteByIds([metadata.qdrantId]);
+        }
+
+        // Delete metadata
+        await GraphEmbeddingMetadata.deleteOne({ _id: metadata._id });
+
+        deleted++;
+      } catch (err) {
+        logger.error(
+          { err, entityId: metadata._id },
+          `Error deleting entity embedding ${metadata._id}`
+        );
+      }
     }
   }
 
-  // Delete embeddings for deleted records
-  if (deletedMongoIds.length > 0) {
-    const deleted = await deps.vectorStore.deleteEntityEmbeddingsBatch(
-      deletedMongoIds
-    );
-    console.log(`   Deleted ${deleted} entity embeddings for deleted records`);
-    return { deleted };
-  }
-
-  console.log(`   No deleted entity embeddings found`);
-  return { deleted: 0 };
+  return { deleted };
 }
 
 /**
- * Clean up relationship embeddings for removed relationships
+ * Clean up relationship embeddings for deleted records
  */
 export async function cleanupDeletedRelationshipEmbeddings(
   source: SourceType,
   deps: {
     vectorStore: VectorStore;
-    graphStore: GraphStore;
     recordStore: RecordStore;
+    graphStore: GraphStore;
   }
 ): Promise<{ deleted: number }> {
-  console.log(
-    `🧹 Cleaning up deleted relationship embeddings for source: ${source}`
-  );
+  let deleted = 0;
 
-  // Get all active relationships from Memgraph
-  const activeRelationships = await deps.graphStore.getAllRelationships({
-    source,
+  // Find all relationship embeddings for this source
+  const relMetadata = await GraphEmbeddingMetadata.find({
+    itemType: "relationship",
+    sourceDocumentIds: source,
   });
 
-  // Build set of valid relationship keys
-  const activeRelKeys = new Set(
-    activeRelationships.map((r) => `${r.sourceId}_${r.type}_${r.targetId}`)
-  );
+  for (const metadata of relMetadata) {
+    // Skip if not yet embedded
+    if (!metadata.embeddedChecksum) {
+      continue;
+    }
 
-  // Get all relationship embeddings from Qdrant (filter by source prefix in sourceId)
-  const allRelationships = await deps.vectorStore.search([0, 0, 0], {
-    limit: 100000,
-    filter: {
-      must: [{ key: "type", match: { value: "relationship" } }],
-    },
-  });
+    // For relationships, check if the relationship still exists in Memgraph
+    if (!metadata.sourceId || !metadata.targetId || !metadata.relType) {
+      continue;
+    }
 
-  // Filter to only this source and find deleted relationships
-  const deletedRelIds: string[] = [];
-  for (const rel of allRelationships) {
-    const payload = rel.payload as any;
-    // Only process relationships for this source
-    if (payload.sourceId && payload.sourceId.startsWith(`${source}_`)) {
-      const key = `${payload.sourceId}_${payload.relType}_${payload.targetId}`;
-      if (!activeRelKeys.has(key)) {
-        deletedRelIds.push(rel.id);
+    const exists = await deps.graphStore.relationshipExists(
+      metadata.sourceId,
+      metadata.relType,
+      metadata.targetId
+    );
+
+    if (!exists) {
+      try {
+        // Delete from Qdrant using the stored qdrantId
+        if (metadata.qdrantId) {
+          await deps.vectorStore.deleteByIds([metadata.qdrantId]);
+        }
+
+        // Delete metadata
+        await GraphEmbeddingMetadata.deleteOne({ _id: metadata._id });
+
+        deleted++;
+      } catch (err) {
+        logger.error(
+          { err, relId: metadata._id },
+          `Error deleting relationship embedding ${metadata._id}`
+        );
       }
     }
   }
 
-  // Delete orphaned relationship embeddings
-  if (deletedRelIds.length > 0) {
-    await deps.vectorStore.deleteByIds(deletedRelIds);
-    console.log(
-      `   Deleted ${deletedRelIds.length} relationship embeddings for removed relationships`
-    );
-    return { deleted: deletedRelIds.length };
-  }
-
-  console.log(`   No deleted relationship embeddings found`);
-  return { deleted: 0 };
+  return { deleted };
 }

@@ -108,3 +108,55 @@ export function detectChanges(
 
   return { changed, unchanged, new: newEntities };
 }
+
+/**
+ * Calculate checksum for embedding content
+ * Used to determine if entity/relationship needs re-embedding
+ */
+export function calculateEmbeddingChecksum(content: {
+  text?: string;
+  entityType?: string;
+  description?: string;
+  relationships?: Array<{ type: string; target: string }>;
+  sourceId?: string;
+  targetId?: string;
+  relType?: string;
+}): string {
+  // Normalize all fields to lowercase and trim whitespace
+  const normalized: any = {};
+
+  if (content.text) {
+    normalized.text = content.text.toLowerCase().trim();
+  }
+  if (content.entityType) {
+    normalized.entityType = content.entityType.toLowerCase().trim();
+  }
+  if (content.description) {
+    normalized.description = content.description.toLowerCase().trim();
+  }
+  if (content.relationships && content.relationships.length > 0) {
+    // Sort relationships for consistent ordering
+    normalized.relationships = content.relationships
+      .map((rel) => ({
+        type: rel.type.toLowerCase().trim(),
+        target: rel.target.toLowerCase().trim(),
+      }))
+      .sort((a, b) => {
+        const aStr = `${a.type}:${a.target}`;
+        const bStr = `${b.type}:${b.target}`;
+        return aStr.localeCompare(bStr);
+      });
+  }
+  if (content.sourceId) {
+    normalized.sourceId = content.sourceId.toLowerCase().trim();
+  }
+  if (content.targetId) {
+    normalized.targetId = content.targetId.toLowerCase().trim();
+  }
+  if (content.relType) {
+    normalized.relType = content.relType.toLowerCase().trim();
+  }
+
+  const json = JSON.stringify(normalized);
+  return crypto.createHash("sha256").update(json).digest("hex");
+}

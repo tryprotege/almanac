@@ -25,6 +25,8 @@ import logger from "../src/utils/logger.js";
  *   pnpm tsx scripts/index-graph.ts --source=notion
  *   pnpm tsx scripts/index-graph.ts --batch-size=50
  *   pnpm tsx scripts/index-graph.ts --force
+ *   pnpm tsx scripts/index-graph.ts --embed                 # Extract + embed inline
+ *   pnpm tsx scripts/index-graph.ts --source=notion --embed # Extract + embed for one source
  */
 
 interface ScriptOptions {
@@ -45,7 +47,7 @@ function parseArgs(): ScriptOptions {
     force: false,
     includeRelationships: true,
     cleanup: false,
-    embeddings: false,
+    embeddings: true, // Now enabled by default for GraphEmbeddingMetadata system
   };
 
   for (const arg of args) {
@@ -61,8 +63,10 @@ function parseArgs(): ScriptOptions {
       options.includeRelationships = false;
     } else if (arg === "--cleanup") {
       options.cleanup = true;
-    } else if (arg === "--embeddings") {
+    } else if (arg === "--embeddings" || arg === "--embed") {
       options.embeddings = true;
+    } else if (arg === "--no-embeddings" || arg === "--no-embed") {
+      options.embeddings = false;
     }
   }
 
@@ -209,14 +213,18 @@ async function indexGraphRecords() {
       (record) => !record.lastGraphIndexDate
     );
 
-    logger.info(`\n📊 Final Statistics:`);
-    logger.info(`   Total Records: ${allRecordsAfter.length}`);
+    logger.info(`\n📊 Final Statistics for ${config.name}:`);
+    logger.info(`   Total ${config.name} Records: ${allRecordsAfter.length}`);
     logger.info(
       `   Indexed: ${allRecordsAfter.length - unindexedRecordsAfter.length}`
     );
     logger.info(`   Remaining Unindexed: ${unindexedRecordsAfter.length}`);
 
     // 2. Create embeddings (if requested)
+    logger.info(`\n🔍 Embedding check:`);
+    logger.info(`   Embeddings enabled: ${options.embeddings}`);
+    logger.info(`   VectorStore available: ${!!vectorStore}`);
+
     if (options.embeddings && vectorStore) {
       logger.info(`\n🔮 Creating embeddings...`);
 

@@ -80,15 +80,13 @@ export class GraphStore {
       MATCH (source {id: $sourceId})
       MATCH (target {id: $targetId})
       MERGE (source)-[r:${relationship.type}]->(target)
-      SET r.confidence = $confidence,
-          r.extractedBy = $extractedBy
+      SET r.confidence = $confidence
     `;
 
     await this.memgraph.executeQuery(query, {
       sourceId: relationship.sourceId,
       targetId: relationship.targetId,
       confidence: relationship.confidence,
-      extractedBy: relationship.extractedBy,
     });
   }
 
@@ -116,8 +114,7 @@ export class GraphStore {
         MATCH (source {id: relData.sourceId})
         MATCH (target {id: relData.targetId})
         MERGE (source)-[r:${type}]->(target)
-        SET r.confidence = relData.confidence,
-            r.extractedBy = relData.extractedBy
+        SET r.confidence = relData.confidence
       `;
 
       await this.memgraph.executeQuery(query, {
@@ -125,10 +122,47 @@ export class GraphStore {
           sourceId: r.sourceId,
           targetId: r.targetId,
           confidence: r.confidence,
-          extractedBy: r.extractedBy,
         })),
       });
     }
+  }
+
+  /**
+   * Check if a node exists by ID
+   */
+  async nodeExists(id: string): Promise<boolean> {
+    const query = `
+      MATCH (n {id: $id})
+      RETURN count(n) > 0 AS exists
+    `;
+
+    const results = await this.memgraph.executeQuery<{ exists: boolean }>(
+      query,
+      { id }
+    );
+
+    return results[0]?.exists || false;
+  }
+
+  /**
+   * Check if a relationship exists between two nodes
+   */
+  async relationshipExists(
+    sourceId: string,
+    type: string,
+    targetId: string
+  ): Promise<boolean> {
+    const query = `
+      MATCH (source {id: $sourceId})-[r:${type}]->(target {id: $targetId})
+      RETURN count(r) > 0 AS exists
+    `;
+
+    const results = await this.memgraph.executeQuery<{ exists: boolean }>(
+      query,
+      { sourceId, targetId }
+    );
+
+    return results[0]?.exists || false;
   }
 
   /**
@@ -221,12 +255,9 @@ export class GraphStore {
     query += `
       RETURN
         source.id AS sourceId,
-        source.type AS sourceType,
         target.id AS targetId,
-        target.type AS targetType,
         type(r) AS relType,
-        r.confidence AS confidence,
-        r.extractedBy AS extractedBy
+        r.confidence AS confidence
     `;
 
     if (options?.offset) {
@@ -239,12 +270,9 @@ export class GraphStore {
 
     const results = await this.memgraph.executeQuery<{
       sourceId: string;
-      sourceType: string;
       targetId: string;
-      targetType: string;
       relType: string;
       confidence: number;
-      extractedBy: string;
     }>(query, { source: options?.source });
 
     return results.map((r) => ({
@@ -252,15 +280,104 @@ export class GraphStore {
       targetId: r.targetId,
       type: r.relType,
       confidence: r.confidence || 1.0,
-      extractedBy: (r.extractedBy || "explicit") as
-        | "explicit"
-        | "llm"
-        | "heuristic",
-      metadata: {
-        sourceType: r.sourceType,
-        targetType: r.targetType,
-      },
     }));
+  }
+
+  /**
+   * Find all relationships for multiple nodes in a single query (BATCH)
+   * Much more efficient than calling getNodeRelationships for each node
+   * Returns a Map of nodeId -> relationships
+   */
+  async getNodeRelationshipsBatch(
+    nodeIds: string[],
+    options?: {
+      direction?: "outgoing" | "incoming" | "both";
+      relationshipTypes?: string[];
+    }
+  ): Promise<
+    Map<
+      string,
+      Array<{
+        relationship: MemgraphRelationship;
+        relatedNode: MemgraphNode;
+      }>
+    >
+  > {
+    if (nodeIds.length === 0) return new Map();
+
+    const direction = options?.direction || "both";
+    const types = options?.relationshipTypes || [];
+
+    let relationshipPattern = "";
+    if (direction === "outgoing") {
+      relationshipPattern =
+        types.length > 0 ? `-[r:${types.join("|")}]->` : "-[r]->";
+    } else if (direction === "incoming") {
+      relationshipPattern =
+        types.length > 0 ? `<-[r:${types.join("|")}]-` : "<-[r]-";
+    } else {
+      relationshipPattern =
+        types.length > 0 ? `-[r:${types.join("|")}]-` : "-[r]-";
+    }
+
+    const query = `
+      UNWIND $nodeIds AS nodeId
+      MATCH (n {id: nodeId})${relationshipPattern}(related)
+      RETURN 
+        nodeId,
+        n.id AS sourceId,
+        related.id AS targetId,
+        type(r) AS relType,
+        r.confidence AS confidence,
+        related.title AS relatedTitle,
+        related.type AS relatedType,
+        labels(related) AS relatedLabels
+    `;
+
+    const results = await this.memgraph.executeQuery<{
+      nodeId: string;
+      sourceId: string;
+      targetId: string;
+      relType: string;
+      confidence: number;
+      relatedTitle: string;
+      relatedType: string;
+      relatedLabels: string[];
+    }>(query, { nodeIds });
+
+    // Group by nodeId
+    const relMap = new Map<
+      string,
+      Array<{
+        relationship: MemgraphRelationship;
+        relatedNode: MemgraphNode;
+      }>
+    >();
+
+    // Initialize empty arrays for all nodeIds
+    nodeIds.forEach((id) => relMap.set(id, []));
+
+    // Populate with results
+    results.forEach((r) => {
+      const existing = relMap.get(r.nodeId) || [];
+      existing.push({
+        relationship: {
+          sourceId: r.sourceId,
+          targetId: r.targetId,
+          type: r.relType,
+          confidence: r.confidence,
+        },
+        relatedNode: {
+          label: r.relatedLabels[0],
+          id: r.targetId,
+          type: r.relatedType,
+          title: r.relatedTitle,
+        },
+      });
+      relMap.set(r.nodeId, existing);
+    });
+
+    return relMap;
   }
 
   /**
@@ -300,7 +417,6 @@ export class GraphStore {
         related.id AS targetId,
         type(r) AS relType,
         r.confidence AS confidence,
-        r.extractedBy AS extractedBy,
         related.title AS relatedTitle,
         related.type AS relatedType,
         labels(related) AS relatedLabels
@@ -311,7 +427,6 @@ export class GraphStore {
       targetId: string;
       relType: string;
       confidence: number;
-      extractedBy: string;
       relatedTitle: string;
       relatedType: string;
       relatedLabels: string[];
@@ -323,7 +438,6 @@ export class GraphStore {
         targetId: r.targetId,
         type: r.relType,
         confidence: r.confidence,
-        extractedBy: r.extractedBy as "explicit" | "llm" | "heuristic",
       },
       relatedNode: {
         label: r.relatedLabels[0],
@@ -363,7 +477,6 @@ export class GraphStore {
         type: string;
         properties: {
           confidence: number;
-          extractedBy: string;
         };
       }>;
     }>(query, { sourceId, targetId });
@@ -380,10 +493,6 @@ export class GraphStore {
         targetId: r.nodes[idx + 1].id,
         type: rel.type,
         confidence: rel.properties.confidence,
-        extractedBy: rel.properties.extractedBy as
-          | "explicit"
-          | "llm"
-          | "heuristic",
       })),
     }));
   }
@@ -475,8 +584,7 @@ export class GraphStore {
           source.id AS sourceId,
           target.id AS targetId,
           type(r) AS relType,
-          r.confidence AS confidence,
-          r.extractedBy AS extractedBy
+          r.confidence AS confidence
       `;
     } else {
       relQuery = `
@@ -486,8 +594,7 @@ export class GraphStore {
           source.id AS sourceId,
           target.id AS targetId,
           type(r) AS relType,
-          r.confidence AS confidence,
-          r.extractedBy AS extractedBy
+          r.confidence AS confidence
       `;
     }
 
@@ -496,7 +603,6 @@ export class GraphStore {
       targetId: string;
       relType: string;
       confidence: number;
-      extractedBy: string;
     }>(relQuery, { nodeIds });
 
     const relationships: MemgraphRelationship[] = relResults.map((r) => ({
@@ -504,7 +610,6 @@ export class GraphStore {
       targetId: r.targetId,
       type: r.relType,
       confidence: r.confidence,
-      extractedBy: r.extractedBy as "explicit" | "llm" | "heuristic",
     }));
 
     return {
@@ -671,7 +776,7 @@ export class GraphStore {
   }
 
   /**
-   * Delete entities that have no document mentions (orphaned entities)
+   * Delete entities that have no relationships at all (truly orphaned entities)
    * Returns count of deleted entities
    * Includes retry logic for Memgraph transaction conflicts
    */
@@ -679,9 +784,10 @@ export class GraphStore {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         // First get the count
+        // Check for entities with NO relationships in any direction
         const countQuery = `
           MATCH (entity:Entity)
-          WHERE NOT (entity)-[:MENTIONED_IN]->()
+          WHERE NOT (entity)-[]-()
           RETURN count(entity) AS count
         `;
 
@@ -698,7 +804,7 @@ export class GraphStore {
         if (finalCount > 0) {
           const deleteQuery = `
             MATCH (entity:Entity)
-            WHERE NOT (entity)-[:MENTIONED_IN]->()
+            WHERE NOT (entity)-[]-()
             DETACH DELETE entity
           `;
           await this.memgraph.executeQuery(deleteQuery, {});

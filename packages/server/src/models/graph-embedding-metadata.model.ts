@@ -13,11 +13,13 @@ export interface IGraphEmbeddingMetadata {
   // For entities
   entityId?: string; // Global Memgraph entity ID
   entityType?: string; // "Person", "Organization", etc.
+  entityDescription?: string; // LLM-extracted entity description
 
   // For relationships
   sourceId?: string; // Global source entity ID
   targetId?: string; // Global target entity ID
   relType?: string; // "WORKS_WITH", "REPORTS_TO", etc.
+  relationshipDescription?: string; // LLM-extracted relationship description
 
   // Source tracking
   source?: string; // Primary source ("notion", "github", etc.)
@@ -65,6 +67,10 @@ const graphEmbeddingMetadataSchema = new Schema<IGraphEmbeddingMetadata>(
       type: String,
       sparse: true,
     },
+    entityDescription: {
+      type: String,
+      sparse: true,
+    },
 
     // Relationship fields
     sourceId: {
@@ -78,6 +84,10 @@ const graphEmbeddingMetadataSchema = new Schema<IGraphEmbeddingMetadata>(
       sparse: true,
     },
     relType: {
+      type: String,
+      sparse: true,
+    },
+    relationshipDescription: {
       type: String,
       sparse: true,
     },

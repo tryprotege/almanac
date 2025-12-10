@@ -1,4 +1,3 @@
-import { Record } from "../../../models/record.model.js";
 import { GraphEmbeddingMetadata } from "../../../models/graph-embedding-metadata.model.js";
 import { RecordStore } from "../../../stores/record.store.js";
 import logger from "../../../utils/logger.js";
@@ -9,7 +8,7 @@ import logger from "../../../utils/logger.js";
 
 /**
  * Get the best description for an entity from multiple source documents
- * Uses the document that last updated the entity, falling back to the longest description
+ * Uses LLM-extracted entity description stored in metadata
  */
 export async function getEntityEmbeddingText(
   entityId: string,
@@ -19,38 +18,21 @@ export async function getEntityEmbeddingText(
   // Check if we have metadata for this entity
   const metadata = await GraphEmbeddingMetadata.findById(entityId);
 
-  if (!metadata || metadata.sourceDocumentIds.length === 0) {
+  if (!metadata) {
     // No metadata yet - this is a new entity
-    return `${entityId}\n${entityType}\nNew entity`;
+    return `${entityType} - ${entityId}\nNo description available`;
   }
 
-  // Fetch all documents that mention this entity
-  const documents = await recordStore.findByIds(metadata.sourceDocumentIds);
+  // Use LLM-extracted description from metadata
+  const description = metadata.entityDescription || "No description available";
 
-  if (documents.length === 0) {
-    logger.warn({ entityId }, "No documents found for entity");
-    return `${entityId}\n${entityType}\nNo source documents`;
-  }
-
-  // Strategy: Use the document that last updated this entity (most current info)
-  const lastUpdater = documents.find((d) => d._id === metadata.lastUpdatedBy);
-
-  if (lastUpdater) {
-    const description = lastUpdater.content.substring(0, 300);
-    return `${lastUpdater.title}\n${entityType}\n${description}`;
-  }
-
-  // Fallback: Use the longest description (most informative)
-  const longest = documents.sort(
-    (a, b) => b.content.length - a.content.length
-  )[0];
-  const description = longest.content.substring(0, 300);
-  return `${longest.title}\n${entityType}\n${description}`;
+  // Format: "EntityType - EntityID\nDescription"
+  return `${entityType} - ${entityId}\n${description}`;
 }
 
 /**
  * Get the best description for a relationship from multiple source documents
- * Uses the document titles of source and target entities
+ * Uses LLM-extracted relationship description stored in metadata
  */
 export async function getRelationshipEmbeddingText(
   rel: {
@@ -61,37 +43,24 @@ export async function getRelationshipEmbeddingText(
   },
   recordStore: RecordStore
 ): Promise<string> {
+  // Get relationship metadata
+  const relId = `rel_${rel.sourceId}_${rel.type}_${rel.targetId}`;
+  const relMetadata = await GraphEmbeddingMetadata.findById(relId);
+
   // Try to get entity names from their metadata
   const sourceMetadata = await GraphEmbeddingMetadata.findById(rel.sourceId);
   const targetMetadata = await GraphEmbeddingMetadata.findById(rel.targetId);
 
-  let sourceName = "Unknown";
-  let targetName = "Unknown";
+  const sourceName = sourceMetadata?.entityId || "Unknown";
+  const targetName = targetMetadata?.entityId || "Unknown";
 
-  // Get source name
-  if (sourceMetadata && sourceMetadata.sourceDocumentIds.length > 0) {
-    const sourceDoc = await recordStore.findById(
-      sourceMetadata.lastUpdatedBy || sourceMetadata.sourceDocumentIds[0]
-    );
-    if (sourceDoc) {
-      sourceName = sourceDoc.title;
-    }
-  }
+  // Use LLM-extracted description from metadata
+  const description =
+    relMetadata?.relationshipDescription || "No description available";
 
-  // Get target name
-  if (targetMetadata && targetMetadata.sourceDocumentIds.length > 0) {
-    const targetDoc = await recordStore.findById(
-      targetMetadata.lastUpdatedBy || targetMetadata.sourceDocumentIds[0]
-    );
-    if (targetDoc) {
-      targetName = targetDoc.title;
-    }
-  }
-
-  // Format: "SourceName\tTargetName\nRelationType\nConfidence: X.X"
-  return `${sourceName}\t${targetName}\n${
-    rel.type
-  }\nConfidence: ${rel.confidence.toFixed(2)}`;
+  // Format: "SourceEntity -[RelationType]-> TargetEntity\nDescription"
+  // Note: Confidence is NOT included in embedding text to avoid re-embedding when confidence changes
+  return `${sourceName} -[${rel.type}]-> ${targetName}\n${description}`;
 }
 
 /**

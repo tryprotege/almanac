@@ -570,6 +570,7 @@ export const indexAllRecords = async (
                   itemType: "entity",
                   entityId: node.id,
                   entityType: node.type,
+                  entityDescription: node.description, // Store LLM-extracted description
                   source: source,
                   contentChecksum: contentChecksum,
                   lastUpdatedBy: source,
@@ -637,8 +638,30 @@ export const indexAllRecords = async (
         await graphStore.linkDocumentsToRelationshipsBatch(relLinks);
 
         // 4. Create MongoDB metadata for all relationships (for embedding tracking)
+        // Build a map of relationship descriptions from original extraction results
+        const relDescriptionMap = new Map<string, string>();
+        for (const result of validResults) {
+          for (const origRel of result.relationships) {
+            // Create relationship ID using entity names (need to normalize)
+            const sourceId = `entity_${origRel.source
+              .toLowerCase()
+              .replace(/\s+/g, "_")}`;
+            const targetId = `entity_${origRel.target
+              .toLowerCase()
+              .replace(/\s+/g, "_")}`;
+            const relId = `${sourceId}_${origRel.type}_${targetId}`;
+            if (origRel.description) {
+              relDescriptionMap.set(relId, origRel.description);
+            }
+          }
+        }
+
         const relMetadataOps = relationships.map((rel) => {
           const relId = `rel_${rel.sourceId}_${rel.type}_${rel.targetId}`;
+
+          // Look up description from original extraction
+          const lookupKey = `${rel.sourceId}_${rel.type}_${rel.targetId}`;
+          const description = relDescriptionMap.get(lookupKey);
 
           // Calculate content checksum for this relationship
           const contentChecksum = calculateEmbeddingChecksum({
@@ -656,6 +679,7 @@ export const indexAllRecords = async (
                   sourceId: rel.sourceId,
                   targetId: rel.targetId,
                   relType: rel.type,
+                  relationshipDescription: description, // Store LLM-extracted description
                   source: source,
                   contentChecksum: contentChecksum,
                   lastUpdatedBy: source,

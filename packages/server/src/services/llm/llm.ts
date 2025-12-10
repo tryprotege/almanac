@@ -31,16 +31,6 @@ export async function chat(
         };
   }
 ): Promise<string> {
-  // OpenRouter-specific provider routing
-  const providerConfig =
-    env.LLM_PROVIDER === "openrouter"
-      ? {
-          order: ["together", "deepinfra"],
-          require_parameters: true,
-          allow_fallbacks: true,
-        }
-      : undefined;
-
   const completion = await client.chat.completions.create({
     model: options?.model || env.LLM_CHAT_MODEL,
     messages,
@@ -53,9 +43,6 @@ export async function chat(
     }),
     ...(options?.responseFormat && {
       response_format: options.responseFormat,
-    }),
-    ...(providerConfig && {
-      provider: providerConfig,
     }),
   });
 

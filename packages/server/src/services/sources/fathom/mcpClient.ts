@@ -11,6 +11,8 @@ import {
   FathomTeamMember,
 } from "@ebee-oss/shared-util";
 import logger from "../../../utils/logger.js";
+import pThrottle from "p-throttle";
+import sleep from "../../../utils/sleep.js";
 
 /**
  * Fathom MCP Client wrapper for data extraction
@@ -24,20 +26,26 @@ export class FathomMCPClient {
   private serverName = "fathom";
   private readonly MAX_RETRIES = 10;
   private readonly INITIAL_RETRY_DELAY = 1000; // 1 second
+  private throttledCallTool: <T>(
+    toolName: string,
+    args: Record<string, any>
+  ) => Promise<T>;
 
-  constructor() {}
+  constructor() {
+    // Create throttled version of callTool: 60 requests per 60 seconds
+    const throttle = pThrottle({
+      limit: 55,
+      interval: 60000, // 60 seconds in milliseconds
+    });
 
-  /**
-   * Sleep utility for rate limiting
-   */
-  private async sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    this.throttledCallTool = throttle(this.callToolInternal.bind(this));
   }
 
   /**
-   * Call MCP tool with rate limiting and parse response
+   * Internal method to call MCP tool with retry logic and parse response
+   * This is wrapped by throttledCallTool to enforce rate limiting
    */
-  private async callTool<T>(
+  private async callToolInternal<T>(
     toolName: string,
     args: Record<string, any>
   ): Promise<T> {
@@ -76,7 +84,7 @@ export class FathomMCPClient {
 
               // If we haven't exhausted retries, wait and continue
               if (attempt < this.MAX_RETRIES) {
-                await this.sleep(delay);
+                await sleep(delay);
                 continue; // Retry
               }
 
@@ -145,7 +153,7 @@ export class FathomMCPClient {
               this.MAX_RETRIES + 1
             }. ` + `Retrying after ${delay}ms...`
           );
-          await this.sleep(delay);
+          await sleep(delay);
           continue;
         }
 
@@ -156,6 +164,16 @@ export class FathomMCPClient {
 
     // This shouldn't be reached, but TypeScript needs it
     throw lastError || new Error("Unexpected error in retry logic");
+  }
+
+  /**
+   * Call MCP tool with rate limiting (60 requests per 60 seconds) and parse response
+   */
+  private async callTool<T>(
+    toolName: string,
+    args: Record<string, any>
+  ): Promise<T> {
+    return this.throttledCallTool<T>(toolName, args);
   }
 
   /**
@@ -365,12 +383,5 @@ export class FathomMCPClient {
       { team_id: teamId },
       (response) => response.items || []
     );
-  }
-
-  /**
-   * Set custom rate limit delay
-   */
-  setRateLimitDelay(delayMs: number): void {
-    this.rateLimitDelay = delayMs;
   }
 }

@@ -47,8 +47,7 @@ export const connectQdrant = async (): Promise<QdrantConnection> => {
 
     // Test connection by getting collections
     await client.getCollections();
-    logger.info("Qdrant connected successfully");
-
+    logger.info({ msg: "Qdrant connected successfully" });
     const createCollection = async (
       collectionName: string,
       vectorSize: number,
@@ -61,19 +60,21 @@ export const connectQdrant = async (): Promise<QdrantConnection> => {
             distance: distance,
           },
         });
-        logger.info(`Collection "${collectionName}" created successfully`);
+        logger.info({
+          msg: `Collection "${collectionName}" created successfully`,
+        });
       } catch (err) {
         logger.error(
           { err, collectionName },
-          `Error creating collection "${collectionName}"`
+          `Error creating Qdrant collection`
         );
         throw err;
       }
     };
 
     const close = async (): Promise<void> => {
+      logger.info({ msg: "Qdrant disconnected" });
       // Qdrant REST client doesn't require explicit disconnection
-      logger.info("Qdrant disconnected");
     };
 
     return {

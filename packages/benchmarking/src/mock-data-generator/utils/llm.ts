@@ -22,7 +22,7 @@ export async function generateWithLLM(
     model: process.env.LLM_CHAT_MODEL!,
     messages: [{ role: "user", content: prompt }],
     temperature: config.temperature,
-    max_tokens: 2000,
+    max_tokens: 3000,
     stream: false,
   });
 

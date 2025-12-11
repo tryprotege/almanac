@@ -117,12 +117,14 @@ export async function generateSynthesis(
     generateFathomMeetings(
       workMeetingsCount,
       foundation.fathom.teamMembers,
-      generationContext
+      generationContext,
+      4000 // Synthesis: IDs 4000+
     ),
     generateFathomMeetings(
       casualMeetingsCount,
       foundation.fathom.teamMembers,
-      generationContext
+      generationContext,
+      4000 + workMeetingsCount // Synthesis casual: IDs 4000 + work count
     ),
   ]);
 

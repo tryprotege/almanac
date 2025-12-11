@@ -105,12 +105,14 @@ export async function generateIntegration(
     generateFathomMeetings(
       workMeetingsCount,
       foundation.fathom.teamMembers,
-      generationContext
+      generationContext,
+      3000 // Integration: IDs 3000+
     ),
     generateFathomMeetings(
       casualMeetingsCount,
       foundation.fathom.teamMembers,
-      generationContext
+      generationContext,
+      3000 + workMeetingsCount // Integration casual: IDs 3000 + work count
     ),
   ]);
 

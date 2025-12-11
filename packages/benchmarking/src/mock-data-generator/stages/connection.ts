@@ -71,14 +71,16 @@ export async function generateConnection(
         categorizedContext.work
       ),
       generateFathomMeetings(
-        connectionVolumes.fathomMeetings,
+        workMeetingsCount,
         foundation.fathom.teamMembers,
-        generationContext
+        generationContext,
+        2000 // Connection: IDs 2000+
       ),
       generateFathomMeetings(
-        connectionVolumes.fathomMeetings,
+        casualMeetingsCount,
         foundation.fathom.teamMembers,
-        generationContext
+        generationContext,
+        2000 + workMeetingsCount // Connection casual: IDs 2000 + work count
       ),
       generateGitHubPRs(
         connectionVolumes.githubPRs,

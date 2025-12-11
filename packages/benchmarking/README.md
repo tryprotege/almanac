@@ -52,14 +52,16 @@ To modify the daily generation rates for each platform, edit `src/mock-data-gene
 ```typescript
 export function calculateVolumes(timelineDays: number): VolumeConfig {
   return {
-    slackMessages: Math.max(10, Math.floor(timelineDays * 1000)), // Default: 1000/day
-    githubIssues: Math.max(4, Math.floor(timelineDays * 1.7)), // Default: ~50/month
-    githubPRs: Math.max(4, Math.floor(timelineDays * 1.7)), // Default: ~50/month
-    notionPages: Math.max(4, Math.floor(timelineDays * 2)), // Default: 2/day
-    fathomMeetings: Math.max(4, Math.floor(timelineDays * 0.7)), // Default: ~20/month
+    slackMessages: Math.max(40, Math.floor(timelineDays * 1000)), // Default: 1000/day
+    githubIssues: Math.max(8, Math.floor(timelineDays * 1.7)), // Default: ~50/month
+    githubPRs: Math.max(8, Math.floor(timelineDays * 1.7)), // Default: ~50/month
+    notionPages: Math.max(8, Math.floor(timelineDays * 2)), // Default: 2/day
+    fathomMeetings: Math.max(8, Math.floor(timelineDays * 0.7)), // Default: ~20/month
   };
 }
 ```
+
+**Note:** Minimum values (40 for Slack, 8 for others) ensure each of the 4 stages gets at least some data, even for 1-2 day timelines. When generating short timelines, the stage distribution (40%/20%/20%/20%) with floor rounding could result in 0 items for later stages without these minimums.
 
 **Examples:**
 

@@ -64,7 +64,8 @@ export async function generateFoundation(
   const fathomMeetings = generateFathomMeetings(
     foundationVolumes.fathomMeetings,
     fathomTeamMembers,
-    context
+    context,
+    1000 // Foundation: IDs 1000+
   );
   const fathomTranscripts = await generateFathomTranscripts(
     fathomMeetings,

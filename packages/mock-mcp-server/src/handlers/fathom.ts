@@ -41,7 +41,7 @@ export function getMeetingById(
   data: MockData,
   meetingId: string
 ): any | undefined {
-  return data.fathom?.meetings.find((m) => m.id === meetingId);
+  return data.fathom?.meetings.find((m) => m.id === Number(meetingId));
 }
 
 /**
@@ -51,7 +51,9 @@ export function getTranscriptByRecordingId(
   data: MockData,
   recordingId: string
 ): any | undefined {
-  return data.fathom?.transcripts.find((t) => t.recording_id === recordingId);
+  return data.fathom?.transcripts.find(
+    (t) => t.recording_id === Number(recordingId)
+  );
 }
 
 /**
@@ -61,7 +63,9 @@ export function getSummaryByRecordingId(
   data: MockData,
   recordingId: string
 ): any | undefined {
-  return data.fathom?.summaries.find((s) => s.recording_id === recordingId);
+  return data.fathom?.summaries.find(
+    (s) => s.recording_id === Number(recordingId)
+  );
 }
 
 /**

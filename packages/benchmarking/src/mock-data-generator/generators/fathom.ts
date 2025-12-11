@@ -74,7 +74,8 @@ export function generateFathomTeamMembers(
 export function generateFathomMeetings(
   count: number,
   teamMembers: FathomTeamMember[],
-  context: GenerationContext
+  context: GenerationContext,
+  startingId: number = 1000
 ): FathomMeeting[] {
   const meetings: FathomMeeting[] = [];
   const meetingTypes = [
@@ -89,7 +90,7 @@ export function generateFathomMeetings(
   ];
 
   for (let i = 0; i < count; i++) {
-    const recordingId = 1000 + i;
+    const recordingId = startingId + i;
     const meetingType = selectRandom(meetingTypes);
     const scheduledStart = generateDateInRange(
       context.startDate,

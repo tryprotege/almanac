@@ -71,7 +71,7 @@ Return ONLY a JSON object with this exact structure (no markdown, no extra text)
   "title": "Brief issue title (max 80 chars)",
   "body": "Detailed issue description with technical details, steps to reproduce if bug, or requirements if feature"
 }
-  `;
+`;
 
     try {
       const response = await generateWithLLM(prompt, config);

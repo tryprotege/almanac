@@ -34,9 +34,26 @@ async function syncRecord(
       return { action: "skipped" };
     }
 
-    // Preserve graph indexing metadata - let the graph indexer decide if re-indexing is needed
-    record.lastGraphIndexDate = existing.lastGraphIndexDate;
-    record.lastEmbedDate = existing.lastEmbedDate;
+    // CRITICAL: Preserve indexing metadata - these should NEVER be cleared
+    // Only update if the new value is explicitly set, otherwise keep existing
+    if (!record.lastGraphIndexAt && existing.lastGraphIndexAt) {
+      record.lastGraphIndexAt = existing.lastGraphIndexAt;
+    }
+    if (!record.lastEmbeddedAt && existing.lastEmbeddedAt) {
+      record.lastEmbeddedAt = existing.lastEmbeddedAt;
+    }
+
+    // Log metadata preservation for debugging
+    logger.debug(
+      {
+        recordId: record._id,
+        hadEmbeddedAt: !!existing.lastEmbeddedAt,
+        hadGraphIndexAt: !!existing.lastGraphIndexAt,
+        preservedEmbeddedAt: !!record.lastEmbeddedAt,
+        preservedGraphIndexAt: !!record.lastGraphIndexAt,
+      },
+      "Preserving indexing metadata during sync"
+    );
 
     await recordStore.upsert(record);
     return { action: "updated" };

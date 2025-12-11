@@ -10,9 +10,24 @@ export class RecordStore {
    * Upsert a single record
    */
   async upsert({ _id, ...record }: Partial<Record>): Promise<Record> {
+    // Build update object, excluding undefined indexing metadata
+    const updateData: any = { ...record };
+
+    // Prevent accidental clearing of indexing metadata
+    // If these fields are undefined, remove them from the update
+    if (updateData.lastEmbeddedAt === undefined) {
+      delete updateData.lastEmbeddedAt;
+    }
+    if (updateData.lastGraphIndexAt === undefined) {
+      delete updateData.lastGraphIndexAt;
+    }
+    if (updateData.embeddingModelVersion === undefined) {
+      delete updateData.embeddingModelVersion;
+    }
+
     const result = await RecordModel.findByIdAndUpdate(
       _id,
-      { $set: record },
+      { $set: updateData },
       { upsert: true, new: true }
     );
 

@@ -146,19 +146,20 @@ async function indexGraphRecords() {
     );
 
     // Records need indexing if:
-    // 1. Never indexed (lastGraphIndexDate is null)
-    // 2. Updated after last indexing (updatedAt > lastGraphIndexDate)
+    // 1. Never indexed (lastGraphIndexAt is null)
+    // 2. Source updated after last indexing (sourceUpdatedAt > lastGraphIndexAt)
     const needsIndexing = allRecords.filter(
       (record) =>
-        !record.lastGraphIndexDate ||
-        (record.updatedAt && record.updatedAt > record.lastGraphIndexDate)
+        !record.lastGraphIndexAt ||
+        (record.sourceUpdatedAt &&
+          record.sourceUpdatedAt > record.lastGraphIndexAt)
     );
 
     const alreadyIndexed = allRecords.filter(
       (record) =>
-        record.lastGraphIndexDate &&
-        record.updatedAt &&
-        record.updatedAt <= record.lastGraphIndexDate
+        record.lastGraphIndexAt &&
+        record.sourceUpdatedAt &&
+        record.sourceUpdatedAt <= record.lastGraphIndexAt
     );
 
     logger.info({
@@ -166,12 +167,12 @@ async function indexGraphRecords() {
       totalRecords: allRecords.length,
       alreadyIndexed: alreadyIndexed.length,
       needsIndexing: needsIndexing.length,
-      neverIndexed: allRecords.filter((r) => !r.lastGraphIndexDate).length,
+      neverIndexed: allRecords.filter((r) => !r.lastGraphIndexAt).length,
       updatedSinceLastIndex: allRecords.filter(
         (r) =>
-          r.lastGraphIndexDate &&
-          r.updatedAt &&
-          r.updatedAt > r.lastGraphIndexDate
+          r.lastGraphIndexAt &&
+          r.sourceUpdatedAt &&
+          r.sourceUpdatedAt > r.lastGraphIndexAt
       ).length,
     });
 
@@ -214,7 +215,7 @@ async function indexGraphRecords() {
     );
 
     const unindexedRecordsAfter = allRecordsAfter.filter(
-      (record) => !record.lastGraphIndexDate
+      (record) => !record.lastGraphIndexAt
     );
 
     logger.info({

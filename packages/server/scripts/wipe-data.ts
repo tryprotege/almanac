@@ -223,7 +223,7 @@ async function wipeMemgraph(memgraph: any, qdrant: any): Promise<void> {
     logger.info("   🔄 Clearing MongoDB graph timestamps...");
     const result = await RecordModel.updateMany(
       {},
-      { $unset: { lastGraphIndexDate: "" } }
+      { $unset: { lastGraphIndexAt: "" } }
     );
     logger.info(`   ✓ Cleared timestamps for ${result.modifiedCount} records`);
   } catch (err) {

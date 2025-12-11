@@ -99,9 +99,9 @@ export const extractGraphFromRecord = async (
   // Check if record needs re-indexing (skip check if force=true)
   if (
     !options.force &&
-    record.lastGraphIndexDate &&
-    record.updatedAt &&
-    record.updatedAt <= record.lastGraphIndexDate
+    record.lastGraphIndexAt &&
+    record.sourceUpdatedAt &&
+    record.sourceUpdatedAt <= record.lastGraphIndexAt
   ) {
     // Record is up-to-date, skip extraction
     return {
@@ -114,11 +114,11 @@ export const extractGraphFromRecord = async (
   }
 
   // Clean up old entity and relationship mentions before re-extraction if:
-  // 1. This is a re-index (lastGraphIndexDate exists), OR
+  // 1. This is a re-index (lastGraphIndexAt exists), OR
   // 2. Force mode is enabled (always clean)
   // NOTE: Orphaned entity/relationship cleanup is now done in batch after all records
   // are processed to improve performance and reduce transaction conflicts.
-  if (options.graphStore && (record.lastGraphIndexDate || options.force)) {
+  if (options.graphStore && (record.lastGraphIndexAt || options.force)) {
     // Cleanup is handled in batch after indexing completes
     // See indexAllRecords() for the cleanup logic
   }
@@ -701,7 +701,7 @@ export const indexAllRecords = async (
         validResults.map((result) =>
           recordStore.upsert({
             _id: result.recordId,
-            lastGraphIndexDate: new Date(),
+            lastGraphIndexAt: new Date(),
           })
         )
       );
@@ -889,7 +889,7 @@ export const indexSingleRecord = async (
   // Update record metadata
   await recordStore.upsert({
     _id: record._id,
-    lastGraphIndexDate: new Date(),
+    lastGraphIndexAt: new Date(),
   });
 
   return {

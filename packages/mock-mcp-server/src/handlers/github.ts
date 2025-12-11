@@ -99,3 +99,66 @@ export function getPullRequestByNumber(
 export function getOrganizationMembers(data: MockData): any[] {
   return data.github?.organizationMembers || [];
 }
+
+/**
+ * Get authenticated user (current user)
+ */
+export function getMe(data: MockData): any | undefined {
+  return data.github?.user;
+}
+
+/**
+ * Search repositories by name or description
+ */
+export function searchRepositories(
+  data: MockData,
+  query: string,
+  options?: {
+    limit?: number;
+  }
+): any[] {
+  if (!data.github) return [];
+
+  const lowerQuery = query.toLowerCase();
+  let repos = data.github.repositories.filter((repo) => {
+    return (
+      repo.name.toLowerCase().includes(lowerQuery) ||
+      repo.description?.toLowerCase().includes(lowerQuery) ||
+      lowerQuery.includes(repo.owner?.login)
+    );
+  });
+
+  // Apply limit
+  if (options?.limit && options.limit > 0) {
+    repos = repos.slice(0, options.limit);
+  }
+
+  return repos;
+}
+
+/**
+ * Search users by login or name
+ */
+export function searchUsers(
+  data: MockData,
+  query: string,
+  options?: {
+    limit?: number;
+  }
+): any[] {
+  if (!data.github) return [];
+
+  const lowerQuery = query.toLowerCase();
+  let users = data.github.organizationMembers.filter(
+    (user) =>
+      user.login?.toLowerCase().includes(lowerQuery) ||
+      user.name?.toLowerCase().includes(lowerQuery)
+  );
+
+  // Apply limit
+  if (options?.limit && options.limit > 0) {
+    users = users.slice(0, options.limit);
+  }
+
+  return users;
+}

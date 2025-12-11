@@ -173,11 +173,58 @@ const TOOL_DEFINITIONS = {
   ],
   github: [
     {
+      name: "get_me",
+      description: "Get the authenticated user (current user) information.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+      },
+    },
+    {
       name: "list_repositories",
       description: "List all repositories in the mock GitHub organization.",
       inputSchema: {
         type: "object",
         properties: {},
+      },
+    },
+    {
+      name: "search_repositories",
+      description:
+        "Search for repositories by name or description in the mock GitHub organization.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description:
+              "Search query to match against repository names and descriptions",
+          },
+          limit: {
+            type: "number",
+            description: "Maximum number of repositories to return",
+          },
+        },
+        required: ["query"],
+      },
+    },
+    {
+      name: "search_users",
+      description:
+        "Search for users by login or name in the mock GitHub organization.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Search query to match against user logins and names",
+          },
+          limit: {
+            type: "number",
+            description: "Maximum number of users to return",
+          },
+        },
+        required: ["query"],
       },
     },
     {
@@ -697,6 +744,33 @@ function handleSlackTool(name: string, args: any) {
  */
 function handleGitHubTool(name: string, args: any) {
   switch (name) {
+    case "get_me": {
+      const user = githubHandlers.getMe(mockData);
+      if (!user) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                { error: "Authenticated user not found" },
+                null,
+                2
+              ),
+            },
+          ],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(user, null, 2),
+          },
+        ],
+      };
+    }
+
     case "list_repositories": {
       const repos = githubHandlers.getRepositories(mockData);
       return {
@@ -705,6 +779,42 @@ function handleGitHubTool(name: string, args: any) {
             type: "text",
             text: JSON.stringify(
               { repositories: repos, total: repos.length },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    }
+
+    case "search_repositories": {
+      const repos = githubHandlers.searchRepositories(mockData, args.query, {
+        limit: args.limit,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              { query: args.query, items: repos, total: repos.length },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    }
+
+    case "search_users": {
+      const users = githubHandlers.searchUsers(mockData, args.query, {
+        limit: args.limit,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              { query: args.query, users, total: users.length },
               null,
               2
             ),

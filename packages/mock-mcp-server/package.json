@@ -1,5 +1,5 @@
 {
-  "name": "@ebee-oss/mock-mcp-server",
+  "name": "mock-mcp-server",
   "version": "1.0.0",
   "description": "Generic MCP Server for mock data - supports Slack, Fathom, Notion, and GitHub mock data sources",
   "type": "module",
@@ -9,7 +9,6 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
     "start": "tsx src/index.ts",
     "prepare": "npm run build"
   },
@@ -31,6 +30,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "tsx": "^4.20.2"
   }
 }

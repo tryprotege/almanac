@@ -120,6 +120,25 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/mock-mcp-server:
+    dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.0.4
+        version: 1.24.3(zod@3.25.76)
+      '@slack/web-api':
+        specifier: ^7.11.0
+        version: 7.13.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.19.2
+      tsx:
+        specifier: ^4.20.2
+        version: 4.20.6
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
   packages/server:
     dependencies:
       '@ebee-oss/shared-util':
@@ -215,28 +234,6 @@ importers:
         version: 4.20.6
       typescript:
         specifier: ^5.9.3
-        version: 5.9.3
-
-  packages/slack-mock-mcp-server:
-    dependencies:
-      '@ebee-oss/shared-util':
-        specifier: workspace:*
-        version: link:../shared-util
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.0.4
-        version: 1.24.3(zod@3.25.76)
-      '@slack/web-api':
-        specifier: ^7.11.0
-        version: 7.13.0
-    devDependencies:
-      '@types/node':
-        specifier: ^22.10.2
-        version: 22.19.2
-      tsx:
-        specifier: ^4.20.2
-        version: 4.20.6
-      typescript:
-        specifier: ^5.7.2
         version: 5.9.3
 
 packages:

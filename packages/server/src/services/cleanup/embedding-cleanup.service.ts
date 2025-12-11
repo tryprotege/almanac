@@ -177,14 +177,14 @@ export async function cleanupOrphanedEmbeddings(
 export async function cleanupEmbeddingsBySource(
   source: SourceType
 ): Promise<{ deleted: number }> {
-  logger.info(`🧹 Cleaning up embedding metadata for source: ${source}...`);
+  logger.debug({ msg: `🧹 Cleaning up embedding metadata`, source });
 
   // Delete all metadata where any source document matches the source prefix
   const result = await GraphEmbeddingMetadata.deleteMany({
     sourceDocumentIds: { $regex: `^${source}_` },
   });
 
-  logger.info(`   ✅ Deleted ${result.deletedCount} metadata records`);
+  logger.info({ msg: `✅ Deleted ${result.deletedCount} metadata records` });
   return { deleted: result.deletedCount || 0 };
 }
 

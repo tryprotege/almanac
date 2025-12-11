@@ -108,9 +108,9 @@ export const indexGraphWorker = new Worker<
 
 // Set up worker event handlers
 indexGraphWorker.on("completed", (job) => {
-  logger.info(
-    `✅ Graph index job completed: jobId: ${job.id} for record ${job.data.source}`
-  );
+  logger.info({
+    msg: `✅ Graph index job completed: jobId: ${job.id} for record ${job.data.source}`,
+  });
 });
 
 indexGraphWorker.on("failed", (job, err) => {
@@ -125,9 +125,9 @@ indexGraphWorker.on("error", (err) => {
 });
 
 indexGraphWorker.on("active", (job) => {
-  logger.info(
-    `🔄 Graph index job started: jobId: ${job.id} for record ${job.data.source}`
-  );
+  logger.info({
+    msg: `🔄 Graph index job started: jobId: ${job.id} for record ${job.data.source}`,
+  });
 });
 
 export const indexGraphQueue = new Queue<

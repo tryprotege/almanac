@@ -127,12 +127,17 @@ export async function syncAllRecords(
 
     const duration = Date.now() - startTime;
 
-    logger.info(`\n✅ Sync completed for ${source}:`);
-    logger.info(`  Total: ${totalProcessed}`);
-    logger.info(`  Created: ${totalCreated}`);
-    logger.info(`  Updated: ${totalUpdated}`);
-    logger.info(`  Failed: ${totalFailed}`);
-    logger.info(`  Duration: ${duration}ms`);
+    logger.info({
+      msg: "✅ Sync completed",
+      source,
+      stats: {
+        total: totalProcessed,
+        created: totalCreated,
+        updated: totalUpdated,
+        failed: totalFailed,
+        duration,
+      },
+    });
 
     return {
       jobId,

@@ -62,11 +62,11 @@ export async function lightragQuery(
       : { high_level: [], low_level: [] };
 
   if (mode !== "naive") {
-    logger.info(
-      `[LightRAG] Keywords - High: [${keywords.high_level.join(
-        ", "
-      )}], Low: [${keywords.low_level.join(", ")}]`
-    );
+    logger.info({
+      msg: "[LightRAG] Keywords extracted",
+      high: keywords.high_level,
+      low: keywords.low_level,
+    });
   }
 
   // Execute mode-specific retrieval
@@ -122,11 +122,12 @@ export async function lightragQuery(
 
   const processingTime = Date.now() - startTime;
 
-  logger.info(
-    `[LightRAG] Complete in ${processingTime}ms - ${
-      chunks.length
-    } chunks from ${countUniqueDocuments(chunks)} documents\n`
-  );
+  logger.info({
+    msg: "[LightRAG] Query complete",
+    processingTime,
+    chunks: chunks.length,
+    documents: countUniqueDocuments(chunks),
+  });
 
   return {
     query: query.query,

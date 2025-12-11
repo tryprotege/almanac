@@ -1,0 +1,27 @@
+{
+  "name": "@ebee/benchmarking",
+  "version": "0.1.0",
+  "description": "Benchmarking tools for multi-source data integration",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "tsx src/mock-data-generator/index.ts",
+    "build": "tsc",
+    "generate:small": "tsx src/mock-data-generator/index.ts --days 30",
+    "generate:medium": "tsx src/mock-data-generator/index.ts --days 180",
+    "generate:large": "tsx src/mock-data-generator/index.ts --days 365",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "openai": "^4.73.0",
+    "dotenv": "^16.4.7",
+    "@slack/web-api": "^7.11.0",
+    "@ebee-oss/shared-util": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3"
+  }
+}

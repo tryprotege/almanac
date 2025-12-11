@@ -14,7 +14,7 @@ import {
   GitHubDependabotAlert,
   GitHubUser,
   GitHubAdapterConfig,
-} from "../../sources/github/types.js";
+} from "@ebee-oss/shared-util";
 import { GitHubMCPClient } from "../../sources/github/mcpClient.js";
 import pLimit from "p-limit";
 

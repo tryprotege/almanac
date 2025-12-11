@@ -32,6 +32,26 @@ function stripExtraQuotes(str: string): string {
   return cleaned;
 }
 
+/**
+ * Normalize entity names for fuzzy matching
+ * This allows matching entities with different cases, dashes, and spacing
+ * e.g., "Stable‑coin back product" -> "stable-coin-back-product"
+ */
+function normalizeEntityName(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .trim()
+      // Normalize all unicode dashes/hyphens to regular hyphen
+      .replace(/[\u2010-\u2015\u2212\u2013\u2014]/g, "-")
+      // Normalize multiple spaces/dashes to single
+      .replace(/\s+/g, " ")
+      .replace(/-+/g, "-")
+      // Convert spaces to dashes for consistent matching
+      .replace(/\s/g, "-")
+  );
+}
+
 // ============================================================================
 // JSON Schemas for Structured Output
 // ============================================================================
@@ -76,18 +96,24 @@ const SINGLE_ENTITY_EXTRACTION_SCHEMA: Record<string, unknown> = {
   type: "object",
   properties: {
     entity: {
-      type: "object",
-      properties: {
-        name: { type: "string" },
-        type: { type: "string" },
-        description: { type: "string" },
-      },
-      required: ["name", "type", "description"],
-      additionalProperties: false,
+      oneOf: [
+        {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            type: { type: "string" },
+            description: { type: "string" },
+          },
+          required: ["name", "type", "description"],
+          additionalProperties: false,
+        },
+        {
+          type: "null",
+        },
+      ],
     },
-    found: { type: "boolean" },
   },
-  required: ["found"],
+  required: ["entity"],
   additionalProperties: false,
 };
 
@@ -127,7 +153,13 @@ PRIORITIZE these high-value relationship patterns:
 ---CRITICAL NAMING RULES---
 Follow these rules STRICTLY for entity names:
 
-1. PERSON entities:
+1. PRESERVE EXACT SYNTAX from the text:
+   ✅ Keep the EXACT case, spacing, and punctuation as it appears in the text
+   ✅ If the text says "stable coin back product", use "stable coin back product"
+   ✅ If the text says "Stable-coin Product", use "Stable-coin Product"
+   ✅ Preserve dashes, hyphens, and special characters exactly as they appear
+   
+2. PERSON entities:
    ✅ Use "First Last" format: "Jane Doe", "John Smith"
    ✅ If only first name: "Jane", "John"
    ✅ If only last name: "Smith"
@@ -135,9 +167,9 @@ Follow these rules STRICTLY for entity names:
    ❌ NEVER use titles: "Dr. Smith", "Mr. Jones"
    ❌ NEVER use initials only: "J.S."
 
-2. ALL entity types:
+3. CONSISTENCY:
    ✅ Use the EXACT SAME NAME throughout (case matters!)
-   ✅ Use consistent capitalization
+   ✅ Use consistent capitalization as it appears in the source text
    ❌ DON'T use variations: "Task Manager" vs "taskManager"
 
 ---CRITICAL MATCHING RULES---
@@ -249,7 +281,6 @@ ${existingEntityTypes.join(", ")}
 ---Output Format---
 If found:
 {
-  "found": true,
   "entity": {
     "name": "${entityName}",
     "type": "Person",
@@ -259,7 +290,7 @@ If found:
 
 If not found:
 {
-  "found": false
+  "entity": null
 }
 
 ---Real Data---
@@ -288,6 +319,12 @@ async function extractMissingEntity(
       relationshipContext
     );
 
+    // Debug: Log the prompt being sent
+    logger.debug({
+      msg: `📝 Fallback extraction prompt for "${entityName}"`,
+      prompt,
+    });
+
     const response = await chat(
       client,
       [
@@ -302,6 +339,7 @@ async function extractMissingEntity(
         temperature: 0,
         reasoningEffort: "medium",
         maxTokens: 1000,
+        frequencyPenalty: 0.2,
         responseFormat: {
           type: "json_schema",
           json_schema: {
@@ -313,9 +351,34 @@ async function extractMissingEntity(
       }
     );
 
-    const result = JSON.parse(response);
+    // Debug: Log the raw response
+    logger.debug({
+      msg: `🤖 Fallback extraction response for "${entityName}"`,
+      response,
+    });
 
-    if (result.found && result.entity) {
+    let result;
+    try {
+      result = JSON.parse(response);
+    } catch (parseErr) {
+      // If JSON.parse fails, log the raw response at ERROR level
+      logger.error(
+        {
+          err: parseErr,
+          entityName,
+          rawResponse: response,
+          responseLength: response?.length,
+          responsePreview: response?.substring(0, 500),
+        },
+        `❌ Failed to parse fallback extraction JSON response for "${entityName}"`
+      );
+      return null;
+    }
+
+    // Debug: Log the parsed result
+    logger.info(`📊 Parsed result for "${entityName}":`, result);
+
+    if (result.entity !== null) {
       return {
         name: stripExtraQuotes(result.entity.name),
         type: stripExtraQuotes(result.entity.type),
@@ -323,6 +386,7 @@ async function extractMissingEntity(
       };
     }
 
+    logger.warn({ msg: `⚠️  LLM returned entity=null for "${entityName}"` });
     return null;
   } catch (err) {
     logger.error(
@@ -419,6 +483,7 @@ async function extractBothFromContent(
           temperature: 0,
           reasoningEffort: "low",
           maxTokens: 10000,
+          frequencyPenalty: 0.2,
           responseFormat: {
             type: "json_schema",
             json_schema: {
@@ -527,14 +592,14 @@ export async function extractGraphFromContent(
 
   // Build a set of valid entity names (normalized) for validation
   const validEntityNames = new Set(
-    entities.map((e) => e.name.toLowerCase().trim())
+    entities.map((e) => normalizeEntityName(e.name))
   );
 
   // Find missing entities referenced in relationships and group by relationship
   const missingEntitiesMap = new Map<string, Relationship[]>();
   for (const rel of relationships) {
-    const normalizedSource = rel.source.toLowerCase().trim();
-    const normalizedTarget = rel.target.toLowerCase().trim();
+    const normalizedSource = normalizeEntityName(rel.source);
+    const normalizedTarget = normalizeEntityName(rel.target);
 
     if (!validEntityNames.has(normalizedSource)) {
       if (!missingEntitiesMap.has(rel.source)) {
@@ -596,7 +661,7 @@ export async function extractGraphFromContent(
 
       if (entity) {
         entities.push(entity);
-        validEntityNames.add(entity.name.toLowerCase().trim());
+        validEntityNames.add(normalizeEntityName(entity.name));
         logger.info(
           `   ✅ Fallback extracted: "${entity.name}" (${entity.type})`
         );
@@ -608,7 +673,7 @@ export async function extractGraphFromContent(
           relContexts[0]
         );
         entities.push(inferredEntity);
-        validEntityNames.add(inferredEntity.name.toLowerCase().trim());
+        validEntityNames.add(normalizeEntityName(inferredEntity.name));
         logger.info(
           `   🔮 Inferential entity created: "${inferredEntity.name}" (${inferredEntity.type})`
         );
@@ -621,8 +686,8 @@ export async function extractGraphFromContent(
 
   // Validate relationships after fallback - filter out those with missing entities
   const validatedRelationships = relationships.filter((rel: Relationship) => {
-    const normalizedSource = rel.source.toLowerCase().trim();
-    const normalizedTarget = rel.target.toLowerCase().trim();
+    const normalizedSource = normalizeEntityName(rel.source);
+    const normalizedTarget = normalizeEntityName(rel.target);
 
     const hasValidSource = validEntityNames.has(normalizedSource);
     const hasValidTarget = validEntityNames.has(normalizedTarget);

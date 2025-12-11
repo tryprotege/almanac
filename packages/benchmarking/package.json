@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "dev": "tsx src/mock-data-generator/index.ts",
+    "generate": "tsx src/mock-data-generator/index.ts",
     "build": "tsc",
     "generate:small": "tsx src/mock-data-generator/index.ts --days 30",
     "generate:medium": "tsx src/mock-data-generator/index.ts --days 180",

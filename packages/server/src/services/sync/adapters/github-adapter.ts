@@ -924,14 +924,14 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
 
       case "issue": {
         const issue = sourceRecord as GitHubIssue;
-        tags.push(...issue.labels?.map((l) => l.name));
+        tags.push(...(issue.labels?.map((l) => l.name) || []));
         tags.push(issue.state);
         break;
       }
 
       case "pull_request": {
         const pr = sourceRecord as GitHubPullRequest;
-        tags.push(...pr.labels?.map((l) => l.name));
+        tags.push(...(pr.labels?.map((l) => l.name) || []));
         tags.push(pr.state);
         if (pr.draft) tags.push("draft");
         if (pr.merged) tags.push("merged");

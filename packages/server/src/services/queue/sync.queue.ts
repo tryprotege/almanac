@@ -12,6 +12,14 @@ const processor: Processor<
   SyncMcpServerJobResult,
   string
 > = async ({ data: { mcpConfig } }) => {
+  if (mcpConfig.env && !(mcpConfig.env instanceof Map)) {
+    mcpConfig.env = new Map(Object.entries(mcpConfig.env));
+  }
+
+  if (mcpConfig.headers && !(mcpConfig.headers instanceof Map)) {
+    mcpConfig.headers = new Map(Object.entries(mcpConfig.headers));
+  }
+
   await syncMcpServer(mcpConfig);
 
   await Promise.all([

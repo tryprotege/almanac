@@ -109,6 +109,7 @@ export async function lightragQuery(
       vectorMatches = result.vectorMatches;
       graphExpanded = result.graphExpanded;
       reranked = result.reranked;
+      console.log("::::???????", result);
       break;
     }
     default:
@@ -364,10 +365,12 @@ async function searchEntitiesByKeywords(
   const queryVector = (await embed([searchQuery]))[0];
 
   // Search entity embeddings in Qdrant
-  const results = await deps.vectorStore.searchEntities(queryVector, {
+  const results = await deps.vectorStore.search(queryVector, {
     limit,
     scoreThreshold: 0.5,
   });
+
+  console.log("???????>>>>>>>>>>>", results.length);
 
   // Fetch full records from MongoDB (filter out undefined mongoIds for type safety)
   const mongoIds = results

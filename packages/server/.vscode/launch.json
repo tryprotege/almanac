@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug aaa.ts",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "/Users/harrytran/.nvm/versions/node/v24.5.0/bin/npx",
+      "runtimeArgs": [
+        "tsx",
+        "--inspect-brk",
+        "/Users/harrytran/Documents/ebee-oss/packages/server/.idea/hmm.ts"
+      ],
+      "skipFiles": ["<node_internals>/**"],
+      "outputCapture": "std",
+      "console": "integratedTerminal"
+    }
+  ]
+}

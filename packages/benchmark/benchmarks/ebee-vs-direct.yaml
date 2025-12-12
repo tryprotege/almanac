@@ -1,0 +1,64 @@
+# eBee vs Direct MCP Comparison Benchmark Configuration
+name: "eBee vs Direct MCP Comparison"
+description: "Compare eBee unified search performance against direct MCP server queries"
+type: comparison
+iterations: 10
+warmupRuns: 2
+outputDir: "./benchmark-results/ebee-vs-direct"
+
+agents:
+  - name: claude
+    model: claude-3-5-sonnet-20241022
+    apiKey: ${ANTHROPIC_API_KEY}
+    systemPrompt: "You are a helpful AI assistant."
+
+scenarios:
+  - id: "multi_source_notion_slack"
+    query: "Find recent updates across Notion and Slack about Q4 roadmap"
+    sourceServers:
+      - notion
+      - slack
+    expectedDifference:
+      speedup: 2.0
+      accuracyDelta: 0.05
+
+  - id: "github_issues_analysis"
+    query: "What are the open authentication issues in GitHub?"
+    sourceServers:
+      - github
+    expectedDifference:
+      speedup: 1.5
+      accuracyDelta: 0.0
+
+  - id: "analytics_notion_integration"
+    query: "Show me analytics data from Fathom and related Notion documentation"
+    sourceServers:
+      - fathom
+      - notion
+    expectedDifference:
+      speedup: 2.5
+      accuracyDelta: 0.1
+
+  - id: "cross_platform_search"
+    query: "Find all mentions of 'authentication' across GitHub, Notion, and Slack"
+    sourceServers:
+      - github
+      - notion
+      - slack
+    expectedDifference:
+      speedup: 3.0
+      accuracyDelta: 0.05
+
+  - id: "single_source_notion"
+    query: "Find all Notion pages about API documentation"
+    sourceServers:
+      - notion
+    expectedDifference:
+      speedup: 1.2
+      accuracyDelta: 0.0
+
+sourceServers:
+  notion: "npx -y @notionhq/notion-mcp-server"
+  slack: "custom-slack-server"
+  github: "npx -y @modelcontextprotocol/server-github"
+  fathom: "npx -y @ebee-oss/fathom-mcp-server"

@@ -19,7 +19,7 @@ import { SlackAdapter } from "../sync/adapters/slack-adapter.js";
 import { createRedisConnection, QUEUE_NAME } from "./config.js";
 import { env } from "../../env.js";
 
-const processor: Processor<
+export const processor: Processor<
   IndexGraphJobData,
   IndexGraphJobResult,
   string
@@ -89,6 +89,8 @@ const processor: Processor<
       force: false,
     }
   );
+
+  console.log("✅✅✅ graph", source);
 };
 
 type IndexGraphJobData = {

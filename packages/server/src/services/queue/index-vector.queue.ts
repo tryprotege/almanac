@@ -8,7 +8,7 @@ import { createRedisConnection, QUEUE_NAME } from "./config.js";
 import { SourceType } from "../../types/index.js";
 import logger from "../../utils/logger.js";
 
-const processor: Processor<
+export const processor: Processor<
   IndexVectorJobData,
   IndexVectorJobResult,
   string
@@ -21,6 +21,7 @@ const processor: Processor<
   const vectorStore = new VectorStore(qdrant);
 
   await insertAllRecordsToVectorDB(recordStore, vectorStore, source);
+  console.log("🚀🚀🚀 vector", source);
 };
 
 type IndexVectorJobData = {

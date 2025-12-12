@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug hmm.ts",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "/Users/harrytran/.nvm/versions/node/v18.20.2/bin/pnpm",
+      "runtimeArgs": ["doppler-run", "npx", "tsx", "--inspect", "./scripts/apify.ts"],
+      "skipFiles": ["<node_internals>/**"],
+      "outputCapture": "std",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Next.js: debug server-side",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "NODE_OPTIONS='--inspect' pnpm portal-dev-turbo"
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Nextjs",
+      "processId": "${command:PickProcess}",
+      "restart": true,
+      "protocol": "inspector"
+    }
+  ]
+}

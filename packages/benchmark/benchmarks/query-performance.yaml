@@ -1,0 +1,64 @@
+# Query Performance Benchmark Configuration
+name: "LightRAG Query Performance"
+description: "Benchmark different query modes and parameters for performance optimization"
+type: query
+iterations: 10
+warmupRuns: 2
+outputDir: "./benchmark-results/query-perf"
+
+queries:
+  - id: "entity_who"
+    query: "Who is working on authentication?"
+    category: "entity_focused"
+    expectedEntities:
+      - "john"
+      - "auth_team"
+    groundTruth:
+      relevantDocuments:
+        - "doc_123"
+        - "doc_456"
+      minRelevanceScore: 0.7
+
+  - id: "relationship_how"
+    query: "How does the payment system integrate with Stripe?"
+    category: "relationship"
+    expectedConcepts:
+      - "payment"
+      - "stripe"
+      - "integration"
+
+  - id: "temporal_when"
+    query: "When was the last deploy to production?"
+    category: "temporal"
+
+  - id: "aggregation_count"
+    query: "How many bugs were reported last week?"
+    category: "aggregation"
+
+  - id: "exploratory_what"
+    query: "What are the main features of the new API?"
+    category: "exploratory"
+
+modes:
+  - naive
+  - local
+  - global
+  - hybrid
+  - mix
+
+parameters:
+  top_k:
+    - 20
+    - 60
+    - 100
+  chunk_top_k:
+    - 10
+    - 20
+    - 30
+  enable_rerank:
+    - true
+    - false
+  score_threshold:
+    - 0.5
+    - 0.6
+    - 0.7

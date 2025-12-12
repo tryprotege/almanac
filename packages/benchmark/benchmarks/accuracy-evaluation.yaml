@@ -1,0 +1,78 @@
+# Accuracy Evaluation Benchmark Configuration
+name: "Input/Output Accuracy Evaluation"
+description: "Evaluate retrieval accuracy against ground truth data"
+type: query
+iterations: 20
+warmupRuns: 2
+outputDir: "./benchmark-results/accuracy"
+
+queries:
+  - id: "entity_who"
+    query: "Who is working on authentication?"
+    category: "entity_focused"
+    expectedEntities:
+      - "john"
+      - "auth_team"
+    groundTruth:
+      relevantDocuments:
+        - "doc_123"
+        - "doc_456"
+        - "doc_789"
+      requiredEntities:
+        - "john"
+        - "auth_team"
+      minRelevanceScore: 0.7
+
+  - id: "relationship_integration"
+    query: "How does the payment system integrate with Stripe?"
+    category: "relationship"
+    expectedConcepts:
+      - "payment"
+      - "stripe"
+      - "integration"
+    groundTruth:
+      relevantDocuments:
+        - "doc_234"
+        - "doc_567"
+      requiredRelationships:
+        - "payment_integrates_with_stripe"
+      minRelevanceScore: 0.65
+
+  - id: "temporal_deploy"
+    query: "When was the last deploy to production?"
+    category: "temporal"
+    groundTruth:
+      relevantDocuments:
+        - "doc_890"
+        - "doc_901"
+      minRelevanceScore: 0.7
+
+  - id: "aggregation_bugs"
+    query: "How many bugs were reported last week?"
+    category: "aggregation"
+    groundTruth:
+      relevantDocuments:
+        - "doc_345"
+        - "doc_678"
+      minRelevanceScore: 0.6
+
+  - id: "exploratory_features"
+    query: "What are the main features of the new API?"
+    category: "exploratory"
+    groundTruth:
+      relevantDocuments:
+        - "doc_111"
+        - "doc_222"
+        - "doc_333"
+        - "doc_444"
+      minRelevanceScore: 0.65
+
+# Use mix mode for accuracy evaluation
+modes:
+  - mix
+
+parameters:
+  top_k: [60]
+  chunk_top_k: [20]
+  enable_rerank: [true]
+  score_threshold: [0.6]

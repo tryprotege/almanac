@@ -59,6 +59,11 @@ export function registerLightRAGTool(
     async (args) => {
       try {
         const query = args as unknown as LightRAGQuery;
+
+        logger.info({
+          msg: "?:???????????",
+          query,
+        });
         const response = await lightragQuery(query, deps);
 
         return {

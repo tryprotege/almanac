@@ -43,7 +43,7 @@ function parseArgs(): ScriptOptions {
   const args = process.argv.slice(2);
   const options: ScriptOptions = {
     batchSize: 100,
-    limit: 100,
+    limit: undefined, // No limit by default
     force: false,
     includeRelationships: true,
     cleanup: false,
@@ -196,6 +196,7 @@ async function indexGraphRecords() {
         enableToxicFilter: env.ENABLE_TOXIC_DOCUMENT_FILTER,
         maxEntitiesPerDoc: env.MAX_ENTITIES_PER_DOCUMENT,
         force: options.force,
+        limit: options.limit,
       }
     );
 

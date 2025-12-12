@@ -777,6 +777,7 @@ export class GraphStore {
 
   /**
    * Delete entities that have no relationships at all (truly orphaned entities)
+   * Only deletes entities with NO relationships including MENTIONED_IN
    * Returns count of deleted entities
    * Includes retry logic for Memgraph transaction conflicts
    */
@@ -784,7 +785,7 @@ export class GraphStore {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         // First get the count
-        // Check for entities with NO relationships in any direction
+        // Check for entities with NO relationships in any direction (including MENTIONED_IN)
         const countQuery = `
           MATCH (entity:Entity)
           WHERE NOT (entity)-[]-()
@@ -799,6 +800,12 @@ export class GraphStore {
           typeof count === "object" && count !== null && "toNumber" in count
             ? (count as any).toNumber()
             : count || 0;
+
+        if (finalCount > 0) {
+          logger.info({
+            msg: `🗑️  Deleting ${finalCount} truly orphaned entities (no relationships at all)`,
+          });
+        }
 
         // Then delete the orphaned entities
         if (finalCount > 0) {
@@ -866,15 +873,18 @@ export class GraphStore {
     sourceId: string;
     targetId: string;
     type: string;
+    confidence?: number;
   }): Promise<void> {
     const query = `
       MATCH (source:Entity {id: $sourceId})
       MATCH (target:Entity {id: $targetId})
       MERGE (source)-[r:${relationship.type}]->(target)
+      SET r.confidence = $confidence
     `;
     await this.memgraph.executeQuery(query, {
       sourceId: relationship.sourceId,
       targetId: relationship.targetId,
+      confidence: relationship.confidence || 1.0,
     });
   }
 
@@ -888,6 +898,7 @@ export class GraphStore {
       sourceId: string;
       targetId: string;
       type: string;
+      confidence?: number;
     }>
   ): Promise<void> {
     if (relationships.length === 0) return;
@@ -904,15 +915,17 @@ export class GraphStore {
     for (const [type, typeRels] of relsByType.entries()) {
       const query = `
         UNWIND $rels AS rel
-        MATCH (source:Entity {id: rel.sourceId})
-        MATCH (target:Entity {id: rel.targetId})
+        MERGE (source:Entity {id: rel.sourceId})
+        MERGE (target:Entity {id: rel.targetId})
         MERGE (source)-[r:${type}]->(target)
+        SET r.confidence = rel.confidence
       `;
 
       await this.memgraph.executeQuery(query, {
         rels: typeRels.map((r) => ({
           sourceId: r.sourceId,
           targetId: r.targetId,
+          confidence: r.confidence ?? null,
         })),
       });
     }

@@ -24,9 +24,11 @@ import {
 import {
   entitiesToGraphNodes,
   relationshipsToGraphRelationships,
+  generateGlobalEntityId,
   GraphNode,
   GraphRelationship,
 } from "./graph-converter.js";
+import { normalizeEntityName } from "./schema/entity-deduplication.js";
 import {
   discoverNewTypes,
   updateSchemaWithDiscovery,
@@ -37,6 +39,7 @@ import { GraphEmbeddingMetadata } from "../../../models/graph-embedding-metadata
 import logger from "../../../utils/logger.js";
 import { env } from "../../../env.js";
 import { calculateEmbeddingChecksum } from "../../../utils/checksum.js";
+import { validateRelationshipType } from "../../../utils/cypher-escape.js";
 
 // ============================================================================
 // Types
@@ -58,6 +61,7 @@ export interface IndexingOptions {
   enableToxicFilter?: boolean;
   maxEntitiesPerDoc?: number;
   force?: boolean;
+  limit?: number;
 }
 
 export interface IndexingStats {
@@ -104,6 +108,23 @@ export const extractGraphFromRecord = async (
     record.sourceUpdatedAt <= record.lastGraphIndexAt
   ) {
     // Record is up-to-date, skip extraction
+    return {
+      entities: [],
+      relationships: [],
+      adapterRelationships: [],
+      recordId: record._id,
+      recordChecksum: record.checksum,
+    };
+  }
+
+  // Skip if no content (similar to embedding indexer behavior)
+  if (!record.content || record.content.trim().length === 0) {
+    logger.debug({
+      msg: "⏭️  Skipping record with no content",
+      recordId: record._id,
+      recordTitle: record.title,
+    });
+
     return {
       entities: [],
       relationships: [],
@@ -237,19 +258,16 @@ export const extractGraphFromRecord = async (
 /**
  * Process batch of extraction results to graph format
  * Pure function - no side effects
+ * Returns entity mappings for consistent ID generation
  */
 export const processRecordsToGraph = (
   recordsData: ExtractionResult[]
 ): {
   nodes: GraphNode[];
   relationships: GraphRelationship[];
+  entityNameToId: Map<string, string>;
+  entityIdToType: Map<string, string>;
 } => {
-  // // Flatten all entities across records
-  // const allEntities = recordsData.flatMap((data) => data.entities);
-
-  // // Deduplicate entities
-  // const dedupedEntities = deduplicateEntities(allEntities);
-
   // Flatten all relationships
   const allRelationships = recordsData.flatMap((data) => data.relationships);
 
@@ -259,6 +277,7 @@ export const processRecordsToGraph = (
   // Convert to graph format
   // We need to map entity names to node IDs across all records
   const entityNameToId = new Map<string, string>();
+  const entityIdToType = new Map<string, string>();
   const nodes: GraphNode[] = [];
 
   // First pass: collect all unique entities (now global, not per-record)
@@ -270,7 +289,9 @@ export const processRecordsToGraph = (
     for (const [name, id] of recordMapping.entries()) {
       if (!entityNameToId.has(name)) {
         entityNameToId.set(name, id);
-        nodes.push(recordNodes.find((n) => n.id === id)!);
+        const node = recordNodes.find((n) => n.id === id)!;
+        nodes.push(node);
+        entityIdToType.set(id, node.type);
       }
     }
   }
@@ -287,9 +308,25 @@ export const processRecordsToGraph = (
   );
   const allGraphRels = [...llmGraphRels, ...allAdapterRels];
 
+  // Validate relationship types and log warnings for special characters
+  const uniqueRelTypes = new Set(allGraphRels.map((r) => r.type));
+  for (const relType of uniqueRelTypes) {
+    const validation = validateRelationshipType(relType);
+    if (validation.warnings.length > 0) {
+      logger.warn({
+        msg: "⚠️  Relationship type contains special characters",
+        relationshipType: relType,
+        warnings: validation.warnings,
+        needsEscaping: validation.needsEscaping,
+      });
+    }
+  }
+
   return {
     nodes,
     relationships: allGraphRels,
+    entityNameToId,
+    entityIdToType,
   };
 };
 
@@ -306,11 +343,12 @@ export const indexAllRecords = async (
 ): Promise<IndexingStats> => {
   const {
     recordType = "",
-    batchSize = 50,
+    batchSize = 32,
     concurrency = 32,
     enableToxicFilter = true,
     maxEntitiesPerDoc = undefined,
     force = false,
+    limit: recordLimit = undefined,
   } = options;
 
   logger.info({
@@ -322,6 +360,7 @@ export const indexAllRecords = async (
     rationInfo: env.ENTITY_CHARS_PER_ENTITY,
     capInfo: maxEntitiesPerDoc,
     forceReIndex: force,
+    limit: recordLimit || "none",
   });
 
   // Ensure schema exists before indexing
@@ -362,13 +401,39 @@ export const indexAllRecords = async (
     relationshipTypes: existingRelTypes,
   } = getCurrentSchemaTypes(currentSchema);
 
+  // Get total record count for progress tracking
+  const totalRecords = await recordStore.countBySourceAndType(
+    source,
+    recordType,
+    {
+      includeDeleted: false,
+    }
+  );
+
+  logger.info({
+    msg: `📊 Total records to process: ${totalRecords}`,
+    source,
+    recordType: recordType || "all",
+  });
+
   // Create concurrency limiter
   const limit = pLimit(concurrency);
 
   let skip = 0;
   let hasMore = true;
+  let batchNumber = 0;
 
   while (hasMore) {
+    // Check if we've reached the record limit
+    if (recordLimit && stats.processedRecords >= recordLimit) {
+      logger.info({
+        msg: `⚠️  Reached limit of ${recordLimit} records, stopping indexing`,
+        processedRecords: stats.processedRecords,
+      });
+      hasMore = false;
+      break;
+    }
+
     const records = await recordStore.findBySourceAndType(source, recordType, {
       limit: batchSize,
       skip,
@@ -379,6 +444,9 @@ export const indexAllRecords = async (
       hasMore = false;
       break;
     }
+
+    // Increment batch number
+    batchNumber++;
 
     // Track batch start time
     const batchStartTime = Date.now();
@@ -496,7 +564,24 @@ export const indexAllRecords = async (
       }
 
       // Process to graph format (pure function)
-      const { nodes, relationships } = processRecordsToGraph(validResults);
+      const { nodes, relationships, entityNameToId, entityIdToType } =
+        processRecordsToGraph(validResults);
+
+      // DEBUG: Log what processRecordsToGraph returned
+      logger.info({
+        msg: "🔍 DEBUG: processRecordsToGraph results",
+        nodesCount: nodes.length,
+        relationshipsCount: relationships.length,
+        entityMappings: entityNameToId.size,
+        sampleNodes: nodes
+          .slice(0, 3)
+          .map((n) => ({ id: n.id, type: n.type, title: n.title })),
+        sampleRels: relationships.slice(0, 3).map((r) => ({
+          source: r.sourceId,
+          target: r.targetId,
+          type: r.type,
+        })),
+      });
 
       // Auto-discover new types from extraction results
       if (currentSchema) {
@@ -520,15 +605,33 @@ export const indexAllRecords = async (
 
       // Store nodes using batch operations (FAST - no write conflicts)
       if (nodes.length > 0) {
+        logger.info({
+          msg: "🔍 DEBUG: About to save nodes to Memgraph",
+          nodesCount: nodes.length,
+        });
+
         // 1. Create/update ALL entity nodes in one batch
-        await graphStore.upsertEntityNodes(
-          nodes.map((node) => ({
-            id: node.id,
-            type: node.type,
-            title: node.title,
-            description: node.description,
-          }))
-        );
+        try {
+          await graphStore.upsertEntityNodes(
+            nodes.map((node) => ({
+              id: node.id,
+              type: node.type,
+              title: node.title,
+              description: node.description,
+            }))
+          );
+          logger.info({
+            msg: "✅ DEBUG: Successfully saved nodes to Memgraph",
+            nodesCount: nodes.length,
+          });
+        } catch (err) {
+          logger.error({
+            msg: "❌ DEBUG: Failed to save nodes to Memgraph",
+            err,
+            nodesCount: nodes.length,
+          });
+          throw err;
+        }
 
         // 2. Collect all entity-to-document links
         const entityLinks: Array<{
@@ -576,10 +679,10 @@ export const indexAllRecords = async (
                     $each: validResults
                       .filter((r) =>
                         r.entities.some((e) => {
-                          const entityId = `${e.type.toLowerCase()}_${e.name
-                            .toLowerCase()
-                            .replace(/[^a-z0-9]+/g, "_")}`;
-                          return entityId === node.id;
+                          // Use the entityNameToId map for consistent ID lookup
+                          const normalizedName = normalizeEntityName(e.name);
+                          const mappedId = entityNameToId.get(normalizedName);
+                          return mappedId === node.id;
                         })
                       )
                       .map((r) => r.recordId),
@@ -605,8 +708,14 @@ export const indexAllRecords = async (
             sourceId: rel.sourceId,
             targetId: rel.targetId,
             type: rel.type,
+            confidence: rel.confidence,
           }))
         );
+
+        logger.info({
+          msg: "✅ DEBUG: Successfully saved relationships to Memgraph",
+          relationshipsCount: relationships.length,
+        });
 
         // 2. Collect all document-to-relationship links
         const relLinks: Array<{
@@ -637,16 +746,18 @@ export const indexAllRecords = async (
         const relDescriptionMap = new Map<string, string>();
         for (const result of validResults) {
           for (const origRel of result.relationships) {
-            // Create relationship ID using entity names (need to normalize)
-            const sourceId = `entity_${origRel.source
-              .toLowerCase()
-              .replace(/\s+/g, "_")}`;
-            const targetId = `entity_${origRel.target
-              .toLowerCase()
-              .replace(/\s+/g, "_")}`;
-            const relId = `${sourceId}_${origRel.type}_${targetId}`;
-            if (origRel.description) {
-              relDescriptionMap.set(relId, origRel.description);
+            // Use entityNameToId map for consistent ID lookup
+            const sourceNorm = normalizeEntityName(origRel.source);
+            const targetNorm = normalizeEntityName(origRel.target);
+            const sourceId = entityNameToId.get(sourceNorm);
+            const targetId = entityNameToId.get(targetNorm);
+
+            // Only add to map if both entities were found
+            if (sourceId && targetId) {
+              const relId = `${sourceId}_${origRel.type}_${targetId}`;
+              if (origRel.description) {
+                relDescriptionMap.set(relId, origRel.description);
+              }
             }
           }
         }
@@ -709,13 +820,60 @@ export const indexAllRecords = async (
       // Update successful count
       stats.successfulRecords += validResults.length;
 
-      logger.debug({
-        msg: "📊 Progress update",
-        progress: {
-          successful: stats.successfulRecords,
-          processed: stats.processedRecords,
-          failed: stats.failedRecords,
-          toxic: stats.skippedToxic,
+      // Track batch end time and calculate metrics
+      const batchEndTime = Date.now();
+      const batchTimeMs = batchEndTime - batchStartTime;
+      batchTimes.push(batchTimeMs);
+
+      // Calculate progress metrics
+      const percentComplete =
+        totalRecords > 0
+          ? ((stats.processedRecords / totalRecords) * 100).toFixed(1)
+          : "0.0";
+
+      const estimatedTotalBatches =
+        totalRecords > 0 ? Math.ceil(totalRecords / batchSize) : 0;
+
+      // Calculate estimated time remaining
+      const elapsedTimeMs = batchEndTime - startTime;
+      const avgBatchTimeSoFar =
+        batchTimes.length > 0
+          ? batchTimes.reduce((sum, time) => sum + time, 0) / batchTimes.length
+          : 0;
+      const remainingRecords = totalRecords - stats.processedRecords;
+      const remainingBatches = Math.ceil(remainingRecords / batchSize);
+      const estimatedRemainingMs = remainingBatches * avgBatchTimeSoFar;
+
+      // Format time helper
+      const formatTime = (ms: number): string => {
+        if (ms < 1000) return `${ms.toFixed(0)}ms`;
+        if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+        const minutes = Math.floor(ms / 60000);
+        const seconds = ((ms % 60000) / 1000).toFixed(0);
+        return `${minutes}m ${seconds}s`;
+      };
+
+      // Enhanced batch progress logging
+      logger.info({
+        msg: `📊 Batch ${batchNumber}/${estimatedTotalBatches} (${percentComplete}% complete)`,
+        batch: {
+          number: batchNumber,
+          total: estimatedTotalBatches,
+          percentComplete: `${percentComplete}%`,
+        },
+        timing: {
+          batchTime: formatTime(batchTimeMs),
+          avgBatchTime: formatTime(avgBatchTimeSoFar),
+          elapsedTime: formatTime(elapsedTimeMs),
+          estimatedRemaining: formatTime(estimatedRemainingMs),
+        },
+        records: {
+          processed: `${stats.processedRecords}/${totalRecords}`,
+          thisSuccess: validResults.length,
+          thisFailed: failedExtractions.length,
+          totalSuccessful: stats.successfulRecords,
+          totalFailed: stats.failedRecords,
+          totalToxic: stats.skippedToxic,
         },
         created: {
           nodes: stats.nodes,
@@ -725,11 +883,11 @@ export const indexAllRecords = async (
     } catch (err) {
       logger.error({ err }, "Error processing batch");
       stats.errors++;
-    }
 
-    // Track batch end time
-    const batchEndTime = Date.now();
-    batchTimes.push(batchEndTime - batchStartTime);
+      // Track batch end time even on error
+      const batchEndTime = Date.now();
+      batchTimes.push(batchEndTime - batchStartTime);
+    }
 
     skip += records.length;
   }
@@ -856,8 +1014,8 @@ export const indexSingleRecord = async (
     const memgraphNodes = nodes.map((node) => ({
       label: "Entity",
       id: node.id,
-      type: "entity",
-      title: node.id.split("_").pop() || node.id,
+      type: node.type, // Use actual entity type from GraphNode
+      title: node.title, // Use actual title from GraphNode
     }));
     await graphStore.createNodes(memgraphNodes);
   }

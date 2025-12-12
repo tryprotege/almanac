@@ -202,6 +202,28 @@ export class RecordStore {
   }
 
   /**
+   * Count entities by source and type
+   */
+  async countBySourceAndType(
+    source: SourceType,
+    recordType?: string,
+    options?: { includeDeleted?: boolean }
+  ): Promise<number> {
+    const filter: any = { source };
+
+    // Only add recordType to filter if it's provided and not empty
+    if (recordType) {
+      filter.recordType = recordType;
+    }
+
+    if (!options?.includeDeleted) {
+      filter.deletedAt = null;
+    }
+
+    return await RecordModel.countDocuments(filter);
+  }
+
+  /**
    * Find entities by IDs
    */
   async findByIds(ids: string[]): Promise<Record[]> {

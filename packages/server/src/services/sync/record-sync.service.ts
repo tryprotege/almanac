@@ -70,7 +70,8 @@ async function syncRecord(
 export async function syncAllRecords(
   recordStore: RecordStore,
   source: SourceType,
-  adapter: BaseRecordAdapter
+  adapter: BaseRecordAdapter,
+  options?: { limit?: number }
 ): Promise<{
   jobId: string;
   success: boolean;
@@ -99,10 +100,25 @@ export async function syncAllRecords(
     const iterator = adapter.fetchAll({ batchSize: 50 });
 
     for await (const batch of iterator) {
-      logger.info(`  Processing batch of ${batch.length} records...`);
+      // Check if we've reached the limit
+      if (options?.limit && totalProcessed >= options.limit) {
+        logger.info(
+          `  Reached limit of ${options.limit} records, stopping sync`
+        );
+        break;
+      }
+
+      // Apply limit to batch if needed
+      const recordsToProcess = options?.limit
+        ? batch.slice(0, options.limit - totalProcessed)
+        : batch;
+
+      logger.info(
+        `  Processing batch of ${recordsToProcess.length} records...`
+      );
 
       await Promise.all(
-        batch.map(
+        recordsToProcess.map(
           async (sourceRecord) =>
             await limit(async () => {
               try {

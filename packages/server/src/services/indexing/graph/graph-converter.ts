@@ -37,6 +37,8 @@ export const generateGlobalEntityId = (
   entityName: string,
   entityType: string
 ): string => {
+  // Normalize first (lowercase, trim, single spaces)
+  // Then convert spaces to underscores ONLY for the ID string
   const normalized = normalizeEntityName(entityName).replace(/\s+/g, "_");
   return `entity_${entityType.toLowerCase()}_${normalized}`;
 };
@@ -85,8 +87,11 @@ export const relationshipsToGraphRelationships = (
 
   for (const rel of relationships) {
     // Normalize entity names when looking up IDs to ensure case-insensitive matching
-    const sourceId = entityNameToId.get(normalizeEntityName(rel.source));
-    const targetId = entityNameToId.get(normalizeEntityName(rel.target));
+    const normalizedSource = normalizeEntityName(rel.source);
+    const normalizedTarget = normalizeEntityName(rel.target);
+
+    const sourceId = entityNameToId.get(normalizedSource);
+    const targetId = entityNameToId.get(normalizedTarget);
 
     if (sourceId && targetId) {
       validRelationships.push({
@@ -98,14 +103,24 @@ export const relationshipsToGraphRelationships = (
     } else {
       skippedCount++;
       if (!sourceId) {
-        logger.warn(
-          `⚠️  Skipping relationship - source entity not found: "${rel.source}" in ${rel.type} relationship`
-        );
+        logger.warn({
+          msg: `⚠️  Skipping relationship - source entity not found`,
+          relationship: `${rel.source} -[${rel.type}]-> ${rel.target}`,
+          originalSource: rel.source,
+          normalizedSource,
+          availableEntitiesCount: entityNameToId.size,
+          sampleKeys: Array.from(entityNameToId.keys()).slice(0, 5),
+        });
       }
       if (!targetId) {
-        logger.warn(
-          `⚠️  Skipping relationship - target entity not found: "${rel.target}" in ${rel.type} relationship`
-        );
+        logger.warn({
+          msg: `⚠️  Skipping relationship - target entity not found`,
+          relationship: `${rel.source} -[${rel.type}]-> ${rel.target}`,
+          originalTarget: rel.target,
+          normalizedTarget,
+          availableEntitiesCount: entityNameToId.size,
+          sampleKeys: Array.from(entityNameToId.keys()).slice(0, 5),
+        });
       }
     }
   }

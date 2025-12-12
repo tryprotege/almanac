@@ -1,5 +1,9 @@
 import OpenAI from "openai";
-import { Entity, Relationship } from "./entity-deduplication.js";
+import {
+  Entity,
+  Relationship,
+  normalizeEntityName,
+} from "./entity-deduplication.js";
 import { chat } from "../../../llm/llm.js";
 import logger from "../../../../utils/logger.js";
 import sleep from "../../../../utils/sleep.js";
@@ -33,23 +37,105 @@ function stripExtraQuotes(str: string): string {
 }
 
 /**
- * Normalize entity names for fuzzy matching
- * This allows matching entities with different cases, dashes, and spacing
- * e.g., "Stable‑coin back product" -> "stable-coin-back-product"
+ * Check if a string looks like a command-line command
  */
-function normalizeEntityName(name: string): string {
+function isCommandLine(str: string): boolean {
+  const commandPatterns = [
+    /^(npm|pnpm|npx|yarn|node|tsx|ts-node|deno)\s/i,
+    /^(git|docker|kubectl|brew|cargo|rustc)\s/i,
+    /^(cd|ls|cp|mv|rm|mkdir|cat|grep|sed|awk)\s/i,
+    /--[\w-]+=/, // CLI flags with values
+    /^\w+\s+\w+\s+--/, // command subcommand --flag
+  ];
+  return commandPatterns.some((pattern) => pattern.test(str));
+}
+
+/**
+ * Check if a string looks like a file path
+ */
+function isFilePath(str: string): boolean {
   return (
-    name
-      .toLowerCase()
-      .trim()
-      // Normalize all unicode dashes/hyphens to regular hyphen
-      .replace(/[\u2010-\u2015\u2212\u2013\u2014]/g, "-")
-      // Normalize multiple spaces/dashes to single
-      .replace(/\s+/g, " ")
-      .replace(/-+/g, "-")
-      // Convert spaces to dashes for consistent matching
-      .replace(/\s/g, "-")
+    /^[\w.-]+\/[\w.-/]+$/.test(str) || // unix path
+    /^[a-z]:\\/i.test(str) || // windows path
+    /\.(ts|js|tsx|jsx|py|java|go|rs|c|cpp|h|md|json|yaml|yml|xml|html|css|scss)$/i.test(
+      str
+    ) // has file extension
   );
+}
+
+/**
+ * Extract a meaningful name from a command-line string
+ */
+function extractCommandName(command: string): string {
+  // Try to extract script name from commands like "pnpm tsx scripts/shadowComparison/index.ts"
+  const scriptMatch = command.match(/scripts?\/([^\/\s]+)/);
+  if (scriptMatch) {
+    const scriptName = scriptMatch[1].replace(/\.(ts|js|tsx|jsx)$/i, "");
+    return scriptName;
+  }
+
+  // For simple commands like "npm install react", keep first 2-3 words
+  const parts = command
+    .split(" ")
+    .filter((part) => !part.startsWith("--") && part.trim());
+  return parts.slice(0, 3).join(" ");
+}
+
+/**
+ * Extract basename from a file path
+ */
+function extractFileName(filePath: string): string {
+  // Extract just the filename from a path
+  const parts = filePath.split(/[/\\]/);
+  return parts[parts.length - 1];
+}
+
+/**
+ * Sanitize and validate an entity name for LightRAG
+ * Returns null if the entity should be skipped
+ */
+function sanitizeEntityName(name: string, type?: string): string | null {
+  // 1. Trim whitespace
+  let cleaned = name.trim();
+
+  // 2. Remove extra quotes
+  cleaned = stripExtraQuotes(cleaned);
+
+  // 3. Reject if empty after cleaning
+  if (!cleaned || cleaned.length === 0) {
+    return null;
+  }
+
+  // 4. Handle command-line strings
+  if (isCommandLine(cleaned)) {
+    // Extract just the meaningful part
+    cleaned = extractCommandName(cleaned);
+
+    // If still too long after extraction, skip it
+    if (cleaned.length > 100) {
+      return null;
+    }
+  }
+
+  // 5. Handle file paths
+  if (isFilePath(cleaned)) {
+    // Extract just the filename
+    cleaned = extractFileName(cleaned);
+  }
+
+  // 6. Reject if still too long (likely garbled text)
+  if (cleaned.length > 150) {
+    return null;
+  }
+
+  // 7. Reject garbled text (too many spaces or special chars)
+  const specialCharRatio =
+    (cleaned.match(/[^a-zA-Z0-9\s-_]/g) || []).length / cleaned.length;
+  if (specialCharRatio > 0.3) {
+    return null; // More than 30% special characters
+  }
+
+  return cleaned;
 }
 
 // ============================================================================
@@ -309,7 +395,11 @@ async function extractMissingEntity(
   content: string,
   entityName: string,
   existingEntityTypes: string[],
-  relationshipContext?: string
+  relationshipContext?: string,
+  recordContext?: {
+    recordId: string;
+    recordTitle: string;
+  }
 ): Promise<Entity | null> {
   try {
     const prompt = buildSingleEntityExtractionPrompt(
@@ -337,9 +427,12 @@ async function extractMissingEntity(
       ],
       {
         temperature: 0,
-        reasoningEffort: "medium",
+        // reasoningEffort: "medium",
         maxTokens: 1000,
         frequencyPenalty: 0.2,
+        reasoning: {
+          effort: "none",
+        },
         responseFormat: {
           type: "json_schema",
           json_schema: {
@@ -361,16 +454,21 @@ async function extractMissingEntity(
     try {
       result = JSON.parse(response);
     } catch (parseErr) {
+      const recordInfo = recordContext
+        ? ` for "${recordContext.recordTitle}" (ID: ${recordContext.recordId})`
+        : "";
+
       // If JSON.parse fails, log the raw response at ERROR level
       logger.error(
         {
           err: parseErr,
+          recordId: recordContext?.recordId,
+          recordTitle: recordContext?.recordTitle,
           entityName,
-          rawResponse: response,
+          rawResponse: response, // FULL response, not truncated
           responseLength: response?.length,
-          responsePreview: response?.substring(0, 500),
         },
-        `❌ Failed to parse fallback extraction JSON response for "${entityName}"`
+        `❌ Failed to parse fallback extraction JSON response for "${entityName}"${recordInfo}`
       );
       return null;
     }
@@ -481,9 +579,12 @@ async function extractBothFromContent(
         ],
         {
           temperature: 0,
-          reasoningEffort: "low",
+          // reasoningEffort: "low",
           maxTokens: 10000,
-          frequencyPenalty: 0.2,
+          frequencyPenalty: 0.1,
+          reasoning: {
+            effort: "none",
+          },
           responseFormat: {
             type: "json_schema",
             json_schema: {
@@ -497,22 +598,81 @@ async function extractBothFromContent(
 
       const extracted = JSON.parse(response);
 
-      // Strip extra quotes from entity names and types
-      const entities = (extracted.entities || []).map((entity: Entity) => ({
-        ...entity,
-        name: stripExtraQuotes(entity.name),
-        type: stripExtraQuotes(entity.type),
-      }));
+      // Sanitize and filter entities
+      const rawEntities = extracted.entities || [];
+      const entities: Entity[] = [];
+      let sanitizedCount = 0;
+      let skippedCount = 0;
 
-      // Strip extra quotes from relationship fields
-      const relationships = (extracted.relationships || []).map(
-        (rel: Relationship) => ({
-          ...rel,
-          source: stripExtraQuotes(rel.source),
-          target: stripExtraQuotes(rel.target),
-          type: stripExtraQuotes(rel.type),
+      for (const entity of rawEntities) {
+        const cleanName = sanitizeEntityName(entity.name, entity.type);
+
+        if (!cleanName) {
+          skippedCount++;
+          logger.debug({
+            msg: `⚠️ Skipped invalid entity`,
+            original: entity.name,
+            type: entity.type,
+            reason: "Failed sanitization",
+          });
+          continue;
+        }
+
+        if (cleanName !== entity.name) {
+          sanitizedCount++;
+          logger.debug({
+            msg: `🧹 Sanitized entity name`,
+            original: entity.name,
+            cleaned: cleanName,
+            type: entity.type,
+          });
+        }
+
+        entities.push({
+          ...entity,
+          name: cleanName,
+          type: stripExtraQuotes(entity.type),
+        });
+      }
+
+      // Strip extra quotes from relationship fields and sanitize entity references
+      const relationships = (extracted.relationships || [])
+        .map((rel: any) => {
+          const cleanSource = sanitizeEntityName(rel.source);
+          const cleanTarget = sanitizeEntityName(rel.target);
+
+          // Skip relationship if either entity is invalid
+          if (!cleanSource || !cleanTarget) {
+            logger.debug({
+              msg: `⚠️ Skipped relationship with invalid entity names`,
+              source: rel.source,
+              target: rel.target,
+              type: rel.type,
+            });
+            return null;
+          }
+
+          return {
+            source: cleanSource,
+            target: cleanTarget,
+            type: stripExtraQuotes(rel.type),
+            description: rel.description,
+            strength: rel.strength,
+          } as Relationship;
         })
-      );
+        .filter(
+          (rel: Relationship | null): rel is Relationship => rel !== null
+        );
+
+      // Log sanitization summary
+      if (sanitizedCount > 0 || skippedCount > 0) {
+        logger.info({
+          msg: `🧹 Entity sanitization summary`,
+          sanitized: sanitizedCount,
+          skipped: skippedCount,
+          total: rawEntities.length,
+        });
+      }
 
       // Log with record context
       const recordInfo = recordContext
@@ -531,21 +691,26 @@ async function extractBothFromContent(
 
       return { entities, relationships };
     } catch (err) {
+      const recordInfo = recordContext
+        ? ` for "${recordContext.recordTitle}" (ID: ${recordContext.recordId})`
+        : "";
+
       logger.error(
         {
           err,
+          recordId: recordContext?.recordId,
+          recordTitle: recordContext?.recordTitle,
           attempt,
           maxRetries,
-          rawResponse: response,
+          rawResponse: response, // FULL response, not truncated
           responseLength: response?.length,
-          responsePreview: response?.substring(0, 1000),
         },
-        `❌ Failed to parse combined extraction response (attempt ${attempt}/${maxRetries})`
+        `❌ Failed to parse combined extraction response${recordInfo} (attempt ${attempt}/${maxRetries})`
       );
 
       if (attempt === maxRetries) {
         logger.error(
-          `❌ Combined extraction failed after ${maxRetries} attempts. Returning empty results.`
+          `❌ Combined extraction failed after ${maxRetries} attempts${recordInfo}. Returning empty results.`
         );
         return { entities: [], relationships: [] };
       }
@@ -656,7 +821,8 @@ export async function extractGraphFromContent(
         content,
         missingName,
         existingEntityTypes,
-        relContext
+        relContext,
+        recordContext
       );
 
       if (entity) {

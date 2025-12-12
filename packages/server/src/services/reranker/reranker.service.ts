@@ -83,7 +83,7 @@ export class RerankerService {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          query,
+          queries: [query],
           documents: documents.map((d) => d.text),
         }),
       });
@@ -136,19 +136,32 @@ export class RerankerService {
    * Extract scores from different API response formats
    */
   private extractScores(data: any): number[] {
-    // Try different common response formats
+    // Handle nested array for batch queries (extract first query's scores)
+    if (Array.isArray(data.scores) && Array.isArray(data.scores[0])) {
+      return data.scores[0];
+    }
+
+    // Handle flat scores array
     if (Array.isArray(data.scores)) {
       return data.scores;
     }
 
+    // Handle results array format
     if (Array.isArray(data.results)) {
       return data.results.map((r: any) => r.score || r.relevance_score || 0);
     }
 
+    // Handle direct array response
     if (Array.isArray(data)) {
-      return data.map((item: any) => item.score || item.relevance_score || 0);
+      return data.map((item: any) =>
+        typeof item === "number"
+          ? item
+          : item.score || item.relevance_score || 0
+      );
     }
 
+    // Log unexpected format for debugging
+    logger.error({ responseData: data }, "Unexpected reranker response format");
     throw new Error("Could not extract scores from reranker response");
   }
 

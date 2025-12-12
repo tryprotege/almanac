@@ -784,31 +784,51 @@ export class GraphStore {
   async deleteOrphanedEntities(maxRetries: number = 3): Promise<number> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        // First get the count
-        // Check for entities with NO relationships in any direction (including MENTIONED_IN)
-        const countQuery = `
+        // First, get details of orphaned entities BEFORE deletion
+        const detailsQuery =
+          `
           MATCH (entity:Entity)
-          WHERE NOT (entity)-[]-()
-          RETURN count(entity) AS count
-        `;
+          WHERE NOT (entity)-[]-()` +
+          (logger.level === "debug" || logger.level === "trace"
+            ? ` RETURN entity.id AS id, entity.type AS type, entity.title AS title LIMIT 100`
+            : ` RETURN count(entity) AS count`);
 
-        const countResults = await this.memgraph.executeQuery<{
-          count: number;
-        }>(countQuery, {});
-        const count = countResults[0]?.count || 0;
-        const finalCount =
-          typeof count === "object" && count !== null && "toNumber" in count
-            ? (count as any).toNumber()
-            : count || 0;
+        const detailsResults = await this.memgraph.executeQuery<any>(
+          detailsQuery,
+          {}
+        );
+
+        let finalCount = 0;
+        if (detailsResults.length > 0 && "count" in detailsResults[0]) {
+          // Count-only query
+          const count = detailsResults[0]?.count || 0;
+          finalCount =
+            typeof count === "object" && count !== null && "toNumber" in count
+              ? (count as any).toNumber()
+              : count || 0;
+        } else {
+          // Details query - log them and get count
+          finalCount = detailsResults.length;
+
+          if (finalCount > 0) {
+            logger.warn({
+              msg: `📋 Orphaned entities about to be deleted`,
+              count: finalCount,
+              entities: detailsResults.map((e: any) => ({
+                id: e.id,
+                type: e.type,
+                title: e.title,
+              })),
+            });
+          }
+        }
 
         if (finalCount > 0) {
           logger.info({
             msg: `🗑️  Deleting ${finalCount} truly orphaned entities (no relationships at all)`,
           });
-        }
 
-        // Then delete the orphaned entities
-        if (finalCount > 0) {
+          // Delete the orphaned entities
           const deleteQuery = `
             MATCH (entity:Entity)
             WHERE NOT (entity)-[]-()
@@ -1018,8 +1038,9 @@ export class GraphStore {
    * Uses LEFT JOIN pattern to avoid complex nested EXISTS queries
    */
   async deleteOrphanedRelationships(): Promise<number> {
-    // First, count how many will be deleted
-    const countQuery = `
+    // First, get details of orphaned relationships BEFORE deletion (if debug logging enabled)
+    const detailsQuery =
+      `
       MATCH (source:Entity)-[r]->(target:Entity)
       WHERE type(r) <> 'MENTIONED_IN' 
         AND type(r) <> 'MENTIONS_REL'
@@ -1027,23 +1048,49 @@ export class GraphStore {
       WHERE m.relationshipType = type(r)
         AND m.sourceEntityId = source.id
         AND m.targetEntityId = target.id
-      WITH r, count(m) AS mentionCount
-      WHERE mentionCount = 0
-      RETURN count(r) AS count
-    `;
+      WITH r, source, target, count(m) AS mentionCount
+      WHERE mentionCount = 0` +
+      (logger.level === "debug" || logger.level === "trace"
+        ? ` RETURN source.id AS sourceId, target.id AS targetId, type(r) AS relType, r.confidence AS confidence LIMIT 100`
+        : ` RETURN count(r) AS count`);
 
-    const countResults = await this.memgraph.executeQuery<{ count: number }>(
-      countQuery,
+    const detailsResults = await this.memgraph.executeQuery<any>(
+      detailsQuery,
       {}
     );
-    const count = countResults[0]?.count || 0;
-    const finalCount =
-      typeof count === "object" && count !== null && "toNumber" in count
-        ? (count as any).toNumber()
-        : count || 0;
+
+    let finalCount = 0;
+    if (detailsResults.length > 0 && "count" in detailsResults[0]) {
+      // Count-only query
+      const count = detailsResults[0]?.count || 0;
+      finalCount =
+        typeof count === "object" && count !== null && "toNumber" in count
+          ? (count as any).toNumber()
+          : count || 0;
+    } else {
+      // Details query - log them and get count
+      finalCount = detailsResults.length;
+
+      if (finalCount > 0) {
+        logger.warn({
+          msg: `📋 Orphaned relationships about to be deleted`,
+          count: finalCount,
+          relationships: detailsResults.map((r: any) => ({
+            source: r.sourceId,
+            target: r.targetId,
+            type: r.relType,
+            confidence: r.confidence,
+          })),
+        });
+      }
+    }
 
     // Then delete if there are any orphans
     if (finalCount > 0) {
+      logger.info({
+        msg: `🗑️  Deleting ${finalCount} orphaned relationships (no document mentions)`,
+      });
+
       const deleteQuery = `
         MATCH (source:Entity)-[r]->(target:Entity)
         WHERE type(r) <> 'MENTIONED_IN' 

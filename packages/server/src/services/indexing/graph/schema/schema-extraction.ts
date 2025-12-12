@@ -431,7 +431,7 @@ async function extractMissingEntity(
         maxTokens: 1000,
         frequencyPenalty: 0.2,
         reasoning: {
-          effort: "none",
+          effort: "low",
         },
         responseFormat: {
           type: "json_schema",

@@ -154,7 +154,7 @@ async function queryEbee(query: string, port: number = 3000): Promise<void> {
 
 // Main
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
-const QUERY = "what are Phil's top priorities?";
+const QUERY = "what are the plans for notion MCP and other MCP servers?";
 
 queryEbee(QUERY, PORT)
   .then(() => process.exit(0))

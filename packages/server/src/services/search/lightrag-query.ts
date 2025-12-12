@@ -369,18 +369,17 @@ async function searchEntitiesByKeywords(
     scoreThreshold: 0.5,
   });
 
-  // Fetch full records from MongoDB (filter out undefined mongoIds for type safety)
-  const mongoIds = results
-    .map((r) => r.payload.mongoId || r.payload.entityId)
-    .filter((id): id is string => id !== undefined);
+  // Fetch full records from MongoDB using entityId (which is now the MongoDB document ID)
+  const entityIds = results
+    .map((r) => r.payload.entityId)
+    .filter((id): id is string => id !== undefined && id !== null);
 
-  const records = await RecordModel.find({ _id: { $in: mongoIds } }).lean();
+  const records = await RecordModel.find({ _id: { $in: entityIds } }).lean();
   const recordMap = new Map(records.map((r) => [r._id, r]));
 
   const entities: LightRAGEntity[] = results
     .map((result) => {
-      const recordId: string =
-        (result.payload.mongoId as string) || result.payload.entityId;
+      const recordId = result.payload.entityId;
       if (!recordId) return null;
 
       const record = recordMap.get(recordId);
@@ -403,6 +402,7 @@ async function searchEntitiesByKeywords(
 
   // Sort by degree (graph centrality)
   entities.sort((a, b) => b.degree - a.degree);
+
   return entities;
 }
 

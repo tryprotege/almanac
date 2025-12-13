@@ -8,9 +8,9 @@
   "scripts": {
     "generate": "tsx src/mock-data-generator/index.ts",
     "build": "tsc",
-    "generate:small": "tsx src/mock-data-generator/index.ts --days 30",
-    "generate:medium": "tsx src/mock-data-generator/index.ts --days 180",
-    "generate:large": "tsx src/mock-data-generator/index.ts --days 365",
+    "generate:small": "TIMELINE_DAYS=7 tsx src/mock-data-generator/index.ts",
+    "generate:medium": "TIMELINE_DAYS=180 tsx src/mock-data-generator/index.ts",
+    "generate:large": "TIMELINE_DAYS=365 tsx src/mock-data-generator/index.ts",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

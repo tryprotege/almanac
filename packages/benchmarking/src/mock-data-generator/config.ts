@@ -21,7 +21,7 @@ export function calculateVolumes(timelineDays: number): VolumeConfig {
   // These are the final totals we want, so we don't need to multiply by stage percentages later
   // Minimums ensure at least 1-2 items per stage after percentage splits (with floor rounding)
   return {
-    slackMessages: Math.max(40, Math.floor(timelineDays * 50)), // 1000 messages/day, min 40 (10+ per stage)
+    slackMessages: Math.max(40, Math.floor(timelineDays * 100)), // 100 messages/day, min 40 (10+ per stage)
     githubIssues: Math.max(8, Math.floor(timelineDays * 1.7)), // ~50/month, min 8 (2+ per stage)
     githubPRs: Math.max(8, Math.floor(timelineDays * 1.7)), // ~50/month, min 8 (2+ per stage)
     notionPages: Math.max(8, Math.floor(timelineDays * 2)), // 2/day, min 8 (2+ per stage)

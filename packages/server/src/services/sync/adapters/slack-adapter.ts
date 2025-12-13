@@ -81,7 +81,9 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
     const limit = pLimit(CHANNEL_CONCURRENCY);
     const channelPromises = channels.map((channel) =>
       limit(async () => {
-        logger.info(`Fetching messages from channel: ${channel.name}`);
+        logger.debug({
+          msg: `Fetching messages from channel: ${channel.name}`,
+        });
         try {
           const messages = await this.client.getAllChannelMessagesWithThreads(
             channel.id!,
@@ -312,7 +314,7 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
   private async groupMessagesWithLLM(
     messages: SlackMessage[]
   ): Promise<Array<{ messageIndex: number; groupId: number }>> {
-    logger.info(`Grouping ${messages.length} messages with LLM...`);
+    logger.info({ msg: `Grouping ${messages.length} messages with LLM...` });
 
     // Prepare all batches
     const batches: Array<{

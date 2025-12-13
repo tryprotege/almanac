@@ -474,7 +474,7 @@ async function extractMissingEntity(
     }
 
     // Debug: Log the parsed result
-    logger.info(`📊 Parsed result for "${entityName}":`, result);
+    logger.debug({ msg: `📊 Parsed result for "${entityName}":`, result });
 
     if (result.entity !== null) {
       return {
@@ -678,15 +678,18 @@ async function extractBothFromContent(
       const recordInfo = recordContext
         ? ` for "${recordContext.recordTitle}" (ID: ${recordContext.recordId})`
         : "";
-      logger.info(`📊 Combined Extraction Results${recordInfo}:`);
-      logger.info(`   - Content length: ${content.length} chars`);
-      logger.info(`   - Entities extracted: ${entities.length}`);
-      logger.info(`   - Relationships extracted: ${relationships.length}`);
+      logger.info({
+        msg: `📊 Combined Extraction Results`,
+        recordInfo,
+        contentLength: content.length,
+        entitiesExtracted: entities.length,
+        relationships: relationships.length,
+      });
 
       if (attempt > 1) {
-        logger.info(
-          `✅ Combined extraction succeeded on retry attempt ${attempt}/${maxRetries}`
-        );
+        logger.debug({
+          msg: `✅ Combined extraction succeeded on retry attempt ${attempt}/${maxRetries}`,
+        });
       }
 
       return { entities, relationships };
@@ -813,8 +816,10 @@ export async function extractGraphFromContent(
       // Use first relationship as context
       const relContext = `${relContexts[0].source} -[${relContexts[0].type}]-> ${relContexts[0].target}`;
 
-      logger.info(`   - Attempting fallback extraction for: "${missingName}"`);
-      logger.info(`     Context: ${relContext}`);
+      logger.debug({
+        msg: `Attempting fallback extraction for: "${missingName}"`,
+        context: relContext,
+      });
 
       const entity = await extractMissingEntity(
         client,
@@ -888,14 +893,16 @@ export async function extractGraphFromContent(
   const recordInfo = recordContext
     ? `"${recordContext.recordTitle}" (ID: ${recordContext.recordId})`
     : "unknown record";
-  logger.info(`✅ Single-pass extraction complete: ${recordInfo}`);
-  logger.info(`   - Entities: ${entities.length}`);
-  logger.info(`   - Relationships: ${relationships.length}`);
+  logger.info({
+    msg: `✅ Single-pass extraction complete`,
+    recordInfo,
+    entities: entities.length,
+    relationships: relationships.length,
+  });
   if (filteredCount > 0) {
-    logger.warn(
-      `   - Filtered ${filteredCount} invalid relationships (entities not found)`
-    );
-    logger.info(`   - Valid relationships: ${validatedRelationships.length}`);
+    logger.warn({
+      msg: "Filtered ${filteredCount} invalid relationships (entities not found)",
+    });
   }
 
   return {

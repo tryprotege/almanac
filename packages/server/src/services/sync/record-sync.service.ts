@@ -87,7 +87,7 @@ export async function syncAllRecords(
   const jobId = randomUUID();
   const startTime = Date.now();
 
-  logger.info(`🚀 Starting full sync for ${source} (Job: ${jobId})`);
+  logger.info({ msg: `🚀 Starting full sync for ${source} (Job: ${jobId})` });
 
   let totalProcessed = 0;
   let totalCreated = 0;
@@ -102,7 +102,7 @@ export async function syncAllRecords(
     for await (const batch of iterator) {
       // Check if we've reached the limit
       if (options?.limit && totalProcessed >= options.limit) {
-        logger.info(
+        logger.debug(
           `  Reached limit of ${options.limit} records, stopping sync`
         );
         break;
@@ -113,7 +113,7 @@ export async function syncAllRecords(
         ? batch.slice(0, options.limit - totalProcessed)
         : batch;
 
-      logger.info(
+      logger.debug(
         `  Processing batch of ${recordsToProcess.length} records...`
       );
 

@@ -31,7 +31,10 @@ export const cleanupDeletedRecords = async (
     cleanupEmbeddings?: boolean;
   }
 ): Promise<CleanupStats> => {
-  logger.info(`🧹 Cleaning up graph nodes for deleted records from ${source}`);
+  logger.debug({
+    msg: `🧹 Cleaning up graph nodes for deleted records`,
+    source,
+  });
 
   const deletedRecords = await recordStore.findBySourceAndType(source, "", {
     includeDeleted: true,
@@ -66,7 +69,7 @@ export const cleanupDeletedRecords = async (
 
   // Clean up embeddings if requested and vectorStore is available
   if (options?.cleanupEmbeddings && vectorStore) {
-    logger.info(`🧹 Cleaning up embeddings for deleted records...`);
+    logger.info({ msg: `🧹 Cleaning up embeddings for deleted records...` });
 
     const deps = {
       vectorStore,

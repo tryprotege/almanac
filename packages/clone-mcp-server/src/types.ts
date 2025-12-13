@@ -1,6 +1,36 @@
 import type { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse.js";
 import type { Channel } from "@slack/web-api/dist/types/response/ConversationsListResponse.js";
 import type { Member } from "@slack/web-api/dist/types/response/UsersListResponse.js";
+import type {
+  FathomMeeting,
+  FathomTranscript,
+  FathomSummary,
+  FathomTeam,
+  FathomTeamMember,
+  FathomUser,
+} from "@ebee-oss/shared-util/types/fathom/index.js";
+import type {
+  GitHubRepository,
+  GitHubIssue,
+  GitHubPullRequest,
+  GitHubWorkflow,
+  GitHubWorkflowRun,
+  GitHubRelease,
+  GitHubDiscussion,
+  GitHubCodeScanningAlert,
+  GitHubDependabotAlert,
+  GitHubUser,
+  GitHubCommit,
+  GitHubComment,
+  GitHubReview,
+} from "@ebee-oss/shared-util/types/github/index.js";
+import type {
+  NotionUser,
+  NotionDatabase,
+  NotionPage,
+  NotionBlock,
+  NotionComment,
+} from "@ebee-oss/shared-util/types/notion/index.js";
 
 /**
  * Supported source types
@@ -18,36 +48,41 @@ export interface MessageWithChannel extends MessageElement {
  * Mock data structure loaded from JSON
  */
 export interface MockData {
-  slack?: {
+  slack: {
     channels: Channel[];
     users: Member[];
     messages: MessageWithChannel[];
   };
-  github?: {
-    user: any;
-    organizationMembers: any[];
-    repositories: any[];
-    issues: any[];
-    pullRequests: any[];
-    workflows?: any[];
-    workflowRuns?: any[];
-    releases?: any[];
-    discussions?: any[];
-    codeScanningAlerts?: any[];
-    dependabotAlerts?: any[];
+  github: {
+    user: GitHubUser;
+    users: GitHubUser[];
+    organizationMembers: GitHubUser[];
+    repositories: GitHubRepository[];
+    issues: GitHubIssue[];
+    pullRequests: GitHubPullRequest[];
+    comments: GitHubComment[];
+    reviews: GitHubReview[];
+    workflows: GitHubWorkflow[];
+    workflowRuns: GitHubWorkflowRun[];
+    releases: GitHubRelease[];
+    discussions: GitHubDiscussion[];
+    codeScanningAlerts: GitHubCodeScanningAlert[];
+    dependabotAlerts: GitHubDependabotAlert[];
+    commits: GitHubCommit[];
   };
-  notion?: {
-    users: any[];
-    databases: any[];
-    pages: any[];
-    blocks: any[];
+  notion: {
+    users: NotionUser[];
+    databases: NotionDatabase[];
+    pages: NotionPage[];
+    blocks: NotionBlock[];
+    comments: NotionComment[];
   };
-  fathom?: {
-    teams: any[];
-    teamMembers: any[];
-    meetings: any[];
-    transcripts: any[];
-    summaries: any[];
+  fathom: {
+    teams: FathomTeam[];
+    teamMembers: FathomTeamMember[];
+    meetings: FathomMeeting[];
+    transcripts: FathomTranscript[];
+    summaries: FathomSummary[];
   };
 }
 

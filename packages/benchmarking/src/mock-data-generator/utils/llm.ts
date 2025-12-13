@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import pRetry from "p-retry";
 import type { GeneratorConfig } from "../types.js";
 
 let openaiClient: OpenAI | null = null;
@@ -18,15 +19,34 @@ export async function generateWithLLM(
     throw new Error("LLM not initialized. Call initializeLLM first.");
   }
 
-  const response = await openaiClient.chat.completions.create({
-    model: process.env.LLM_CHAT_MODEL!,
-    messages: [{ role: "user", content: prompt }],
-    temperature: config.temperature,
-    max_tokens: 3000,
-    stream: false,
-  });
+  return pRetry(
+    async () => {
+      const response = await openaiClient!.chat.completions.create(
+        {
+          model: process.env.LLM_CHAT_MODEL!,
+          messages: [{ role: "user", content: prompt }],
+          temperature: config.temperature,
+          max_tokens: 3000,
 
-  return response.choices[0]?.message?.content || "";
+          stream: false,
+        },
+        {
+          timeout: 90_000,
+          maxRetries: 3,
+        }
+      );
+
+      return response.choices[0]?.message?.content || "";
+    },
+    {
+      retries: 5,
+      onFailedAttempt: (error) => {
+        console.log(
+          `Attempt ${error.attemptNumber} failed. There are ${error.retriesLeft} retries left.`
+        );
+      },
+    }
+  );
 }
 
 export async function generateBatch(
@@ -41,9 +61,9 @@ export async function generateBatch(
       results.push(result);
 
       // Rate limiting
-      await new Promise((resolve) =>
-        setTimeout(resolve, config.rateLimitDelay)
-      );
+      // await new Promise((resolve) =>
+      //   setTimeout(resolve, config.rateLimitDelay)
+      // );
     } catch (error) {
       console.error("Error generating with LLM:", error);
       results.push("");

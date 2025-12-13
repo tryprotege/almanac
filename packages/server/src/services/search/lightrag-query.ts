@@ -193,11 +193,17 @@ async function localMode(
 
   // PARALLEL: Search entities and relationships simultaneously
   const [entities, entityRelationships] = await Promise.all([
-    searchEntitiesByKeywords(keywords.low_level, params.top_k || 60, deps),
+    searchEntitiesByKeywords(
+      keywords.low_level,
+      params.top_k || 60,
+      deps,
+      params.score_threshold
+    ),
     searchRelationshipsByKeywords(
       keywords.low_level,
       (params.top_k || 60) / 2,
-      deps
+      deps,
+      params.score_threshold
     ),
   ]);
 
@@ -239,7 +245,8 @@ async function globalMode(
   const relationships = await searchRelationshipsByKeywords(
     keywords.high_level,
     params.top_k || 60,
-    deps
+    deps,
+    params.score_threshold
   );
 
   // Extract unique entities
@@ -324,7 +331,13 @@ async function mixMode(
       hybridResult.chunks,
       deps.reranker
     );
-    return { ...hybridResult, chunks: rerankedChunks, reranked: true };
+
+    // Filter by score_threshold after reranking
+    const filteredChunks = rerankedChunks.filter(
+      (chunk) => chunk.score >= (params.score_threshold || 0.6)
+    );
+
+    return { ...hybridResult, chunks: filteredChunks, reranked: true };
   }
 
   return { ...hybridResult, reranked: false };
@@ -357,7 +370,8 @@ async function extractKeywords(
 async function searchEntitiesByKeywords(
   keywords: string[],
   limit: number,
-  deps: LightRAGDependencies
+  deps: LightRAGDependencies,
+  scoreThreshold?: number
 ): Promise<LightRAGEntity[]> {
   // Use vector search instead of text search
   const searchQuery = keywords.join(" ");
@@ -366,7 +380,7 @@ async function searchEntitiesByKeywords(
   // Search entity embeddings in Qdrant
   const results = await deps.vectorStore.searchEntities(queryVector, {
     limit,
-    scoreThreshold: 0.5,
+    scoreThreshold: scoreThreshold || 0.5,
   });
 
   // Fetch full records from MongoDB using entityId (which is now the MongoDB document ID)
@@ -409,7 +423,8 @@ async function searchEntitiesByKeywords(
 async function searchRelationshipsByKeywords(
   keywords: string[],
   limit: number,
-  deps: LightRAGDependencies
+  deps: LightRAGDependencies,
+  scoreThreshold?: number
 ): Promise<LightRAGRelationship[]> {
   // Use direct relationship vector search
   const searchQuery = keywords.join(" ");
@@ -418,7 +433,7 @@ async function searchRelationshipsByKeywords(
   // Search relationship embeddings in Qdrant
   const results = await deps.vectorStore.searchRelationships(queryVector, {
     limit,
-    scoreThreshold: 0.5,
+    scoreThreshold: scoreThreshold || 0.5,
   });
 
   // Fetch entity details for source/target (filter undefined for type safety)

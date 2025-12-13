@@ -8,7 +8,7 @@
     "mock-mcp-server": "./dist/server.js"
   },
   "scripts": {
-    "dev": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "type-check": "tsc --noEmit"
@@ -22,19 +22,16 @@
     "slack"
   ],
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.24.3",
+    "@modelcontextprotocol/sdk": "^1.24.3 ",
     "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.5",
-    "@types/morgan": "^1.9.10",
+    "@types/express": "^5.0.6",
     "cors": "^2.8.5",
-    "express": "^5.1.0",
-    "helmet": "^8.1.0",
-    "morgan": "^1.10.1",
-    "zod": "^3.25.76"
+    "express": "^5.2.1",
+    "zod": "4.1.13"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "@types/node": "^25.0.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }

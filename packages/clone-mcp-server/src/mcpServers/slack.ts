@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import mockDataStore from "../mockData";
 
 export const slackMcpServer = new McpServer({
   name: "slack-mcp",

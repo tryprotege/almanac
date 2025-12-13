@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import express, { Request, Response } from "express";
+import express, { NextFunction, Request, Response } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { notionMcpServer } from "./mcpServers/notion.js";
@@ -32,6 +32,26 @@ const mcpHandler =
 
 // Start server
 async function main() {
+  // CORS middleware
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, OPTIONS"
+    );
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, mcp-protocol-version"
+    );
+
+    if (req.method === "OPTIONS") {
+      res.status(200).end();
+      return;
+    }
+
+    next();
+  });
+
   // Health check
   app.get("/health", (_req: Request, res: Response) => {
     res.json({

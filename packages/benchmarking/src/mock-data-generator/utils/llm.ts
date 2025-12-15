@@ -2,7 +2,6 @@ import OpenAI from "openai";
 import pRetry from "p-retry";
 import pLimit from "p-limit";
 import type { GeneratorConfig } from "../types.js";
-import { getPerformanceTracker } from "./performance.js";
 
 let openaiClient: OpenAI | null = null;
 let concurrencyLimit: ReturnType<typeof pLimit> | null = null;
@@ -58,10 +57,6 @@ export async function generateWithLLM(
       },
     }
   );
-
-  // Track API call latency
-  const latency = Date.now() - startTime;
-  getPerformanceTracker().recordApiCall(latency);
 
   return result;
 }

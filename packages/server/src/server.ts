@@ -374,7 +374,7 @@ const runServer = async () => {
 
       // Queue sync job
       const job = await syncMcpServerQueue.add(config._id.toString(), {
-        mcpConfig: config.toObject(),
+        mcpConfig: config.toJSON(), // use toJSON instead of toObject as `Map` won't be preserved when passing to redis
       });
 
       // Return jobId for progress tracking

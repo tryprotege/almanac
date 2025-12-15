@@ -50,7 +50,7 @@ export async function lightragQuery(
   const mode = query.mode || "mix";
   const responseFormat = query.response_format || "compact";
 
-  logger.info(`\n[LightRAG] Query: "${query.query}" (mode: ${mode})`);
+  logger.info({ msg: `[LightRAG] Query`, query: query.query, mode });
 
   // Apply defaults
   const params = applyDefaults(query);
@@ -160,7 +160,7 @@ async function naiveMode(
   params: LightRAGQuery,
   deps: LightRAGDependencies
 ): Promise<{ chunks: LightRAGChunk[]; vectorMatches: number }> {
-  logger.info(`[LightRAG] Running naive mode (vector-only)`);
+  logger.info({ msg: `[LightRAG] Running naive mode (vector-only)` });
 
   // Generate embedding
   const queryVector = (await embed([params.query]))[0];
@@ -190,7 +190,7 @@ async function localMode(
   vectorMatches: number;
   graphExpanded: number;
 }> {
-  logger.info(`[LightRAG] Running local mode (entity-focused)`);
+  logger.info({ msg: `[LightRAG] Running local mode (entity-focused)` });
 
   // PARALLEL: Search entities and relationships simultaneously
   const [entities, entityRelationships] = await Promise.all([
@@ -234,7 +234,7 @@ async function globalMode(
   vectorMatches: number;
   graphExpanded: number;
 }> {
-  logger.info(`[LightRAG] Running global mode (relationship-focused)`);
+  logger.info({ msg: `[LightRAG] Running global mode (relationship-focused)` });
 
   // Use high-level keywords for relationship search
   const relationships = await searchRelationshipsByKeywords(
@@ -275,7 +275,7 @@ async function hybridMode(
   vectorMatches: number;
   graphExpanded: number;
 }> {
-  logger.info(`[LightRAG] Running hybrid mode (local + global)`);
+  logger.info({ msg: `[LightRAG] Running hybrid mode (local + global)` });
 
   // Run both in parallel
   const [localResult, globalResult] = await Promise.all([
@@ -308,7 +308,7 @@ async function mixMode(
   graphExpanded: number;
   reranked: boolean;
 }> {
-  logger.info(`[LightRAG] Running mix mode (KG + vector + reranking)`);
+  logger.info({ msg: `[LightRAG] Running mix mode (KG + vector + reranking)` });
 
   // Run hybrid mode first
   const hybridResult = await hybridMode(params, keywords, deps);
@@ -319,7 +319,7 @@ async function mixMode(
     deps.reranker.isEnabled() &&
     hybridResult.chunks.length > 0
   ) {
-    logger.info(`[LightRAG] Applying reranking...`);
+    logger.debug({ msg: `[LightRAG] Applying reranking...` });
     const rerankedChunks = await rerankChunks(
       params.query,
       hybridResult.chunks,

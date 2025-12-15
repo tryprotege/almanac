@@ -108,7 +108,9 @@ export const truncateEntities = <T>({
     ? `limit: ${dynamicLimit} from ${contentLength} chars @ 1:${charsPerEntity}`
     : `limit: ${dynamicLimit}`;
 
-  logger.info(`✅ Kept all ${entities.length} entities (${limitInfo})`);
+  logger.info({
+    msg: `✅ Kept all ${entities.length} entities (${limitInfo})`,
+  });
 
   return entities;
 };

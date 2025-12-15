@@ -1,6 +1,7 @@
-import OpenAI from "openai";
+import pRetry from "p-retry";
 import { env } from "../env.js";
 import logger from "./logger.js";
+import { createLLMClient } from "../services/llm/providers.js";
 
 /**
  * Embedder service - Generates vector embeddings using any OpenAI-compatible API
@@ -10,27 +11,45 @@ import logger from "./logger.js";
  * Generate embeddings for multiple texts in batch
  */
 export async function embed(texts: string[]): Promise<number[][]> {
-  const llm = new OpenAI({
-    apiKey: env.LLM_API_KEY,
-    baseURL: env.LLM_BASE_URL,
-  });
   if (texts.length === 0) {
     return [];
   }
 
-  try {
-    const response = await llm.embeddings.create({
-      model: env.LLM_EMBEDDING_MODEL,
-      input: texts,
-    });
+  const llm = createLLMClient();
 
-    const embeddings = response.data.map(
-      (item: { embedding: number[] }) => item.embedding
+  try {
+    const response = await pRetry(
+      async () => {
+        return await llm.embeddings.create({
+          model: env.LLM_EMBEDDING_MODEL,
+          input: texts,
+        });
+      },
+      {
+        retries: 3,
+        factor: 2,
+        minTimeout: 1000,
+        maxTimeout: 10000,
+        onFailedAttempt: (err) => {
+          logger.warn({
+            msg: "Embedding generation attempt failed",
+            attempt: err.attemptNumber,
+            retriesLeft: err.retriesLeft,
+            err,
+          });
+        },
+      }
     );
+
+    const embeddings = response.data.map((item) => item.embedding);
 
     return embeddings;
   } catch (err) {
-    logger.error({ err }, "Error generating embeddings");
+    logger.error({
+      msg: "Error generating embeddings after retries",
+      err,
+      texts,
+    });
     throw err;
   }
 }

@@ -69,7 +69,7 @@ export async function syncAllRecords(
   const jobId = randomUUID();
   const startTime = Date.now();
 
-  logger.info(`🚀 Starting full sync for ${source} (Job: ${jobId})`);
+  logger.info({ msg: `🚀 Starting full sync for ${source} (Job: ${jobId})` });
 
   let totalProcessed = 0;
   let totalCreated = 0;
@@ -82,7 +82,7 @@ export async function syncAllRecords(
     const iterator = adapter.fetchAll({ batchSize: 50 });
 
     for await (const batch of iterator) {
-      logger.info(`  Processing batch of ${batch.length} records...`);
+      logger.debug({ msg: `Processing batch of ${batch.length} records...` });
 
       await Promise.all(
         batch.map(

@@ -186,7 +186,7 @@ export class SlackClient {
   ): Promise<MessageElement[]> {
     const { limit = 1000, oldest, latest } = options;
 
-    logger.info(`Fetching messages from channel ${channelId}...`);
+    logger.debug({ msg: `Fetching messages from channel ${channelId}...` });
 
     // Fetch main channel messages
     const mainMessages = await this.getChannelMessages(channelId, {
@@ -199,13 +199,13 @@ export class SlackClient {
       mainMessages.splice(limit);
     }
 
-    logger.info(`Fetched ${mainMessages.length} main messages`);
+    logger.info({ msg: `Fetched ${mainMessages.length} main messages` });
 
     const allMessages = [...mainMessages];
 
     // Fetch thread replies
     const threadParents = mainMessages.filter((m) => (m.reply_count || 0) > 0);
-    logger.info(`Found ${threadParents.length} threads to fetch`);
+    logger.debug({ msg: `Found ${threadParents.length} threads to fetch` });
 
     for (let i = 0; i < threadParents.length; i++) {
       const parent = threadParents[i];
@@ -226,13 +226,13 @@ export class SlackClient {
         );
 
         allMessages.push(...newReplies);
-        logger.info(`  Added ${newReplies.length} new replies`);
+        logger.debug({ msg: `Added ${newReplies.length} new replies` });
       } catch (error: any) {
         logger.error({ err: error }, `Failed to fetch thread ${parent.ts}`);
       }
     }
 
-    logger.info(`Total messages fetched: ${allMessages.length}`);
+    logger.debug({ msg: `Total messages fetched: ${allMessages.length}` });
 
     // Sort by timestamp
     allMessages.sort((a, b) => parseFloat(a.ts!) - parseFloat(b.ts!));

@@ -69,14 +69,34 @@ export async function generateIntegration(
   const casualMeetingsCount =
     integrationVolumes.fathomMeetings - workMeetingsCount;
 
-  // Generate data with richer context from both foundation and connection stages
+  const [workMeetings, casualMeetings] = await Promise.all([
+    generateFathomMeetings(
+      workMeetingsCount,
+      foundation.fathom.teamMembers,
+      generationContext,
+      3000 // Integration: IDs 3000+
+    ),
+    generateFathomMeetings(
+      casualMeetingsCount,
+      foundation.fathom.teamMembers,
+      generationContext,
+      3000 + workMeetingsCount // Integration casual: IDs 3000 + work count
+    ),
+  ]);
+
+  // Combine meetings
+  const fathomMeetings = [...workMeetings, ...casualMeetings];
+
+  // Generate Slack messages with tracking
   const [
     slackMessages,
     githubIssues,
     githubPRs,
     notionPages,
-    workMeetings,
-    casualMeetings,
+    workTranscripts,
+    casualTranscripts,
+    workSummaries,
+    casualSummaries,
   ] = await Promise.all([
     generateSlackMessages(
       integrationVolumes.slackMessages,
@@ -102,39 +122,15 @@ export async function generateIntegration(
       config,
       categorizedContext.work
     ),
-    generateFathomMeetings(
-      workMeetingsCount,
-      foundation.fathom.teamMembers,
-      generationContext,
-      3000 // Integration: IDs 3000+
+    generateFathomTranscripts(workMeetings, config, categorizedContext.work),
+    generateFathomTranscripts(
+      casualMeetings,
+      config,
+      categorizedContext.casual
     ),
-    generateFathomMeetings(
-      casualMeetingsCount,
-      foundation.fathom.teamMembers,
-      generationContext,
-      3000 + workMeetingsCount // Integration casual: IDs 3000 + work count
-    ),
+    generateFathomSummaries(workMeetings, config, categorizedContext.work),
+    generateFathomSummaries(casualMeetings, config, categorizedContext.casual),
   ]);
-
-  // Combine meetings
-  const fathomMeetings = [...workMeetings, ...casualMeetings];
-
-  // Generate transcripts and summaries with richer context
-  const [workTranscripts, casualTranscripts, workSummaries, casualSummaries] =
-    await Promise.all([
-      generateFathomTranscripts(workMeetings, config, categorizedContext.work),
-      generateFathomTranscripts(
-        casualMeetings,
-        config,
-        categorizedContext.casual
-      ),
-      generateFathomSummaries(workMeetings, config, categorizedContext.work),
-      generateFathomSummaries(
-        casualMeetings,
-        config,
-        categorizedContext.casual
-      ),
-    ]);
 
   const fathomTranscripts = [...workTranscripts, ...casualTranscripts];
   const fathomSummaries = [...workSummaries, ...casualSummaries];

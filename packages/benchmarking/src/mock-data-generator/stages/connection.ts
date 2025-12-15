@@ -50,65 +50,65 @@ export async function generateConnection(
     githubPRs: Math.floor(volumes.githubPRs * 0.2),
   };
 
-  // Generate data WITH context (filtered by category)
   // Split Fathom meetings: 80% work, 20% casual
   const workMeetingsCount = Math.floor(connectionVolumes.fathomMeetings * 0.8);
   const casualMeetingsCount =
     connectionVolumes.fathomMeetings - workMeetingsCount;
 
-  const [slackMessages, notionPages, workMeetings, casualMeetings, githubPRs] =
-    await Promise.all([
-      generateSlackMessages(
-        connectionVolumes.slackMessages,
-        timeline,
-        config,
-        categorizedContext.work
-      ),
-      generateNotionPages(
-        connectionVolumes.notionPages,
-        timeline,
-        config,
-        categorizedContext.work
-      ),
-      generateFathomMeetings(
-        workMeetingsCount,
-        foundation.fathom.teamMembers,
-        generationContext,
-        2000 // Connection: IDs 2000+
-      ),
-      generateFathomMeetings(
-        casualMeetingsCount,
-        foundation.fathom.teamMembers,
-        generationContext,
-        2000 + workMeetingsCount // Connection casual: IDs 2000 + work count
-      ),
-      generateGitHubPRs(
-        connectionVolumes.githubPRs,
-        timeline,
-        config,
-        categorizedContext.work
-      ),
-    ]);
+  const [workMeetings, casualMeetings] = await Promise.all([
+    generateFathomMeetings(
+      workMeetingsCount,
+      foundation.fathom.teamMembers,
+      generationContext,
+      2000 // Connection: IDs 2000+
+    ),
+    generateFathomMeetings(
+      casualMeetingsCount,
+      foundation.fathom.teamMembers,
+      generationContext,
+      2000 + workMeetingsCount // Connection casual: IDs 2000 + work count
+    ),
+  ]);
 
   // Combine meetings
   const fathomMeetings = [...workMeetings, ...casualMeetings];
 
-  // Generate transcripts and summaries with context
-  const [workTranscripts, casualTranscripts, workSummaries, casualSummaries] =
-    await Promise.all([
-      generateFathomTranscripts(workMeetings, config, categorizedContext.work),
-      generateFathomTranscripts(
-        casualMeetings,
-        config,
-        categorizedContext.casual
-      ),
-      generateFathomSummaries(workMeetings, config, categorizedContext.work),
-      generateFathomSummaries(
-        casualMeetings,
-        config,
-        categorizedContext.casual
-      ),
-    ]);
+  const [
+    slackMessages,
+    notionPages,
+    githubPRs,
+    workTranscripts,
+    casualTranscripts,
+    workSummaries,
+    casualSummaries,
+  ] = await Promise.all([
+    generateSlackMessages(
+      connectionVolumes.slackMessages,
+      timeline,
+      config,
+      categorizedContext.work
+    ),
+    generateNotionPages(
+      connectionVolumes.notionPages,
+      timeline,
+      config,
+      categorizedContext.work
+    ),
+    generateGitHubPRs(
+      connectionVolumes.githubPRs,
+      timeline,
+      config,
+      categorizedContext.work
+    ),
+    generateFathomTranscripts(workMeetings, config, categorizedContext.work),
+    generateFathomTranscripts(
+      casualMeetings,
+      config,
+      categorizedContext.casual
+    ),
+    generateFathomSummaries(workMeetings, config, categorizedContext.work),
+    generateFathomSummaries(casualMeetings, config, categorizedContext.casual),
+  ]);
 
   const fathomTranscripts = [...workTranscripts, ...casualTranscripts];
   const fathomSummaries = [...workSummaries, ...casualSummaries];

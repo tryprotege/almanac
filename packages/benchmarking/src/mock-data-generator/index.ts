@@ -38,7 +38,7 @@ async function main() {
     throw new Error("LLM_API_KEY or LLM_BASE_URL not found in environment");
   }
 
-  initializeLLM(apiKey, baseUrl);
+  initializeLLM(apiKey, baseUrl, config.concurrency);
 
   // Create output directories
   mkdirSync(join(config.outputDir, "foundation"), { recursive: true });
@@ -205,6 +205,9 @@ async function main() {
   );
 
   console.log("=".repeat(50));
+
+  console.log("=".repeat(50));
+
   console.log("✅ Generation complete!");
   console.log(`📁 Output directory: ${config.outputDir}`);
   console.log(

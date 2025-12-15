@@ -151,7 +151,7 @@ export function generateFathomMeetings(
 }
 
 /**
- * Generate transcripts for meetings with optional context
+ * Generate transcripts for meetings with optional context using LLM
  */
 export async function generateFathomTranscripts(
   meetings: FathomMeeting[],
@@ -166,107 +166,181 @@ export async function generateFathomTranscripts(
       Math.min(4, meeting.calendar_invitees.length)
     );
 
-    let conversationSnippets: string[];
+    const segmentCount = Math.floor(Math.random() * 15) + 10; // 10-25 segments
 
-    // If context is provided, generate context-aware conversation
-    if (
-      context &&
-      (context.issues?.length ||
-        context.messages?.length ||
-        context.pages?.length)
-    ) {
-      const contextItems: string[] = [];
+    // Build context string if available
+    let contextStr = "";
+    if (context) {
+      const contextParts: string[] = [];
 
-      // 60% chance to reference a GitHub issue
       if (context.issues && context.issues.length > 0 && Math.random() < 0.6) {
         const issue = selectRandom(context.issues);
-        contextItems.push(
-          `We need to address issue #${issue.number}: ${issue.title}`
-        );
+        contextParts.push(`GitHub Issue #${issue.number}: ${issue.title}`);
       }
 
-      // 40% chance to reference a Slack discussion
       if (
         context.messages &&
         context.messages.length > 0 &&
         Math.random() < 0.4
       ) {
-        const msg = selectRandom(context.messages) as MessageElement;
-        contextItems.push(
-          `Following up on the Slack discussion about ${msg.text?.substring(
-            0,
-            50
-          )}...`
-        );
+        contextParts.push("Recent Slack discussions from the team");
       }
 
-      // 30% chance to reference a Notion page
       if (context.pages && context.pages.length > 0 && Math.random() < 0.3) {
         const page = selectRandom(context.pages);
         const pageTitle =
           typeof page.properties?.title === "object" &&
           "title" in page.properties.title
             ? page.properties.title.title[0]?.plain_text || "the document"
-            : "the document";
-        contextItems.push(`As documented in ${pageTitle}, we should...`);
+            : "documentation";
+        contextParts.push(`Notion page: ${pageTitle}`);
       }
 
-      conversationSnippets = [
-        ...contextItems,
-        "Let's start by reviewing what we accomplished last sprint.",
-        "I think we should prioritize this feature.",
-        "The performance has been great since the optimization.",
-        "Can someone give an update on the progress?",
-        "We should schedule a follow-up meeting to discuss this further.",
-      ];
-    } else {
-      // Default conversation snippets without context
-      conversationSnippets = [
-        "Let's start by reviewing what we accomplished last sprint.",
-        "I think we should prioritize the authentication feature.",
-        "The API performance has been great since the optimization.",
-        "We need to address the technical debt in the payment module.",
-        "Can someone give an update on the database migration?",
-        "I'm blocked on the frontend integration, need help from backend team.",
-        "The design mockups look great, when can we start implementation?",
-        "We should schedule a follow-up meeting to discuss this further.",
-        "Let's make sure we document this decision in Notion.",
-        "I'll create a GitHub issue to track this work.",
-      ];
+      if (contextParts.length > 0) {
+        contextStr = `\n\nContext to reference naturally in conversation:\n- ${contextParts.join(
+          "\n- "
+        )}`;
+      }
     }
 
-    const segments = [];
-    const segmentCount = Math.floor(Math.random() * 15) + 10; // 10-25 segments
+    // Generate conversation using LLM
+    const prompt = `Generate a realistic meeting transcript for: ${
+      meeting.meeting_title
+    }
 
-    for (let i = 0; i < segmentCount; i++) {
-      const speaker = selectRandom(speakers);
-      const minutes = Math.floor(i * 2);
-      const seconds = Math.floor(Math.random() * 60);
+Participants: ${speakers.map((s) => s.name).join(", ")}
+Company: ${COMPANY_DATA.name} - Gaming & Interactive Entertainment startup
+Meeting Duration: ~${Math.floor(
+      (new Date(meeting.recording_end_time).getTime() -
+        new Date(meeting.recording_start_time).getTime()) /
+        60000
+    )} minutes${contextStr}
 
-      segments.push({
-        speaker: {
-          display_name: speaker.name,
-          matched_calendar_invitee_email: speaker.email,
-        },
-        text: selectRandom(conversationSnippets),
-        timestamp: `00:${String(minutes).padStart(2, "0")}:${String(
-          seconds
-        ).padStart(2, "0")}`,
+Create ${segmentCount} conversational segments that:
+- Sound like a real ${meeting.meeting_title.toLowerCase()}
+- Have natural back-and-forth between participants
+- Include technical discussions relevant to game development
+- ${
+      context
+        ? "Reference the provided context naturally"
+        : "Focus on sprint work and technical decisions"
+    }
+- Mix longer technical explanations with brief acknowledgments
+- Include realistic filler like "um", "let me check", "good point"
+
+Format each segment as:
+[Speaker Name]: [What they said]
+
+Generate exactly ${segmentCount} segments:`;
+
+    try {
+      const response = await generateWithLLM(prompt, config);
+      const lines = response
+        .trim()
+        .split("\n")
+        .filter((line) => line.trim());
+
+      const segments = [];
+      let segmentIndex = 0;
+
+      for (const line of lines) {
+        if (segmentIndex >= segmentCount) break;
+
+        const match = line.match(/^\[?([^\]]+)\]?:(.+)$/);
+        if (match) {
+          const speakerName = match[1].trim();
+          const text = match[2].trim();
+
+          // Find matching speaker or use random
+          let speaker = speakers.find((s) => s.name === speakerName);
+          if (!speaker) {
+            speaker = selectRandom(speakers);
+          }
+
+          const minutes = Math.floor(segmentIndex * 2);
+          const seconds = Math.floor(Math.random() * 60);
+
+          segments.push({
+            speaker: {
+              display_name: speaker.name,
+              matched_calendar_invitee_email: speaker.email,
+            },
+            text: text,
+            timestamp: `00:${String(minutes).padStart(2, "0")}:${String(
+              seconds
+            ).padStart(2, "0")}`,
+          });
+
+          segmentIndex++;
+        }
+      }
+
+      // If we didn't get enough segments, fill with simple ones
+      while (segments.length < Math.min(segmentCount, 8)) {
+        const speaker = selectRandom(speakers);
+        const minutes = Math.floor(segments.length * 2);
+        const seconds = Math.floor(Math.random() * 60);
+
+        segments.push({
+          speaker: {
+            display_name: speaker.name,
+            matched_calendar_invitee_email: speaker.email,
+          },
+          text: selectRandom([
+            "Thanks for the update.",
+            "Makes sense to me.",
+            "I'll follow up on that.",
+            "Good point.",
+            "Let's discuss this more offline.",
+          ]),
+          timestamp: `00:${String(minutes).padStart(2, "0")}:${String(
+            seconds
+          ).padStart(2, "0")}`,
+        });
+      }
+
+      transcripts.push({
+        type: "transcript",
+        recording_id: meeting.recording_id,
+        transcripts: segments,
+      });
+    } catch (error) {
+      console.error(
+        `Error generating transcript for meeting ${meeting.recording_id}:`,
+        error
+      );
+      // Fallback to simple transcript
+      const segments = [];
+      for (let i = 0; i < Math.min(segmentCount, 5); i++) {
+        const speaker = selectRandom(speakers);
+        const minutes = Math.floor(i * 2);
+        const seconds = Math.floor(Math.random() * 60);
+
+        segments.push({
+          speaker: {
+            display_name: speaker.name,
+            matched_calendar_invitee_email: speaker.email,
+          },
+          text: "Discussion about project progress.",
+          timestamp: `00:${String(minutes).padStart(2, "0")}:${String(
+            seconds
+          ).padStart(2, "0")}`,
+        });
+      }
+
+      transcripts.push({
+        type: "transcript",
+        recording_id: meeting.recording_id,
+        transcripts: segments,
       });
     }
-
-    transcripts.push({
-      type: "transcript",
-      recording_id: meeting.recording_id,
-      transcripts: segments,
-    });
   }
 
   return transcripts;
 }
 
 /**
- * Generate summaries for meetings with optional context
+ * Generate summaries for meetings with optional context using LLM
  */
 export async function generateFathomSummaries(
   meetings: FathomMeeting[],
@@ -276,35 +350,24 @@ export async function generateFathomSummaries(
   const summaries: FathomSummary[] = [];
 
   for (const meeting of meetings) {
-    let summary: string;
+    // Build context string if available
+    let contextStr = "";
+    if (context) {
+      const contextParts: string[] = [];
 
-    // If context is provided, generate context-aware summary
-    if (
-      context &&
-      (context.issues?.length ||
-        context.messages?.length ||
-        context.pages?.length)
-    ) {
-      const contextReferences: string[] = [];
-
-      // Reference GitHub issues
       if (context.issues && context.issues.length > 0 && Math.random() < 0.6) {
         const issue = selectRandom(context.issues);
-        contextReferences.push(
-          `- Discussed GitHub issue #${issue.number}: ${issue.title}`
-        );
+        contextParts.push(`GitHub Issue #${issue.number}: ${issue.title}`);
       }
 
-      // Reference Slack discussions
       if (
         context.messages &&
         context.messages.length > 0 &&
         Math.random() < 0.4
       ) {
-        contextReferences.push(`- Followed up on team discussions from Slack`);
+        contextParts.push("Recent Slack team discussions");
       }
 
-      // Reference Notion pages
       if (context.pages && context.pages.length > 0 && Math.random() < 0.3) {
         const page = selectRandom(context.pages);
         const pageTitle =
@@ -312,29 +375,65 @@ export async function generateFathomSummaries(
           "title" in page.properties.title
             ? page.properties.title.title[0]?.plain_text || "documentation"
             : "documentation";
-        contextReferences.push(`- Reviewed ${pageTitle}`);
+        contextParts.push(`Notion: ${pageTitle}`);
       }
 
-      summary = `## Key Discussion Points\n\n${contextReferences.join(
-        "\n"
-      )}\n- Reviewed progress and next steps\n- Addressed team questions\n\n## Action Items\n\n- Follow up on discussed items\n- Update relevant documentation\n- Schedule follow-up if needed`;
-    } else {
-      // Default summary without context
-      const summaryTemplates = [
-        "## Key Discussion Points\n\n- Reviewed sprint progress\n- Discussed technical challenges\n- Planned next steps\n\n## Action Items\n\n- Follow up on pending PRs\n- Schedule architecture review\n- Update documentation",
-        "## Meeting Summary\n\n- Team alignment on priorities\n- Technical decisions made\n- Blockers identified and addressed\n\n## Next Steps\n\n- Continue implementation\n- Review with stakeholders\n- Update project timeline",
-        "## Overview\n\n- Progress update shared\n- Challenges discussed\n- Solutions proposed\n\n## Decisions\n\n- Approved technical approach\n- Assigned tasks to team members\n- Set deadline for next milestone",
-      ];
-      summary = selectRandom(summaryTemplates);
+      if (contextParts.length > 0) {
+        contextStr = `\n\nContext discussed in meeting:\n- ${contextParts.join(
+          "\n- "
+        )}`;
+      }
     }
 
-    summaries.push({
-      type: "summary",
-      recording_id: meeting.recording_id,
-      summary,
-      template_name: "Default Summary",
-      created_at: meeting.created_at,
-    });
+    const prompt = `Generate a concise meeting summary for: ${
+      meeting.meeting_title
+    }
+
+Meeting Date: ${new Date(meeting.recording_start_time).toLocaleDateString()}
+Company: ${COMPANY_DATA.name} - Gaming startup
+Participants: ${meeting.calendar_invitees
+      .map((p) => p.name)
+      .join(", ")}${contextStr}
+
+Create a professional summary with these sections:
+
+## Key Discussion Points
+- 3-4 bullet points of main topics discussed
+
+## Decisions Made
+- 2-3 key decisions or conclusions
+
+## Action Items
+- 2-4 specific next steps with implied owners
+
+Keep it concise and actionable. Use markdown formatting.
+
+Generate the summary:`;
+
+    try {
+      const summary = await generateWithLLM(prompt, config);
+
+      summaries.push({
+        type: "summary",
+        recording_id: meeting.recording_id,
+        summary: summary.trim(),
+        template_name: "Default Summary",
+        created_at: meeting.created_at,
+      });
+    } catch (error) {
+      console.error(
+        `Error generating summary for meeting ${meeting.recording_id}:`,
+        error
+      );
+      // Fallback to simple summary
+      summaries.push({
+        type: "summary",
+        recording_id: meeting.recording_id,
+        summary: `## Key Discussion Points\n\n- Reviewed ${meeting.meeting_title.toLowerCase()}\n- Team alignment discussion\n- Progress updates shared\n\n## Action Items\n\n- Follow up on open items\n- Update documentation`,
+        template_name: "Default Summary",
+        created_at: meeting.created_at,
+      });
+    }
   }
 
   return summaries;

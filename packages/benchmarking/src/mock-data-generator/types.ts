@@ -83,6 +83,7 @@ export interface GeneratorConfig {
   maxRetries: number;
   rateLimitDelay: number;
   outputDir: string;
+  concurrency: number;
 }
 
 // Volume calculations

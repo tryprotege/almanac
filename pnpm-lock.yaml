@@ -26,6 +26,9 @@ importers:
       openai:
         specifier: ^4.73.0
         version: 4.104.0(zod@3.25.76)
+      p-limit:
+        specifier: ^7.2.0
+        version: 7.2.0
       p-retry:
         specifier: ^7.1.1
         version: 7.1.1
@@ -158,25 +161,6 @@ importers:
         version: 4.20.6
       typescript:
         specifier: ^5.9.3
-        version: 5.9.3
-
-  packages/mock-mcp-server:
-    dependencies:
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.0.4
-        version: 1.24.3(zod@4.1.13)
-      '@slack/web-api':
-        specifier: ^7.11.0
-        version: 7.13.0
-    devDependencies:
-      '@types/node':
-        specifier: ^22.10.2
-        version: 22.19.2
-      tsx:
-        specifier: ^4.20.2
-        version: 4.21.0
-      typescript:
-        specifier: ^5.7.2
         version: 5.9.3
 
   packages/server:

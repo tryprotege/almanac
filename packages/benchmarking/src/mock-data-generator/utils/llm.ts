@@ -1,14 +1,24 @@
 import OpenAI from "openai";
 import pRetry from "p-retry";
+import pLimit from "p-limit";
 import type { GeneratorConfig } from "../types.js";
+import { getPerformanceTracker } from "./performance.js";
 
 let openaiClient: OpenAI | null = null;
+let concurrencyLimit: ReturnType<typeof pLimit> | null = null;
 
-export function initializeLLM(apiKey: string, baseUrl: string): void {
+export function initializeLLM(
+  apiKey: string,
+  baseUrl: string,
+  concurrency: number = 10
+): void {
   openaiClient = new OpenAI({
     apiKey: apiKey,
     baseURL: baseUrl,
   });
+
+  // Initialize concurrency limiter
+  concurrencyLimit = pLimit(concurrency);
 }
 
 export async function generateWithLLM(
@@ -19,7 +29,9 @@ export async function generateWithLLM(
     throw new Error("LLM not initialized. Call initializeLLM first.");
   }
 
-  return pRetry(
+  const startTime = Date.now();
+
+  const result = await pRetry(
     async () => {
       const response = await openaiClient!.chat.completions.create(
         {
@@ -27,7 +39,6 @@ export async function generateWithLLM(
           messages: [{ role: "user", content: prompt }],
           temperature: config.temperature,
           max_tokens: 3000,
-
           stream: false,
         },
         {
@@ -47,28 +58,10 @@ export async function generateWithLLM(
       },
     }
   );
-}
 
-export async function generateBatch(
-  prompts: string[],
-  config: GeneratorConfig
-): Promise<string[]> {
-  const results: string[] = [];
+  // Track API call latency
+  const latency = Date.now() - startTime;
+  getPerformanceTracker().recordApiCall(latency);
 
-  for (const prompt of prompts) {
-    try {
-      const result = await generateWithLLM(prompt, config);
-      results.push(result);
-
-      // Rate limiting
-      // await new Promise((resolve) =>
-      //   setTimeout(resolve, config.rateLimitDelay)
-      // );
-    } catch (error) {
-      console.error("Error generating with LLM:", error);
-      results.push("");
-    }
-  }
-
-  return results;
+  return result;
 }

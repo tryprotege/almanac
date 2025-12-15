@@ -9,8 +9,6 @@ Functional benchmarking framework for eBee MCP server performance testing.
 - ⚖️ **eBee vs Direct** - Compare eBee unified search vs direct source queries
 - 📊 **Rich Metrics** - Timing, token usage, quality scores, and more
 - 📈 **Multiple Export Formats** - JSON, CSV, YAML, and HTML reports
-- 🎯 **Functional Programming** - Pure functions, immutable data, composable utilities
-- 🔥 **Phoenix Integration** - Advanced RAG evaluation with Arize AI Phoenix
 
 ## Installation
 
@@ -132,9 +130,9 @@ name: "Agent Comparison"
 type: agent
 agents:
   - name: claude
-    model: claude-3-5-sonnet-20241022
+    model: claude-sonnet-4-5
   - name: roo-code
-    model: claude-3-5-sonnet-20241022
+    model: claude-sonnet-4-5
 queries:
   - id: "complex_query"
     query: "Find all Notion pages about Q4 roadmap"
@@ -233,10 +231,6 @@ Tabular data for easy analysis in spreadsheets.
 
 Human-readable configuration and results.
 
-### HTML
-
-Interactive report with charts and tables.
-
 ## API Reference
 
 ### Core Functions
@@ -333,42 +327,11 @@ Object.entries(byCategory).forEach(([category, results]) => {
 });
 ```
 
-## Phoenix Integration
-
-This framework integrates with [Phoenix (Arize AI)](https://docs.arize.com/phoenix) for advanced RAG evaluation.
-
-### Quick Start
-
-```bash
-# 1. Install Python dependencies
-cd packages/benchmark/scripts
-pip install -r requirements.txt
-
-# 2. Start Phoenix server
-python phoenix_setup.py
-
-# 3. Run benchmarks with Phoenix export
-npm run benchmark -- \
-  --config benchmarks/query-performance.yaml \
-  --export-phoenix \
-  --phoenix-endpoint http://localhost:6006
-
-# 4. Run evaluation
-python phoenix_evaluate.py
-```
-
 ### Features
 
-- **Trace Collection**: Automatic export of benchmark traces to Phoenix
 - **RAG Evaluation**: Hallucination detection, retrieval quality, Q&A scoring
-- **Visual Analysis**: Interactive UI for exploring traces and metrics
 - **LLM-as-Judge**: Advanced evaluation using LLM evaluators
 - **Custom Evaluators**: Extensible evaluation framework
-
-### Documentation
-
-- [Phoenix Quick Start Guide](./docs/PHOENIX_QUICKSTART.md)
-- [Full Integration Guide](./docs/PHOENIX_INTEGRATION.md)
 
 ## Development
 

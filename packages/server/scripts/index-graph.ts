@@ -16,7 +16,6 @@ import { NotionAdapter } from "../src/services/sync/adapters/notion-adapter.ts";
 import { SourceType } from "../src/types/index.js";
 import { env } from "../src/env.js";
 import logger from "../src/utils/logger.js";
-import { processor } from "../src/services/queue/index-graph.queue.ts";
 
 /**
  * Script to index unindexed records to the graph database
@@ -75,13 +74,6 @@ function parseArgs(): ScriptOptions {
 }
 
 async function indexGraphRecords() {
-  if (1 == 1) {
-    await initializeServices();
-
-    await processor({ data: { source: "fathom" } });
-    return;
-  }
-
   const options = parseArgs();
 
   logger.info({

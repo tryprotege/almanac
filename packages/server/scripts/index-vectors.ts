@@ -6,7 +6,6 @@ import { RecordStore } from "../src/stores/record.store.js";
 import { VectorStore } from "../src/stores/vector.store.js";
 import { SourceType } from "../src/types/index.js";
 import logger from "../src/utils/logger.js";
-import { processor } from "../src/services/queue/index-vector.queue.ts";
 
 /**
  * Script to index unindexed records to the vector database
@@ -70,12 +69,6 @@ async function getVectorStats(
 }
 
 async function indexVectorRecords() {
-  if (1 == 1) {
-    await initializeServices();
-
-    await processor({ data: { source: "notion" } });
-    return;
-  }
   const options = parseArgs();
 
   logger.info({ msg: "🚀 Vector Indexing Script", ...options });

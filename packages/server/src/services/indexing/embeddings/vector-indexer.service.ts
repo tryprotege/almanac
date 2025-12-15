@@ -91,7 +91,6 @@ export async function insertAllRecordsToVectorDB(
             { err, recordId: record._id },
             `Error indexing record ${record._id}`
           );
-          console.error(">>>>>>>", record, err);
           stats.errors++;
           return { success: false, chunks: 0 };
         }

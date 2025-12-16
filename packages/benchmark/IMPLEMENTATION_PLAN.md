@@ -6,9 +6,9 @@ The `@ebee-oss/benchmark` package is a **functional programming-based benchmarki
 
 ### Key Objectives
 
-1. **Query Performance Testing** - Benchmark LightRAG across modes (naive, local, global, hybrid, mix) and parameters
+1. **Query Performance Testing** - Benchmark LightRAG with auto-selected or custom modes and parameters
 2. **Accuracy Evaluation** - Measure retrieval quality against ground truth using standard IR metrics
-3. **Agent Comparison** - Compare different AI agents (Claude, ChatGPT, etc.) using eBee
+3. **Agent Comparison** - Compare Amp CLI, Claude CLI, and other AI agents using eBee
 4. **eBee vs Direct** - Compare unified eBee search vs direct MCP server queries
 
 ### Design Principles
@@ -28,25 +28,23 @@ The `@ebee-oss/benchmark` package is a **functional programming-based benchmarki
 packages/benchmark/
 ├── src/
 │   ├── index.ts                    # Main exports
-│   ├── cli.ts                      # CLI entry point
+│   ├── cli.ts                      # Simplified CLI entry point
 │   ├── types/
 │   │   └── index.ts                # All TypeScript types
+│   ├── configs/                    # TypeScript config examples
+│   │   └── comparison.config.ts    # eBee vs Direct comparison
 │   ├── runners/
 │   │   ├── query-benchmark.ts      # Query performance runner
 │   │   ├── accuracy-benchmark.ts   # Accuracy evaluation runner
 │   │   ├── agent-benchmark.ts      # Agent comparison runner
-│   │   └── comparison-benchmark.ts # eBee vs Direct runner
+│   │   ├── comparison-benchmark.ts # eBee vs Direct runner
+│   │   └── cli-runner.ts           # Amp/Claude CLI integration
 │   ├── utils/
 │   │   ├── statistics.ts           # Statistical functions
 │   │   ├── metrics.ts              # Metrics collection
 │   │   ├── accuracy-metrics.ts     # IR accuracy metrics
-│   │   └── export.ts               # Export to JSON/CSV/YAML/HTML
+│   │   └── export.ts               # Export to CSV only
 │   └── evaluators/                 # (Future) Custom evaluators
-├── benchmarks/                     # Example YAML configs
-│   ├── query-performance.yaml
-│   ├── accuracy-evaluation.yaml
-│   ├── agent-comparison.yaml
-│   └── ebee-vs-direct.yaml
 ├── examples/                       # Code examples
 │   ├── basic-usage.ts
 └── README.md
@@ -88,11 +86,14 @@ Metrics Types
 - ✅ `utils/statistics.ts` - Statistical functions (mean, median, stdDev, percentiles)
 - ✅ `utils/metrics.ts` - Metrics collection and aggregation
 - ✅ `runners/query-benchmark.ts` - Query performance runner
-- ✅ `utils/export.ts` - Export to JSON, CSV, YAML, HTML
+- ✅ `utils/export.ts` - Export to CSV
+- ✅ `runners/cli-runner.ts` - Amp and Claude CLI integration
 
 **Features Implemented**:
 
-- Parameter combination generation
+- Parameter combination generation (optional - supports auto-select)
+- Mode auto-selection (uses "mix" mode when not specified)
+- Parameter auto-selection (lets LLM choose optimal settings)
 - Warmup runs for performance stability
 - Multiple iterations per configuration
 - Aggregation by mode and category
@@ -157,6 +158,7 @@ queries:
 **Components**:
 
 - ✅ `runners/agent-benchmark.ts` - Agent comparison runner
+- ✅ `runners/cli-runner.ts` - CLI agent integration (Amp, Claude)
 
 **Features**:
 
@@ -180,9 +182,10 @@ queries:
 
 **Integration Points**:
 
-- Need agent API integration (Claude, ChatGPT, Gemini)
+- ✅ Amp Code CLI integration
+- ✅ Claude Code CLI integration
 - Need LLM-as-Judge evaluator implementation
-- Need MCP call tracking mechanism
+- Need MCP call tracking mechanism (currently estimated)
 
 ---
 
@@ -366,24 +369,9 @@ For each metric, calculate:
 
 ## 5. Export and Reporting
 
-### 5.1 Export Formats
+### 5.1 Export Format
 
-**JSON** (Machine-readable):
-
-```json
-{
-  "config": { ... },
-  "queryResults": [ ... ],
-  "aggregated": {
-    "byMode": { ... },
-    "byCategory": { ... },
-    "overall": { ... }
-  },
-  "timestamp": "2024-01-15T10:30:00.000Z"
-}
-```
-
-**CSV** (Spreadsheet analysis):
+**CSV** (Spreadsheet and data analysis):
 
 ```csv
 queryId,mode,totalTime,tokens,results,avgScore
@@ -391,154 +379,141 @@ entity_query,mix,245,1250,15,0.823
 relationship_query,hybrid,312,1420,12,0.756
 ```
 
-**YAML** (Human-readable):
+**Benefits**:
 
-```yaml
-config:
-  name: "Query Performance Test"
-  type: query
-aggregated:
-  overall:
-    totalTime:
-      mean: 278.5
-      p95: 450.2
-```
+- Universal compatibility with spreadsheets (Excel, Google Sheets)
+- Easy import into data science tools (Python, R)
+- Simple visualization in BI tools
+- Lightweight and portable
 
-**HTML** (Visual reports):
+### 5.2 CSV Report Structure
 
-- Interactive dashboard
-- Charts and graphs
-- Mode comparison tables
-- Detailed drill-down
+**Query Benchmarks**:
 
-### 5.2 Report Components
+- Per-run metrics with timing, tokens, quality scores
+- Aggregated statistics (mean, median, p95, etc.)
+- Mode and category breakdowns
 
-**Summary Section**:
+**Agent Benchmarks**:
 
-- Benchmark name and description
-- Timestamp and configuration
-- Key metrics overview
-- Best performers
+- Agent name, query ID, response times
+- Token usage and quality scores
+- Rankings and comparisons
 
-**Mode Comparison**:
+**Comparison Benchmarks**:
 
-- Side-by-side comparison
-- Performance rankings
-- Trade-off analysis
-
-**Detailed Results**:
-
-- Per-query breakdown
-- Parameter sensitivity analysis
-- Error analysis
-
-**Recommendations**:
-
-- Optimal mode selection
-- Parameter tuning suggestions
-- Performance improvement opportunities
+- Scenario ID, agent, eBee vs Direct metrics
+- Speedup factors, token efficiency
+- Quality deltas and recommendations
 
 ---
 
 ## 6. Configuration System
 
-### 6.1 YAML Configuration Format
+### 6.1 TypeScript Configuration Format
 
-**Query Benchmark**:
+**Query Benchmark** (with auto-select):
 
-```yaml
-name: "Query Performance Test"
-description: "Testing LightRAG modes"
-type: query
-iterations: 10
-warmupRuns: 2
-outputDir: "./results"
+```typescript
+import type { QueryBenchmarkConfig } from "@ebee-oss/benchmark";
 
-queries:
-  - id: "entity_query"
-    query: "Who is working on authentication?"
-    category: "entity_focused"
-    expectedEntities: ["Alice", "Bob"]
-
-modes:
-  - naive
-  - local
-  - global
-  - hybrid
-  - mix
-
-parameters:
-  top_k: [20, 60, 100]
-  chunk_top_k: [10, 20, 30]
-  enable_rerank: [true, false]
-  score_threshold: [0.6, 0.7, 0.8]
+export const queryConfig: QueryBenchmarkConfig = {
+  name: "Query Performance Test",
+  description: "Testing LightRAG with auto-selected parameters",
+  type: "query",
+  iterations: 10,
+  warmupRuns: 2,
+  outputDir: "./results",
+  queries: [
+    {
+      id: "entity_query",
+      query: "Who is working on authentication?",
+      category: "entity_focused",
+      expectedEntities: ["Alice", "Bob"],
+    },
+  ],
+  // Optional: modes and parameters will auto-select if not provided
+  // modes: ["naive", "local", "global", "hybrid", "mix"],
+  // parameters: {
+  //   top_k: [20, 60, 100],
+  //   chunk_top_k: [10, 20, 30],
+  //   enable_rerank: [true, false],
+  // },
+};
 ```
 
-**Accuracy Benchmark**:
+**CLI Agent Comparison**:
 
-```yaml
-name: "Accuracy Evaluation"
-type: query
-queries:
-  - id: "entity_query"
-    query: "Who is working on authentication?"
-    groundTruth:
-      relevantDocuments: ["doc_123", "doc_456", "doc_789"]
-      minRelevanceScore: 0.7
-```
+```typescript
+import type { ComparisonBenchmarkConfig } from "@ebee-oss/benchmark";
 
-**Agent Comparison**:
-
-```yaml
-name: "Agent Comparison"
-type: agent
-iterations: 5
-
-agents:
-  - name: claude
-    model: claude-sonnet-4-5
-    apiKey: ${ANTHROPIC_API_KEY}
-  - name: chatgpt
-    model: gpt-4
-    apiKey: ${OPENAI_API_KEY}
-
-queries:
-  - id: "complex_query"
-    query: "Find all Notion pages about Q4 roadmap"
-
-evalCriteria:
-  metrics: [response_quality, answer_completeness]
-  judgeModel: claude-sonnet-4-5
-```
-
-**Comparison Benchmark**:
-
-```yaml
-name: "eBee vs Direct"
-type: comparison
-
-scenarios:
-  - id: "multi_source_query"
-    query: "Find recent updates across Notion and Slack"
-    sourceServers: ["notion", "slack"]
-    expectedDifference:
-      speedup: 2.0
-      accuracyDelta: 0.05
+export const comparisonConfig: ComparisonBenchmarkConfig = {
+  name: "eBee vs Direct with CLI Agents",
+  description: "Compare Amp and Claude CLI",
+  type: "comparison",
+  iterations: 3,
+  outputDir: "./results",
+  agents: [
+    {
+      name: "amp",
+      model: "claude-sonnet-4-20250514",
+      command: "amp",
+      mcpConfig: {
+        ebee: {
+          url: "http://localhost:3000/.api/mcp/v1",
+        },
+      },
+    },
+    {
+      name: "claude-cli",
+      model: "claude-sonnet-4-20250514",
+      command: "claude",
+      mcpConfig: {
+        ebee: {
+          command: "node",
+          args: ["../server/dist/mcp/index.js"],
+        },
+      },
+    },
+  ],
+  scenarios: [
+    {
+      id: "multi_source_query",
+      query: "Find recent updates across Notion and Fathom",
+      sourceServers: ["notion", "fathom"],
+      expectedDifference: {
+        speedup: 2.0,
+        accuracyDelta: 0.05,
+      },
+    },
+  ],
+  sourceServers: {
+    notion: "notion-mcp-server",
+    fathom: "fathom-mcp-server",
+  },
+};
 ```
 
 ### 6.2 Programmatic API
 
 ```typescript
 import { runQueryBenchmarks } from "@ebee-oss/benchmark";
+import { lightragQuery } from "@ebee-oss/server";
 
 const config: QueryBenchmarkConfig = {
   name: "My Benchmark",
+  description: "Test with auto-select",
   type: "query",
   iterations: 10,
   outputDir: "./results",
-  queries: [...],
-  modes: ["mix"],
-  parameters: { top_k: [60] }
+  queries: [
+    {
+      id: "test",
+      query: "test query",
+      category: "exploratory",
+    },
+  ],
+  // No modes or parameters - LLM will auto-select
 };
 
 const results = await runQueryBenchmarks(config, lightragQuery);
@@ -550,15 +525,17 @@ const results = await runQueryBenchmarks(config, lightragQuery);
 
 ### 7.1 Completed ✅
 
-- [x] Core type system
+- [x] Core type system with optional modes/parameters
 - [x] Statistical utilities
-- [x] Query benchmark runner
+- [x] Query benchmark runner with auto-select support
 - [x] Accuracy evaluation
 - [x] Agent comparison (core)
 - [x] eBee vs Direct comparison (core)
-- [x] Export to JSON/CSV/YAML/HTML
-- [x] CLI interface
-- [x] Example configurations
+- [x] Amp Code CLI integration
+- [x] Claude Code CLI integration
+- [x] Export to CSV
+- [x] Simplified CLI interface
+- [x] TypeScript configuration examples
 
 ### 7.2 In Progress 🚧
 

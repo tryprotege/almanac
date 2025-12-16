@@ -22,6 +22,21 @@ export class LLMService {
       temperature?: number;
       maxTokens?: number;
       stream?: boolean;
+      reasoningEffort?: "low" | "medium" | "high"; // Legacy format (backwards compatibility)
+      reasoning?: {
+        effort: "low" | "medium" | "high" | "none";
+      }; // New format (preferred)
+      frequencyPenalty?: number;
+      responseFormat?:
+        | { type: "json_object" }
+        | {
+            type: "json_schema";
+            json_schema: {
+              name: string;
+              schema: Record<string, unknown>;
+              strict?: boolean;
+            };
+          };
     }
   ): Promise<string> {
     const completion = await this.client.chat.completions.create({
@@ -30,6 +45,18 @@ export class LLMService {
       temperature: options?.temperature ?? 0.7,
       max_tokens: options?.maxTokens,
       stream: false,
+      frequency_penalty: options?.frequencyPenalty,
+      // Prioritize new reasoning format, fall back to legacy reasoningEffort
+      ...(options?.reasoning && {
+        reasoning: options.reasoning,
+      }),
+      ...(options?.reasoningEffort &&
+        !options?.reasoning && {
+          reasoning_effort: options.reasoningEffort,
+        }),
+      ...(options?.responseFormat && {
+        response_format: options.responseFormat,
+      }),
     });
 
     return completion.choices[0]?.message?.content || "";

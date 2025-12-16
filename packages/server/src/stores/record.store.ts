@@ -10,9 +10,24 @@ export class RecordStore {
    * Upsert a single record
    */
   async upsert({ _id, ...record }: Partial<Record>): Promise<Record> {
+    // Build update object, excluding undefined indexing metadata
+    const updateData: any = { ...record };
+
+    // Prevent accidental clearing of indexing metadata
+    // If these fields are undefined, remove them from the update
+    if (updateData.lastEmbeddedAt === undefined) {
+      delete updateData.lastEmbeddedAt;
+    }
+    if (updateData.lastGraphIndexAt === undefined) {
+      delete updateData.lastGraphIndexAt;
+    }
+    if (updateData.embeddingModelVersion === undefined) {
+      delete updateData.embeddingModelVersion;
+    }
+
     const result = await RecordModel.findByIdAndUpdate(
       _id,
-      { $set: record },
+      { $set: updateData },
       { upsert: true, new: true }
     );
 
@@ -183,6 +198,28 @@ export class RecordStore {
     if (!includeDeleted) {
       filter.deletedAt = null;
     }
+    return await RecordModel.countDocuments(filter);
+  }
+
+  /**
+   * Count entities by source and type
+   */
+  async countBySourceAndType(
+    source: SourceType,
+    recordType?: string,
+    options?: { includeDeleted?: boolean }
+  ): Promise<number> {
+    const filter: any = { source };
+
+    // Only add recordType to filter if it's provided and not empty
+    if (recordType) {
+      filter.recordType = recordType;
+    }
+
+    if (!options?.includeDeleted) {
+      filter.deletedAt = null;
+    }
+
     return await RecordModel.countDocuments(filter);
   }
 

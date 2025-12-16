@@ -23,8 +23,13 @@ export interface Relationship {
 // Pure Functions - Entity Deduplication
 // ============================================================================
 
-export const normalizeEntityName = (name: string): string =>
-  name.toLowerCase().trim();
+/**
+ * Normalize entity name for consistent matching across the system
+ * This is the SINGLE SOURCE OF TRUTH for entity name normalization
+ */
+export const normalizeEntityName = (name: string): string => {
+  return name.toLowerCase().trim().replace(/\s+/g, " "); // Normalize multiple spaces to single space
+};
 
 export const selectDominantType = (typeCounts: Map<string, number>): string =>
   Array.from(typeCounts.entries()).reduce(

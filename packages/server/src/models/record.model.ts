@@ -52,7 +52,7 @@ const RecordSchema = new mongoose.Schema(
     deletedAt: { type: Date },
 
     // Indexing timestamps
-    lastGraphIndexDate: { type: Date }, // Last indexed to graph DB
+    lastGraphIndexAt: { type: Date }, // Last indexed to graph DB
     lastEmbeddedAt: { type: Date }, // Last embedded to vector DB
     embeddingModelVersion: { type: String }, // Model used for embeddings (e.g., "text-embedding-3-large")
   },

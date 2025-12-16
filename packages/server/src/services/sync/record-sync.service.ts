@@ -34,9 +34,26 @@ async function syncRecord(
       return { action: "skipped" };
     }
 
-    // Preserve graph indexing metadata - let the graph indexer decide if re-indexing is needed
-    record.lastGraphIndexDate = existing.lastGraphIndexDate;
-    record.lastEmbedDate = existing.lastEmbedDate;
+    // CRITICAL: Preserve indexing metadata - these should NEVER be cleared
+    // Only update if the new value is explicitly set, otherwise keep existing
+    if (!record.lastGraphIndexAt && existing.lastGraphIndexAt) {
+      record.lastGraphIndexAt = existing.lastGraphIndexAt;
+    }
+    if (!record.lastEmbeddedAt && existing.lastEmbeddedAt) {
+      record.lastEmbeddedAt = existing.lastEmbeddedAt;
+    }
+
+    // Log metadata preservation for debugging
+    logger.debug(
+      {
+        recordId: record._id,
+        hadEmbeddedAt: !!existing.lastEmbeddedAt,
+        hadGraphIndexAt: !!existing.lastGraphIndexAt,
+        preservedEmbeddedAt: !!record.lastEmbeddedAt,
+        preservedGraphIndexAt: !!record.lastGraphIndexAt,
+      },
+      "Preserving indexing metadata during sync"
+    );
 
     await recordStore.upsert(record);
     return { action: "updated" };
@@ -53,7 +70,8 @@ async function syncRecord(
 export async function syncAllRecords(
   recordStore: RecordStore,
   source: SourceType,
-  adapter: BaseRecordAdapter
+  adapter: BaseRecordAdapter,
+  options?: { limit?: number }
 ): Promise<{
   jobId: string;
   success: boolean;
@@ -82,10 +100,25 @@ export async function syncAllRecords(
     const iterator = adapter.fetchAll({ batchSize: 50 });
 
     for await (const batch of iterator) {
-      logger.debug({ msg: `Processing batch of ${batch.length} records...` });
+      // Check if we've reached the limit
+      if (options?.limit && totalProcessed >= options.limit) {
+        logger.debug(
+          `  Reached limit of ${options.limit} records, stopping sync`
+        );
+        break;
+      }
+
+      // Apply limit to batch if needed
+      const recordsToProcess = options?.limit
+        ? batch.slice(0, options.limit - totalProcessed)
+        : batch;
+
+      logger.debug(
+        `  Processing batch of ${recordsToProcess.length} records...`
+      );
 
       await Promise.all(
-        batch.map(
+        recordsToProcess.map(
           async (sourceRecord) =>
             await limit(async () => {
               try {

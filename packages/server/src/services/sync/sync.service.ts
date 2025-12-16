@@ -13,7 +13,10 @@ import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
 import { FathomAdapter } from "./adapters/fathom-adapter.js";
 import logger from "../../utils/logger.js";
 
-export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
+export const syncMcpServer = async (
+  mcpConfig: MCPServerConfig,
+  options?: { limit?: number }
+) => {
   const recordStore = new RecordStore();
   let adapter: BaseRecordAdapter;
 
@@ -45,7 +48,7 @@ export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
   }
 
   // Sync records for this source
-  await syncAllRecords(recordStore, mcpConfig.name, adapter);
+  await syncAllRecords(recordStore, mcpConfig.name, adapter, options);
 
   logger.info({ msg: `✅ Saved ${mcpConfig.name} records into document DB` });
 };
@@ -55,11 +58,15 @@ export const syncMcpServer = async (mcpConfig: MCPServerConfig) => {
  * This bypasses the queue and runs synchronously - useful for testing or single-run scripts
  * @deprecated Use queueAllRemoteMcpServers() with the worker for production
  */
-export async function syncAllRemoteMcpServers(): Promise<void> {
+export async function syncAllRemoteMcpServers(options?: {
+  limit?: number;
+}): Promise<void> {
   const validConfigs = await loadProxyConfig();
 
   // Use allSettled to continue syncing even if one source fails
-  const results = await Promise.allSettled(validConfigs.map(syncMcpServer));
+  const results = await Promise.allSettled(
+    validConfigs.map((config) => syncMcpServer(config, options))
+  );
 
   // Log results
   let successCount = 0;

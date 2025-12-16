@@ -1,10 +1,10 @@
 # Benchmarking Package
 
-Tools for benchmarking the multi-source data integration system, including mock data generation.
+Tools for benchmarking the multi-source data integration system, including workflow-based mock data generation with realistic cross-platform connections.
 
 ## Mock Data Generator
 
-Generates realistic synthetic data for benchmarking across multiple platforms (Slack, Notion, GitHub, Fathom).
+Generates realistic synthetic data for benchmarking across multiple platforms (Slack, Notion, GitHub, Fathom) using **workflow-based generation** that creates coherent narratives spanning all services with deterministic cross-references.
 
 ### Quick Start
 
@@ -15,13 +15,14 @@ pnpm install
 # Copy environment file
 cp .env.example .env
 
-# Add your OpenAI API key to .env
-# OPENAI_API_KEY=sk-...
+# Add your API configuration to .env
+# LLM_API_KEY=sk-...
+# LLM_BASE_URL=https://api.openai.com/v1
 
 # Generate data
-pnpm run generate:small    # 30 days (~3,180 records)
-pnpm run generate:medium   # 180 days (~19,080 records)
-pnpm run generate:large    # 365 days (~38,660 records)
+pnpm run generate:small    # 7 days (for quick testing)
+pnpm run generate:medium   # 180 days
+pnpm run generate:large    # 365 days
 ```
 
 ### Configuration
@@ -35,11 +36,13 @@ Basic configuration is done through the `.env` file:
 TIMELINE_DAYS=30
 
 # LLM Configuration
-OPENAI_API_KEY=sk-...
-TEMPERATURE=0.8           # LLM temperature (0.0-1.0, higher = more creative)
-BATCH_SIZE=20             # Number of items to generate per batch
-MAX_RETRIES=3             # Maximum retry attempts for failed LLM calls
-RATE_LIMIT_DELAY=1000     # Delay between API calls (ms)
+LLM_API_KEY=sk-...                    # Your LLM provider API key
+LLM_BASE_URL=https://api.openai.com/v1  # LLM API endpoint
+TEMPERATURE=0.8                        # LLM temperature (0.0-1.0, higher = more creative)
+BATCH_SIZE=20                          # Number of items to generate per batch
+MAX_RETRIES=3                          # Maximum retry attempts for failed LLM calls
+RATE_LIMIT_DELAY=1000                  # Delay between API calls (ms)
+LLM_CONCURRENCY=10                     # Number of concurrent LLM requests
 
 # Output directory
 OUTPUT_DIR=./output
@@ -52,7 +55,7 @@ To modify the daily generation rates for each platform, edit `src/mock-data-gene
 ```typescript
 export function calculateVolumes(timelineDays: number): VolumeConfig {
   return {
-    slackMessages: Math.max(40, Math.floor(timelineDays * 1000)), // Default: 1000/day
+    slackMessages: Math.max(40, Math.floor(timelineDays * 50)), // Default: 50/day
     githubIssues: Math.max(8, Math.floor(timelineDays * 1.7)), // Default: ~50/month
     githubPRs: Math.max(8, Math.floor(timelineDays * 1.7)), // Default: ~50/month
     notionPages: Math.max(8, Math.floor(timelineDays * 2)), // Default: 2/day
@@ -65,10 +68,10 @@ export function calculateVolumes(timelineDays: number): VolumeConfig {
 
 **Examples:**
 
-To increase Slack messages to 2000 per day:
+To increase Slack messages to 200 per day:
 
 ```typescript
-slackMessages: Math.max(10, Math.floor(timelineDays * 2000)),
+slackMessages: Math.max(40, Math.floor(timelineDays * 200)),
 ```
 
 To double GitHub activity:
@@ -90,33 +93,45 @@ Current default rates per day:
 
 | Platform             | Rate     | Monthly Total (30 days) |
 | -------------------- | -------- | ----------------------- |
-| Slack Messages       | 1000/day | ~30,000/month           |
+| Slack Messages       | 50/day   | ~1,500/month            |
 | GitHub Issues        | ~1.7/day | ~50/month               |
 | GitHub Pull Requests | ~1.7/day | ~50/month               |
 | Notion Pages         | 2/day    | ~60/month               |
 | Fathom Meetings      | ~0.7/day | ~20/month               |
 
-### Data Generation Stages
+### Workflow-Based Generation
 
-The mock data generator creates data in 4 progressive stages, each adding more complexity and cross-platform connections:
+The mock data generator uses **workflow templates** to create realistic cross-platform narratives. Each workflow follows common software development patterns and creates deterministic connections across services.
 
-#### Stage Distribution
+#### Available Workflow Templates
 
-| Stage           | Percentage | Description                                 |
-| --------------- | ---------- | ------------------------------------------- |
-| **Foundation**  | 40%        | Standalone records with NO cross-references |
-| **Connection**  | 20%        | Adds first-level cross-platform links       |
-| **Integration** | 20%        | Adds deeper multi-platform interconnections |
-| **Synthesis**   | 20%        | Adds complex multi-hop relationship chains  |
+| Workflow                | Frequency | Description                                                          |
+| ----------------------- | --------- | -------------------------------------------------------------------- |
+| **Bug Fix**             | 30%       | Bug reported → Slack discussion → Meeting → PR                       |
+| **Feature Development** | 25%       | Slack thread → Meeting → Notion spec → Issue → PR                    |
+| **Meeting Follow-up**   | 20%       | Slack msg → Meeting → Notion notes → Issue                           |
+| **Incident Response**   | 10%       | Urgent Slack → Incident call → Issue → PR → Postmortem               |
+| **Design Review**       | 15%       | Notion design → Slack thread → Review meeting → Updated spec → Issue |
 
-**Example:** For 100 total Slack messages:
+Each workflow creates a cohesive story with:
 
-- Foundation: 40 standalone messages
-- Connection: 20 messages with basic links
-- Integration: 20 messages with deeper connections
-- Synthesis: 20 messages with complex chains
+- **Deterministic cross-references**: Issues link to PRs, Slack mentions issues, Notion pages reference meetings
+- **Realistic timing**: Stages have configurable delays (e.g., PR comes 24-168 hours after issue)
+- **Contextual content**: LLM-generated content that references previous stages
+- **Natural progression**: Workflows follow real software development patterns
 
-This distribution ensures realistic data with varying levels of interconnectedness, mimicking real-world usage patterns.
+#### Data Generation Stages
+
+Data is generated in 4 progressive stages to ensure variety:
+
+| Stage           | Percentage | Description                               |
+| --------------- | ---------- | ----------------------------------------- |
+| **Foundation**  | 40%        | Core entities and some standalone records |
+| **Connection**  | 20%        | First-level workflow connections          |
+| **Integration** | 20%        | Deeper multi-platform workflows           |
+| **Synthesis**   | 20%        | Complex multi-hop workflow chains         |
+
+This staged approach ensures a mix of connected workflows and standalone items, mimicking real-world data diversity.
 
 ### Output
 
@@ -132,11 +147,78 @@ output/
 │   └── data.json
 ├── synthesis/         # Stage 4 - 20% complex chains
 │   └── data.json
-└── combined/          # All stages merged (use this for testing)
-    └── data.json
+├── combined/          # All stages merged
+│   ├── data.json      # Flat structure (use with mock-mcp-server)
+│   └── grouped.json   # Workflow-grouped structure (for analysis)
+└── metadata.json      # Generation metadata (dates, volumes, etc.)
 ```
 
-**Note:** Use `combined/data.json` for connecting with the mock-mcp-server.
+**Output Formats:**
+
+- **`combined/data.json`**: Flat structure organized by service (GitHub, Slack, Notion, Fathom). Use this with mock-mcp-server.
+- **`combined/grouped.json`**: Workflow-grouped structure showing connected records and cross-references. Use this for analyzing relationships and testing multi-source queries.
+
+**Grouped Output Structure:**
+
+```json
+{
+  "metadata": {
+    "generatedAt": "2025-12-16T14:00:00Z",
+    "version": "2.0",
+    "summary": {
+      "totalWorkflows": 15,
+      "totalRecordsInWorkflows": 87,
+      "totalStandaloneRecords": 23,
+      "servicesCovered": ["github", "slack", "notion", "fathom"]
+    }
+  },
+  "workflows": [
+    {
+      "groupId": "workflow-issue-42",
+      "title": "Matchmaking service high latency",
+      "description": "GitHub Issue #42",
+      "timeline": { "startDate": "...", "endDate": "..." },
+      "records": {
+        "githubIssues": [...],
+        "githubPRs": [...],
+        "slackThreads": [...],
+        "notionPages": [...],
+        "fathomMeetings": [...]
+      },
+      "crossReferences": [
+        {
+          "type": "pr-to-issue",
+          "from": "pr-12",
+          "to": "issue-42",
+          "context": "PR references issue in body"
+        }
+      ],
+      "metrics": {
+        "totalRecords": 8,
+        "totalMessages": 15,
+        "participantCount": 4,
+        "servicesCovered": ["github", "slack", "notion", "fathom"]
+      }
+    }
+  ],
+  "shared": {
+    "users": { "github": [...], "slack": [...], ... },
+    "infrastructure": { "slackChannels": [...], "githubRepositories": [...], ... },
+    "standalone": { "slackMessages": [...], "slackThreads": [...] }
+  }
+}
+```
+
+**Metadata Tracking:**
+
+The generator maintains a `metadata.json` file that tracks:
+
+- Dataset start/end dates
+- Total days covered
+- Generation history (for append mode)
+- Volume statistics per run
+
+This enables **incremental data generation** where you can append new data backwards in time while preserving existing data.
 
 ## Using with Mock MCP Server
 
@@ -329,19 +411,91 @@ notionPages: Math.max(4, Math.floor(timelineDays * 3)),       // 3/day
 fathomMeetings: Math.max(4, Math.floor(timelineDays * 1.4)),  // ~40/month
 ```
 
-This would generate approximately:
+This configuration for 365 days would generate approximately:
 
-- 730,000 Slack messages
-- 1,241 GitHub issues
-- 1,241 GitHub PRs
-- 1,095 Notion pages
-- 511 Fathom meetings
+- 18,250 Slack messages (50/day)
+- 620 GitHub issues (~1.7/day)
+- 620 GitHub PRs (~1.7/day)
+- 730 Notion pages (2/day)
+- 256 Fathom meetings (~0.7/day)
 
-**Total: ~734,088 records over 365 days**
+**Total: ~20,476 records over 365 days**
+
+These volumes are organized into workflows, creating realistic cross-platform narratives rather than isolated records.
 
 ## Architecture
 
-See [MOCK_DATA_GENERATION_PLAN.md](../../docs/benchmark/MOCK_DATA_GENERATION_PLAN.md) for detailed architecture and implementation details.
+### Key Components
+
+1. **Workflow Orchestrator** ([`workflows/orchestrator.ts`](src/mock-data-generator/workflows/orchestrator.ts))
+
+   - Executes workflow templates
+   - Manages cross-service connections
+   - Ensures consistent references between services
+
+2. **Workflow Templates** ([`workflows/templates.ts`](src/mock-data-generator/workflows/templates.ts))
+
+   - Define common development patterns
+   - Specify stage sequences and timing
+   - Configure reference relationships
+
+3. **Topic Generation** ([`workflows/topics.ts`](src/mock-data-generator/workflows/topics.ts))
+
+   - LLM-generated realistic topics
+   - Contextual for gaming startup
+   - Assigns participants and technical details
+
+4. **Grouping Utility** ([`utils/grouping.ts`](src/mock-data-generator/utils/grouping.ts))
+
+   - Creates workflow-grouped output
+   - Extracts cross-references
+   - Generates relationship graph
+
+5. **Stage Generators** ([`stages/`](src/mock-data-generator/stages/))
+   - Foundation: Core entities and infrastructure
+   - Connection: First-level workflow execution
+   - Integration: Deeper workflow connections
+   - Synthesis: Complex multi-service workflows
+
+### Data Flow
+
+```
+1. Load config & calculate volumes
+2. Generate workflow topics (LLM)
+3. Foundation Stage (40%)
+   ├─ Create users, channels, repos, databases
+   └─ Generate standalone items
+4. Connection Stage (20%)
+   └─ Execute workflows with 1-2 services
+5. Integration Stage (20%)
+   └─ Execute workflows with 2-3 services
+6. Synthesis Stage (20%)
+   └─ Execute complex multi-service workflows
+7. Combine & output
+   ├─ Flat structure (data.json)
+   ├─ Grouped structure (grouped.json)
+   └─ Metadata (metadata.json)
+```
+
+### Cross-Reference Strategy
+
+The system creates explicit connections between services:
+
+- **GitHub Issues ↔ PRs**: PRs reference issues in body with "Fixes #123"
+- **Slack ↔ GitHub**: Threads mention issues/PRs by number
+- **Notion ↔ GitHub**: Pages link to issues in "Related Issues" section
+- **Fathom ↔ All**: Meeting transcripts reference issues, docs, and Slack discussions
+- **Slack ↔ Notion**: Messages share Notion page URLs
+- **Slack ↔ Fathom**: Threads discuss meeting topics
+
+These references are:
+
+1. **Deterministic**: Created during workflow execution
+2. **Bidirectional**: Both services reference each other
+3. **Contextual**: Content reflects the relationship
+4. **Extractable**: Parseable by grouping utility
+
+For detailed architecture, see [MOCK_DATA_GENERATION_PLAN.md](../../docs/benchmark/MOCK_DATA_GENERATION_PLAN.md).
 
 ## Troubleshooting
 
@@ -367,4 +521,26 @@ If generated content seems repetitive:
 
 1. Increase `TEMPERATURE` (try 0.9)
 2. Reduce `BATCH_SIZE` for more diverse prompts
-3. Ensure sufficient timeline days (30+ recommended)
+3. Increase workflow count relative to timeline days
+4. Ensure sufficient timeline days (30+ recommended for variety)
+
+### Incremental Generation (Append Mode)
+
+The generator supports appending data backwards in time:
+
+```bash
+# Generate initial 30 days
+TIMELINE_DAYS=30 pnpm run generate
+
+# Append 30 more days BEFORE the existing data
+TIMELINE_DAYS=30 pnpm run generate
+```
+
+The generator automatically:
+
+- Detects existing `metadata.json`
+- Calculates new date range before existing data
+- Merges new data with existing (new data first)
+- Updates metadata with cumulative totals
+
+This is useful for gradually building large datasets without overwhelming API limits.

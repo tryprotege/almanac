@@ -56,7 +56,12 @@ export interface LightRAGResponse {
 // Core Configuration Types
 // ============================================
 
-export type BenchmarkType = "query" | "agent" | "comparison" | "accuracy";
+export type BenchmarkType =
+  | "query"
+  | "agent"
+  | "comparison"
+  | "accuracy"
+  | "matrix";
 
 export type QueryCategory =
   | "entity_focused" // Who, What, Where
@@ -72,7 +77,8 @@ export type AgentName =
   | "roo-code"
   | "chatgpt"
   | "gemini"
-  | "custom";
+  | "cline"
+  | string; // Allow any string for custom agent names
 
 export type EvaluationMetric =
   | "response_quality"
@@ -132,12 +138,12 @@ export interface QueryBenchmarkConfig extends BaseBenchmarkConfig {
 // ============================================
 
 export interface AgentConfig {
-  readonly name: AgentName;
+  readonly name: string; // Any string allowed for agent names
   readonly model: string;
   readonly apiKey?: string;
   readonly baseURL?: string;
   readonly systemPrompt?: string;
-  readonly command?: string; // For CLI-based agents (amp, claude-cli)
+  readonly command?: string; // For CLI-based agents (amp, claude-cli, cline)
   readonly mcpConfig?: Record<string, any>; // MCP server configuration
 }
 
@@ -405,15 +411,74 @@ export interface ComparisonBenchmarkResults {
 // Utility Types
 // ============================================
 
+// ============================================
+// Matrix Benchmark Types (Agent × MCP Setup)
+// ============================================
+
+export interface MatrixScenario {
+  readonly id: string;
+  readonly query: string;
+  readonly category?: QueryCategory;
+  readonly targetServers: readonly string[];
+}
+
+export interface MatrixBenchmarkConfig extends BaseBenchmarkConfig {
+  readonly type: "matrix";
+  readonly agents: readonly AgentConfig[];
+  readonly mcpSetups: {
+    readonly ebee: {
+      readonly url: string;
+    };
+    readonly direct: {
+      readonly servers: readonly string[];
+      readonly packages: Readonly<Record<string, string>>;
+    };
+  };
+  readonly scenarios: readonly MatrixScenario[];
+}
+
+export interface MatrixCellResult {
+  readonly time: number;
+  readonly tokens: number;
+  readonly cost: number;
+  readonly quality: number;
+}
+
+export interface MatrixAgentResult {
+  readonly ebee: MatrixCellResult;
+  readonly direct: MatrixCellResult;
+}
+
+export type MatrixResult = Readonly<Record<string, MatrixAgentResult>>;
+
+export interface MatrixAnalysis {
+  readonly bestCombination: string;
+  readonly fastestWithEbee: string;
+  readonly fastestWithDirect: string;
+  readonly mostEfficient: string;
+  readonly speedupByAgent: Readonly<Record<string, number>>;
+  readonly tokenSavingsByAgent: Readonly<Record<string, number>>;
+  readonly costSavingsByAgent: Readonly<Record<string, number>>;
+}
+
+export interface MatrixBenchmarkResults {
+  readonly config: MatrixBenchmarkConfig;
+  readonly matrix: MatrixResult;
+  readonly analysis: MatrixAnalysis;
+  readonly timestamp: string;
+}
+
 export type BenchmarkConfig =
   | QueryBenchmarkConfig
   | AgentBenchmarkConfig
-  | ComparisonBenchmarkConfig;
+  | ComparisonBenchmarkConfig
+  | MatrixBenchmarkConfig;
 
 export type BenchmarkResults =
   | QueryBenchmarkResults
   | AgentBenchmarkResults
-  | ComparisonBenchmarkResults;
+  | ComparisonBenchmarkResults
+  | MatrixBenchmarkResults;
 
 // ============================================
 // Function Types (for functional composition)

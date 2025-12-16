@@ -11,10 +11,9 @@
     "./evaluators": "./dist/evaluators/index.js"
   },
   "scripts": {
-    "dev": "tsx watch src/cli.ts",
     "build": "tsc",
-    "benchmark": "tsx src/index.ts",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test:matrix": "tsx scripts/test-matrix.ts"
   },
   "dependencies": {
     "@ebee-oss/server": "workspace:*",

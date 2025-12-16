@@ -4,7 +4,7 @@ import type {
   VolumeConfig,
   GenerationContext,
 } from "../types.js";
-import { generateTimeline } from "../utils/dates.js";
+import { generateTimeline, generateTimelineFromDate } from "../utils/dates.js";
 import {
   generateSlackMessages,
   generateSlackChannels,
@@ -37,11 +37,16 @@ import {
 
 export async function generateFoundation(
   config: GeneratorConfig,
-  volumes: VolumeConfig
+  volumes: VolumeConfig,
+  startDate?: Date
 ): Promise<AllGeneratedData> {
   console.log("📦 Stage 1: Foundation (40% of data)");
 
-  const timeline = generateTimeline(config.timelineDays);
+  // Use provided startDate or fall back to default timeline generation
+  const timeline = startDate
+    ? generateTimelineFromDate(startDate, config.timelineDays)
+    : generateTimeline(config.timelineDays);
+
   const context: GenerationContext = {
     startDate: timeline[0],
     endDate: timeline[timeline.length - 1],

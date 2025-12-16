@@ -13,6 +13,11 @@ import { COMPANY_DATA } from "../data/company.js";
 import { generateWithLLM } from "../utils/llm.js";
 import { selectRandom, selectRandomMultiple } from "../utils/random.js";
 import { generateRandomDate } from "../utils/dates.js";
+import {
+  generateRandomId,
+  generateRandomNodeId,
+  generateRandomHash,
+} from "../utils/id-generator.js";
 
 /**
  * Generate GitHub issues and pull requests (functional approach - no classes)
@@ -77,10 +82,13 @@ Return ONLY a JSON object with this exact structure (no markdown, no extra text)
       const response = await generateWithLLM(prompt, config);
       const parsed = JSON.parse(response);
 
+      const issueId = generateRandomId(1000, 999999);
+      const issueNumber = generateRandomId(1, 99999);
+
       issues.push({
-        id: 1000 + i,
-        node_id: `MDU6SXNzdWU${1000 + i}`,
-        number: i + 1,
+        id: issueId,
+        node_id: generateRandomNodeId("MDU6SXNzdWU"),
+        number: issueNumber,
         title: parsed.title,
         body: parsed.body,
         state,
@@ -97,8 +105,8 @@ Return ONLY a JSON object with this exact structure (no markdown, no extra text)
           email: author.email,
         },
         labels: labels.map((label) => ({
-          id: Math.floor(Math.random() * 1000000),
-          node_id: `MDU6TGFiZWw${Math.floor(Math.random() * 1000000)}`,
+          id: generateRandomId(100000, 999999),
+          node_id: generateRandomNodeId("MDU6TGFiZWw"),
           name: label,
           description: null,
           color: "0e8a16",
@@ -113,9 +121,7 @@ Return ONLY a JSON object with this exact structure (no markdown, no extra text)
         author_association: "CONTRIBUTOR",
         locked: false,
         repository_url: `https://api.github.com/repos/${COMPANY_DATA.githubOrg}/${repo.name}`,
-        html_url: `https://github.com/${COMPANY_DATA.githubOrg}/${
-          repo.name
-        }/issues/${i + 1}`,
+        html_url: `https://github.com/${COMPANY_DATA.githubOrg}/${repo.name}/issues/${issueNumber}`,
       });
 
       if ((i + 1) % 10 === 0) {
@@ -202,9 +208,10 @@ Include "Fixes #${issue.number}" in the PR body to link it to the issue.
       const response = await generateWithLLM(prompt, config);
       const parsed = JSON.parse(response);
 
+      const repoId = generateRandomId(5000, 9999);
       const mockRepo: GitHubRepository = {
-        id: 5000 + Math.floor(Math.random() * 100),
-        node_id: `MDEwOlJlcG9zaXRvcnk1MDAw`,
+        id: repoId,
+        node_id: generateRandomNodeId("MDEwOlJlcG9zaXRvcnk"),
         name: repo.name,
         full_name: `${COMPANY_DATA.githubOrg}/${repo.name}`,
         owner: users[0],
@@ -229,17 +236,20 @@ Include "Fixes #${issue.number}" in the PR body to link it to the issue.
         open_issues_count: Math.floor(Math.random() * 20),
       };
 
+      const prId = generateRandomId(2000, 999999);
+      const prNumber = generateRandomId(1, 99999);
+
       prs.push({
-        id: 2000 + i,
-        node_id: `MDExOlB1bGxSZXF1ZXN0${2000 + i}`,
-        number: i + 1,
+        id: prId,
+        node_id: generateRandomNodeId("MDExOlB1bGxSZXF1ZXN0"),
+        number: prNumber,
         title: parsed.title,
         body: parsed.body,
         state,
         user: {
           login: author.login,
           id: author.id,
-          node_id: `MDQ6VXNlcjEyMzQ1Njc4${author.id}`,
+          node_id: generateRandomNodeId("MDQ6VXNlcjEyMzQ1Njc4"),
           avatar_url: `https://avatars.githubusercontent.com/u/${author.id}?v=4`,
           html_url: `https://github.com/${author.login}`,
           type: isDependabot ? "Bot" : "User",
@@ -257,20 +267,18 @@ Include "Fixes #${issue.number}" in the PR body to link it to the issue.
         mergeable_state: state === "open" ? "clean" : "unknown",
         merged_at: mergedAt?.toISOString() || null,
         merged_by: merged ? selectRandom(users) : null,
-        merge_commit_sha: merged
-          ? `abc${Math.random().toString(36).substring(7)}`
-          : null,
+        merge_commit_sha: merged ? generateRandomHash(40) : null,
         head: {
-          label: `${COMPANY_DATA.githubOrg}:feature-branch-${i}`,
-          ref: `feature-branch-${i}`,
-          sha: `def${Math.random().toString(36).substring(7)}`,
+          label: `${COMPANY_DATA.githubOrg}:feature-branch-${prNumber}`,
+          ref: `feature-branch-${prNumber}`,
+          sha: generateRandomHash(40),
           user: users[0],
           repo: mockRepo,
         },
         base: {
           label: `${COMPANY_DATA.githubOrg}:main`,
           ref: "main",
-          sha: `ghi${Math.random().toString(36).substring(7)}`,
+          sha: generateRandomHash(40),
           user: users[0],
           repo: mockRepo,
         },
@@ -278,15 +286,9 @@ Include "Fixes #${issue.number}" in the PR body to link it to the issue.
         updated_at: (mergedAt || createdAt).toISOString(),
         closed_at:
           state === "closed" ? (mergedAt || createdAt).toISOString() : null,
-        html_url: `https://github.com/${COMPANY_DATA.githubOrg}/${
-          repo.name
-        }/pull/${i + 1}`,
-        diff_url: `https://github.com/${COMPANY_DATA.githubOrg}/${
-          repo.name
-        }/pull/${i + 1}.diff`,
-        patch_url: `https://github.com/${COMPANY_DATA.githubOrg}/${
-          repo.name
-        }/pull/${i + 1}.patch`,
+        html_url: `https://github.com/${COMPANY_DATA.githubOrg}/${repo.name}/pull/${prNumber}`,
+        diff_url: `https://github.com/${COMPANY_DATA.githubOrg}/${repo.name}/pull/${prNumber}.diff`,
+        patch_url: `https://github.com/${COMPANY_DATA.githubOrg}/${repo.name}/pull/${prNumber}.patch`,
         commits: Math.floor(Math.random() * 5) + 1,
         additions: Math.floor(Math.random() * 500) + 10,
         deletions: Math.floor(Math.random() * 200) + 5,
@@ -307,25 +309,28 @@ Include "Fixes #${issue.number}" in the PR body to link it to the issue.
 }
 
 export function generateGitHubUsers(): GitHubUser[] {
-  return COMPANY_DATA.teamMembers.map((member, index) => ({
-    id: index + 1,
-    login: member.githubHandle,
-    node_id: `MDQ6VXNlcjEyMzQ1Njc4${index}`,
-    avatar_url: `https://avatars.githubusercontent.com/u/${index + 1}?v=4`,
-    html_url: `https://github.com/${member.githubHandle}`,
-    type: "User",
-    site_admin: false,
-    name: member.name,
-    email: member.email,
-  }));
+  return COMPANY_DATA.teamMembers.map((member, index) => {
+    const userId = generateRandomId(1, 999999);
+    return {
+      id: userId,
+      login: member.githubHandle,
+      node_id: generateRandomNodeId("MDQ6VXNlcg"),
+      avatar_url: `https://avatars.githubusercontent.com/u/${userId}?v=4`,
+      html_url: `https://github.com/${member.githubHandle}`,
+      type: "User",
+      site_admin: false,
+      name: member.name,
+      email: member.email,
+    };
+  });
 }
 
 export function generateGitHubRepositories(): GitHubRepository[] {
   const owner = generateGitHubUsers()[0]; // Sarah Chen as owner
 
   return COMPANY_DATA.githubRepos.map((repo, index) => ({
-    id: 5000 + index,
-    node_id: `MDEwOlJlcG9zaXRvcnk1MDAw${index}`,
+    id: generateRandomId(5000, 9999),
+    node_id: generateRandomNodeId("MDEwOlJlcG9zaXRvcnk"),
     name: repo.name,
     full_name: `${COMPANY_DATA.githubOrg}/${repo.name}`,
     owner,

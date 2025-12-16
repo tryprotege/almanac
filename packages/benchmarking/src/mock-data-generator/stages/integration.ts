@@ -4,7 +4,7 @@ import type {
   VolumeConfig,
   GenerationContext,
 } from "../types.js";
-import { generateTimeline } from "../utils/dates.js";
+import { generateTimeline, generateTimelineFromDate } from "../utils/dates.js";
 import { generateSlackMessages } from "../generators/slack.js";
 import {
   generateGitHubIssues,
@@ -34,7 +34,8 @@ export async function generateIntegration(
     githubPRs: any[];
   },
   config: GeneratorConfig,
-  volumes: VolumeConfig
+  volumes: VolumeConfig,
+  startDate?: Date
 ): Promise<{
   slack: any[];
   github: { issues: any[]; prs: any[] };
@@ -48,7 +49,10 @@ export async function generateIntegration(
   // Build enriched context from foundation + connection
   const categorizedContext = buildIntegrationContext(foundation, connection);
 
-  const timeline = generateTimeline(config.timelineDays);
+  const timeline = startDate
+    ? generateTimelineFromDate(startDate, config.timelineDays)
+    : generateTimeline(config.timelineDays);
+
   const generationContext: GenerationContext = {
     startDate: timeline[0],
     endDate: timeline[timeline.length - 1],

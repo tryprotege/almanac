@@ -65,7 +65,14 @@ export type QueryCategory =
   | "aggregation" // Count, Sum
   | "exploratory"; // Open-ended
 
-export type AgentName = "claude" | "roo-code" | "chatgpt" | "gemini" | "custom";
+export type AgentName =
+  | "claude"
+  | "claude-cli"
+  | "amp"
+  | "roo-code"
+  | "chatgpt"
+  | "gemini"
+  | "custom";
 
 export type EvaluationMetric =
   | "response_quality"
@@ -111,8 +118,8 @@ export interface GroundTruth {
 export interface QueryBenchmarkConfig extends BaseBenchmarkConfig {
   readonly type: "query";
   readonly queries: readonly BenchmarkQuery[];
-  readonly modes: readonly LightRAGMode[];
-  readonly parameters: {
+  readonly modes?: readonly LightRAGMode[]; // Optional - let LLM auto-select if not provided
+  readonly parameters?: {
     readonly top_k?: readonly number[];
     readonly chunk_top_k?: readonly number[];
     readonly enable_rerank?: readonly boolean[];
@@ -127,9 +134,11 @@ export interface QueryBenchmarkConfig extends BaseBenchmarkConfig {
 export interface AgentConfig {
   readonly name: AgentName;
   readonly model: string;
-  readonly apiKey: string;
+  readonly apiKey?: string;
   readonly baseURL?: string;
   readonly systemPrompt?: string;
+  readonly command?: string; // For CLI-based agents (amp, claude-cli)
+  readonly mcpConfig?: Record<string, any>; // MCP server configuration
 }
 
 export interface EvaluationCriteria {
@@ -152,10 +161,6 @@ export interface ComparisonScenario {
   readonly id: string;
   readonly query: string;
   readonly sourceServers: readonly string[];
-  readonly expectedDifference?: {
-    readonly speedup?: number;
-    readonly accuracyDelta?: number;
-  };
 }
 
 export interface ComparisonBenchmarkConfig extends BaseBenchmarkConfig {

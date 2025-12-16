@@ -104,29 +104,51 @@ export const runQueryBenchmark = async (
 
 /**
  * Generate all parameter combinations from config
+ * Returns empty array if parameters not provided (let LLM auto-select)
  */
 export const generateParameterCombinations = (
   config: QueryBenchmarkConfig
 ): Array<Partial<LightRAGQuery>> => {
   const { parameters } = config;
 
-  const topKValues = parameters.top_k || [60];
-  const chunkTopKValues = parameters.chunk_top_k || [20];
-  const rerankValues = parameters.enable_rerank || [true];
-  const thresholdValues = parameters.score_threshold || [0.6];
+  // If no parameters provided, return empty object (LLM will auto-select)
+  if (!parameters || Object.keys(parameters).length === 0) {
+    return [{}];
+  }
+
+  const topKValues = parameters.top_k || [];
+  const chunkTopKValues = parameters.chunk_top_k || [];
+  const rerankValues = parameters.enable_rerank || [];
+  const thresholdValues = parameters.score_threshold || [];
+
+  // If all parameter arrays are empty, return empty object
+  if (
+    topKValues.length === 0 &&
+    chunkTopKValues.length === 0 &&
+    rerankValues.length === 0 &&
+    thresholdValues.length === 0
+  ) {
+    return [{}];
+  }
 
   const combinations: Array<Partial<LightRAGQuery>> = [];
 
-  for (const topK of topKValues) {
-    for (const chunkTopK of chunkTopKValues) {
-      for (const rerank of rerankValues) {
-        for (const threshold of thresholdValues) {
-          combinations.push({
-            top_k: topK,
-            chunk_top_k: chunkTopK,
-            enable_rerank: rerank,
-            score_threshold: threshold,
-          });
+  // Use at least one value for each parameter if specified
+  const topKs = topKValues.length > 0 ? topKValues : [undefined];
+  const chunkTopKs = chunkTopKValues.length > 0 ? chunkTopKValues : [undefined];
+  const reranks = rerankValues.length > 0 ? rerankValues : [undefined];
+  const thresholds = thresholdValues.length > 0 ? thresholdValues : [undefined];
+
+  for (const topK of topKs) {
+    for (const chunkTopK of chunkTopKs) {
+      for (const rerank of reranks) {
+        for (const threshold of thresholds) {
+          const combo: Partial<LightRAGQuery> = {};
+          if (topK !== undefined) combo.top_k = topK;
+          if (chunkTopK !== undefined) combo.chunk_top_k = chunkTopK;
+          if (rerank !== undefined) combo.enable_rerank = rerank;
+          if (threshold !== undefined) combo.score_threshold = threshold;
+          combinations.push(combo);
         }
       }
     }
@@ -151,7 +173,7 @@ export const runWarmup = async (
   console.log(`🔥 Running ${config.warmupRuns} warmup iterations...`);
 
   const warmupQuery = config.queries[0];
-  const warmupMode = config.modes[0];
+  const warmupMode = config.modes && config.modes[0] ? config.modes[0] : "mix";
 
   for (let i = 0; i < config.warmupRuns; i++) {
     try {
@@ -224,7 +246,20 @@ export const runQueryBenchmarks = async (
 ): Promise<QueryBenchmarkResults> => {
   console.log(`🚀 Starting query benchmark: ${config.name}`);
   console.log(`   Queries: ${config.queries.length}`);
-  console.log(`   Modes: ${config.modes.join(", ")}`);
+
+  // If modes not provided, use "mix" mode and let LLM auto-select
+  const modes =
+    config.modes && config.modes.length > 0
+      ? config.modes
+      : ["mix" as LightRAGMode];
+  const autoSelectMode = !config.modes || config.modes.length === 0;
+
+  if (autoSelectMode) {
+    console.log(`   Mode: Auto-select (using "mix")`);
+  } else {
+    console.log(`   Modes: ${modes.join(", ")}`);
+  }
+
   console.log(`   Iterations: ${config.iterations}\n`);
 
   // Warmup
@@ -232,22 +267,38 @@ export const runQueryBenchmarks = async (
 
   // Generate parameter combinations
   const paramCombinations = generateParameterCombinations(config);
-  console.log(
-    `📊 Testing ${paramCombinations.length} parameter combinations\n`
-  );
+  const autoSelectParams =
+    paramCombinations.length === 1 &&
+    Object.keys(paramCombinations[0]).length === 0;
+
+  if (autoSelectParams) {
+    console.log(
+      `📊 Parameters: Auto-select (letting LLM choose optimal settings)\n`
+    );
+  } else {
+    console.log(
+      `📊 Testing ${paramCombinations.length} parameter combinations\n`
+    );
+  }
 
   // Run all benchmarks
   const queryResults: QueryBenchmarkResult[] = [];
   let completed = 0;
-  const total =
-    config.queries.length * config.modes.length * paramCombinations.length;
+  const total = config.queries.length * modes.length * paramCombinations.length;
 
   for (const query of config.queries) {
-    for (const mode of config.modes) {
+    for (const mode of modes) {
       for (const params of paramCombinations) {
+        const paramStr = autoSelectParams
+          ? "auto-select"
+          : `top_k=${params.top_k ?? "auto"}, chunk_top_k=${
+              params.chunk_top_k ?? "auto"
+            }`;
+
         console.log(
-          `[${++completed}/${total}] Running: ${query.id} (${mode}) - ` +
-            `top_k=${params.top_k}, chunk_top_k=${params.chunk_top_k}`
+          `[${++completed}/${total}] Running: ${
+            query.id
+          } (${mode}) - ${paramStr}`
         );
 
         const result = await runQueryBenchmark(

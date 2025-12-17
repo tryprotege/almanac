@@ -1,0 +1,21 @@
+# Environment variables
+.env
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Test results
+benchmark-results/
+*.csv
+*.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db

@@ -74,7 +74,7 @@ export class RerankerService {
     }
 
     try {
-      const url = `${this.baseUrl}/${this.model}`;
+      const url = this.baseUrl;
 
       const response = await fetch(url, {
         method: "POST",
@@ -83,8 +83,11 @@ export class RerankerService {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          queries: [query],
+          model: this.model,
+          query,
           documents: documents.map((d) => d.text),
+          top_n: options?.topK,
+          return_documents: true,
         }),
       });
 
@@ -96,6 +99,9 @@ export class RerankerService {
       }
 
       const data = await response.json();
+
+      // Log the response for debugging
+      logger.info({ data }, "Reranker API response");
 
       // Handle different response formats
       const scores = this.extractScores(data);
@@ -136,12 +142,14 @@ export class RerankerService {
    * Extract scores from different API response formats
    */
   private extractScores(data: any): number[] {
-    // Handle nested array for batch queries (extract first query's scores)
-    if (Array.isArray(data.scores) && Array.isArray(data.scores[0])) {
-      return data.scores[0];
+    // Fireworks API format - results include original index and are sorted by relevance
+    // We need to re-sort by index to match original document order
+    if (Array.isArray(data.data) && data.data[0]?.index !== undefined) {
+      const sortedResults = [...data.data].sort((a, b) => a.index - b.index);
+      return sortedResults.map((r: any) => r.relevance_score || 0);
     }
 
-    // Handle flat scores array
+    // Try different common response formats
     if (Array.isArray(data.scores)) {
       return data.scores;
     }

@@ -54,8 +54,8 @@ const envSchema = z.object({
   RERANKER_API_KEY: z.string().optional(),
   RERANKER_BASE_URL: z
     .string()
-    .default("https://api.deepinfra.com/v1/inference"),
-  RERANKER_MODEL: z.string().default("Qwen/Qwen3-Reranker-8B"),
+    .default("https://api.fireworks.ai/inference/v1/rerank"),
+  RERANKER_MODEL: z.string().default("fireworks/qwen3-reranker-8b"),
 
   DB_INDEXING_CONCURRENCY: z.coerce.number().default(32),
 

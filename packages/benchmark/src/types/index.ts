@@ -192,6 +192,9 @@ export interface TokenUsage {
   readonly embedding?: number;
   readonly reranking?: number;
   readonly llm?: number;
+  readonly thinking?: number; // Extended thinking tokens
+  readonly cacheCreation?: number; // Cache creation tokens
+  readonly cacheRead?: number; // Cache read tokens
   readonly total: number;
 }
 
@@ -243,6 +246,9 @@ export interface AgentOutput {
   readonly response: string;
   readonly timestamp: string;
   readonly tokensUsed: number;
+  readonly thinkingTokens?: number; // Extended thinking tokens
+  readonly cacheCreationTokens?: number; // Cache creation tokens
+  readonly cacheReadTokens?: number; // Cache read tokens
   readonly responseTime: number;
 }
 
@@ -422,24 +428,26 @@ export interface MatrixScenario {
   readonly targetServers: readonly string[];
 }
 
+export interface MCPSetupConfig {
+  readonly name: string;
+  readonly url?: string;
+  readonly servers?: readonly string[];
+  readonly packages?: Readonly<
+    Record<string, string | { command: string; args?: string[] }>
+  >;
+}
+
 export interface MatrixBenchmarkConfig extends BaseBenchmarkConfig {
   readonly type: "matrix";
   readonly agents: readonly AgentConfig[];
-  readonly mcpSetups: {
-    readonly ebee: {
-      readonly url: string;
-    };
-    readonly direct: {
-      readonly servers: readonly string[];
-      readonly packages: Readonly<Record<string, string>>;
-    };
-  };
+  readonly mcpSetups: readonly MCPSetupConfig[];
   readonly scenarios: readonly MatrixScenario[];
 }
 
 export interface MatrixCellResult {
   readonly time: number;
   readonly tokens: number;
+  readonly thinkingTokens?: number; // Extended thinking tokens
   readonly cost: number;
   readonly quality: number;
 }

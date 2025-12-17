@@ -84,11 +84,11 @@ const config: MatrixBenchmarkConfig = {
   agents: [
     {
       name: "amp",
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-haiku-4-5-20251001",
     },
     {
       name: "claude-cli",
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-haiku-4-5-20251001",
     },
   ],
 

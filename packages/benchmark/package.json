@@ -16,8 +16,10 @@
     "test:matrix": "tsx scripts/test-matrix.ts"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.71",
     "@ebee-oss/server": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.24.3",
+    "@sourcegraph/amp-sdk": "0.1.0-20251217003600-gcd4203a",
     "dotenv": "^17.2.3",
     "openai": "^6.9.1",
     "pino": "^10.1.0",

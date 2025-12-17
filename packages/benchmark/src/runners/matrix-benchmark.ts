@@ -3,7 +3,11 @@
  * Tests Agent × MCP Setup combinations for comprehensive comparison
  */
 
-import { executeCLIQuery, type CLIQueryResult } from "./cli-runner.js";
+import {
+  executeSDKQuery,
+  type SDKQueryResult,
+  type SDKOptions,
+} from "./sdk-runner.js";
 import type {
   MatrixBenchmarkConfig,
   MatrixBenchmarkResults,
@@ -20,8 +24,9 @@ import type {
 async function runWithEbee(
   agent: AgentConfig,
   query: string,
-  ebeeUrl: string
-): Promise<CLIQueryResult> {
+  ebeeUrl: string,
+  verbose: boolean = true
+): Promise<SDKQueryResult> {
   const agentWithEbee: AgentConfig = {
     ...agent,
     mcpConfig: {
@@ -31,7 +36,7 @@ async function runWithEbee(
     },
   };
 
-  return await executeCLIQuery(agentWithEbee, query);
+  return await executeSDKQuery(agentWithEbee, query, { verbose });
 }
 
 /**
@@ -41,18 +46,25 @@ async function runWithDirect(
   agent: AgentConfig,
   query: string,
   servers: readonly string[],
-  packages: Record<string, string>
-): Promise<CLIQueryResult> {
+  packages: Record<string, string | { command: string; args?: string[] }>
+): Promise<SDKQueryResult> {
   // Configure agent to use direct MCP servers
   const mcpConfig: Record<string, any> = {};
 
   for (const server of servers) {
-    const packageName = packages[server];
-    if (packageName) {
-      mcpConfig[server] = {
-        command: "npx",
-        args: ["-y", packageName],
-      };
+    const packageConfig = packages[server];
+    if (packageConfig) {
+      // Check if it's a string (npm package) or object (local command)
+      if (typeof packageConfig === "string") {
+        // Use npx for npm packages
+        mcpConfig[server] = {
+          command: "npx",
+          args: ["-y", packageConfig],
+        };
+      } else {
+        // Use provided command/args for local packages
+        mcpConfig[server] = packageConfig;
+      }
     }
   }
 
@@ -61,16 +73,17 @@ async function runWithDirect(
     mcpConfig,
   };
 
-  return await executeCLIQuery(agentWithDirect, query);
+  return await executeSDKQuery(agentWithDirect, query);
 }
 
 /**
- * Convert CLI result to matrix cell
+ * Convert SDK result to matrix cell
  */
-function toMatrixCell(result: CLIQueryResult): MatrixCellResult {
+function toMatrixCell(result: SDKQueryResult): MatrixCellResult {
   return {
     time: result.executionTime,
     tokens: result.totalTokens,
+    thinkingTokens: result.thinkingTokens,
     cost: result.cost || 0,
     quality: 0.85, // TODO: Implement quality scoring
   };
@@ -107,30 +120,42 @@ export async function runMatrixBenchmark(
       for (let i = 0; i < config.iterations; i++) {
         console.log(`   Iteration ${i + 1}/${config.iterations}:`);
 
-        // Test with eBee
-        console.log(`     🐝 Running with eBee...`);
-        const ebeeResult = await runWithEbee(
-          agent,
-          scenario.query,
-          config.mcpSetups.ebee.url
-        );
-        ebeeResults.push(toMatrixCell(ebeeResult));
-        console.log(
-          `        ✓ Completed in ${ebeeResult.executionTime}ms, ${ebeeResult.totalTokens} tokens`
-        );
+        // Find eBee and Direct setups
+        const ebeeSetup = config.mcpSetups.find((s) => s.name === "ebee");
+        const directSetup = config.mcpSetups.find((s) => s.name === "direct");
 
-        // Test with Direct MCP
-        console.log(`     🔗 Running with Direct MCP...`);
-        const directResult = await runWithDirect(
-          agent,
-          scenario.query,
-          scenario.targetServers,
-          config.mcpSetups.direct.packages
-        );
-        directResults.push(toMatrixCell(directResult));
-        console.log(
-          `        ✓ Completed in ${directResult.executionTime}ms, ${directResult.totalTokens} tokens\n`
-        );
+        // Test with eBee (if configured)
+        if (ebeeSetup?.url) {
+          console.log(`     🐝 Running with eBee...`);
+          const ebeeResult = await runWithEbee(
+            agent,
+            scenario.query,
+            ebeeSetup.url
+          );
+          ebeeResults.push(toMatrixCell(ebeeResult));
+          console.log(
+            `        ✓ Completed in ${ebeeResult.executionTime}ms, ${ebeeResult.totalTokens} tokens`
+          );
+        } else {
+          console.log(`     🐝 Skipping eBee (not configured)`);
+        }
+
+        // Test with Direct MCP (if configured)
+        if (directSetup?.servers && directSetup?.packages) {
+          console.log(`     🔗 Running with Direct MCP...`);
+          const directResult = await runWithDirect(
+            agent,
+            scenario.query,
+            directSetup.servers,
+            directSetup.packages as Record<string, string>
+          );
+          directResults.push(toMatrixCell(directResult));
+          console.log(
+            `        ✓ Completed in ${directResult.executionTime}ms, ${directResult.totalTokens} tokens\n`
+          );
+        } else {
+          console.log(`     🔗 Skipping Direct MCP (not configured)\n`);
+        }
       }
     }
 

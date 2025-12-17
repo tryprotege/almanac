@@ -56,7 +56,17 @@ export const connectMemgraph = async (): Promise<MemgraphConnection> => {
         const result = await session.run(query, parameters);
         return result.records.map((record) => record.toObject() as T);
       } catch (err) {
-        logger.error({ err }, "Memgraph query error");
+        // Enhanced error logging with full query details for debugging
+        logger.error(
+          {
+            err,
+            query: query.trim(),
+            parameters: parameters || {},
+            errorMessage: (err as any)?.message,
+            errorCode: (err as any)?.code,
+          },
+          "Memgraph query error"
+        );
         throw err;
       } finally {
         await session.close();

@@ -13,6 +13,7 @@ import logger from "../src/utils/logger.js";
  *   pnpm tsx scripts/sync-records.ts
  *   pnpm tsx scripts/sync-records.ts --source=fathom
  *   pnpm tsx scripts/sync-records.ts --source=notion
+ *   pnpm tsx scripts/sync-records.ts --limit=100
  *
  * For indexing:
  * - Use scripts/index-graph.ts for graph indexing
@@ -21,6 +22,7 @@ import logger from "../src/utils/logger.js";
 
 interface ScriptOptions {
   source?: SourceType;
+  limit?: number;
 }
 
 function parseArgs(): ScriptOptions {
@@ -30,6 +32,8 @@ function parseArgs(): ScriptOptions {
   for (const arg of args) {
     if (arg.startsWith("--source=")) {
       options.source = arg.split("=")[1] as SourceType;
+    } else if (arg.startsWith("--limit=")) {
+      options.limit = parseInt(arg.split("=")[1], 10);
     }
   }
 
@@ -42,6 +46,7 @@ const run = async () => {
   logger.info({
     msg: "🔄 Starting record sync (MongoDB only)",
     source: options.source,
+    limit: options.limit,
   });
 
   // init db connections and mcp server
@@ -53,7 +58,7 @@ const run = async () => {
   const results = await Promise.allSettled(
     validConfigs
       .filter((config) => !options.source || config.name === options.source)
-      .map(syncMcpServer)
+      .map((config) => syncMcpServer(config, { limit: options.limit }))
   );
 
   // Log results

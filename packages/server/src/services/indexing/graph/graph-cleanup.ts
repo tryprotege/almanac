@@ -51,7 +51,7 @@ export const cleanupDeletedRecords = async (
       // Clear graph node ID
       await recordStore.upsert({
         _id: record._id,
-        lastGraphIndexDate: null,
+        lastGraphIndexAt: null,
       });
     } catch (err) {
       logger.error(

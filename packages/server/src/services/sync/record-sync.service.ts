@@ -116,7 +116,7 @@ export async function syncAllRecords(
                 errors.push({ recordId, error: errorMsg });
 
                 logger.error(
-                  { err, recordId },
+                  { err, recordId, sourceRecord },
                   `Failed to sync record ${recordId}`
                 );
               }

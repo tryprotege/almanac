@@ -308,6 +308,9 @@ notionMcpServer.registerTool(
     }),
   },
   async (args) => {
+    if (!Array.isArray(mockData.notion.blocks))
+      return { content: [{ type: "text", text: JSON.stringify([], null, 2) }] };
+
     const blocks = mockData.notion.blocks.filter(
       (b) =>
         b.parent?.page_id === args.block_id ||

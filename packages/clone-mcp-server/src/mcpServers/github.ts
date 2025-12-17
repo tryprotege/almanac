@@ -1860,19 +1860,10 @@ githubMcpServer.registerTool(
   },
   async (args) => {
     const repos = mockData.github.repositories;
-    const query = args.query || "";
-
-    const filtered = query
-      ? repos.filter(
-          (r) =>
-            r.name?.toLowerCase().includes(query.toLowerCase()) ||
-            r.full_name?.toLowerCase().includes(query.toLowerCase())
-        )
-      : repos;
 
     const result = {
-      items: filtered,
-      total_count: filtered.length,
+      items: repos,
+      total_count: repos.length,
       incomplete_results: false,
     };
     return {
@@ -1904,6 +1895,9 @@ githubMcpServer.registerTool(
     }),
   },
   async (args) => {
+    if (!Array.isArray(mockData.github.users))
+      return { content: [{ type: "text", text: JSON.stringify([], null, 2) }] };
+
     const users = mockData.github.users.filter((u) =>
       u.login?.toLowerCase().includes(args.query.toLowerCase())
     );

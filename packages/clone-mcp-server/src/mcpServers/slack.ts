@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { stringify } from "csv-stringify/sync";
 import { mockData } from "../mockData.js";
 
 const slackMcpServer = new McpServer({
@@ -54,20 +55,28 @@ slackMcpServer.registerTool(
     // Get paginated slice
     const paginatedChannels = channels.slice(startIndex, startIndex + limit);
     const hasMore = startIndex + limit < channels.length;
+    const nextCursor =
+      hasMore && paginatedChannels.length > 0
+        ? paginatedChannels[paginatedChannels.length - 1].id || ""
+        : "";
 
-    const result = {
-      ok: true,
-      channels: paginatedChannels,
-      response_metadata: {
-        next_cursor:
-          hasMore && paginatedChannels.length > 0
-            ? paginatedChannels[paginatedChannels.length - 1].id || ""
-            : "",
-      },
-    };
+    // Convert to CSV format with columns: ID, Name, Topic, Purpose, MemberCount, Cursor
+    const csvData = paginatedChannels.map((channel) => ({
+      ID: channel.id || "",
+      Name: channel.name || "",
+      Topic: channel.topic?.value || "",
+      Purpose: channel.purpose?.value || "",
+      MemberCount: channel.num_members || 0,
+      Cursor: nextCursor,
+    }));
+
+    const csv = stringify(csvData, {
+      header: true,
+      columns: ["ID", "Name", "Topic", "Purpose", "MemberCount", "Cursor"],
+    });
 
     return {
-      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      content: [{ type: "text", text: csv }],
     };
   }
 );
@@ -179,21 +188,43 @@ slackMcpServer.registerTool(
     // Get paginated slice
     const paginatedMessages = messages.slice(startIndex, startIndex + limit);
     const hasMore = startIndex + limit < messages.length;
+    const nextCursor =
+      hasMore && paginatedMessages.length > 0
+        ? paginatedMessages[paginatedMessages.length - 1].ts || ""
+        : "";
 
-    const result = {
-      ok: true,
-      messages: paginatedMessages,
-      has_more: hasMore,
-      response_metadata: {
-        next_cursor:
-          hasMore && paginatedMessages.length > 0
-            ? paginatedMessages[paginatedMessages.length - 1].ts || ""
-            : "",
-      },
-    };
+    // Convert to CSV format with columns: MsgID, UserID, UserName, RealName, Channel, ThreadTs, Text, Time, Reactions, Cursor
+    const csvData = paginatedMessages.map((msg) => ({
+      MsgID: msg.ts || "",
+      UserID: msg.user || "",
+      UserName: "", // Not available in mock data
+      RealName: "", // Not available in mock data
+      Channel: msg.channel || args.channel_id,
+      ThreadTs: msg.thread_ts || "",
+      Text: msg.text || "",
+      Time: msg.ts || "",
+      Reactions: msg.reactions ? JSON.stringify(msg.reactions) : "",
+      Cursor: nextCursor,
+    }));
+
+    const csv = stringify(csvData, {
+      header: true,
+      columns: [
+        "MsgID",
+        "UserID",
+        "UserName",
+        "RealName",
+        "Channel",
+        "ThreadTs",
+        "Text",
+        "Time",
+        "Reactions",
+        "Cursor",
+      ],
+    });
 
     return {
-      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      content: [{ type: "text", text: csv }],
     };
   }
 );
@@ -257,21 +288,43 @@ slackMcpServer.registerTool(
     // Get paginated slice
     const paginatedReplies = replies.slice(startIndex, startIndex + limit);
     const hasMore = startIndex + limit < replies.length;
+    const nextCursor =
+      hasMore && paginatedReplies.length > 0
+        ? paginatedReplies[paginatedReplies.length - 1].ts || ""
+        : "";
 
-    const result = {
-      ok: true,
-      messages: paginatedReplies,
-      has_more: hasMore,
-      response_metadata: {
-        next_cursor:
-          hasMore && paginatedReplies.length > 0
-            ? paginatedReplies[paginatedReplies.length - 1].ts || ""
-            : "",
-      },
-    };
+    // Convert to CSV format with columns: MsgID, UserID, UserName, RealName, Channel, ThreadTs, Text, Time, Reactions, Cursor
+    const csvData = paginatedReplies.map((msg) => ({
+      MsgID: msg.ts || "",
+      UserID: msg.user || "",
+      UserName: "", // Not available in mock data
+      RealName: "", // Not available in mock data
+      Channel: msg.channel || args.channel_id,
+      ThreadTs: msg.thread_ts || args.thread_ts,
+      Text: msg.text || "",
+      Time: msg.ts || "",
+      Reactions: msg.reactions ? JSON.stringify(msg.reactions) : "",
+      Cursor: nextCursor,
+    }));
+
+    const csv = stringify(csvData, {
+      header: true,
+      columns: [
+        "MsgID",
+        "UserID",
+        "UserName",
+        "RealName",
+        "Channel",
+        "ThreadTs",
+        "Text",
+        "Time",
+        "Reactions",
+        "Cursor",
+      ],
+    });
 
     return {
-      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      content: [{ type: "text", text: csv }],
     };
   }
 );

@@ -94,7 +94,7 @@ export interface SharedResources {
 /**
  * New grouped output format
  */
-export interface GroupedOutputV2 {
+export interface GroupedOutput {
   metadata: {
     generatedAt: string;
     version: string;
@@ -270,7 +270,7 @@ export function createGroupedOutput(combined: {
     transcripts: FathomTranscript[];
     summaries: FathomSummary[];
   };
-}): GroupedOutputV2 {
+}): GroupedOutput {
   console.log("🔗 Creating improved grouped output format (v2)...");
 
   const workflows: WorkflowGroup[] = [];

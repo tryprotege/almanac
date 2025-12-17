@@ -1,0 +1,211 @@
+[
+  {
+    "workflowId": "workflow-meeting-873431",
+    "testCases": [
+      {
+        "query": "What improvement in idle to sprint transition time did Jordan Lee report during the Sprint Review on 12/12/2025, including the specific metrics?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "Jordan Lee",
+            "0.12 seconds",
+            "previously 0.27 seconds",
+            "blended pose graphs"
+          ]
+        }
+      },
+      {
+        "query": "What action item and deadline was assigned to Marcus Rodriguez in the Sprint Review summary for recording_id 873431?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "Marcus Rodriguez",
+            "generate a performance report",
+            "latency FPS crash rates",
+            "beta test",
+            "share by 12/18/2025"
+          ]
+        }
+      },
+      {
+        "query": "What decision was made about the Performance Monitoring feature in the slack thread 1765759876.973000 following the Sprint Review on 12/15/2025, and who owns the related technical spike?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "scoped as a separate micro-service",
+            "independent scaling",
+            "Engineering Lead (Mia)",
+            "detailed technical spike",
+            "next week’s planning session"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "workflowId": "workflow-issue-55676",
+    "testCases": [
+      {
+        "query": "According to GitHub issue #55676 by Chris Anderson in gragger-infra, what are the required variables for the `rds` module?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "vpc_id",
+            "subnet_ids",
+            "engine",
+            "instance_class",
+            "performance_insights (optional)"
+          ]
+        }
+      },
+      {
+        "query": "When and by whom was GitHub PR #92033 titled 'Update README with VPC and RDS usage examples' in the gragger-game repository merged, and what issue does it fix?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "2025-12-17T10:50:07.626Z",
+            "Chris Anderson",
+            "merge_commit_sha: d7bd40c672d2d38e94a934feb753ac935c325212",
+            "fixes #55676",
+            "gragger-game"
+          ]
+        }
+      },
+      {
+        "query": "In the Slack thread 1765850585.393000 in channel C_dfrn222il discussing GitHub issue #55676, what commitments were made regarding contributions to the PR #92033 for README updates on VPC and RDS modules, and how does it align with the PR's merge date?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "draft updated README this week",
+            "PR ready by Friday EOD",
+            "drop snippets in the PR thread",
+            "replies from U_hhicd6cd9 and U_25k8s7uvd offering VPC/RDS snippets",
+            "PR #92033 merged 2025-12-17T10:50:07.626Z"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "workflowId": "workflow-issue-79460",
+    "testCases": [
+      {
+        "query": "What is the full name and GitHub login of the author of issue #79460 'Add Getting Started guide for the new GRagger CLI (v2.0)' in the gragger-docs repository?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "Chris Anderson",
+            "chrisanderson",
+            "gragger/gragger-docs",
+            "#79460",
+            "Add Getting Started guide for the new GRagger CLI (v2.0)"
+          ]
+        }
+      },
+      {
+        "query": "When was pull request #71894 titled 'Add Getting Started guide for GRagger CLI v2.0' created by Priya Patel and merged, and what issue does it fix?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "Priya Patel",
+            "priyap",
+            "#71894",
+            "Fixes #79460",
+            "created 2025-12-09T00:17:49.042Z",
+            "merged 2025-12-10T05:30:34.877Z"
+          ]
+        }
+      },
+      {
+        "query": "What specific action items and commitments were mentioned by team members in Slack thread 1765227239.805000 regarding GitHub issue #79460 for the GRagger CLI v2.0 Getting Started guide?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "feedback on the outline",
+            "FAQ tips or gotchas",
+            "example workflow script",
+            "review outline",
+            "troubleshooting FAQ",
+            "Taylor Morgan",
+            "#79460",
+            "draft outline in docs/guide folder"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "workflowId": "workflow-meeting-548611",
+    "testCases": [
+      {
+        "query": "What matchmaking latency achievement from the last sprint did James Wilson mention at timestamp 00:00:20 in the Sprint Planning meeting transcript (recording_id 548611) on 12/10/2025?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "matchmaking latency down to 120 ms",
+            "James Wilson",
+            "last sprint",
+            "00:00:20"
+          ]
+        }
+      },
+      {
+        "query": "What specific implementation did Marcus Rodriguez propose for the dynamic weather system using particle-based cloud module and physics integration in the Sprint Planning on 12/10/2025, including art dependencies?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "particle-based cloud module prototyped last month",
+            "tie it into the time-of-day manager",
+            "shader switch between wet and dry states",
+            "art team to deliver wet surface textures by Tuesday",
+            "route wind through existing wind zones",
+            "expose public API for dynamic wind strength"
+          ]
+        }
+      },
+      {
+        "query": "What were James Wilson's action items in the Fathom summary for recording_id 548611 from the Sprint Planning on 12/10/2025, and compare to the slack thread 1765205785.853000 recapping the same meeting?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "James Wilson: Create and assign the user stories for matchmaking (due 12/12)",
+            "Fathom summary recording_id 548611",
+            "slack thread 1765205785.853000",
+            "Sprint Planning 12/10/2025",
+            "no direct James Wilson action in slack thread, signed by James Wilson with other actions like Jane UI mockups by 12/13"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "workflowId": "workflow-meeting-392277",
+    "testCases": [
+      {
+        "query": "What frame rate did Taylor Morgan mention during the Unity ECS integration discussion in the GRagger Sprint Retrospective on December 10th, 2025?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "Taylor Morgan",
+            "frame rate stayed above 60fps",
+            "Unity ECS",
+            "test rigs"
+          ]
+        }
+      },
+      {
+        "query": "What did Priya Patel commit to regarding texture atlases in the Sprint Retrospective recording_id 392277 on 12/10/2025?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "Priya Patel",
+            "revise the texture atlases",
+            "boss level",
+            "schedule a design review for Thursday"
+          ]
+        }
+      },
+      {
+        "query": "What action items were assigned to Taylor Morgan and Maya Patel in the GRagger Sprint Retrospective transcript for recording_id 392277?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "Taylor Morgan",
+            "GC pre-warm",
+            "boss AI behavior tree",
+            "unit test 50ms budget",
+            "Maya Patel",
+            "latency monitoring hook",
+            "staging servers by Friday",
+            "UI animation migration plan"
+          ]
+        }
+      }
+    ]
+  }
+]

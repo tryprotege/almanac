@@ -8,7 +8,6 @@ dist/
 # Test results
 benchmark-results/
 *.csv
-*.json
 
 # Logs
 *.log

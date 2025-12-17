@@ -1,14 +1,27 @@
 # @ebee-oss/benchmark
 
-Functional benchmarking framework for eBee MCP server performance testing.
+Benchmarking framework for eBee MCP server performance testing using **CLI-based execution** for accurate, real-world metrics.
 
 ## Features
 
-- 🚀 **Query Performance Testing** - Benchmark LightRAG query modes and parameters
-- 🤖 **AI Agent Comparison** - Compare different AI agents (Claude, ChatGPT, etc.)
-- ⚖️ **eBee vs Direct** - Compare eBee unified search vs direct source queries
-- 📊 **Rich Metrics** - Timing, token usage, quality scores, and more
-- 📈 **Multiple Export Formats** - JSON, CSV, YAML, and HTML reports
+- 🚀 **Query Performance** - Benchmark LightRAG with auto-selected or custom parameters
+- ⚖️ **Agent × MCP Matrix** - Compare different agents (Amp, Claude) with eBee vs Direct MCP setups
+- 📊 **Rich Metrics** - Timing, token usage, quality scores, and cost analysis
+- 📈 **CSV Export** - Results exported to CSV for analysis
+- 🎯 **CLI-First** - Uses actual CLI tools for fair comparison and accurate metrics
+
+## Why CLI-Based?
+
+Unlike TypeScript SDK approaches, this benchmark uses actual CLI tools to:
+
+1. **Accurate Token Counting** - Extract real token usage from CLI output, not estimates
+2. **Fair Comparison** - All agents run in identical execution environments
+3. **Real-World Performance** - Captures actual overhead including:
+   - Process startup time
+   - File I/O operations
+   - Network latency
+   - Tool execution delays
+4. **Cost Tracking** - Calculate actual costs based on real token usage
 
 ## Installation
 
@@ -16,322 +29,271 @@ Functional benchmarking framework for eBee MCP server performance testing.
 pnpm install
 ```
 
-## Usage
+## Environment Setup
 
-### Programmatic API
+The benchmark package requires API keys for the CLI agents you want to test.
+
+### 1. Create Environment File
+
+Copy the example environment file:
+
+```bash
+cd packages/benchmark
+cp .env.example .env
+```
+
+### 2. Configure API Keys
+
+Edit `.env` and add your API keys:
+
+```bash
+# API Keys for CLI Agents
+AMP_API_KEY=sk-ant-xxxxx
+CLAUDE_API_KEY=sk-ant-xxxxx
+
+# eBee Server Configuration
+EBEE_URL=http://localhost:3000
+
+# Benchmark Configuration
+BENCHMARK_OUTPUT_DIR=./benchmark-results
+BENCHMARK_ITERATIONS=3
+```
+
+**API Key Requirements:**
+
+- **AMP_API_KEY** - Required for Amp CLI benchmarks (get from https://console.anthropic.com)
+- **CLAUDE_API_KEY** - Required for Claude CLI benchmarks (get from https://console.anthropic.com)
+
+Both Amp and Claude use Anthropic's API, so you can use the same API key for both.
+
+## Quick Start: Agent × MCP Matrix Benchmark
+
+The primary benchmark compares different CLI agents with eBee vs Direct MCP setups:
 
 ```typescript
-import { runQueryBenchmarks, exportResults } from "@ebee-oss/benchmark";
-import { lightragQuery } from "@ebee-oss/server";
-import type { QueryBenchmarkConfig } from "@ebee-oss/benchmark";
+import { runMatrixBenchmark } from "@ebee-oss/benchmark";
+import type { MatrixBenchmarkConfig } from "@ebee-oss/benchmark";
 
-// Define your benchmark configuration
-const config: QueryBenchmarkConfig = {
-  name: "My Benchmark",
-  description: "Testing query performance",
-  type: "query",
-  iterations: 10,
-  warmupRuns: 2,
+const config: MatrixBenchmarkConfig = {
+  name: "Agent × MCP Matrix Comparison",
+  type: "matrix",
+  iterations: 3,
   outputDir: "./results",
-  queries: [
+
+  // Agents to test
+  agents: [
     {
-      id: "test_query",
-      query: "Who is working on authentication?",
-      category: "entity_focused",
+      name: "amp",
+      model: "claude-haiku-4-5-20251001",
+    },
+    {
+      name: "claude-cli",
+      model: "claude-haiku-4-5-20251001",
     },
   ],
-  modes: ["naive", "local", "global", "hybrid", "mix"],
-  parameters: {
-    top_k: [20, 60],
-    chunk_top_k: [10, 20],
-    enable_rerank: [true, false],
-    score_threshold: [0.6, 0.7],
+
+  // MCP setup configurations
+  mcpSetups: {
+    ebee: {
+      url: "http://localhost:3000",
+    },
+    direct: {
+      servers: ["fathom", "notion"],
+      packages: {
+        fathom: "@ebee-oss/fathom-mcp-server",
+        notion: "@notionhq/notion-mcp-server",
+      },
+    },
   },
+
+  // Test scenarios
+  scenarios: [
+    {
+      id: "decisions",
+      query: "What were the key decisions from last week's meeting?",
+      targetServers: ["fathom"],
+    },
+  ],
 };
 
-// Run benchmarks
-const results = await runQueryBenchmarks(config, lightragQuery);
-
-// Export results
-exportResults(results, "./benchmark-results");
+const results = await runMatrixBenchmark(config);
+console.log(`Best combination: ${results.analysis.bestCombination}`);
 ```
 
-### Example Configurations
+## Running Benchmarks
 
-See `benchmarks/` directory for example YAML configurations:
-
-- `query-performance.yaml` - Query performance testing
-- `agent-comparison.yaml` - AI agent comparison (coming soon)
-- `ebee-vs-direct.yaml` - eBee vs direct comparison (coming soon)
-
-## Benchmark Types
-
-### Query Performance Benchmark
-
-Tests LightRAG query performance across different modes and parameters:
-
-```yaml
-name: "Query Performance Test"
-type: query
-iterations: 10
-queries:
-  - id: "entity_query"
-    query: "Who is working on authentication?"
-    category: "entity_focused"
-modes:
-  - naive
-  - local
-  - global
-  - hybrid
-  - mix
-parameters:
-  top_k: [20, 60, 100]
-  chunk_top_k: [10, 20, 30]
-  enable_rerank: [true, false]
+```bash
+# Run the matrix benchmark
+pnpm test:matrix
 ```
 
-**Metrics Collected:**
+This will:
 
-- Response time (mean, median, p95, p99)
-- Token usage (embedding, reranking, total)
-- Result quality (score, distribution)
-- Retrieval breakdown (vector matches, graph expansion)
+1. Test each agent with **eBee** (unified search)
+2. Test each agent with **Direct MCP** (individual server queries)
+3. Generate a comparison matrix showing which combination is fastest/cheapest
 
-### Accuracy Evaluation Benchmark
+## Understanding the Matrix
 
-Evaluate retrieval accuracy against ground truth data:
+The matrix benchmark produces a table like this:
 
-```yaml
-name: "Accuracy Evaluation"
-type: query
-queries:
-  - id: "entity_query"
-    query: "Who is working on authentication?"
-    category: "entity_focused"
-    groundTruth:
-      relevantDocuments: ["doc_123", "doc_456"]
-      minRelevanceScore: 0.7
+```
+Agent      | eBee Time | eBee Tokens | Direct Time | Direct Tokens | Speedup
+-----------|-----------|-------------|-------------|---------------|--------
+amp        | 2100ms    | 1200        | 3500ms      | 2100         | 1.67x
+claude-cli | 2500ms    | 1400        | 4200ms      | 2300         | 1.68x
 ```
 
-**Metrics Collected:**
+This shows:
 
-- Precision, Recall, F1 Score
-- NDCG (Normalized Discounted Cumulative Gain)
-- MAP (Mean Average Precision)
-- Hit Rate @ K (1, 3, 5, 10, 20)
-- Coverage @ K
+- **Which agent is fastest** with each setup
+- **How much speedup** eBee provides over Direct
+- **Token efficiency** of each combination
+- **Cost savings** per agent
 
-### Agent Comparison Benchmark
+## Reading Results
 
-Compare different AI agents using eBee:
+Results are exported to CSV files in your output directory.
 
-```yaml
-name: "Agent Comparison"
-type: agent
-agents:
-  - name: claude
-    model: claude-sonnet-4-5
-  - name: roo-code
-    model: claude-sonnet-4-5
-queries:
-  - id: "complex_query"
-    query: "Find all Notion pages about Q4 roadmap"
-evalCriteria:
-  metrics: [response_quality, answer_completeness]
+### Matrix CSV (`matrix-{timestamp}.csv`)
+
+```csv
+agent,setup,time_ms,tokens,cost_usd,quality
+amp,ebee,2100,1200,0.0180,0.85
+amp,direct,3500,2100,0.0315,0.82
+claude-cli,ebee,2500,1400,0.0210,0.90
+claude-cli,direct,4200,2300,0.0345,0.88
 ```
 
-**Metrics Collected:**
+### Analysis CSV (`analysis-{timestamp}.csv`)
 
-- Response quality scores (relevance, completeness, accuracy)
-- Response time and token usage
-- Agent rankings and comparisons
+```csv
+agent,speedup,token_savings_%,cost_savings_%
+amp,1.67,42.9,42.9
+claude-cli,1.68,39.1,39.1
 
-### eBee vs Direct Comparison
-
-Compare eBee unified search vs querying source servers directly:
-
-```yaml
-name: "eBee vs Direct"
-type: comparison
-scenarios:
-  - id: "multi_source_query"
-    query: "Find recent updates across Notion and Slack"
-    sourceServers: ["notion", "slack"]
-    expectedDifference:
-      speedup: 2.0
-      accuracyDelta: 0.05
+# Summary
+best_combination,amp + eBee
+fastest_with_ebee,amp + eBee
+fastest_with_direct,amp + Direct
+most_efficient,amp (1.67x speedup)
 ```
 
-**Metrics Collected:**
+### Interpreting Results
 
-- Speedup factor (direct time / eBee time)
-- Token efficiency (% savings)
-- Quality delta (difference in result quality)
-- Recommendation based on trade-offs
+**Key Metrics:**
 
-## Functional Programming Approach
+- **speedup > 1.0** = eBee is faster than Direct
+- **token_savings > 0** = eBee uses fewer tokens
+- **cost_savings > 0** = eBee is cheaper to run
 
-This framework follows functional programming principles:
+**Best Combination** = Fastest overall with lowest cost
+**Most Efficient** = Highest speedup ratio
 
-### Pure Functions
+## CLI Tools Setup
 
-All core functions are pure - same input always produces same output:
+### Required CLI Tools
+
+Install the CLI tools you want to benchmark:
+
+**Amp Code CLI:**
+
+```bash
+curl -fsSL https://ampcode.com/install.sh | bash
+```
+
+**Claude Code CLI:**
+
+Install from https://claude.ai/code
+
+### Validation
+
+The benchmark will automatically validate CLI tools are installed before running:
 
 ```typescript
-// Pure statistical functions
-const mean = (numbers: readonly number[]): number =>
-  numbers.reduce((sum, n) => sum + n, 0) / numbers.length;
+import { validateCLIAgent, checkCLIAvailable } from "@ebee-oss/benchmark";
 
-const calculateStatistics = (numbers: readonly number[]): Statistics => ({
-  mean: mean(numbers),
-  median: median(numbers),
-  stdDev: stdDev(numbers),
-  // ...
+// Check if tool is available
+const hasAmp = await checkCLIAvailable("amp");
+
+// Validate agent configuration
+await validateCLIAgent({
+  name: "amp",
+  model: "claude-3-5-sonnet-20241022",
 });
 ```
 
-### Immutable Data
+## Configuration
 
-All types use `readonly` to ensure immutability:
+### Agent Configuration
+
+Each agent requires:
 
 ```typescript
-interface QueryMetrics {
-  readonly queryId: string;
-  readonly totalTime: number;
-  readonly tokenUsage: TokenUsage;
-  // ...
+interface AgentConfig {
+  name: string; // "amp", "claude-cli", etc.
+  model: string; // e.g., "claude-3-5-sonnet-20241022"
+  apiKey?: string; // Optional, defaults to env var
+  command?: string; // Custom CLI command (optional)
 }
 ```
 
-### Composable Utilities
+### Matrix Configuration
 
-Functions are designed to be composed:
-
-```typescript
-// Compose functions for complex operations
-const analyzeResults = pipe(
-  filterByMode("mix"),
-  aggregateMetrics,
-  calculateStatistics,
-  formatReport
-);
-```
-
-## Output Formats
-
-### JSON
-
-Complete benchmark results with all metrics and metadata.
-
-### CSV
-
-Tabular data for easy analysis in spreadsheets.
-
-### YAML
-
-Human-readable configuration and results.
-
-## API Reference
-
-### Core Functions
-
-#### `runQueryBenchmarks(config, queryFn)`
-
-Run query performance benchmarks.
-
-**Parameters:**
-
-- `config: QueryBenchmarkConfig` - Benchmark configuration
-- `queryFn: (q: LightRAGQuery) => Promise<LightRAGResponse>` - Query function
-
-**Returns:** `Promise<QueryBenchmarkResults>`
-
-#### `exportResults(results, outputDir)`
-
-Export benchmark results to multiple formats.
-
-**Parameters:**
-
-- `results: BenchmarkResults` - Benchmark results
-- `outputDir: string` - Output directory path
-
-### Utility Functions
-
-#### Statistics
-
-- `mean(numbers)` - Calculate mean
-- `median(numbers)` - Calculate median
-- `stdDev(numbers)` - Calculate standard deviation
-- `percentile(numbers, p)` - Calculate percentile
-- `calculateStatistics(numbers)` - Calculate full statistics
-
-#### Metrics
-
-- `estimateTokens(text)` - Estimate token count
-- `estimateTokenUsage(response)` - Estimate token usage from response
-- `calculateAverageScore(chunks)` - Calculate average relevance score
-- `aggregateQueryMetrics(metrics)` - Aggregate multiple metrics
-
-## Examples
-
-### Basic Query Benchmark
+Full configuration structure:
 
 ```typescript
-import { runQueryBenchmarks } from "@ebee-oss/benchmark";
-
-const config = {
-  name: "Basic Test",
-  type: "query" as const,
-  iterations: 5,
-  outputDir: "./results",
-  queries: [
-    {
-      id: "test",
-      query: "test query",
-      category: "exploratory" as const,
-    },
-  ],
-  modes: ["mix" as const],
-  parameters: {},
-};
-
-const results = await runQueryBenchmarks(config, myQueryFunction);
-console.log(`Mean time: ${results.aggregated.overall.totalTime.mean}ms`);
+interface MatrixBenchmarkConfig {
+  name: string;
+  description?: string;
+  type: "matrix";
+  iterations: number;
+  outputDir: string;
+  agents: AgentConfig[];
+  mcpSetups: {
+    ebee: {
+      url: string; // eBee server URL
+    };
+    direct: {
+      servers: string[]; // MCP server names
+      packages: Record<string, string>; // Server name -> package
+    };
+  };
+  scenarios: MatrixScenario[];
+}
 ```
 
-### Find Best Mode
+## Metrics Collected
 
-```typescript
-import { findBestMode } from "@ebee-oss/benchmark";
+**Per Agent × Setup Combination:**
 
-const best = findBestMode(results, "speed");
-console.log(`Best mode for speed: ${best.mode} (${best.score}ms)`);
+- **Execution Time** - Wall-clock time including all overhead
+- **Token Usage** - Extracted from CLI output (input, output, total)
+- **Cost** - Calculated from actual token usage based on model pricing
+- **Quality Score** - Response quality assessment
 
-const bestQuality = findBestMode(results, "quality");
-console.log(`Best mode for quality: ${bestQuality.mode}`);
+**Analysis:**
+
+- Speedup factor (eBee vs Direct per agent)
+- Token efficiency percentage
+- Cost savings percentage
+- Best overall combination
+- Most efficient agent
+
+## Output Parsing
+
+The CLI runner automatically parses output from different tools:
+
+- **Claude CLI** - Extracts token counts and tool usage
+- **Amp CLI** - Parses Amp-specific output format
+- **Generic** - Fallback parser for unknown formats
+
+Token extraction patterns:
+
 ```
-
-### Custom Analysis
-
-```typescript
-import { groupBy, calculateStatistics } from "@ebee-oss/benchmark";
-
-// Group results by category
-const byCategory = groupBy(results.queryResults, (r) => r.query.category);
-
-// Analyze each category
-Object.entries(byCategory).forEach(([category, results]) => {
-  const times = results.flatMap((r) => r.runs.map((m) => m.totalTime));
-  const stats = calculateStatistics(times);
-  console.log(`${category}: ${stats.mean}ms avg`);
-});
+Input tokens: 123, Output tokens: 456
+Tokens used: 1234 (input: 123, output: 456)
 ```
-
-### Features
-
-- **RAG Evaluation**: Hallucination detection, retrieval quality, Q&A scoring
-- **LLM-as-Judge**: Advanced evaluation using LLM evaluators
-- **Custom Evaluators**: Extensible evaluation framework
 
 ## Development
 
@@ -342,8 +304,8 @@ pnpm build
 # Type check
 pnpm type-check
 
-# Run example
-pnpm benchmark:query
+# Run matrix benchmark
+pnpm test:matrix
 ```
 
 ## License

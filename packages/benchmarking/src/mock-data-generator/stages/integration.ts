@@ -106,7 +106,9 @@ export async function generateIntegration(
       integrationVolumes.slackMessages,
       timeline,
       config,
-      categorizedContext.work
+      categorizedContext.work,
+      foundation.slack.users,
+      foundation.slack.channels
     ),
     generateGitHubIssues(
       integrationVolumes.githubIssues,

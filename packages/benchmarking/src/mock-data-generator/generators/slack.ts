@@ -11,7 +11,6 @@ import {
 } from "../utils/random.js";
 import { generateRandomDate } from "../utils/dates.js";
 import { generateRandomStringId } from "../utils/id-generator.js";
-import fs from "fs";
 
 /**
  * Generate Slack messages with realistic conversation threads
@@ -735,11 +734,13 @@ export async function generateSlackMessages(
   count: number,
   dates: Date[],
   config: GeneratorConfig,
-  context?: RelationshipContext
+  context: RelationshipContext | undefined,
+  existingUsers: Member[],
+  existingChannels: Channel[]
 ): Promise<MessageWithChannel[]> {
   const allMessages: MessageWithChannel[] = [];
-  const users = generateSlackUsers();
-  const channels = generateSlackChannels();
+  const users = existingUsers;
+  const channels = existingChannels;
 
   // Generate user personalities once
   const personalities = generateUserPersonalities(users);

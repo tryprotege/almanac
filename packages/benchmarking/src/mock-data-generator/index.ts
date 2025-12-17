@@ -101,7 +101,8 @@ async function main() {
   const foundation = await generateFoundation(
     config,
     volumes,
-    dateRange.startDate
+    dateRange.startDate,
+    existingData
   );
 
   // Convert Map to flat array for JSON serialization

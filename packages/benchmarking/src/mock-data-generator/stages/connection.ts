@@ -90,7 +90,9 @@ export async function generateConnection(
       connectionVolumes.slackMessages,
       timeline,
       config,
-      categorizedContext.work
+      categorizedContext.work,
+      foundation.slack.users,
+      foundation.slack.channels
     ),
     generateNotionPages(
       connectionVolumes.notionPages,

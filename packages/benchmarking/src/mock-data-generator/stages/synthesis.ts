@@ -117,7 +117,9 @@ export async function generateSynthesis(
       synthesisVolumes.slackMessages,
       timeline,
       config,
-      categorizedContext.work
+      categorizedContext.work,
+      foundation.slack.users,
+      foundation.slack.channels
     ),
     generateGitHubIssues(
       synthesisVolumes.githubIssues,

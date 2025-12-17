@@ -4,7 +4,7 @@ import type {
   VolumeConfig,
   GenerationContext,
 } from "../types.js";
-import { generateTimeline } from "../utils/dates.js";
+import { generateTimeline, generateTimelineFromDate } from "../utils/dates.js";
 import {
   generateSlackMessages,
   generateSlackChannels,
@@ -37,11 +37,17 @@ import {
 
 export async function generateFoundation(
   config: GeneratorConfig,
-  volumes: VolumeConfig
+  volumes: VolumeConfig,
+  startDate?: Date,
+  existingData?: any
 ): Promise<AllGeneratedData> {
   console.log("📦 Stage 1: Foundation (40% of data)");
 
-  const timeline = generateTimeline(config.timelineDays);
+  // Use provided startDate or fall back to default timeline generation
+  const timeline = startDate
+    ? generateTimelineFromDate(startDate, config.timelineDays)
+    : generateTimeline(config.timelineDays);
+
   const context: GenerationContext = {
     startDate: timeline[0],
     endDate: timeline[timeline.length - 1],
@@ -72,7 +78,7 @@ export async function generateFoundation(
     generateFathomFoundation(foundationVolumes, context, config),
     generateGithubFoundation(foundationVolumes, timeline, config),
     generateNotionFoundation(foundationVolumes, timeline, config),
-    generateSlackFoundation(foundationVolumes, timeline, config),
+    generateSlackFoundation(foundationVolumes, timeline, config, existingData),
   ]);
 
   console.log(`✅ Generated ${fathomMeetings.length} Fathom meetings`);
@@ -125,15 +131,21 @@ async function generateSlackFoundation(
     fathomMeetings: number;
   },
   timeline: Date[],
-  config: GeneratorConfig
+  config: GeneratorConfig,
+  existingData?: any
 ) {
   console.log("Generating Slack data...");
-  const slackUsers = generateSlackUsers();
-  const slackChannels = generateSlackChannels();
+  // Use existing users and channels from previous run, or generate new ones
+  const slackUsers = existingData?.slack?.users || generateSlackUsers();
+  const slackChannels =
+    existingData?.slack?.channels || generateSlackChannels();
   const slackMessages = await generateSlackMessages(
     foundationVolumes.slackMessages,
     timeline,
-    config
+    config,
+    undefined,
+    slackUsers,
+    slackChannels
   );
 
   // Organize Slack messages by channel

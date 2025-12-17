@@ -5,7 +5,7 @@ import type {
   GenerationContext,
   CategorizedContext,
 } from "../types.js";
-import { generateTimeline } from "../utils/dates.js";
+import { generateTimeline, generateTimelineFromDate } from "../utils/dates.js";
 import { generateSlackMessages } from "../generators/slack.js";
 import { generateNotionPages } from "../generators/notion.js";
 import {
@@ -24,7 +24,8 @@ export async function generateConnection(
   foundation: AllGeneratedData,
   categorizedContext: CategorizedContext,
   config: GeneratorConfig,
-  volumes: VolumeConfig
+  volumes: VolumeConfig,
+  startDate?: Date
 ): Promise<{
   slack: any[];
   notion: any[];
@@ -35,7 +36,10 @@ export async function generateConnection(
 }> {
   console.log("🔗 Stage 2: Connection (20% of data)");
 
-  const timeline = generateTimeline(config.timelineDays);
+  const timeline = startDate
+    ? generateTimelineFromDate(startDate, config.timelineDays)
+    : generateTimeline(config.timelineDays);
+
   const generationContext: GenerationContext = {
     startDate: timeline[0],
     endDate: timeline[timeline.length - 1],
@@ -86,7 +90,9 @@ export async function generateConnection(
       connectionVolumes.slackMessages,
       timeline,
       config,
-      categorizedContext.work
+      categorizedContext.work,
+      foundation.slack.users,
+      foundation.slack.channels
     ),
     generateNotionPages(
       connectionVolumes.notionPages,

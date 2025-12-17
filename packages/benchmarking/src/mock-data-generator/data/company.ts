@@ -133,15 +133,13 @@ export const COMPANY_DATA = {
     },
   ],
   slackChannels: [
-    { name: "general", purpose: "Company-wide announcements, celebrations" },
-    { name: "engineering", purpose: "Technical discussions, architecture" },
-    { name: "game-dev", purpose: "Game development, Unity, gameplay" },
-    { name: "backend", purpose: "Backend services, APIs, databases" },
-    { name: "product", purpose: "Product planning, user feedback" },
-    { name: "design", purpose: "Design discussions, mockups" },
-    { name: "community", purpose: "Player feedback, community management" },
-    { name: "random", purpose: "Casual chat, memes, gaming" },
-    { name: "watercooler", purpose: "Social, non-work conversations" },
+    { name: "general", purpose: "Company-wide updates and team coordination" },
+    {
+      name: "engineering",
+      purpose: "Technical discussions, PRs, architecture",
+    },
+    { name: "product", purpose: "Product planning, design, user feedback" },
+    { name: "random", purpose: "Casual chat, off-topic" },
   ],
 };
 

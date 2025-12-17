@@ -4,7 +4,7 @@ import type {
   VolumeConfig,
   GenerationContext,
 } from "../types.js";
-import { generateTimeline } from "../utils/dates.js";
+import { generateTimeline, generateTimelineFromDate } from "../utils/dates.js";
 import { generateSlackMessages } from "../generators/slack.js";
 import {
   generateGitHubIssues,
@@ -42,7 +42,8 @@ export async function generateSynthesis(
     fathomSummaries: any[];
   },
   config: GeneratorConfig,
-  volumes: VolumeConfig
+  volumes: VolumeConfig,
+  startDate?: Date
 ): Promise<{
   slack: any[];
   github: { issues: any[]; prs: any[] };
@@ -60,7 +61,10 @@ export async function generateSynthesis(
     integration
   );
 
-  const timeline = generateTimeline(config.timelineDays);
+  const timeline = startDate
+    ? generateTimelineFromDate(startDate, config.timelineDays)
+    : generateTimeline(config.timelineDays);
+
   const generationContext: GenerationContext = {
     startDate: timeline[0],
     endDate: timeline[timeline.length - 1],
@@ -113,7 +117,9 @@ export async function generateSynthesis(
       synthesisVolumes.slackMessages,
       timeline,
       config,
-      categorizedContext.work
+      categorizedContext.work,
+      foundation.slack.users,
+      foundation.slack.channels
     ),
     generateGitHubIssues(
       synthesisVolumes.githubIssues,

@@ -4,6 +4,7 @@ import { COMPANY_DATA } from "../data/company.js";
 import { generateWithLLM } from "../utils/llm.js";
 import { selectRandom } from "../utils/random.js";
 import { generateRandomDate } from "../utils/dates.js";
+import { generateRandomStringId } from "../utils/id-generator.js";
 
 /**
  * Generate Notion pages (functional approach - no classes)
@@ -112,7 +113,7 @@ Return ONLY a JSON object with this exact structure (no markdown, no extra text)
 
       pages.push({
         object: "page",
-        id: `notion-page-work-${i + 1}`,
+        id: generateRandomStringId("notion-page", 12),
         created_time: createdTime.toISOString(),
         last_edited_time: lastEditedTime.toISOString(),
         created_by: {
@@ -155,7 +156,7 @@ Return ONLY a JSON object with this exact structure (no markdown, no extra text)
             ],
           },
         },
-        url: `https://notion.so/${i + 1}`,
+        url: `https://notion.so/${generateRandomStringId("page", 32)}`,
         public_url: undefined,
       });
 
@@ -197,7 +198,7 @@ Return ONLY a JSON object with this exact structure (no markdown, no extra text)
 
       pages.push({
         object: "page",
-        id: `notion-page-personal-${i + 1}`,
+        id: generateRandomStringId("notion-page", 12),
         created_time: createdTime.toISOString(),
         last_edited_time: lastEditedTime.toISOString(),
         created_by: {
@@ -240,7 +241,7 @@ Return ONLY a JSON object with this exact structure (no markdown, no extra text)
             ],
           },
         },
-        url: `https://notion.so/personal-${i + 1}`,
+        url: `https://notion.so/${generateRandomStringId("page", 32)}`,
         public_url: undefined,
       });
 
@@ -258,7 +259,7 @@ Return ONLY a JSON object with this exact structure (no markdown, no extra text)
 export function generateNotionUsers(): NotionUser[] {
   return COMPANY_DATA.teamMembers.map((member, index) => ({
     object: "user",
-    id: `notion-user-${index + 1}`,
+    id: generateRandomStringId("notion-user", 10),
     type: "person",
     name: member.name,
     avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.name}`,
@@ -281,7 +282,7 @@ export function generateNotionDatabases(count: number = 5): any[] {
   for (let i = 0; i < Math.min(count, databaseNames.length); i++) {
     databases.push({
       object: "database",
-      id: `notion-db-${i + 1}`,
+      id: generateRandomStringId("notion-db", 10),
       created_time: new Date(
         Date.now() - 180 * 24 * 60 * 60 * 1000
       ).toISOString(),
@@ -315,32 +316,46 @@ export function generateNotionDatabases(count: number = 5): any[] {
 export function generateNotionBlocks(pages: any[]): Map<string, any[]> {
   const blocksMap = new Map<string, any[]>();
 
-  // Generate simple paragraph blocks for each page
+  // Generate blocks from the actual generated content
   for (const page of pages) {
-    const blocks = [
-      {
-        object: "block",
-        id: `block-${page.id}-1`,
-        type: "paragraph",
-        paragraph: {
-          rich_text: [
-            {
-              type: "text",
-              text: {
-                content: "This is a generated page with content.",
-                link: null,
-              },
-              plain_text: "This is a generated page with content.",
+    // Extract the content that was generated for this page
+    const pageContent =
+      (page as any)._content || "Default content for this page.";
+    const paragraphs = pageContent
+      .split("\n\n")
+      .filter((p: string) => p.trim());
+
+    const blocks = paragraphs.map((para: string, idx: number) => ({
+      object: "block",
+      id: generateRandomStringId("block", 12),
+      type: "paragraph",
+      paragraph: {
+        rich_text: [
+          {
+            type: "text",
+            text: {
+              content: para,
+              link: null,
             },
-          ],
-          color: "default",
-        },
-        created_time: page.created_time,
-        last_edited_time: page.last_edited_time,
-        has_children: false,
-        archived: false,
+            plain_text: para,
+            annotations: {
+              bold: false,
+              italic: false,
+              strikethrough: false,
+              underline: false,
+              code: false,
+              color: "default",
+            },
+            href: null,
+          },
+        ],
+        color: "default",
       },
-    ];
+      created_time: page.created_time,
+      last_edited_time: page.last_edited_time,
+      has_children: false,
+      archived: false,
+    }));
 
     blocksMap.set(page.id, blocks);
   }

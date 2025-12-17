@@ -5,8 +5,16 @@ import { generateConnection } from "./stages/connection.js";
 import { generateIntegration } from "./stages/integration.js";
 import { generateSynthesis } from "./stages/synthesis.js";
 import { buildConnectionContext } from "./context/builder.js";
-import { writeFileSync, mkdirSync } from "fs";
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from "fs";
 import { join } from "path";
+import { createGroupedOutput } from "./utils/grouping.js";
+import {
+  loadMetadata,
+  saveMetadata,
+  createInitialMetadata,
+  updateMetadata,
+  calculateDateRange,
+} from "./utils/metadata.js";
 
 /**
  * Main orchestrator for mock data generation
@@ -21,8 +29,26 @@ async function main() {
   const config = loadConfig();
   const volumes = calculateVolumes(config.timelineDays);
 
+  // Load or create metadata
+  const existingMetadata = loadMetadata(config.outputDir);
+  const dateRange = calculateDateRange(existingMetadata, config.timelineDays);
+
   console.log(`📊 Configuration:`);
+  console.log(
+    `  Mode: ${dateRange.isInitialRun ? "Initial Run" : "Append Mode"}`
+  );
   console.log(`  Timeline: ${config.timelineDays} days`);
+  console.log(
+    `  Date Range: ${dateRange.startDate.toISOString().split("T")[0]} to ${
+      dateRange.endDate.toISOString().split("T")[0]
+    }`
+  );
+  if (!dateRange.isInitialRun) {
+    console.log(
+      `  Dataset Start: ${existingMetadata!.startDate.split("T")[0]}`
+    );
+    console.log(`  Total Days So Far: ${existingMetadata!.totalDays}`);
+  }
   console.log(`  Slack Messages: ${volumes.slackMessages}`);
   console.log(`  GitHub Issues: ${volumes.githubIssues}`);
   console.log(`  GitHub PRs: ${volumes.githubPRs}`);
@@ -47,8 +73,37 @@ async function main() {
   mkdirSync(join(config.outputDir, "synthesis"), { recursive: true });
   mkdirSync(join(config.outputDir, "combined"), { recursive: true });
 
+  // Load existing data if in append mode
+  let existingData: any = null;
+  if (!dateRange.isInitialRun) {
+    const combinedPath = join(config.outputDir, "combined", "data.json");
+    if (existsSync(combinedPath)) {
+      console.log("📖 Loading existing data...");
+      existingData = JSON.parse(readFileSync(combinedPath, "utf-8"));
+      console.log(
+        `  Loaded ${existingData.github.issues.length} GitHub issues`
+      );
+      console.log(
+        `  Loaded ${existingData.github.pullRequests.length} GitHub PRs`
+      );
+      console.log(
+        `  Loaded ${existingData.slack.messages.length} Slack messages`
+      );
+      console.log(`  Loaded ${existingData.notion.pages.length} Notion pages`);
+      console.log(
+        `  Loaded ${existingData.fathom.meetings.length} Fathom meetings`
+      );
+      console.log("=".repeat(50));
+    }
+  }
+
   // Stage 1: Foundation (40%)
-  const foundation = await generateFoundation(config, volumes);
+  const foundation = await generateFoundation(
+    config,
+    volumes,
+    dateRange.startDate,
+    existingData
+  );
 
   // Convert Map to flat array for JSON serialization
   const foundationForJson = {
@@ -70,7 +125,8 @@ async function main() {
     foundation,
     connectionContext,
     config,
-    volumes
+    volumes,
+    dateRange.startDate
   );
   writeFileSync(
     join(config.outputDir, "connection", "data.json"),
@@ -82,7 +138,8 @@ async function main() {
     foundation,
     connection,
     config,
-    volumes
+    volumes,
+    dateRange.startDate
   );
   writeFileSync(
     join(config.outputDir, "integration", "data.json"),
@@ -95,7 +152,8 @@ async function main() {
     connection,
     integration,
     config,
-    volumes
+    volumes,
+    dateRange.startDate
   );
   writeFileSync(
     join(config.outputDir, "synthesis", "data.json"),
@@ -103,7 +161,7 @@ async function main() {
   );
 
   // Combine all stages
-  const combined = {
+  const newData = {
     github: {
       issues: [
         ...foundation.github.issues,
@@ -199,24 +257,122 @@ async function main() {
     },
   };
 
+  // Merge with existing data if in append mode
+  // New data goes BEFORE existing data since we're appending backward
+  const combined = existingData
+    ? {
+        github: {
+          issues: [...newData.github.issues, ...existingData.github.issues],
+          pullRequests: [
+            ...newData.github.pullRequests,
+            ...existingData.github.pullRequests,
+          ],
+          user: existingData.github.user,
+          organizationMembers: existingData.github.organizationMembers,
+          repositories: existingData.github.repositories,
+        },
+        slack: {
+          messages: [...newData.slack.messages, ...existingData.slack.messages],
+          channels: existingData.slack.channels,
+          users: existingData.slack.users,
+        },
+        notion: {
+          pages: [...newData.notion.pages, ...existingData.notion.pages],
+          users: existingData.notion.users,
+          databases: existingData.notion.databases,
+          blocks: existingData.notion.blocks,
+        },
+        fathom: {
+          meetings: [
+            ...newData.fathom.meetings,
+            ...existingData.fathom.meetings,
+          ],
+          teams: existingData.fathom.teams,
+          teamMembers: existingData.fathom.teamMembers,
+          transcripts: [
+            ...newData.fathom.transcripts,
+            ...existingData.fathom.transcripts,
+          ],
+          summaries: [
+            ...newData.fathom.summaries,
+            ...existingData.fathom.summaries,
+          ],
+        },
+      }
+    : newData;
+
   writeFileSync(
     join(config.outputDir, "combined", "data.json"),
     JSON.stringify(combined, null, 2)
   );
 
+  // Update metadata
+  const metadata = existingMetadata
+    ? updateMetadata(
+        existingMetadata,
+        config.timelineDays,
+        {
+          slackMessages: newData.slack.messages.length,
+          githubIssues: newData.github.issues.length,
+          githubPRs: newData.github.pullRequests.length,
+          notionPages: newData.notion.pages.length,
+          fathomMeetings: newData.fathom.meetings.length,
+        },
+        dateRange.startDate
+      )
+    : createInitialMetadata(dateRange.startDate);
+
+  // For initial run, set lastRunDate to end date
+  // For append mode, keep existing lastRunDate (it represents the end of the dataset)
+  if (!existingMetadata) {
+    metadata.lastRunDate = dateRange.endDate.toISOString();
+  }
+  metadata.totalDays = existingMetadata
+    ? existingMetadata.totalDays + config.timelineDays
+    : config.timelineDays;
+
+  saveMetadata(config.outputDir, metadata);
+
+  // Create improved grouped output format
   console.log("=".repeat(50));
+  const grouped = createGroupedOutput(combined);
+  writeFileSync(
+    join(config.outputDir, "combined", "grouped.json"),
+    JSON.stringify(grouped, null, 2)
+  );
 
   console.log("=".repeat(50));
 
   console.log("✅ Generation complete!");
   console.log(`📁 Output directory: ${config.outputDir}`);
   console.log(
-    `📊 Total records: ${
+    `📅 Metadata saved with start date: ${metadata.startDate.split("T")[0]}`
+  );
+  console.log(
+    `📊 Total records in dataset: ${
       combined.github.issues.length +
       combined.github.pullRequests.length +
       combined.notion.pages.length +
       combined.fathom.meetings.length
     }`
+  );
+  console.log(
+    `📊 New records added this run: ${
+      newData.github.issues.length +
+      newData.github.pullRequests.length +
+      newData.notion.pages.length +
+      newData.fathom.meetings.length
+    }`
+  );
+  console.log(`\n📦 Output (grouped.json):`);
+  console.log(
+    `  🔗 Workflow groups: ${grouped.metadata.summary.totalWorkflows}`
+  );
+  console.log(
+    `  📊 Records in workflows: ${grouped.metadata.summary.totalRecordsInWorkflows}`
+  );
+  console.log(
+    `  📝 Standalone items: ${grouped.metadata.summary.totalStandaloneRecords}`
   );
 }
 

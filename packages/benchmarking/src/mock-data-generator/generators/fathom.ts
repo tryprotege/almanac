@@ -17,6 +17,10 @@ import type {
   GeneratorConfig,
 } from "../types.js";
 import { generateWithLLM } from "../utils/llm.js";
+import {
+  generateRandomStringId,
+  generateFathomRecordingId,
+} from "../utils/id-generator.js";
 
 /**
  * Generate Fathom teams
@@ -28,7 +32,7 @@ export function generateFathomTeams(count: number = 2): FathomTeam[] {
   for (let i = 0; i < Math.min(count, teamNames.length); i++) {
     const now = new Date();
     teams.push({
-      id: `team_${i + 1}`,
+      id: generateRandomStringId("team"),
       name: teamNames[i],
       created_at: new Date(
         now.getTime() - 365 * 24 * 60 * 60 * 1000
@@ -53,7 +57,7 @@ export function generateFathomTeamMembers(
     const now = new Date();
 
     members.push({
-      id: `member_${teamMember.email.split("@")[0]}`,
+      id: generateRandomStringId("member"),
       team: team.id,
       name: teamMember.name,
       email: teamMember.email,
@@ -90,7 +94,7 @@ export function generateFathomMeetings(
   ];
 
   for (let i = 0; i < count; i++) {
-    const recordingId = startingId + i;
+    const recordingId = generateFathomRecordingId();
     const meetingType = selectRandom(meetingTypes);
     const scheduledStart = generateDateInRange(
       context.startDate,

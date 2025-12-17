@@ -22,13 +22,14 @@ export function initializeLLM(
 
 export async function generateWithLLM(
   prompt: string,
-  config: GeneratorConfig
+  config: GeneratorConfig,
+  temperatureOverride?: number
 ): Promise<string> {
   if (!openaiClient) {
     throw new Error("LLM not initialized. Call initializeLLM first.");
   }
 
-  const startTime = Date.now();
+  const temperature = temperatureOverride ?? config.temperature;
 
   const result = await pRetry(
     async () => {
@@ -36,7 +37,7 @@ export async function generateWithLLM(
         {
           model: process.env.LLM_CHAT_MODEL!,
           messages: [{ role: "user", content: prompt }],
-          temperature: config.temperature,
+          temperature,
           max_tokens: 3000,
           stream: false,
         },

@@ -7,7 +7,7 @@ import pLimit from "p-limit";
 
 import { Record } from "../../../models/record.model.js";
 import { EntityRelationship, FetchOptions } from "../../../types/index.js";
-import { SlackClient } from "../../sources/slack/slackClient.js";
+import { SlackMCPClient } from "../../sources/slack/mcpClient.js";
 import { BaseRecordAdapter } from "./base-adapter.js";
 import { createLLMClient } from "../../llm/providers.js";
 import { env } from "../../../env.js";
@@ -52,11 +52,9 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
     "thread",
     "conversation",
   ];
-  private client: SlackClient;
 
-  constructor(token: string) {
+  constructor(private client: SlackMCPClient) {
     super();
-    this.client = new SlackClient(token);
   }
 
   /**
@@ -65,10 +63,10 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
   async *fetchAll(options?: FetchOptions): AsyncIterable<Record[]> {
     const batchSize = options?.batchSize || 100;
 
-    // Fetch users
-    const users = await this.client.getAllUsers();
-    const transformedUsers = users.map((user) => this.transformUser(user));
-    yield transformedUsers;
+    // TODO: // Fetch users
+    // const users = await this.client.getAllUsers();
+    // const transformedUsers = users.map((user) => this.transformUser(user));
+    // yield transformedUsers;
 
     // Fetch channels
     const channels = await this.client.getAllChannels();
@@ -550,7 +548,7 @@ Group related messages together. Each message can only belong to ONE group.`;
     const sourceId = channel.id!;
     const _id = this.generateRecordId("channel", sourceId);
 
-    const title = `#${channel.name}`;
+    const title = channel.name!;
     const parts: string[] = [];
     if (channel.topic?.value) {
       parts.push(`Topic: ${channel.topic.value}`);

@@ -21,7 +21,7 @@ import {
   CreatePullRequestData,
   UpdatePullRequestData,
   CreateReleaseData,
-} from "./types.js";
+} from "@ebee-oss/shared-util";
 
 /**
  * GitHub MCP Client wrapper for data extraction

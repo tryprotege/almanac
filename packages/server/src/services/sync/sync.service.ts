@@ -1,17 +1,17 @@
 import { loadProxyConfig } from "../../mcp/config-loader.js";
-import { RecordStore } from "../../stores/record.store.js";
-import { NotionMCPClient } from "../sources/notion/mcpClient.js";
-import { NotionAdapter } from "./adapters/notion-adapter.js";
-import { GitHubMCPClient } from "../sources/github/mcpClient.js";
-import { GitHubAdapter } from "./adapters/github-adapter.js";
-import { syncAllRecords } from "./record-sync.service.js";
-
 import { MCPServerConfig } from "../../models/mcp-config.model.js";
-import { BaseRecordAdapter } from "./adapters/base-adapter.js";
-import { SlackAdapter } from "./adapters/slack-adapter.js";
-import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
-import { FathomAdapter } from "./adapters/fathom-adapter.js";
+import { RecordStore } from "../../stores/record.store.js";
 import logger from "../../utils/logger.js";
+import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
+import { GitHubMCPClient } from "../sources/github/mcpClient.js";
+import { NotionMCPClient } from "../sources/notion/mcpClient.js";
+import { SlackMCPClient } from "../sources/slack/mcpClient.js";
+import { BaseRecordAdapter } from "./adapters/base-adapter.js";
+import { FathomAdapter } from "./adapters/fathom-adapter.js";
+import { GitHubAdapter } from "./adapters/github-adapter.js";
+import { NotionAdapter } from "./adapters/notion-adapter.js";
+import { SlackAdapter } from "./adapters/slack-adapter.js";
+import { syncAllRecords } from "./record-sync.service.js";
 
 export const syncMcpServer = async (
   mcpConfig: MCPServerConfig,
@@ -42,7 +42,8 @@ export const syncMcpServer = async (
       includeTranscripts: true,
     });
   } else if (mcpConfig.name === "slack") {
-    adapter = new SlackAdapter(mcpConfig.env?.get("SLACK_BOT_TOKEN") as string);
+    const slackClient = new SlackMCPClient();
+    adapter = new SlackAdapter(slackClient);
   } else {
     throw new Error(`Unsupported MCP server: ${mcpConfig.name}`);
   }

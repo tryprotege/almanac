@@ -1,7 +1,6 @@
 import { Processor, Queue, Worker } from "bullmq";
 
 import { initializeServices } from "../../mcp/initialization.js";
-import { MCPServerConfigModel } from "../../models/mcp-config.model.js";
 import { GraphStore } from "../../stores/graph.store.js";
 import { RecordStore } from "../../stores/record.store.js";
 import { SourceType } from "../../types/index.js";
@@ -18,6 +17,7 @@ import { NotionAdapter } from "../sync/adapters/notion-adapter.js";
 import { SlackAdapter } from "../sync/adapters/slack-adapter.js";
 import { createRedisConnection, QUEUE_NAME } from "./config.js";
 import { env } from "../../env.js";
+import { SlackMCPClient } from "../sources/slack/mcpClient.js";
 
 const processor: Processor<
   IndexGraphJobData,
@@ -37,14 +37,8 @@ const processor: Processor<
     const notionClient = new NotionMCPClient();
     adapters.set("notion", new NotionAdapter(notionClient));
   } else if (source === "slack") {
-    const slackMcp = await MCPServerConfigModel.findOne({
-      name: "slack",
-    });
-    const token = slackMcp?.env?.get("SLACK_BOT_TOKEN");
-
-    if (!token) throw new Error("Slack MCP server not configured");
-
-    adapters.set("slack", new SlackAdapter(token));
+    const slackClient = new SlackMCPClient();
+    adapters.set("slack", new SlackAdapter(slackClient));
   }
 
   if (source === "github") {

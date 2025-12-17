@@ -17,7 +17,10 @@ export async function chat(
     temperature?: number;
     maxTokens?: number;
     stream?: boolean;
-    reasoningEffort?: "low" | "medium" | "high";
+    reasoningEffort?: "low" | "medium" | "high"; // Legacy format (backwards compatibility)
+    reasoning?: {
+      effort: "low" | "medium" | "high" | "none";
+    }; // New format (preferred)
     frequencyPenalty?: number;
     responseFormat?:
       | { type: "json_object" }
@@ -38,9 +41,14 @@ export async function chat(
     max_tokens: options?.maxTokens,
     stream: false,
     frequency_penalty: options?.frequencyPenalty,
-    ...(options?.reasoningEffort && {
-      reasoning_effort: options.reasoningEffort,
+    // Prioritize new reasoning format, fall back to legacy reasoningEffort
+    ...(options?.reasoning && {
+      reasoning: options.reasoning,
     }),
+    ...(options?.reasoningEffort &&
+      !options?.reasoning && {
+        reasoning_effort: options.reasoningEffort,
+      }),
     ...(options?.responseFormat && {
       response_format: options.responseFormat,
     }),

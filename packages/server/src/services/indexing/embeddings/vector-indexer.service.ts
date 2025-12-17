@@ -62,11 +62,11 @@ export async function insertAllRecordsToVectorDB(
       break;
     }
 
-    // LastEmbedDate will be empty if never indexed, we will index it
-    // If source is updated and lastEmbedDate is older, we will re-index it
+    // lastEmbeddedAt will be empty if never indexed, we will index it
+    // If source is updated and lastEmbeddedAt is older, we will re-index it
     const recordsToProcess = records.filter((record) => {
-      if (!record.lastEmbedDate) return true;
-      return record.sourceUpdatedAt.getTime() > record.lastEmbedDate.getTime();
+      if (!record.lastEmbeddedAt) return true;
+      return record.sourceUpdatedAt.getTime() > record.lastEmbeddedAt.getTime();
     });
 
     batchNumber++;
@@ -134,7 +134,7 @@ export async function insertRecordToVectorDB(
   }
 
   // Delete existing vectors for this record (old versions with different checksum)
-  if (record.lastEmbedDate) {
+  if (record.lastEmbeddedAt) {
     await vectorStore.deleteOutdatedPoints(record._id, record.checksum);
   }
 
@@ -179,7 +179,7 @@ export async function insertRecordToVectorDB(
   // Update record with vector IDs
   await recordStore.upsert({
     _id: record._id,
-    lastEmbedDate: new Date(),
+    lastEmbeddedAt: new Date(),
   });
 
   return vectorIds;

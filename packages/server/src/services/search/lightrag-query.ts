@@ -193,11 +193,17 @@ async function localMode(
 
   // PARALLEL: Search entities and relationships simultaneously
   const [entities, entityRelationships] = await Promise.all([
-    searchEntitiesByKeywords(keywords.low_level, params.top_k || 60, deps),
+    searchEntitiesByKeywords(
+      keywords.low_level,
+      params.top_k || 60,
+      deps,
+      params.score_threshold
+    ),
     searchRelationshipsByKeywords(
       keywords.low_level,
       (params.top_k || 60) / 2,
-      deps
+      deps,
+      params.score_threshold
     ),
   ]);
 
@@ -239,7 +245,8 @@ async function globalMode(
   const relationships = await searchRelationshipsByKeywords(
     keywords.high_level,
     params.top_k || 60,
-    deps
+    deps,
+    params.score_threshold
   );
 
   // Extract unique entities
@@ -324,7 +331,13 @@ async function mixMode(
       hybridResult.chunks,
       deps.reranker
     );
-    return { ...hybridResult, chunks: rerankedChunks, reranked: true };
+
+    // Filter by score_threshold after reranking
+    const filteredChunks = rerankedChunks.filter(
+      (chunk) => chunk.score >= (params.score_threshold || 0.6)
+    );
+
+    return { ...hybridResult, chunks: filteredChunks, reranked: true };
   }
 
   return { ...hybridResult, reranked: false };
@@ -357,7 +370,8 @@ async function extractKeywords(
 async function searchEntitiesByKeywords(
   keywords: string[],
   limit: number,
-  deps: LightRAGDependencies
+  deps: LightRAGDependencies,
+  scoreThreshold?: number
 ): Promise<LightRAGEntity[]> {
   // Use vector search instead of text search
   const searchQuery = keywords.join(" ");
@@ -366,21 +380,20 @@ async function searchEntitiesByKeywords(
   // Search entity embeddings in Qdrant
   const results = await deps.vectorStore.searchEntities(queryVector, {
     limit,
-    scoreThreshold: 0.5,
+    scoreThreshold: scoreThreshold || 0.5,
   });
 
-  // Fetch full records from MongoDB (filter out undefined mongoIds for type safety)
-  const mongoIds = results
-    .map((r) => r.payload.mongoId || r.payload.entityId)
-    .filter((id): id is string => id !== undefined);
+  // Fetch full records from MongoDB using entityId (which is now the MongoDB document ID)
+  const entityIds = results
+    .map((r) => r.payload.entityId)
+    .filter((id): id is string => id !== undefined && id !== null);
 
-  const records = await RecordModel.find({ _id: { $in: mongoIds } }).lean();
+  const records = await RecordModel.find({ _id: { $in: entityIds } }).lean();
   const recordMap = new Map(records.map((r) => [r._id, r]));
 
   const entities: LightRAGEntity[] = results
     .map((result) => {
-      const recordId: string =
-        (result.payload.mongoId as string) || result.payload.entityId;
+      const recordId = result.payload.entityId;
       if (!recordId) return null;
 
       const record = recordMap.get(recordId);
@@ -403,13 +416,15 @@ async function searchEntitiesByKeywords(
 
   // Sort by degree (graph centrality)
   entities.sort((a, b) => b.degree - a.degree);
+
   return entities;
 }
 
 async function searchRelationshipsByKeywords(
   keywords: string[],
   limit: number,
-  deps: LightRAGDependencies
+  deps: LightRAGDependencies,
+  scoreThreshold?: number
 ): Promise<LightRAGRelationship[]> {
   // Use direct relationship vector search
   const searchQuery = keywords.join(" ");
@@ -418,7 +433,7 @@ async function searchRelationshipsByKeywords(
   // Search relationship embeddings in Qdrant
   const results = await deps.vectorStore.searchRelationships(queryVector, {
     limit,
-    scoreThreshold: 0.5,
+    scoreThreshold: scoreThreshold || 0.5,
   });
 
   // Fetch entity details for source/target (filter undefined for type safety)

@@ -20,12 +20,14 @@ import logger from "../src/utils/logger.js";
  *   pnpm tsx scripts/wipe-data.ts --only=memgraph    # Wipe only Memgraph
  *   pnpm tsx scripts/wipe-data.ts --only=qdrant      # Wipe only Qdrant
  *   pnpm tsx scripts/wipe-data.ts --keep-mcp-config  # Keep MCP server configs
+ *   pnpm tsx scripts/wipe-data.ts --only=memgraph --reset-schema  # Wipe Memgraph and reset schema
  */
 
 interface WipeOptions {
   force: boolean;
   only?: "mongodb" | "memgraph" | "qdrant";
   keepMcpConfig: boolean;
+  resetSchema: boolean;
 }
 
 function parseArgs(): WipeOptions {
@@ -33,6 +35,7 @@ function parseArgs(): WipeOptions {
   const options: WipeOptions = {
     force: false,
     keepMcpConfig: false,
+    resetSchema: false,
   };
 
   for (const arg of args) {
@@ -48,6 +51,8 @@ function parseArgs(): WipeOptions {
       options.only = value;
     } else if (arg === "--keep-mcp-config") {
       options.keepMcpConfig = true;
+    } else if (arg === "--reset-schema") {
+      options.resetSchema = true;
     }
   }
 
@@ -171,7 +176,11 @@ async function wipeMongoDB(keepMcpConfig: boolean): Promise<void> {
   }
 }
 
-async function wipeMemgraph(memgraph: any, qdrant: any): Promise<void> {
+async function wipeMemgraph(
+  memgraph: any,
+  qdrant: any,
+  resetSchema: boolean
+): Promise<void> {
   logger.info("\n🗑️  Wiping Memgraph...");
 
   try {
@@ -205,6 +214,15 @@ async function wipeMemgraph(memgraph: any, qdrant: any): Promise<void> {
       logger.info("   ⊘ No constraints to drop");
     }
 
+    // Optionally reset GraphSchema
+    if (resetSchema) {
+      logger.info("   🔄 Resetting graph schema...");
+      const schemaResult = await GraphSchemaModel.deleteMany({});
+      logger.info(`   ✓ Deleted ${schemaResult.deletedCount} graph schemas`);
+    } else {
+      logger.info("   ⊘ Kept graph schema (use --reset-schema to reset)");
+    }
+
     // Clean up orphaned embeddings (since graph nodes are gone)
     logger.info("   🧹 Cleaning up orphaned embeddings...");
     const graphStore = new GraphStore(memgraph);
@@ -223,7 +241,7 @@ async function wipeMemgraph(memgraph: any, qdrant: any): Promise<void> {
     logger.info("   🔄 Clearing MongoDB graph timestamps...");
     const result = await RecordModel.updateMany(
       {},
-      { $unset: { lastGraphIndexDate: "" } }
+      { $unset: { lastGraphIndexAt: "" } }
     );
     logger.info(`   ✓ Cleared timestamps for ${result.modifiedCount} records`);
   } catch (err) {
@@ -324,7 +342,7 @@ async function run() {
     }
 
     if (!options.only || options.only === "memgraph") {
-      await wipeMemgraph(memgraph, qdrant);
+      await wipeMemgraph(memgraph, qdrant, options.resetSchema);
     }
 
     if (!options.only || options.only === "qdrant") {

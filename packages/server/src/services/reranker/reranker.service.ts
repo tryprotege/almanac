@@ -154,14 +154,22 @@ export class RerankerService {
       return data.scores;
     }
 
+    // Handle results array format
     if (Array.isArray(data.results)) {
       return data.results.map((r: any) => r.score || r.relevance_score || 0);
     }
 
+    // Handle direct array response
     if (Array.isArray(data)) {
-      return data.map((item: any) => item.score || item.relevance_score || 0);
+      return data.map((item: any) =>
+        typeof item === "number"
+          ? item
+          : item.score || item.relevance_score || 0
+      );
     }
 
+    // Log unexpected format for debugging
+    logger.error({ responseData: data }, "Unexpected reranker response format");
     throw new Error("Could not extract scores from reranker response");
   }
 

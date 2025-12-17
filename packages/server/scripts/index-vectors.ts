@@ -11,10 +11,11 @@ import logger from "../src/utils/logger.js";
  * Script to index unindexed records to the vector database
  *
  * Usage:
- *   pnpm tsx scripts/index-vectors.ts
- *   pnpm tsx scripts/index-vectors.ts --source=notion
- *   pnpm tsx scripts/index-vectors.ts --batch-size=50
- *   pnpm tsx scripts/index-vectors.ts --force
+ *   pnpm tsx scripts/index-vectors.ts                    # Index all unindexed records
+ *   pnpm tsx scripts/index-vectors.ts --source=notion    # Index specific source
+ *   pnpm tsx scripts/index-vectors.ts --limit=100        # Cap at 100 records
+ *   pnpm tsx scripts/index-vectors.ts --batch-size=50    # Process in batches of 50
+ *   pnpm tsx scripts/index-vectors.ts --force            # Re-index all records (even indexed ones)
  */
 
 interface ScriptOptions {
@@ -28,7 +29,7 @@ function parseArgs(): ScriptOptions {
   const args = process.argv.slice(2);
   const options: ScriptOptions = {
     batchSize: 50,
-    limit: 100,
+    limit: undefined, // No limit by default
     force: false,
   };
 
@@ -59,7 +60,7 @@ async function getVectorStats(
     includeDeleted: false,
   });
 
-  const indexed = records.filter((record) => record.lastEmbedDate);
+  const indexed = records.filter((record) => record.lastEmbeddedAt);
 
   return {
     totalRecords: records.length,
@@ -81,10 +82,26 @@ async function indexVectorRecords() {
   await vectorStore.ensureCollection();
 
   // Get all sources to process
-  const sources: SourceType[] = options.source ? [options.source] : ["notion"]; // Add more sources as needed
+  const sources: SourceType[] = options.source
+    ? [options.source]
+    : ["notion", "fathom"]; // Add more sources as needed
 
-  for (const source of sources) {
-    logger.debug({ msg: `📦 Processing source`, source });
+  // Show what will be processed
+  logger.info({
+    msg: `📋 Sources to process: ${sources.join(", ")}`,
+    totalSources: sources.length,
+  });
+
+  for (let sourceIndex = 0; sourceIndex < sources.length; sourceIndex++) {
+    const source = sources[sourceIndex];
+    const sourceNum = sourceIndex + 1;
+
+    // Visual separator
+    logger.info(`\n${"━".repeat(60)}`);
+    logger.info({
+      msg: `📦 Source ${sourceNum}/${sources.length}: ${source.toUpperCase()}`,
+    });
+    logger.info(`${"━".repeat(60)}\n`);
 
     // Get statistics before indexing
     const statsBefore = await getVectorStats(recordStore, source);
@@ -106,18 +123,22 @@ async function indexVectorRecords() {
 
     const candidateRecords = options.force
       ? allRecords
-      : allRecords.filter((record) => !record.lastEmbedDate);
+      : allRecords.filter((record) => !record.lastEmbeddedAt);
 
     if (candidateRecords.length === 0) {
       logger.info({ msg: `✅ No records to index`, source });
       continue;
     }
 
-    // Apply limit
-    const recordsToIndex = candidateRecords.slice(0, options.limit);
+    // Apply limit (if specified)
+    const recordsToIndex = options.limit
+      ? candidateRecords.slice(0, options.limit)
+      : candidateRecords;
 
     logger.info({
-      msg: `🔄 Processing ${recordsToIndex.length} records (limited)...`,
+      msg: options.limit
+        ? `🔄 Processing ${recordsToIndex.length} records (limited to ${options.limit})...`
+        : `🔄 Processing ${recordsToIndex.length} records (all unindexed)...`,
     });
 
     const stats = {
@@ -127,14 +148,13 @@ async function indexVectorRecords() {
       skipped: 0,
     };
 
+    const startTime = Date.now();
+    const totalBatches = Math.ceil(recordsToIndex.length / options.batchSize!);
+
     // Process in batches
     for (let i = 0; i < recordsToIndex.length; i += options.batchSize!) {
       const batch = recordsToIndex.slice(i, i + options.batchSize!);
-      logger.debug({
-        msg: `Batch ${Math.floor(i / options.batchSize!) + 1}/${Math.ceil(
-          recordsToIndex.length / options.batchSize!
-        )}`,
-      });
+      const batchNum = Math.floor(i / options.batchSize!) + 1;
 
       for (const record of batch) {
         try {
@@ -161,28 +181,46 @@ async function indexVectorRecords() {
         }
       }
 
-      logger.debug({
-        msg: `Progress: ${stats.processed}/${recordsToIndex.length} processed, ${stats.chunks} chunks created`,
+      // Progress update after each batch
+      const elapsedMs = Date.now() - startTime;
+      const elapsedSec = Math.floor(elapsedMs / 1000);
+      const percentage = Math.floor(
+        (stats.processed / recordsToIndex.length) * 100
+      );
+
+      // Format elapsed time
+      const minutes = Math.floor(elapsedSec / 60);
+      const seconds = elapsedSec % 60;
+      const elapsedStr =
+        minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+
+      logger.info({
+        msg: `  ⏳ [Batch ${batchNum}/${totalBatches}] ${stats.processed}/${recordsToIndex.length} (${percentage}%) - ${stats.chunks} chunks - ${elapsedStr} elapsed`,
       });
     }
+
+    // Wait a moment for database to settle
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Get statistics after indexing
     const statsAfter = await getVectorStats(recordStore, source);
 
     logger.info({
-      msg: `✅ Vector Indexing Complete`,
-      source,
+      msg: `✅ ${source.toUpperCase()} indexing complete`,
       processed: stats.processed,
       totalChunks: stats.chunks,
       skipped: stats.skipped,
       errors: stats.errors,
-      totalRecordsAfterIndexing: statsAfter.totalRecords,
-      indexed: statsAfter.indexed,
-      unindexed: statsAfter.unindexed,
+      delta: {
+        indexed: statsAfter.indexed - statsBefore.indexed,
+      },
     });
   }
 
-  logger.info(`\n✨ Vector indexing script completed`);
+  // Final completion message
+  logger.info(`\n${"━".repeat(60)}`);
+  logger.info(`✨ ALL SOURCES INDEXED - Job Complete!`);
+  logger.info(`${"━".repeat(60)}\n`);
 }
 
 const run = async () => {

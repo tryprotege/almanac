@@ -38,7 +38,7 @@ export class SlackMCPClient {
         columns: true, // Use first row as column names
         skip_empty_lines: true,
         trim: true,
-        cast: true, // Automatically cast numbers and booleans
+        cast: false, // Automatically cast numbers and booleans
         cast_date: false, // Don't auto-cast dates
         relax_quotes: true, // Be lenient with quotes
         relax_column_count: true, // Allow variable column counts

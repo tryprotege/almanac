@@ -67,7 +67,7 @@ export type Record = InferSchemaType<typeof RecordSchema>;
 
 // Compound indexes for efficient queries
 RecordSchema.index({ source: 1, recordType: 1 });
-RecordSchema.index({ source: 1, sourceId: 1 }, { unique: true });
+RecordSchema.index({ source: 1, sourceId: 1 });
 RecordSchema.index({ deletedAt: 1, syncedAt: -1 });
 RecordSchema.index({ sourceUpdatedAt: -1 });
 RecordSchema.index({ content: "text", title: "text" }); // Full-text search

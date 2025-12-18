@@ -121,6 +121,253 @@ githubMcpServer.registerTool(
   }
 );
 
+githubMcpServer.registerTool(
+  "get_workflow_run",
+  {
+    title: "Get workflow run",
+    description: "Get details of a specific workflow run",
+    inputSchema: z.object({
+      owner: z.string().describe("Repository owner"),
+      repo: z.string().describe("Repository name"),
+      run_id: z.number().describe("The unique identifier of the workflow run"),
+    }),
+  },
+  async (args) => {
+    const workflowRun = (mockData.github.workflowRuns || []).find(
+      (r) => r.id === args.run_id
+    );
+    return {
+      content: [{ type: "text", text: JSON.stringify(workflowRun, null, 2) }],
+    };
+  }
+);
+
+githubMcpServer.registerTool(
+  "get_workflow_run_logs",
+  {
+    title: "Get workflow run logs",
+    description:
+      "Download logs for a specific workflow run (EXPENSIVE: downloads ALL logs as ZIP. Consider using get_job_logs with failed_only=true for debugging failed jobs)",
+    inputSchema: z.object({
+      owner: z.string().describe("Repository owner"),
+      repo: z.string().describe("Repository name"),
+      run_id: z.number().describe("The unique identifier of the workflow run"),
+    }),
+  },
+  async (args) => {
+    return {
+      content: [{ type: "text", text: JSON.stringify({}, null, 2) }],
+    };
+  }
+);
+
+githubMcpServer.registerTool(
+  "get_workflow_run_usage",
+  {
+    title: "Get workflow usage",
+    description: "Get usage metrics for a workflow run",
+    inputSchema: z.object({
+      owner: z.string().describe("Repository owner"),
+      repo: z.string().describe("Repository name"),
+      run_id: z.number().describe("The unique identifier of the workflow run"),
+    }),
+  },
+  async (args) => {
+    return {
+      content: [{ type: "text", text: JSON.stringify({}, null, 2) }],
+    };
+  }
+);
+
+githubMcpServer.registerTool(
+  "list_workflow_jobs",
+  {
+    title: "List workflow jobs",
+    description: "List jobs for a specific workflow run",
+    inputSchema: z.object({
+      owner: z.string().describe("Repository owner"),
+      repo: z.string().describe("Repository name"),
+      run_id: z.number().describe("The unique identifier of the workflow run"),
+      filter: z
+        .enum(["latest", "all"])
+        .optional()
+        .describe("Filters jobs by their completed_at timestamp"),
+      page: z
+        .number()
+        .min(1)
+        .optional()
+        .describe("Page number for pagination (min 1)"),
+      perPage: z
+        .number()
+        .min(1)
+        .max(100)
+        .optional()
+        .describe("Results per page for pagination (min 1, max 100)"),
+    }),
+  },
+  async (args) => {
+    const result = {
+      total_count: 0,
+      jobs: [],
+    };
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  }
+);
+
+githubMcpServer.registerTool(
+  "list_workflow_run_artifacts",
+  {
+    title: "List workflow artifacts",
+    description: "List artifacts for a workflow run",
+    inputSchema: z.object({
+      owner: z.string().describe("Repository owner"),
+      repo: z.string().describe("Repository name"),
+      run_id: z.number().describe("The unique identifier of the workflow run"),
+      page: z
+        .number()
+        .min(1)
+        .optional()
+        .describe("Page number for pagination (min 1)"),
+      perPage: z
+        .number()
+        .min(1)
+        .max(100)
+        .optional()
+        .describe("Results per page for pagination (min 1, max 100)"),
+    }),
+  },
+  async (args) => {
+    const result = {
+      total_count: 0,
+      artifacts: [],
+    };
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  }
+);
+
+githubMcpServer.registerTool(
+  "list_workflow_runs",
+  {
+    title: "List workflow runs",
+    description: "List workflow runs for a specific workflow",
+    inputSchema: z.object({
+      owner: z.string().describe("Repository owner"),
+      repo: z.string().describe("Repository name"),
+      workflow_id: z.string().describe("The workflow ID or workflow file name"),
+      actor: z
+        .string()
+        .optional()
+        .describe(
+          "Returns someone's workflow runs. Use the login for the user who created the workflow run."
+        ),
+      branch: z
+        .string()
+        .optional()
+        .describe(
+          "Returns workflow runs associated with a branch. Use the name of the branch."
+        ),
+      event: z
+        .enum([
+          "branch_protection_rule",
+          "check_run",
+          "check_suite",
+          "create",
+          "delete",
+          "deployment",
+          "deployment_status",
+          "discussion",
+          "discussion_comment",
+          "fork",
+          "gollum",
+          "issue_comment",
+          "issues",
+          "label",
+          "merge_group",
+          "milestone",
+          "page_build",
+          "public",
+          "pull_request",
+          "pull_request_review",
+          "pull_request_review_comment",
+          "pull_request_target",
+          "push",
+          "registry_package",
+          "release",
+          "repository_dispatch",
+          "schedule",
+          "status",
+          "watch",
+          "workflow_call",
+          "workflow_dispatch",
+          "workflow_run",
+        ])
+        .optional()
+        .describe("Returns workflow runs for a specific event type"),
+      page: z
+        .number()
+        .min(1)
+        .optional()
+        .describe("Page number for pagination (min 1)"),
+      perPage: z
+        .number()
+        .min(1)
+        .max(100)
+        .optional()
+        .describe("Results per page for pagination (min 1, max 100)"),
+      status: z
+        .enum(["queued", "in_progress", "completed", "requested", "waiting"])
+        .optional()
+        .describe("Returns workflow runs with the check run status"),
+    }),
+  },
+  async (args) => {
+    const result = {
+      total_count: 0,
+      workflow_runs: [],
+    };
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  }
+);
+
+githubMcpServer.registerTool(
+  "list_workflows",
+  {
+    title: "List workflows",
+    description: "List workflows in a repository",
+    inputSchema: z.object({
+      owner: z.string().describe("Repository owner"),
+      repo: z.string().describe("Repository name"),
+      page: z
+        .number()
+        .min(1)
+        .optional()
+        .describe("Page number for pagination (min 1)"),
+      perPage: z
+        .number()
+        .min(1)
+        .max(100)
+        .optional()
+        .describe("Results per page for pagination (min 1, max 100)"),
+    }),
+  },
+  async (args) => {
+    const workflows = mockData.github.workflows || [];
+    const result = {
+      total_count: workflows.length,
+      workflows,
+    };
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  }
+);
+
 // ============================================
 // Security & Alerts Tools
 // ============================================
@@ -1557,7 +1804,7 @@ githubMcpServer.registerTool(
     }),
   },
   async (args) => {
-    const releases = mockData.github.releases.filter((r) =>
+    const releases = (mockData.github.releases || []).filter((r) =>
       r.html_url?.includes(`${args.owner}/${args.repo}`)
     );
     const result = { releases };

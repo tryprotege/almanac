@@ -20,6 +20,12 @@
 
 import type { MatrixBenchmarkConfig } from "../types/index.js";
 import { env } from "../env.js";
+import path from "path";
+import { fileURLToPath } from "url";
+import { McpStdioServerConfig } from "@anthropic-ai/claude-agent-sdk";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const matrixBenchmarkConfig: MatrixBenchmarkConfig = {
   name: "Agent × MCP Matrix Comparison",
@@ -28,6 +34,7 @@ export const matrixBenchmarkConfig: MatrixBenchmarkConfig = {
   type: "matrix",
   iterations: env.BENCHMARK_ITERATIONS,
   outputDir: env.BENCHMARK_OUTPUT_DIR,
+  verbose: false,
 
   // ============================================================================
   // QUERY SOURCE - Comment/uncomment to switch
@@ -79,17 +86,29 @@ export const matrixBenchmarkConfig: MatrixBenchmarkConfig = {
       url: env.EBEE_URL,
     },
 
+    // TODO: uncomment for testing clone MCP server
     // ── Clone MCP Server (stdio) ──────────────────────────────────────────
     // Mock data server with Fathom, Slack, Notion, GitHub tools
     // {
     //   name: "clone-mcp",
     //   servers: ["clone-mcp"],
-    //   packages: {
-    //     "clone-mcp": {
-    //       command: "pnpm",
-    //       args: ["--filter", "@ebee-oss/clone-mcp-server", "start-stdio"],
-    //     },
-    //   },
+    //   packages: ["github", "fathom", "notion", "slack"].reduce<
+    //     Record<string, McpStdioServerConfig>
+    //   >((acc, curr) => {
+    //     acc[curr] = {
+    //       command: "npx",
+    //       args: [
+    //         "-y",
+    //         "tsx",
+    //         path.join(__dirname, "../../../clone-mcp-server/src/index.ts"),
+    //       ],
+    //       env: {
+    //         SOURCE_TYPE: curr,
+    //         STDIO: "true",
+    //       },
+    //     };
+    //     return acc;
+    //   }, {}),
     // },
 
     // ── Clone MCP Server (HTTP) ───────────────────────────────────────────
@@ -122,13 +141,12 @@ export const matrixBenchmarkConfig: MatrixBenchmarkConfig = {
   // Comment out any scenario you don't want to test
   scenarios: [
     // ── Entity-Focused Query ──────────────────────────────────────────────
-    {
-      id: "decisions",
-      query: "What were the key decisions from last week's team meeting?",
-      category: "entity_focused",
-      targetServers: ["fathom"],
-    },
-
+    // {
+    //   id: "decisions",
+    //   query: "What were the key decisions from last week's team meeting?",
+    //   category: "entity_focused",
+    //   targetServers: ["fathom"],
+    // },
     // // ── Multi-Source Aggregation ──────────────────────────────────────────
     // {
     //   id: "multi-source",

@@ -12,7 +12,6 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import { execute } from "@sourcegraph/amp-sdk";
 import type { AgentConfig, MCPCall } from "../types/index.js";
 import { getApiKeyForAgent } from "../env.js";
-import { MCPServerManager, MCPServerConfig } from "./mcp-manager.js";
 
 // ============================================
 // Types
@@ -84,7 +83,6 @@ export const executeClaudeSDK = async (
   const thinkingBudget = options.thinkingBudget ?? 10000;
   const startTime = Date.now();
 
-  const mcpManager = new MCPServerManager(verbose);
   const mcpCalls: MCPCall[] = [];
   const processedUUIDs = new Set<string>();
   const stepUsages: any[] = [];
@@ -105,34 +103,19 @@ export const executeClaudeSDK = async (
     const originalKey = process.env.ANTHROPIC_API_KEY;
     process.env.ANTHROPIC_API_KEY = apiKey;
 
-    // Start MCP servers if configured
-    if (agent.mcpConfig && Object.keys(agent.mcpConfig).length > 0) {
-      for (const [name, config] of Object.entries(agent.mcpConfig)) {
-        await mcpManager.startServer(name, config as MCPServerConfig);
-      }
-    }
-
-    // Get available tools from MCP servers
-    const tools = mcpManager.getAnthropicTools();
-
-    if (verbose && tools.length > 0) {
-      const serverNames = mcpManager.getServerNames();
-      console.log(
-        `\n📦 Available Tools: ${tools.length} tools from ${serverNames.join(
-          ", "
-        )}`
-      );
-    }
-
     try {
       // Execute with Claude Agent SDK - returns AsyncGenerator
       const queryGenerator = query({
         prompt: queryPrompt,
         options: {
-          model: agent.model,
           ...(enableThinking && {
             maxThinkingTokens: thinkingBudget,
           }),
+          ...agent,
+          mcpServers: agent.mcpConfig,
+          permissionMode: "bypassPermissions",
+          allowDangerouslySkipPermissions: true,
+          disallowedTools: ["Read", "Write", "Edit", "Bash"],
           // Note: MCP servers might need different config format
           // For now, we'll let Agent SDK handle tools if available
         },
@@ -298,9 +281,6 @@ export const executeClaudeSDK = async (
         error instanceof Error ? error.message : String(error)
       }`
     );
-  } finally {
-    // Always cleanup MCP servers
-    await mcpManager.stopAll();
   }
 };
 
@@ -342,6 +322,11 @@ export const executeAmpSDK = async (
 
       for await (const message of execute({
         prompt: query,
+        options: {
+          mcpConfig: agent.mcpConfig, // TODO: fix typing
+          dangerouslyAllowAll: true,
+          // TODO: restrict permissions, don't read local files
+        },
       })) {
         if (verbose) {
           console.log(`  Message type: ${message.type}`);

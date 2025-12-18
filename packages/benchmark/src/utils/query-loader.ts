@@ -71,7 +71,7 @@ export function loadScenarios(
 
   // Filter out skipped workflows
   const filteredWorkflows = workflows.filter(
-    (w) => !skipWorkflows.has(w.workflowId)
+    (w) => !skipWorkflows.has(w.workflow.groupId)
   );
 
   if (filteredWorkflows.length === 0) {
@@ -84,7 +84,9 @@ export function loadScenarios(
 
   for (const workflow of filteredWorkflows) {
     workflow.testCases.forEach((testCase, index) => {
-      scenarios.push(testCaseToScenario(testCase, workflow.workflowId, index));
+      scenarios.push(
+        testCaseToScenario(testCase, workflow.workflow.groupId, index)
+      );
     });
   }
 

@@ -318,7 +318,8 @@ export class FathomAdapter extends BaseRecordAdapter<FathomRecord> {
       version: 1,
       syncedAt: new Date(),
       sourceUpdatedAt: this.getUpdatedAt(sourceRecord),
-      deletedAt: this.isDeleted(sourceRecord) ? new Date() : null,
+      // deletedAt: this.isDeleted(sourceRecord) ? new Date() : null,
+      deletedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

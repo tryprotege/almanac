@@ -3,6 +3,8 @@
  * All types are immutable and composable
  */
 
+import { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
+
 // Import types from server package (defined locally to avoid dependency issues)
 export type LightRAGMode = "naive" | "local" | "global" | "hybrid" | "mix";
 
@@ -144,7 +146,7 @@ export interface AgentConfig {
   readonly baseURL?: string;
   readonly systemPrompt?: string;
   readonly command?: string; // For CLI-based agents (amp, claude-cli, cline)
-  readonly mcpConfig?: Record<string, any>; // MCP server configuration
+  readonly mcpConfig?: Record<string, McpServerConfig>; // MCP server configuration
 }
 
 export interface EvaluationCriteria {
@@ -426,6 +428,9 @@ export interface MatrixScenario {
   readonly query: string;
   readonly category?: QueryCategory;
   readonly targetServers: readonly string[];
+  readonly evaluationCriteria?: {
+    readonly mustInclude: readonly string[];
+  };
 }
 
 export interface MCPSetupConfig {
@@ -433,7 +438,10 @@ export interface MCPSetupConfig {
   readonly url?: string;
   readonly servers?: readonly string[];
   readonly packages?: Readonly<
-    Record<string, string | { command: string; args?: string[] }>
+    Record<
+      string,
+      { command: string; args?: string[]; env?: Record<string, string> }
+    >
   >;
 }
 
@@ -441,7 +449,9 @@ export interface MatrixBenchmarkConfig extends BaseBenchmarkConfig {
   readonly type: "matrix";
   readonly agents: readonly AgentConfig[];
   readonly mcpSetups: readonly MCPSetupConfig[];
-  readonly scenarios: readonly MatrixScenario[];
+  readonly queriesSource: QuerySource;
+  readonly scenarios?: readonly MatrixScenario[]; // Optional for hardcoded mode
+  readonly verbose: boolean;
 }
 
 export interface MatrixCellResult {
@@ -450,6 +460,7 @@ export interface MatrixCellResult {
   readonly thinkingTokens?: number; // Extended thinking tokens
   readonly cost: number;
   readonly quality: number;
+  readonly evaluation?: EvaluationResult; // For generated queries
 }
 
 export interface MatrixAgentResult {
@@ -475,6 +486,49 @@ export interface MatrixBenchmarkResults {
   readonly analysis: MatrixAnalysis;
   readonly timestamp: string;
 }
+
+// ============================================
+// Generated Query Types (from generate-queries.ts)
+// ============================================
+
+export interface GeneratedTestCase {
+  readonly query: string;
+  readonly evaluationCriteria: {
+    readonly mustInclude: readonly string[];
+  };
+}
+
+export interface GeneratedWorkflow {
+  readonly workflow: { groupId: string };
+  readonly testCases: readonly GeneratedTestCase[];
+}
+
+// ============================================
+// Evaluation Types
+// ============================================
+
+export interface EvaluationResult {
+  readonly passed: boolean;
+  readonly score: number; // 0-1 semantic similarity
+  readonly matchedCount: number;
+  readonly totalRequired: number;
+  readonly matches: readonly string[]; // Items that matched
+  readonly missing: readonly string[]; // Items that didn't match
+}
+
+// ============================================
+// Query Source Configuration
+// ============================================
+
+export type QuerySource =
+  | {
+      readonly type: "generated";
+      readonly file: string;
+      readonly skipWorkflows?: readonly string[];
+    }
+  | {
+      readonly type: "hardcoded";
+    };
 
 export type BenchmarkConfig =
   | QueryBenchmarkConfig

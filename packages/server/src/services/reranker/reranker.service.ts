@@ -76,15 +76,15 @@ export class RerankerService {
     try {
       const url = this.baseUrl;
 
-      const response = await fetch(url, {
+      // deepinfra url format
+      const response = await fetch(`${url}/${this.model}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: this.model,
-          query,
+          queries: [query],
           documents: documents.map((d) => d.text),
           top_n: options?.topK,
           return_documents: true,

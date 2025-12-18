@@ -1,13 +1,10 @@
 /**
  * Matrix Benchmark Runner
  * Tests Agent × MCP Setup combinations for comprehensive comparison
+ * Supports both generated queries (with evaluation) and hardcoded scenarios
  */
 
-import {
-  executeSDKQuery,
-  type SDKQueryResult,
-  type SDKOptions,
-} from "./sdk-runner.js";
+import { executeSDKQuery, type SDKQueryResult } from "./sdk-runner.js";
 import type {
   MatrixBenchmarkConfig,
   MatrixBenchmarkResults,
@@ -15,77 +12,39 @@ import type {
   MatrixAgentResult,
   MatrixCellResult,
   MatrixAnalysis,
-  AgentConfig,
+  MatrixScenario,
 } from "../types/index.js";
-
-/**
- * Run a query with eBee MCP server
- */
-async function runWithEbee(
-  agent: AgentConfig,
-  query: string,
-  ebeeUrl: string,
-  verbose: boolean = true
-): Promise<SDKQueryResult> {
-  const agentWithEbee: AgentConfig = {
-    ...agent,
-    mcpConfig: {
-      ebee: {
-        url: ebeeUrl,
-      },
-    },
-  };
-
-  return await executeSDKQuery(agentWithEbee, query, { verbose });
-}
-
-/**
- * Run a query with direct MCP servers
- */
-async function runWithDirect(
-  agent: AgentConfig,
-  query: string,
-  servers: readonly string[],
-  packages: Record<string, string | { command: string; args?: string[] }>
-): Promise<SDKQueryResult> {
-  // Configure agent to use direct MCP servers
-  const mcpConfig: Record<string, any> = {};
-
-  for (const server of servers) {
-    const packageConfig = packages[server];
-    if (packageConfig) {
-      // Check if it's a string (npm package) or object (local command)
-      if (typeof packageConfig === "string") {
-        // Use npx for npm packages
-        mcpConfig[server] = {
-          command: "npx",
-          args: ["-y", packageConfig],
-        };
-      } else {
-        // Use provided command/args for local packages
-        mcpConfig[server] = packageConfig;
-      }
-    }
-  }
-
-  const agentWithDirect: AgentConfig = {
-    ...agent,
-    mcpConfig,
-  };
-
-  return await executeSDKQuery(agentWithDirect, query);
-}
+import { loadScenarios } from "../utils/query-loader.js";
+import {
+  evaluateResponse,
+  formatEvaluationResult,
+} from "../utils/evaluation.js";
 
 /**
  * Convert SDK result to matrix cell
+ * Optionally evaluates response against mustInclude criteria
  */
-function toMatrixCell(result: SDKQueryResult): MatrixCellResult {
+function toMatrixCell(
+  result: SDKQueryResult,
+  scenario?: MatrixScenario
+): MatrixCellResult {
+  let evaluation = undefined;
+
+  // Evaluate if scenario has evaluation criteria
+  if (scenario?.evaluationCriteria?.mustInclude) {
+    evaluation = evaluateResponse(
+      result.response,
+      scenario.evaluationCriteria.mustInclude
+    );
+  }
+
   return {
     time: result.executionTime,
     tokens: result.totalTokens,
     thinkingTokens: result.thinkingTokens,
     cost: result.cost || 0,
-    quality: 0.85, // TODO: Implement quality scoring
+    quality: evaluation?.score || 0.85, // Use evaluation score if available
+    evaluation,
   };
 }
 
@@ -98,8 +57,17 @@ export async function runMatrixBenchmark(
   console.log(`\n⚖️  Starting Agent × MCP Matrix Benchmark`);
   console.log(`   Benchmark: ${config.name}`);
   console.log(`   Agents: ${config.agents.length}`);
-  console.log(`   Scenarios: ${config.scenarios.length}`);
-  console.log(`   Iterations: ${config.iterations}\n`);
+
+  // Load scenarios based on query source
+  const scenarios = loadScenarios(config.queriesSource, config.scenarios);
+
+  if (scenarios.length === 0) {
+    throw new Error("No scenarios to test. Check your configuration.");
+  }
+
+  console.log(`   Scenarios: ${scenarios.length}`);
+  console.log(`   Iterations: ${config.iterations}`);
+  console.log(`   Query Source: ${config.queriesSource.type}\n`);
 
   const matrix: Record<string, MatrixAgentResult> = {};
 
@@ -111,51 +79,81 @@ export async function runMatrixBenchmark(
     const directResults: MatrixCellResult[] = [];
 
     // Run each scenario
-    for (const scenario of config.scenarios) {
+    for (const scenario of scenarios) {
       console.log(`📋 Scenario: ${scenario.id}`);
       console.log(`   Query: "${scenario.query}"`);
+      if (scenario.evaluationCriteria) {
+        console.log(
+          `   Evaluation: ${scenario.evaluationCriteria.mustInclude.length} required items`
+        );
+      }
       console.log(`   Target Servers: ${scenario.targetServers.join(", ")}\n`);
 
       // Run iterations
       for (let i = 0; i < config.iterations; i++) {
         console.log(`   Iteration ${i + 1}/${config.iterations}:`);
 
-        // Find eBee and Direct setups
-        const ebeeSetup = config.mcpSetups.find((s) => s.name === "ebee");
-        const directSetup = config.mcpSetups.find((s) => s.name === "direct");
+        // Test with each MCP setup
+        for (const setup of config.mcpSetups) {
+          if (setup.url) {
+            // URL-based setup (eBee or clone-mcp-http)
+            console.log(`     � Running with ${setup.name}...`);
 
-        // Test with eBee (if configured)
-        if (ebeeSetup?.url) {
-          console.log(`     🐝 Running with eBee...`);
-          const ebeeResult = await runWithEbee(
-            agent,
-            scenario.query,
-            ebeeSetup.url
-          );
-          ebeeResults.push(toMatrixCell(ebeeResult));
-          console.log(
-            `        ✓ Completed in ${ebeeResult.executionTime}ms, ${ebeeResult.totalTokens} tokens`
-          );
-        } else {
-          console.log(`     🐝 Skipping eBee (not configured)`);
+            const result = await executeSDKQuery(
+              {
+                ...agent,
+                mcpConfig: {
+                  [setup.name]: {
+                    type: "http",
+                    url: setup.url,
+                  },
+                },
+              },
+              scenario.query,
+              { verbose: config.verbose }
+            );
+
+            const cell = toMatrixCell(result, scenario);
+
+            if (setup.name === "ebee") {
+            } else {
+              directResults.push(cell);
+            }
+
+            console.log(
+              `        ✓ Completed in ${result.executionTime}ms, ${result.totalTokens} tokens`
+            );
+
+            // Show evaluation results if available
+            if (cell.evaluation) {
+              console.log(`        ${formatEvaluationResult(cell.evaluation)}`);
+            }
+          } else if (setup.servers && setup.packages) {
+            // Stdio-based setup (direct or clone-mcp)
+            console.log(`     🔗 Running with ${setup.name}...`);
+            const result = await executeSDKQuery(
+              {
+                ...agent,
+                mcpConfig: setup.packages,
+              },
+              scenario.query,
+              { verbose: config.verbose }
+            );
+            const cell = toMatrixCell(result, scenario);
+            directResults.push(cell);
+
+            console.log(
+              `        ✓ Completed in ${result.executionTime}ms, ${result.totalTokens} tokens`
+            );
+
+            // Show evaluation results if available
+            if (cell.evaluation) {
+              console.log(`        ${formatEvaluationResult(cell.evaluation)}`);
+            }
+          }
         }
 
-        // Test with Direct MCP (if configured)
-        if (directSetup?.servers && directSetup?.packages) {
-          console.log(`     🔗 Running with Direct MCP...`);
-          const directResult = await runWithDirect(
-            agent,
-            scenario.query,
-            directSetup.servers,
-            directSetup.packages as Record<string, string>
-          );
-          directResults.push(toMatrixCell(directResult));
-          console.log(
-            `        ✓ Completed in ${directResult.executionTime}ms, ${directResult.totalTokens} tokens\n`
-          );
-        } else {
-          console.log(`     🔗 Skipping Direct MCP (not configured)\n`);
-        }
+        console.log(""); // Blank line between iterations
       }
     }
 

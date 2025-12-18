@@ -132,9 +132,10 @@ export class NotionAdapter extends BaseRecordAdapter<NotionRecord> {
       sourceUpdatedAt: new Date(
         (sourceRecord as NotionPage).last_edited_time || new Date()
       ),
-      deletedAt: (sourceRecord as NotionPage).archived
-        ? new Date((sourceRecord as NotionPage).last_edited_time)
-        : null,
+      // deletedAt: (sourceRecord as NotionPage).archived
+      //   ? new Date((sourceRecord as NotionPage).last_edited_time)
+      //   : null,
+      deletedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

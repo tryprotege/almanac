@@ -140,7 +140,7 @@ export async function insertRecordToVectorDB(
 
   // Prepend title to content for better search relevance
   const contentWithTitle = record.title
-    ? `# ${record.title}\n\n${record.content}`
+    ? `ID: ${record.sourceId}\n# ${record.title}\n\n${record.content}`
     : record.content;
 
   // Chunk the content (including title)

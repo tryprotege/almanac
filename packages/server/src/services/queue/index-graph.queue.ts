@@ -98,6 +98,8 @@ export const indexGraphWorker = new Worker<
   connection: createRedisConnection(),
   concurrency: 2,
   autorun: false,
+  skipLockRenewal: true,
+  skipStalledCheck: true,
 });
 
 // Set up worker event handlers

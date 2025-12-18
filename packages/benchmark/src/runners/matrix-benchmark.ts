@@ -4,11 +4,7 @@
  * Supports both generated queries (with evaluation) and hardcoded scenarios
  */
 
-import {
-  executeSDKQuery,
-  type SDKQueryResult,
-  type SDKOptions,
-} from "./sdk-runner.js";
+import { executeSDKQuery, type SDKQueryResult } from "./sdk-runner.js";
 import type {
   MatrixBenchmarkConfig,
   MatrixBenchmarkResults,
@@ -16,7 +12,6 @@ import type {
   MatrixAgentResult,
   MatrixCellResult,
   MatrixAnalysis,
-  AgentConfig,
   MatrixScenario,
 } from "../types/index.js";
 import { loadScenarios } from "../utils/query-loader.js";
@@ -24,64 +19,6 @@ import {
   evaluateResponse,
   formatEvaluationResult,
 } from "../utils/evaluation.js";
-
-/**
- * Run a query with eBee MCP server
- */
-async function runWithEbee(
-  agent: AgentConfig,
-  query: string,
-  ebeeUrl: string,
-  verbose: boolean = true
-): Promise<SDKQueryResult> {
-  const agentWithEbee: AgentConfig = {
-    ...agent,
-    mcpConfig: {
-      ebee: {
-        url: ebeeUrl,
-      },
-    },
-  };
-
-  return await executeSDKQuery(agentWithEbee, query, { verbose });
-}
-
-/**
- * Run a query with direct MCP servers
- */
-async function runWithDirect(
-  agent: AgentConfig,
-  query: string,
-  servers: readonly string[],
-  packages: Record<string, string | { command: string; args?: string[] }>
-): Promise<SDKQueryResult> {
-  // Configure agent to use direct MCP servers
-  const mcpConfig: Record<string, any> = {};
-
-  for (const server of servers) {
-    const packageConfig = packages[server];
-    if (packageConfig) {
-      // Check if it's a string (npm package) or object (local command)
-      if (typeof packageConfig === "string") {
-        // Use npx for npm packages
-        mcpConfig[server] = {
-          command: "npx",
-          args: ["-y", packageConfig],
-        };
-      } else {
-        // Use provided command/args for local packages
-        mcpConfig[server] = packageConfig;
-      }
-    }
-  }
-
-  const agentWithDirect: AgentConfig = {
-    ...agent,
-    mcpConfig,
-  };
-
-  return await executeSDKQuery(agentWithDirect, query);
-}
 
 /**
  * Convert SDK result to matrix cell
@@ -161,11 +98,24 @@ export async function runMatrixBenchmark(
           if (setup.url) {
             // URL-based setup (eBee or clone-mcp-http)
             console.log(`     � Running with ${setup.name}...`);
-            const result = await runWithEbee(agent, scenario.query, setup.url);
+
+            const result = await executeSDKQuery(
+              {
+                ...agent,
+                mcpConfig: {
+                  [setup.name]: {
+                    type: "http",
+                    url: setup.url,
+                  },
+                },
+              },
+              scenario.query,
+              { verbose: config.verbose }
+            );
+
             const cell = toMatrixCell(result, scenario);
 
             if (setup.name === "ebee") {
-              ebeeResults.push(cell);
             } else {
               directResults.push(cell);
             }
@@ -181,11 +131,13 @@ export async function runMatrixBenchmark(
           } else if (setup.servers && setup.packages) {
             // Stdio-based setup (direct or clone-mcp)
             console.log(`     🔗 Running with ${setup.name}...`);
-            const result = await runWithDirect(
-              agent,
+            const result = await executeSDKQuery(
+              {
+                ...agent,
+                mcpConfig: setup.packages,
+              },
               scenario.query,
-              setup.servers,
-              setup.packages as Record<string, string>
+              { verbose: config.verbose }
             );
             const cell = toMatrixCell(result, scenario);
             directResults.push(cell);

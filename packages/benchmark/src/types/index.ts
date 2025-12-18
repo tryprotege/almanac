@@ -3,6 +3,8 @@
  * All types are immutable and composable
  */
 
+import { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
+
 // Import types from server package (defined locally to avoid dependency issues)
 export type LightRAGMode = "naive" | "local" | "global" | "hybrid" | "mix";
 
@@ -144,7 +146,7 @@ export interface AgentConfig {
   readonly baseURL?: string;
   readonly systemPrompt?: string;
   readonly command?: string; // For CLI-based agents (amp, claude-cli, cline)
-  readonly mcpConfig?: Record<string, any>; // MCP server configuration
+  readonly mcpConfig?: Record<string, McpServerConfig>; // MCP server configuration
 }
 
 export interface EvaluationCriteria {
@@ -436,7 +438,10 @@ export interface MCPSetupConfig {
   readonly url?: string;
   readonly servers?: readonly string[];
   readonly packages?: Readonly<
-    Record<string, string | { command: string; args?: string[] }>
+    Record<
+      string,
+      { command: string; args?: string[]; env?: Record<string, string> }
+    >
   >;
 }
 
@@ -446,6 +451,7 @@ export interface MatrixBenchmarkConfig extends BaseBenchmarkConfig {
   readonly mcpSetups: readonly MCPSetupConfig[];
   readonly queriesSource: QuerySource;
   readonly scenarios?: readonly MatrixScenario[]; // Optional for hardcoded mode
+  readonly verbose: boolean;
 }
 
 export interface MatrixCellResult {
@@ -493,7 +499,7 @@ export interface GeneratedTestCase {
 }
 
 export interface GeneratedWorkflow {
-  readonly workflowId: string;
+  readonly workflow: { groupId: string };
   readonly testCases: readonly GeneratedTestCase[];
 }
 

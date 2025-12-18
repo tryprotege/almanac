@@ -380,7 +380,8 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
       version: 1,
       syncedAt: new Date(),
       sourceUpdatedAt: this.getUpdatedAt(sourceRecord),
-      deletedAt: this.isDeleted(sourceRecord) ? new Date() : null,
+      // deletedAt: this.isDeleted(sourceRecord) ? new Date() : null,
+      deletedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -1037,66 +1038,22 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
     switch (recordType) {
       case "repository": {
         const repo = record as GitHubRepository;
-        return `${repo.owner.login}_${repo.name}`;
+        return repo.id.toString() || repo.name;
       }
 
       case "issue": {
         const issue = record as GitHubIssue;
-        const repoUrl = issue.repository_url;
-        const repoParts = repoUrl.split("/");
-        const owner = repoParts[repoParts.length - 2];
-        const repo = repoParts[repoParts.length - 1];
-        return `${owner}_${repo}_${issue.number}`;
+        return issue.id.toString() || issue.number.toString();
       }
 
       case "pull_request": {
         const pr = record as GitHubPullRequest;
-        return `${pr.base.repo.owner.login}_${pr.base.repo.name}_${pr.number}`;
-      }
-
-      case "workflow": {
-        const workflow = record as GitHubWorkflow;
-        const urlParts = workflow.url.split("/");
-        const owner = urlParts[urlParts.length - 4];
-        const repo = urlParts[urlParts.length - 3];
-        return `${owner}_${repo}_${workflow.id}`;
-      }
-
-      case "workflow_run": {
-        const run = record as GitHubWorkflowRun;
-        return `${run.repository.owner.login}_${run.repository.name}_${run.id}`;
-      }
-
-      case "release": {
-        const release = record as GitHubRelease;
-        const urlParts = release.html_url.split("/");
-        const owner = urlParts[urlParts.length - 4];
-        const repo = urlParts[urlParts.length - 3];
-        return `${owner}_${repo}_${release.id}`;
+        return pr.id.toString() || pr.number.toString();
       }
 
       case "discussion": {
         const discussion = record as GitHubDiscussion;
-        const urlParts = discussion.repository_url.split("/");
-        const owner = urlParts[urlParts.length - 2];
-        const repo = urlParts[urlParts.length - 1];
-        return `${owner}_${repo}_${discussion.number}`;
-      }
-
-      case "code_scanning_alert": {
-        const alert = record as GitHubCodeScanningAlert;
-        const urlParts = alert.url.split("/");
-        const owner = urlParts[urlParts.length - 4];
-        const repo = urlParts[urlParts.length - 3];
-        return `${owner}_${repo}_${alert.number}`;
-      }
-
-      case "dependabot_alert": {
-        const alert = record as GitHubDependabotAlert;
-        const urlParts = alert.url.split("/");
-        const owner = urlParts[urlParts.length - 4];
-        const repo = urlParts[urlParts.length - 3];
-        return `${owner}_${repo}_${alert.number}`;
+        return discussion.id.toString() || discussion.number.toString();
       }
 
       case "user":

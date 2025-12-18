@@ -1,208 +1,3245 @@
 [
   {
-    "workflowId": "workflow-meeting-873431",
+    "workflow": {
+      "groupId": "workflow-issue-32130",
+      "title": "Potential hard‑coded AWS secret in S3 module",
+      "description": "GitHub Issue #32130",
+      "timeline": {
+        "startDate": "2025-12-07T05:04:44.109Z",
+        "endDate": "2025-12-15T14:08:14.693Z"
+      },
+      "records": {
+        "githubIssues": [
+          {
+            "id": 392858,
+            "node_id": "MDU6SXNzdWUc2VqamEyN3Y",
+            "number": 32130,
+            "title": "Potential hard‑coded AWS secret in S3 module",
+            "body": "### Description\r\nDuring a recent security audit of the `gragger-infra` Terraform codebase, we discovered that the `aws_s3_bucket` resource in `modules/s3/main.tf` contains a hard‑coded `access_key_id` and `secret_access_key` within the `provider` block. This exposes credentials in plain text and violates our security policy (GRAGGER‑SEC‑001).\r\n\r\n### Affected Resources\r\n- `modules/s3/main.tf` (line 12‑18)\r\n- `environments/prod/main.tf` (module \"s3_bucket\" reference)\r\n\r\n### Impact\r\n- Anyone with read access to the repository can retrieve the AWS keys.\r\n- Potential for unauthorized access to S3 buckets, leading to data leakage or modification.\r\n- Non‑compliance with SOC 2 and ISO 27001 requirements.\r\n\r\n### Reproduction Steps\r\n1. Clone the repository at `main`.\r\n2. Open `modules/s3/main.tf` and locate the `provider \"aws\"` block.\r\n3. Observe the hard‑coded `access_key_id = \"AKIA...\"` and `secret_access_key = \"wJalrXUtnFEMI/K7MDENG/bPxRfiCY\"` values.\r\n\r\n### Recommended Fix\r\n1. Remove the hard‑coded credentials.\r\n2. Switch to using an IAM role with `assume_role` or leverage the `AWS_PROFILE` environment variable.\r\n3. Add a `variables.tf` entry for `aws_region` and `aws_profile` and reference them in the provider block.\r\n4. Store the actual credentials in a secure secret manager (e.g., AWS Secrets Manager, HashiCorp Vault) and fetch them via the `terraform-provider-aws` `shared_credentials_file` option.\r\n5. Add a `pre‑commit` hook (e.g., `git-secrets`) to prevent future accidental commits of secrets.\r\n\r\n### Acceptance Criteria\r\n- No hard‑coded credentials remain in any `.tf` files.\r\n- CI pipeline includes a `trufflehog` scan that fails on secret patterns.\r\n- Documentation updated in `README.md` to describe the new credential management process.\r\n\r\n### Additional Context\r\nThe issue was reported by Maya Patel on 2025‑12‑17 after the quarterly security review. Please prioritize this fix as it is classified as a **high** severity security vulnerability.\r\n\r\n---\r\n*Label: security*",
+            "state": "closed",
+            "state_reason": "completed",
+            "user": {
+              "login": "mayapatel",
+              "id": 152776,
+              "node_id": "MDQ6VXNlcgMTYzdXR5cDI",
+              "avatar_url": "https://avatars.githubusercontent.com/u/152776?v=4",
+              "html_url": "https://github.com/mayapatel",
+              "type": "User",
+              "site_admin": false,
+              "name": "Maya Patel",
+              "email": "maya@gragger.com"
+            },
+            "labels": [
+              {
+                "id": 129810,
+                "node_id": "MDU6TGFiZWwZThlZHgxZmk",
+                "name": "security",
+                "description": null,
+                "color": "0e8a16",
+                "default": false
+              }
+            ],
+            "assignees": [],
+            "milestone": null,
+            "comments": 0,
+            "created_at": "2025-12-13T14:41:07.838Z",
+            "updated_at": "2025-12-16T14:27:59.417Z",
+            "closed_at": "2025-12-16T14:27:59.417Z",
+            "author_association": "CONTRIBUTOR",
+            "locked": false,
+            "repository_url": "https://api.github.com/repos/gragger/gragger-infra",
+            "html_url": "https://github.com/gragger/gragger-infra/issues/32130"
+          }
+        ],
+        "githubPRs": [
+          {
+            "id": 412676,
+            "node_id": "MDExOlB1bGxSZXF1ZXN0NmE2c2wycmw",
+            "number": 55657,
+            "title": "Remove hard‑coded AWS secret from S3 client configuration",
+            "body": "This PR addresses a security concern where the S3 module was using a hard‑coded AWS secret key.\n\n### Changes\n- Refactored `src/services/s3.ts` to obtain `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` from environment variables via the existing `config` helper.\n- Added runtime validation using `zod` to ensure the required credentials are present and throw a clear error if not.\n- Updated the dependency injection container to register the S3 client after the credentials are loaded.\n- Created new unit tests in `tests/services/s3.test.ts` that verify:\n  1. The client is instantiated with credentials from the config.\n  2. An error is thrown when credentials are missing.\n- Removed the previously hard‑coded secret string from the source code.\n- Updated README and internal documentation to reflect the new configuration requirements.\n\n### Why\nHard‑coding secrets poses a severe security risk and violates the company's security policy. By pulling credentials from environment variables and adding validation, we mitigate the risk of accidental secret exposure and make the service compliant with AWS best practices.\n\n### Additional notes\n- No functional changes to the public API of the S3 service; only the way credentials are sourced.\n- All existing integration tests pass (`npm test`), and the new tests have 100% coverage for the credential handling logic.\n\nFixes #32130",
+            "state": "open",
+            "user": {
+              "login": "mayapatel",
+              "id": 224143,
+              "node_id": "MDQ6VXNlcjEyMzQ1Njc4ajVlc2tjZGc",
+              "avatar_url": "https://avatars.githubusercontent.com/u/224143?v=4",
+              "html_url": "https://github.com/mayapatel",
+              "type": "User",
+              "site_admin": false,
+              "name": "Maya Patel"
+            },
+            "labels": [],
+            "assignees": [],
+            "requested_reviewers": [],
+            "requested_teams": [],
+            "milestone": null,
+            "draft": false,
+            "merged": false,
+            "mergeable": true,
+            "mergeable_state": "clean",
+            "merged_at": null,
+            "merged_by": null,
+            "merge_commit_sha": null,
+            "head": {
+              "label": "gragger:feature-branch-55657",
+              "ref": "feature-branch-55657",
+              "sha": "edd0d2254689b9a373a751629683d21f7271ae7f",
+              "user": {
+                "id": 75670,
+                "login": "sarahchen",
+                "node_id": "MDQ6VXNlcgM2dmYmlqa2s",
+                "avatar_url": "https://avatars.githubusercontent.com/u/75670?v=4",
+                "html_url": "https://github.com/sarahchen",
+                "type": "User",
+                "site_admin": false,
+                "name": "Sarah Chen",
+                "email": "sarah@gragger.com"
+              },
+              "repo": {
+                "id": 5897,
+                "node_id": "MDEwOlJlcG9zaXRvcnkeWY3MGIyNnU",
+                "name": "gragger-server",
+                "full_name": "gragger/gragger-server",
+                "owner": {
+                  "id": 75670,
+                  "login": "sarahchen",
+                  "node_id": "MDQ6VXNlcgM2dmYmlqa2s",
+                  "avatar_url": "https://avatars.githubusercontent.com/u/75670?v=4",
+                  "html_url": "https://github.com/sarahchen",
+                  "type": "User",
+                  "site_admin": false,
+                  "name": "Sarah Chen",
+                  "email": "sarah@gragger.com"
+                },
+                "description": "Backend services (Node.js/TypeScript)",
+                "private": false,
+                "html_url": "https://github.com/gragger/gragger-server",
+                "created_at": "2024-12-18T05:19:31.179Z",
+                "updated_at": "2025-12-18T05:19:31.179Z",
+                "pushed_at": "2025-12-18T05:19:31.179Z",
+                "size": 6532,
+                "stargazers_count": 67,
+                "watchers_count": 43,
+                "language": "TypeScript",
+                "topics": [
+                  "backend",
+                  "nodejs",
+                  "api"
+                ],
+                "default_branch": "main",
+                "archived": false,
+                "disabled": false,
+                "fork": false,
+                "forks_count": 5,
+                "open_issues_count": 1
+              }
+            },
+            "base": {
+              "label": "gragger:main",
+              "ref": "main",
+              "sha": "e09757339a5b554b14866a45fc4d3596395777b1",
+              "user": {
+                "id": 75670,
+                "login": "sarahchen",
+                "node_id": "MDQ6VXNlcgM2dmYmlqa2s",
+                "avatar_url": "https://avatars.githubusercontent.com/u/75670?v=4",
+                "html_url": "https://github.com/sarahchen",
+                "type": "User",
+                "site_admin": false,
+                "name": "Sarah Chen",
+                "email": "sarah@gragger.com"
+              },
+              "repo": {
+                "id": 5897,
+                "node_id": "MDEwOlJlcG9zaXRvcnkeWY3MGIyNnU",
+                "name": "gragger-server",
+                "full_name": "gragger/gragger-server",
+                "owner": {
+                  "id": 75670,
+                  "login": "sarahchen",
+                  "node_id": "MDQ6VXNlcgM2dmYmlqa2s",
+                  "avatar_url": "https://avatars.githubusercontent.com/u/75670?v=4",
+                  "html_url": "https://github.com/sarahchen",
+                  "type": "User",
+                  "site_admin": false,
+                  "name": "Sarah Chen",
+                  "email": "sarah@gragger.com"
+                },
+                "description": "Backend services (Node.js/TypeScript)",
+                "private": false,
+                "html_url": "https://github.com/gragger/gragger-server",
+                "created_at": "2024-12-18T05:19:31.179Z",
+                "updated_at": "2025-12-18T05:19:31.179Z",
+                "pushed_at": "2025-12-18T05:19:31.179Z",
+                "size": 6532,
+                "stargazers_count": 67,
+                "watchers_count": 43,
+                "language": "TypeScript",
+                "topics": [
+                  "backend",
+                  "nodejs",
+                  "api"
+                ],
+                "default_branch": "main",
+                "archived": false,
+                "disabled": false,
+                "fork": false,
+                "forks_count": 5,
+                "open_issues_count": 1
+              }
+            },
+            "created_at": "2025-12-07T20:15:54.034Z",
+            "updated_at": "2025-12-07T20:15:54.034Z",
+            "closed_at": null,
+            "html_url": "https://github.com/gragger/gragger-server/pull/55657",
+            "diff_url": "https://github.com/gragger/gragger-server/pull/55657.diff",
+            "patch_url": "https://github.com/gragger/gragger-server/pull/55657.patch",
+            "commits": 1,
+            "additions": 309,
+            "deletions": 167,
+            "changed_files": 10,
+            "author_association": "CONTRIBUTOR",
+            "locked": false
+          }
+        ],
+        "notionPages": [
+          {
+            "object": "page",
+            "id": "notion-page_7tuubl62h060",
+            "created_time": "2025-12-09T11:01:16.301Z",
+            "last_edited_time": "2025-12-13T17:41:13.951Z",
+            "created_by": {
+              "object": "user",
+              "id": "notion-user_eaeolqodgz"
+            },
+            "last_edited_by": {
+              "object": "user",
+              "id": "notion-user_eaeolqodgz"
+            },
+            "parent": {
+              "type": "workspace",
+              "workspace": true
+            },
+            "archived": false,
+            "properties": {
+              "title": {
+                "id": "title",
+                "type": "title",
+                "title": [
+                  {
+                    "type": "text",
+                    "text": {
+                      "content": "Incident Report: Potential Hard‑Coded AWS Secret in S3 Module (GitHub #32130)",
+                      "link": null
+                    },
+                    "annotations": {
+                      "bold": false,
+                      "italic": false,
+                      "strikethrough": false,
+                      "underline": false,
+                      "code": false,
+                      "color": "default"
+                    },
+                    "plain_text": "Incident Report: Potential Hard‑Coded AWS Secret in S3 Module (GitHub #32130)",
+                    "href": null
+                  }
+                ]
+              }
+            },
+            "url": "https://notion.so/page_boqo1vgu5hn000000000000000000000"
+          },
+          {
+            "object": "page",
+            "id": "notion-page_x2izrjqrsab0",
+            "created_time": "2025-12-15T14:08:14.693Z",
+            "last_edited_time": "2025-12-16T17:36:35.270Z",
+            "created_by": {
+              "object": "user",
+              "id": "notion-user_nwgq7qfdz2"
+            },
+            "last_edited_by": {
+              "object": "user",
+              "id": "notion-user_nwgq7qfdz2"
+            },
+            "parent": {
+              "type": "workspace",
+              "workspace": true
+            },
+            "archived": false,
+            "properties": {
+              "title": {
+                "id": "title",
+                "type": "title",
+                "title": [
+                  {
+                    "type": "text",
+                    "text": {
+                      "content": "GRagger Team Sync – Review of Potential Hard‑Coded AWS Secret (Issue #32130)",
+                      "link": null
+                    },
+                    "annotations": {
+                      "bold": false,
+                      "italic": false,
+                      "strikethrough": false,
+                      "underline": false,
+                      "code": false,
+                      "color": "default"
+                    },
+                    "plain_text": "GRagger Team Sync – Review of Potential Hard‑Coded AWS Secret (Issue #32130)",
+                    "href": null
+                  }
+                ]
+              }
+            },
+            "url": "https://notion.so/page_61k2xd58vm0000000000000000000000"
+          },
+          {
+            "object": "page",
+            "id": "notion-page_3g0odmzoygp0",
+            "created_time": "2025-12-07T05:04:44.109Z",
+            "last_edited_time": "2025-12-11T23:33:57.076Z",
+            "created_by": {
+              "object": "user",
+              "id": "notion-user_90f8zf1gkv"
+            },
+            "last_edited_by": {
+              "object": "user",
+              "id": "notion-user_90f8zf1gkv"
+            },
+            "parent": {
+              "type": "workspace",
+              "workspace": true
+            },
+            "archived": false,
+            "properties": {
+              "title": {
+                "id": "title",
+                "type": "title",
+                "title": [
+                  {
+                    "type": "text",
+                    "text": {
+                      "content": "Incident Report: Potential Hard‑Coded AWS Secret in S3 Module (GitHub #32130)",
+                      "link": null
+                    },
+                    "annotations": {
+                      "bold": false,
+                      "italic": false,
+                      "strikethrough": false,
+                      "underline": false,
+                      "code": false,
+                      "color": "default"
+                    },
+                    "plain_text": "Incident Report: Potential Hard‑Coded AWS Secret in S3 Module (GitHub #32130)",
+                    "href": null
+                  }
+                ]
+              }
+            },
+            "url": "https://notion.so/page_ejen1k7u28l000000000000000000000"
+          }
+        ],
+        "fathomMeetings": [],
+        "fathomTranscripts": [],
+        "fathomSummaries": [],
+        "slackThreads": [
+          {
+            "threadId": "1765152406.812000",
+            "channel": "C_eleguaysp",
+            "parentMessage": {
+              "type": "message",
+              "user": "U_cojk6gm58",
+              "text": "Hey team, I just opened issue #32130 (https://github.com/gragger/gragger-infra/issues/32130) about a potential hard‑coded AWS secret in the S3 module. It looks like the secret might be baked into the code, which could be a security risk.\n\nI’ve started digging into where it’s referenced and plan to refactor it to use Secrets Manager, but I’d love any thoughts on the best approach or if anyone has run into a similar situation. \n\nCould we sync up on this and brainstorm a clean fix? Feel free to drop your ideas or concerns here—let’s get this squared away together!",
+              "ts": "1765152406.812000",
+              "channel": "C_eleguaysp",
+              "reactions": []
+            },
+            "replies": [
+              {
+                "type": "message",
+                "user": "U_o8cwle5dw",
+                "text": "thanks",
+                "ts": "1765153978.979163",
+                "thread_ts": "1765152406.812000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_o8cwle5dw",
+                "text": "Sounds good, I’ll carve out some time tomorrow morning to sync—maybe 10 am? Meanwhile, I’ll skim the module to see where the secret’s pulled in and draft a quick Secrets Manager wrapper. Let me know if that works for you!",
+                "ts": "1765171114.137722",
+                "thread_ts": "1765152406.812000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_eeuactkjv",
+                "text": "10am works for me—I'll have a quick Secrets Manager wrapper draft ready and we can walk through it together. Ping me if anything changes!",
+                "ts": "1765192651.357884",
+                "thread_ts": "1765152406.812000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "fire",
+                    "users": [
+                      "U_s9ga3a9et",
+                      "U_cojk6gm58",
+                      "U_3jjlbw0t4"
+                    ],
+                    "count": 3
+                  },
+                  {
+                    "name": "white_check_mark",
+                    "users": [
+                      "U_1jrg95uuj"
+                    ],
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_eeuactkjv",
+                "text": "Sounds good! Let's chat tomorow morning.",
+                "ts": "1765195644.898810",
+                "thread_ts": "1765152406.812000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_1jrg95uuj",
+                "text": "👍 10 am works for me – I’ll have a rough Secrets Manager wrapper sketched out and a quick list of places we need to replace the hard‑coded value. Ping if anything shifts, otherwise see you tomorrow!",
+                "ts": "1765196602.439309",
+                "thread_ts": "1765152406.812000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "thumbsup",
+                    "users": [
+                      "U_3jjlbw0t4",
+                      "U_htaphy0tx"
+                    ],
+                    "count": 2
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_o8cwle5dw",
+                "text": "Sounds good – I’ll pull the latest module code tonight and jot down any edge‑cases we need to watch for. If you spot any other hard‑coded bits before the call, just drop them here and we’ll add them to the list. See you at 10!",
+                "ts": "1765217229.860318",
+                "thread_ts": "1765152406.812000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_eeuactkjv",
+                "text": "Sounds good — I’ll push a quick draft PR with the Secrets Manager wrapper and the replacement list before our call. If you spot any other hard‑coded bits tonight, just drop them here and I’ll add them. Catch you at 10!",
+                "ts": "1765227597.338065",
+                "thread_ts": "1765152406.812000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_o8cwle5dw",
+                "text": "Sure thing, lets chat tomorrow.",
+                "ts": "1765234062.346922",
+                "thread_ts": "1765152406.812000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_1jrg95uuj",
+                "text": "Will do",
+                "ts": "1765243350.461535",
+                "thread_ts": "1765152406.812000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              }
+            ],
+            "totalMessages": 10
+          },
+          {
+            "threadId": "1765236126.214000",
+            "channel": "C_eleguaysp",
+            "parentMessage": {
+              "type": "message",
+              "user": "U_ssux114im",
+              "text": "Hey team, I’ve opened a new GitHub issue #32130 (https://github.com/gragger/gragger-infra/issues/32130) about a potential hard‑coded AWS secret in the S3 module. It looks like there might be a credential baked into the code, which could be a security risk.\n\nI’ve started digging into where it’s coming from and will push a PR soon, but I’d love any thoughts you have—especially if anyone has seen this pattern before or knows of a quick way to refactor it safely. \n\nWhat do you think is the best approach to externalize the secret? Any suggestions or concerns before we move forward? Let’s discuss!",
+              "ts": "1765236126.214000",
+              "channel": "C_eleguaysp",
+              "reactions": []
+            },
+            "replies": [
+              {
+                "type": "message",
+                "user": "U_cojk6gm58",
+                "text": "Sounds good—maybe just pull the key into a SSM parameter or Secrets Manager and reference it via a data source so it never hits the repo. Let me know if you need a quick example or run into IAM permissions while refactoring.",
+                "ts": "1765237066.989079",
+                "thread_ts": "1765236126.214000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "raised_hands",
+                    "users": [
+                      "U_s9ga3a9et"
+                    ],
+                    "count": 1
+                  },
+                  {
+                    "name": "thumbsup",
+                    "users": [
+                      "U_o8cwle5dw",
+                      "U_eeuactkjv",
+                      "U_zqpuo89p9",
+                      "U_zl1poeuww",
+                      "U_1jrg95uuj"
+                    ],
+                    "count": 5
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_s9ga3a9et",
+                "text": "Sounds solid—happy to share a quick module example if you need it, just ping me when the draft PR is up. Let me know if you hit any IAM policy quirks while pulling the secret into SSM/Secrets Manager.",
+                "ts": "1765257838.745913",
+                "thread_ts": "1765236126.214000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "laughing",
+                    "users": [
+                      "U_3jjlbw0t4",
+                      "U_zqpuo89p9"
+                    ],
+                    "count": 2
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_o8cwle5dw",
+                "text": "Use SSM Parameter Store, sounds solid. 👍",
+                "ts": "1765261984.922124",
+                "thread_ts": "1765236126.214000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_zl1poeuww",
+                "text": "100%",
+                "ts": "1765276142.487082",
+                "thread_ts": "1765236126.214000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "thumbsup",
+                    "users": [
+                      "U_htaphy0tx",
+                      "U_3jjlbw0t4"
+                    ],
+                    "count": 2
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_s9ga3a9et",
+                "text": "Sounds good—I'll spin up a quick SSM param once the PR lands, just ping me if you hit any policy hiccups. Let me know when the draft is up so I can review!",
+                "ts": "1765278086.715717",
+                "thread_ts": "1765236126.214000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_zl1poeuww",
+                "text": "Will push a draft tomorrow and tag you for a review—thanks for the heads‑up on the policy side! Let me know if you see any gotchas once it’s up.",
+                "ts": "1765294782.459817",
+                "thread_ts": "1765236126.214000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_s9ga3a9et",
+                "text": "got it",
+                "ts": "1765299159.303890",
+                "thread_ts": "1765236126.214000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "pray",
+                    "users": [
+                      "U_3jjlbw0t4",
+                      "U_1jrg95uuj",
+                      "U_zqpuo89p9",
+                      "U_ssux114im",
+                      "U_htaphy0tx"
+                    ],
+                    "count": 5
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_cojk6gm58",
+                "text": "Thanks! I’ll keep an eye on the PR and let you know if anything pops up on the policy side. If you need a quick sanity‑check on the param naming or IAM perms, just ping me. Cheers.",
+                "ts": "1765308367.370779",
+                "thread_ts": "1765236126.214000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_zl1poeuww",
+                "text": "shipped it",
+                "ts": "1765323332.812732",
+                "thread_ts": "1765236126.214000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "eyes",
+                    "users": [
+                      "U_o8cwle5dw",
+                      "U_htaphy0tx",
+                      "U_3jjlbw0t4"
+                    ],
+                    "count": 3
+                  },
+                  {
+                    "name": "thumbsup",
+                    "users": [
+                      "U_3jjlbw0t4"
+                    ],
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_zl1poeuww",
+                "text": "np",
+                "ts": "1765340611.356423",
+                "thread_ts": "1765236126.214000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_zl1poeuww",
+                "text": "Sounds good—just ping me when the PR lands and I’ll take a look at the secret handling (maybe we can pull it into Parameter Store or Secrets Manager). Let’s sync up if anything else pops up!",
+                "ts": "1765347169.876471",
+                "thread_ts": "1765236126.214000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_o8cwle5dw",
+                "text": "👏",
+                "ts": "1765358902.352073",
+                "thread_ts": "1765236126.214000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_s9ga3a9et",
+                "text": "On it.",
+                "ts": "1765374977.062229",
+                "thread_ts": "1765236126.214000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_o8cwle5dw",
+                "text": "Got it.",
+                "ts": "1765382609.448308",
+                "thread_ts": "1765236126.214000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "muscle",
+                    "users": [
+                      "U_ssux114im"
+                    ],
+                    "count": 1
+                  }
+                ]
+              }
+            ],
+            "totalMessages": 15
+          }
+        ]
+      },
+      "crossReferences": [
+        {
+          "type": "pr-to-issue",
+          "from": "pr-55657",
+          "to": "issue-32130",
+          "context": "PR references issue in body"
+        },
+        {
+          "type": "slack-to-issue",
+          "from": "slack-thread-1765152406.812000",
+          "to": "issue-32130",
+          "context": "Slack thread mentions issue #32130"
+        },
+        {
+          "type": "slack-to-issue",
+          "from": "slack-thread-1765236126.214000",
+          "to": "issue-32130",
+          "context": "Slack thread mentions issue #32130"
+        },
+        {
+          "type": "notion-to-issue",
+          "from": "notion-notion-page_7tuubl62h060",
+          "to": "issue-32130",
+          "context": "Notion page references issue"
+        },
+        {
+          "type": "notion-to-issue",
+          "from": "notion-notion-page_x2izrjqrsab0",
+          "to": "issue-32130",
+          "context": "Notion page references issue"
+        },
+        {
+          "type": "notion-to-issue",
+          "from": "notion-notion-page_3g0odmzoygp0",
+          "to": "issue-32130",
+          "context": "Notion page references issue"
+        }
+      ],
+      "metrics": {
+        "totalRecords": 7,
+        "totalMessages": 25,
+        "participantCount": 7,
+        "servicesCovered": [
+          "github",
+          "github-pr",
+          "slack",
+          "notion"
+        ]
+      }
+    },
     "testCases": [
       {
-        "query": "What improvement in idle to sprint transition time did Jordan Lee report during the Sprint Review on 12/12/2025, including the specific metrics?",
+        "query": "Who created GitHub issue #32130 in the gragger-infra repository about the hard-coded AWS secret in the S3 module, and what was its closure date?",
         "evaluationCriteria": {
           "mustInclude": [
-            "Jordan Lee",
-            "0.12 seconds",
-            "previously 0.27 seconds",
-            "blended pose graphs"
+            "Maya Patel",
+            "created 2025-12-13T14:41:07.838Z",
+            "closed 2025-12-16T14:27:59.417Z",
+            "high severity security vulnerability",
+            "label: security"
           ]
         }
       },
       {
-        "query": "What action item and deadline was assigned to Marcus Rodriguez in the Sprint Review summary for recording_id 873431?",
+        "query": "What specific changes were implemented in PR #55657 by Maya Patel in gragger-server to address the hard-coded AWS secret from issue #32130?",
         "evaluationCriteria": {
           "mustInclude": [
-            "Marcus Rodriguez",
-            "generate a performance report",
-            "latency FPS crash rates",
-            "beta test",
-            "share by 12/18/2025"
+            "Refactored src/services/s3.ts",
+            "AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY from environment variables",
+            "zod runtime validation",
+            "new unit tests in tests/services/s3.test.ts",
+            "Fixes #32130",
+            "100% coverage for credential handling"
           ]
         }
       },
       {
-        "query": "What decision was made about the Performance Monitoring feature in the slack thread 1765759876.973000 following the Sprint Review on 12/15/2025, and who owns the related technical spike?",
+        "query": "How does the fix in open PR #55657 relate to the recommendations in gragger-infra issue #32130 and Slack thread 1765152406.812000 in channel C_eleguaysp for the AWS S3 secret issue reported by Maya Patel?",
         "evaluationCriteria": {
           "mustInclude": [
-            "scoped as a separate micro-service",
-            "independent scaling",
-            "Engineering Lead (Mia)",
-            "detailed technical spike",
-            "next week’s planning session"
+            "PR #55657 uses environment variables instead of hard-coded",
+            "Issue #32130 recommends AWS Secrets Manager or IAM role",
+            "Slack suggests Secrets Manager or SSM Parameter Store",
+            "10am sync meeting planned",
+            "Maya Patel authored both issue and PR",
+            "issue closed 2025-12-16"
           ]
         }
       }
     ]
   },
   {
-    "workflowId": "workflow-issue-55676",
-    "testCases": [
-      {
-        "query": "According to GitHub issue #55676 by Chris Anderson in gragger-infra, what are the required variables for the `rds` module?",
-        "evaluationCriteria": {
-          "mustInclude": [
-            "vpc_id",
-            "subnet_ids",
-            "engine",
-            "instance_class",
-            "performance_insights (optional)"
-          ]
-        }
+    "workflow": {
+      "groupId": "workflow-issue-59744",
+      "title": "S3 bucket lacks server-side encryption (SSE) configuration",
+      "description": "GitHub Issue #59744",
+      "timeline": {
+        "startDate": "2025-11-21T22:10:10.771Z",
+        "endDate": "2025-11-29T22:28:28.633Z"
       },
-      {
-        "query": "When and by whom was GitHub PR #92033 titled 'Update README with VPC and RDS usage examples' in the gragger-game repository merged, and what issue does it fix?",
-        "evaluationCriteria": {
-          "mustInclude": [
-            "2025-12-17T10:50:07.626Z",
-            "Chris Anderson",
-            "merge_commit_sha: d7bd40c672d2d38e94a934feb753ac935c325212",
-            "fixes #55676",
-            "gragger-game"
-          ]
-        }
+      "records": {
+        "githubIssues": [
+          {
+            "id": 187662,
+            "node_id": "MDU6SXNzdWUY3NhcWV6enI",
+            "number": 59744,
+            "title": "S3 bucket lacks server-side encryption (SSE) configuration",
+            "body": "### Issue\nThe Terraform module `modules/s3_bucket` creates an S3 bucket without enabling server-side encryption. This leaves data at rest unprotected and fails our internal security baseline (PCI-DSS, GDPR).\n\n### Affected Resources\n```hcl\nresource \"aws_s3_bucket\" \"logs\" {\n  bucket = var.bucket_name\n  acl    = \"private\"\n  # missing server_side_encryption_configuration\n}\n```\n\n### Reproduction Steps\n1. Clone the repository and checkout the `main` branch.\n2. Run `terraform init && terraform apply` targeting the `modules/s3_bucket` module.\n3. After apply, inspect the bucket in the AWS console or run:\n   ```\n   aws s3api get-bucket-encryption --bucket <bucket-name>\n   ```\n   The command returns an error indicating no encryption configuration.\n\n### Security Impact\n- Data stored in the bucket is vulnerable to unauthorized access if the underlying storage is compromised.\n- Non‑compliance with company security policies and external regulatory requirements.\n\n### Recommended Fix\nAdd a `server_side_encryption_configuration` block to the bucket resource, for example:\n```hcl\nresource \"aws_s3_bucket\" \"logs\" {\n  bucket = var.bucket_name\n  acl    = \"private\"\n\n  server_side_encryption_configuration {\n    rule {\n      apply_server_side_encryption_by_default {\n        sse_algorithm = \"AES256\"\n      }\n    }\n  }\n}\n```\nOptionally, make the encryption algorithm configurable via a variable.\n\n### Additional Context\n- Similar encryption settings are already applied in `modules/s3_bucket_secure`.\n- No other resources in the repo currently enforce this setting.\n\nPlease review and merge the fix to bring the bucket in line with security standards.",
+            "state": "closed",
+            "state_reason": "completed",
+            "user": {
+              "login": "alexkim",
+              "id": 511873,
+              "node_id": "MDQ6VXNlcgcXZlb3F1ZHk",
+              "avatar_url": "https://avatars.githubusercontent.com/u/511873?v=4",
+              "html_url": "https://github.com/alexkim",
+              "type": "User",
+              "site_admin": false,
+              "name": "Alex Kim",
+              "email": "alex@gragger.com"
+            },
+            "labels": [
+              {
+                "id": 863233,
+                "node_id": "MDU6TGFiZWwcGZpOGdxbG8",
+                "name": "security",
+                "description": null,
+                "color": "0e8a16",
+                "default": false
+              }
+            ],
+            "assignees": [],
+            "milestone": null,
+            "comments": 2,
+            "created_at": "2025-11-22T17:10:50.257Z",
+            "updated_at": "2025-11-27T16:47:35.526Z",
+            "closed_at": "2025-11-27T16:47:35.526Z",
+            "author_association": "CONTRIBUTOR",
+            "locked": false,
+            "repository_url": "https://api.github.com/repos/gragger/gragger-infra",
+            "html_url": "https://github.com/gragger/gragger-infra/issues/59744"
+          }
+        ],
+        "githubPRs": [
+          {
+            "id": 507789,
+            "node_id": "MDExOlB1bGxSZXF1ZXN0dWZxODlybWU",
+            "number": 28232,
+            "title": "Add SSE configuration details to S3 bucket documentation (Fix #59744)",
+            "body": "## Overview\nThis PR updates the S3 bucket documentation to include server‑side encryption (SSE) configuration details, addressing the security gap identified in Issue #59744.\n\n## Changes Made\n- Added a new **\"Server‑Side Encryption (SSE)\"** subsection to `storage/s3.md`.\n- Provided step‑by‑step instructions for enabling SSE using both AWS Console and AWS CLI.\n- Included example Terraform snippets that configure `aws_s3_bucket` with `server_side_encryption_configuration`.\n- Updated the compliance checklist table to reflect the new SSE requirement.\n- Fixed minor typos and updated internal links to the new section.\n\n## Why This Matters\nS3 buckets without SSE are vulnerable to data exposure. By documenting the proper configuration, we help users meet security best practices and comply with internal policies.\n\n## Testing & Validation\nThe documentation was reviewed against a live AWS account to confirm that the CLI commands and Terraform examples apply the correct AWS KMS key and default encryption settings.\n\n---\n\nFixes #59744",
+            "state": "closed",
+            "user": {
+              "login": "mayapatel",
+              "id": 414769,
+              "node_id": "MDQ6VXNlcjEyMzQ1Njc4Znpmd2JkMGo",
+              "avatar_url": "https://avatars.githubusercontent.com/u/414769?v=4",
+              "html_url": "https://github.com/mayapatel",
+              "type": "User",
+              "site_admin": false,
+              "name": "Maya Patel"
+            },
+            "labels": [],
+            "assignees": [],
+            "requested_reviewers": [],
+            "requested_teams": [],
+            "milestone": null,
+            "draft": false,
+            "merged": true,
+            "mergeable": null,
+            "mergeable_state": "unknown",
+            "merged_at": "2025-12-04T07:25:25.275Z",
+            "merged_by": {
+              "id": 414769,
+              "login": "mayapatel",
+              "node_id": "MDQ6VXNlcgdmN3N28ycmo",
+              "avatar_url": "https://avatars.githubusercontent.com/u/414769?v=4",
+              "html_url": "https://github.com/mayapatel",
+              "type": "User",
+              "site_admin": false,
+              "name": "Maya Patel",
+              "email": "maya@gragger.com"
+            },
+            "merge_commit_sha": "f30c4b9c8a4b1997a5e483d7c846d091d8cfb97a",
+            "head": {
+              "label": "gragger:feature-branch-28232",
+              "ref": "feature-branch-28232",
+              "sha": "53d0334774b6d40021656e4ab58efa96914a6d67",
+              "user": {
+                "id": 960926,
+                "login": "sarahchen",
+                "node_id": "MDQ6VXNlcgcjJ4cjk1aWo",
+                "avatar_url": "https://avatars.githubusercontent.com/u/960926?v=4",
+                "html_url": "https://github.com/sarahchen",
+                "type": "User",
+                "site_admin": false,
+                "name": "Sarah Chen",
+                "email": "sarah@gragger.com"
+              },
+              "repo": {
+                "id": 8576,
+                "node_id": "MDEwOlJlcG9zaXRvcnkcmZ1aHd5azk",
+                "name": "gragger-docs",
+                "full_name": "gragger/gragger-docs",
+                "owner": {
+                  "id": 960926,
+                  "login": "sarahchen",
+                  "node_id": "MDQ6VXNlcgcjJ4cjk1aWo",
+                  "avatar_url": "https://avatars.githubusercontent.com/u/960926?v=4",
+                  "html_url": "https://github.com/sarahchen",
+                  "type": "User",
+                  "site_admin": false,
+                  "name": "Sarah Chen",
+                  "email": "sarah@gragger.com"
+                },
+                "description": "Documentation (Markdown)",
+                "private": false,
+                "html_url": "https://github.com/gragger/gragger-docs",
+                "created_at": "2024-12-18T06:04:43.696Z",
+                "updated_at": "2025-12-18T06:04:43.696Z",
+                "pushed_at": "2025-12-18T06:04:43.696Z",
+                "size": 339,
+                "stargazers_count": 39,
+                "watchers_count": 45,
+                "language": "Markdown",
+                "topics": [
+                  "documentation"
+                ],
+                "default_branch": "main",
+                "archived": false,
+                "disabled": false,
+                "fork": false,
+                "forks_count": 9,
+                "open_issues_count": 17
+              }
+            },
+            "base": {
+              "label": "gragger:main",
+              "ref": "main",
+              "sha": "5f2e10cecff4cd21af5e32f6be8aa6f4a2b5c4fd",
+              "user": {
+                "id": 960926,
+                "login": "sarahchen",
+                "node_id": "MDQ6VXNlcgcjJ4cjk1aWo",
+                "avatar_url": "https://avatars.githubusercontent.com/u/960926?v=4",
+                "html_url": "https://github.com/sarahchen",
+                "type": "User",
+                "site_admin": false,
+                "name": "Sarah Chen",
+                "email": "sarah@gragger.com"
+              },
+              "repo": {
+                "id": 8576,
+                "node_id": "MDEwOlJlcG9zaXRvcnkcmZ1aHd5azk",
+                "name": "gragger-docs",
+                "full_name": "gragger/gragger-docs",
+                "owner": {
+                  "id": 960926,
+                  "login": "sarahchen",
+                  "node_id": "MDQ6VXNlcgcjJ4cjk1aWo",
+                  "avatar_url": "https://avatars.githubusercontent.com/u/960926?v=4",
+                  "html_url": "https://github.com/sarahchen",
+                  "type": "User",
+                  "site_admin": false,
+                  "name": "Sarah Chen",
+                  "email": "sarah@gragger.com"
+                },
+                "description": "Documentation (Markdown)",
+                "private": false,
+                "html_url": "https://github.com/gragger/gragger-docs",
+                "created_at": "2024-12-18T06:04:43.696Z",
+                "updated_at": "2025-12-18T06:04:43.696Z",
+                "pushed_at": "2025-12-18T06:04:43.696Z",
+                "size": 339,
+                "stargazers_count": 39,
+                "watchers_count": 45,
+                "language": "Markdown",
+                "topics": [
+                  "documentation"
+                ],
+                "default_branch": "main",
+                "archived": false,
+                "disabled": false,
+                "fork": false,
+                "forks_count": 9,
+                "open_issues_count": 17
+              }
+            },
+            "created_at": "2025-12-01T10:39:26.418Z",
+            "updated_at": "2025-12-04T07:25:25.275Z",
+            "closed_at": "2025-12-04T07:25:25.275Z",
+            "html_url": "https://github.com/gragger/gragger-docs/pull/28232",
+            "diff_url": "https://github.com/gragger/gragger-docs/pull/28232.diff",
+            "patch_url": "https://github.com/gragger/gragger-docs/pull/28232.patch",
+            "commits": 5,
+            "additions": 449,
+            "deletions": 139,
+            "changed_files": 2,
+            "author_association": "CONTRIBUTOR",
+            "locked": false
+          },
+          {
+            "id": 974524,
+            "node_id": "MDExOlB1bGxSZXF1ZXN0c20xd2hvY3o",
+            "number": 9730,
+            "title": "Add SSE configuration to S3 bucket for matchmaking assets",
+            "body": "This PR addresses the security gap identified in Issue #59744 where the S3 bucket used by the matchmaking engine was missing server-side encryption (SSE) configuration.\n\n### What changed\n- **Infrastructure code**: Updated the Terraform module `aws_s3_bucket` to include `server_side_encryption_configuration` with AES-256 encryption.\n- **CloudFormation fallback**: Added equivalent `BucketEncryption` property in the CloudFormation template for environments that still rely on it.\n- **Configuration validation**: Introduced a new validation step in the CI pipeline that checks for the presence of SSE on all S3 resources.\n- **Tests**: Added unit tests (`s3_bucket_test.go`) to assert that the bucket resource includes the encryption block.\n- **Documentation**: Updated `README.md` and the security guidelines to reflect the new encryption requirement.\n\n### Why\nEncrypting data at rest is a mandatory compliance requirement for our customers and aligns with GRagger's security best practices. Without SSE, any data uploaded to the bucket could be exposed if the underlying storage is compromised.\n\n### Additional context\n- The change is backward‑compatible; existing objects will be automatically encrypted by S3 when the bucket policy is applied.\n- No runtime code changes were required as the encryption is handled entirely by AWS.\n- The CI validation ensures future PRs cannot unintentionally remove the encryption configuration.\n\nFixes #59744",
+            "state": "closed",
+            "user": {
+              "login": "priyap",
+              "id": 812408,
+              "node_id": "MDQ6VXNlcjEyMzQ1Njc4MG5tenB6MDE",
+              "avatar_url": "https://avatars.githubusercontent.com/u/812408?v=4",
+              "html_url": "https://github.com/priyap",
+              "type": "User",
+              "site_admin": false,
+              "name": "Priya Patel"
+            },
+            "labels": [],
+            "assignees": [],
+            "requested_reviewers": [],
+            "requested_teams": [],
+            "milestone": null,
+            "draft": false,
+            "merged": true,
+            "mergeable": null,
+            "mergeable_state": "unknown",
+            "merged_at": "2025-11-26T16:34:06.542Z",
+            "merged_by": {
+              "id": 869494,
+              "login": "mayapatel",
+              "node_id": "MDQ6VXNlcgdGJxdnZtNms",
+              "avatar_url": "https://avatars.githubusercontent.com/u/869494?v=4",
+              "html_url": "https://github.com/mayapatel",
+              "type": "User",
+              "site_admin": false,
+              "name": "Maya Patel",
+              "email": "maya@gragger.com"
+            },
+            "merge_commit_sha": "f7996c301d18cdc3c3173d4397ec7c6db9657ee0",
+            "head": {
+              "label": "gragger:feature-branch-9730",
+              "ref": "feature-branch-9730",
+              "sha": "d46d886284683a1e973c297c60ea1cc3443ef7fd",
+              "user": {
+                "id": 296823,
+                "login": "sarahchen",
+                "node_id": "MDQ6VXNlcgYThxOWJhbDU",
+                "avatar_url": "https://avatars.githubusercontent.com/u/296823?v=4",
+                "html_url": "https://github.com/sarahchen",
+                "type": "User",
+                "site_admin": false,
+                "name": "Sarah Chen",
+                "email": "sarah@gragger.com"
+              },
+              "repo": {
+                "id": 8250,
+                "node_id": "MDEwOlJlcG9zaXRvcnkeXp3YngwNWk",
+                "name": "gragger-matchmaking",
+                "full_name": "gragger/gragger-matchmaking",
+                "owner": {
+                  "id": 296823,
+                  "login": "sarahchen",
+                  "node_id": "MDQ6VXNlcgYThxOWJhbDU",
+                  "avatar_url": "https://avatars.githubusercontent.com/u/296823?v=4",
+                  "html_url": "https://github.com/sarahchen",
+                  "type": "User",
+                  "site_admin": false,
+                  "name": "Sarah Chen",
+                  "email": "sarah@gragger.com"
+                },
+                "description": "Matchmaking engine (Go)",
+                "private": false,
+                "html_url": "https://github.com/gragger/gragger-matchmaking",
+                "created_at": "2024-12-18T06:06:21.801Z",
+                "updated_at": "2025-12-18T06:06:21.801Z",
+                "pushed_at": "2025-12-18T06:06:21.801Z",
+                "size": 7004,
+                "stargazers_count": 6,
+                "watchers_count": 25,
+                "language": "Go",
+                "topics": [
+                  "matchmaking",
+                  "golang",
+                  "distributed-systems"
+                ],
+                "default_branch": "main",
+                "archived": false,
+                "disabled": false,
+                "fork": false,
+                "forks_count": 0,
+                "open_issues_count": 14
+              }
+            },
+            "base": {
+              "label": "gragger:main",
+              "ref": "main",
+              "sha": "24d2c9a70b24fd28cdf0d3e3cf45daea53e82dab",
+              "user": {
+                "id": 296823,
+                "login": "sarahchen",
+                "node_id": "MDQ6VXNlcgYThxOWJhbDU",
+                "avatar_url": "https://avatars.githubusercontent.com/u/296823?v=4",
+                "html_url": "https://github.com/sarahchen",
+                "type": "User",
+                "site_admin": false,
+                "name": "Sarah Chen",
+                "email": "sarah@gragger.com"
+              },
+              "repo": {
+                "id": 8250,
+                "node_id": "MDEwOlJlcG9zaXRvcnkeXp3YngwNWk",
+                "name": "gragger-matchmaking",
+                "full_name": "gragger/gragger-matchmaking",
+                "owner": {
+                  "id": 296823,
+                  "login": "sarahchen",
+                  "node_id": "MDQ6VXNlcgYThxOWJhbDU",
+                  "avatar_url": "https://avatars.githubusercontent.com/u/296823?v=4",
+                  "html_url": "https://github.com/sarahchen",
+                  "type": "User",
+                  "site_admin": false,
+                  "name": "Sarah Chen",
+                  "email": "sarah@gragger.com"
+                },
+                "description": "Matchmaking engine (Go)",
+                "private": false,
+                "html_url": "https://github.com/gragger/gragger-matchmaking",
+                "created_at": "2024-12-18T06:06:21.801Z",
+                "updated_at": "2025-12-18T06:06:21.801Z",
+                "pushed_at": "2025-12-18T06:06:21.801Z",
+                "size": 7004,
+                "stargazers_count": 6,
+                "watchers_count": 25,
+                "language": "Go",
+                "topics": [
+                  "matchmaking",
+                  "golang",
+                  "distributed-systems"
+                ],
+                "default_branch": "main",
+                "archived": false,
+                "disabled": false,
+                "fork": false,
+                "forks_count": 0,
+                "open_issues_count": 14
+              }
+            },
+            "created_at": "2025-11-24T15:22:02.510Z",
+            "updated_at": "2025-11-26T16:34:06.542Z",
+            "closed_at": "2025-11-26T16:34:06.542Z",
+            "html_url": "https://github.com/gragger/gragger-matchmaking/pull/9730",
+            "diff_url": "https://github.com/gragger/gragger-matchmaking/pull/9730.diff",
+            "patch_url": "https://github.com/gragger/gragger-matchmaking/pull/9730.patch",
+            "commits": 4,
+            "additions": 422,
+            "deletions": 92,
+            "changed_files": 2,
+            "author_association": "CONTRIBUTOR",
+            "locked": false
+          }
+        ],
+        "notionPages": [
+          {
+            "object": "page",
+            "id": "notion-page_qhd9yostc3d0",
+            "created_time": "2025-11-29T22:28:28.633Z",
+            "last_edited_time": "2025-12-04T06:03:56.306Z",
+            "created_by": {
+              "object": "user",
+              "id": "notion-user_dl24wbllkd"
+            },
+            "last_edited_by": {
+              "object": "user",
+              "id": "notion-user_dl24wbllkd"
+            },
+            "parent": {
+              "type": "workspace",
+              "workspace": true
+            },
+            "archived": false,
+            "properties": {
+              "title": {
+                "id": "title",
+                "type": "title",
+                "title": [
+                  {
+                    "type": "text",
+                    "text": {
+                      "content": "Feature Requirements: Server‑Side Encryption for S3 Buckets (Issue #59744)",
+                      "link": null
+                    },
+                    "annotations": {
+                      "bold": false,
+                      "italic": false,
+                      "strikethrough": false,
+                      "underline": false,
+                      "code": false,
+                      "color": "default"
+                    },
+                    "plain_text": "Feature Requirements: Server‑Side Encryption for S3 Buckets (Issue #59744)",
+                    "href": null
+                  }
+                ]
+              }
+            },
+            "url": "https://notion.so/page_7va3jzz7xhp000000000000000000000"
+          }
+        ],
+        "fathomMeetings": [],
+        "fathomTranscripts": [],
+        "fathomSummaries": [],
+        "slackThreads": [
+          {
+            "threadId": "1764231266.860000",
+            "channel": "C_nc5l2ld7a",
+            "parentMessage": {
+              "type": "message",
+              "user": "U_o8cwle5dw",
+              "text": "Hey team 👋,\n\nJust wanted to flag GitHub issue #59744 (raised by Chris Anderson) – our S3 bucket is currently missing a server‑side encryption (SSE) configuration. This is a security gap we should close ASAP.\n\n**What we need:**\n- **Anyone familiar with the bucket’s lifecycle** – could you confirm if there are any downstream services that might be impacted by adding SSE?\n- **Ops/Infra folks** – can we draft a quick run‑book for enabling SSE (S3 default encryption) and test it in staging?\n- **Security lead** – any compliance checks we should run after the change?\n\n**Current status:** I’ve created a temporary branch (`feature/enable-sse`) and added the encryption flag to the Terraform config. The plan looks good in `dev`, but I haven’t merged it yet.\n\nIf you have thoughts on the rollout strategy, potential blockers, or just want to pair on the PR, let me know! Happy to set up a quick sync or jump on a call.\n\nThanks for the collaboration—let’s get this locked down together. 🚀",
+              "ts": "1764231266.860000",
+              "channel": "C_nc5l2ld7a",
+              "reactions": [
+                {
+                  "name": "laughing",
+                  "users": [
+                    "U_3jjlbw0t4"
+                  ],
+                  "count": 1
+                },
+                {
+                  "name": "thumbsup",
+                  "users": [
+                    "U_1jrg95uuj",
+                    "U_eeuactkjv",
+                    "U_zl1poeuww",
+                    "U_htaphy0tx",
+                    "U_zqpuo89p9"
+                  ],
+                  "count": 5
+                },
+                {
+                  "name": "thinking_face",
+                  "users": [
+                    "U_htaphy0tx",
+                    "U_cojk6gm58",
+                    "U_ssux114im"
+                  ],
+                  "count": 3
+                }
+              ]
+            },
+            "replies": [],
+            "totalMessages": 1
+          },
+          {
+            "threadId": "1763763010.771000",
+            "channel": "C_eleguaysp",
+            "parentMessage": {
+              "type": "message",
+              "user": "U_eeuactkjv",
+              "text": "Hey #engineering, I’ve just opened PR #28232 (Fix #59744) – it adds Server‑Side Encryption (SSE) configuration details to the S3 bucket documentation. The update includes clear steps, example snippets, and links to the latest AWS guidelines. Could you please take a look when you have a moment? Your feedback would be greatly appreciated! – @emily",
+              "ts": "1763763010.771000",
+              "channel": "C_eleguaysp",
+              "reactions": [
+                {
+                  "name": "rocket",
+                  "users": [
+                    "U_3jjlbw0t4",
+                    "U_s9ga3a9et",
+                    "U_cojk6gm58",
+                    "U_ssux114im",
+                    "U_1jrg95uuj"
+                  ],
+                  "count": 5
+                }
+              ]
+            },
+            "replies": [
+              {
+                "type": "message",
+                "user": "U_3jjlbw0t4",
+                "text": "Got it, Emily! I’ll dive into PR #28232 today and drop my thoughts here soon. 🚀",
+                "ts": "1763764591.137924",
+                "thread_ts": "1763763010.771000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_htaphy0tx",
+                "text": "Sounds good, Emily! I’ll skim PR #28232 this afternoon and drop any notes here. Let me know if there’s a particular area you want me to focus on.",
+                "ts": "1763776703.324375",
+                "thread_ts": "1763763010.771000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_3jjlbw0t4",
+                "text": "Sure thing, Emily! I’ll dive into PR #28232 this morning—any particular section you’d like me to focus on?",
+                "ts": "1763786844.942564",
+                "thread_ts": "1763763010.771000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "white_check_mark",
+                    "users": [
+                      "U_o8cwle5dw",
+                      "U_eeuactkjv",
+                      "U_zl1poeuww",
+                      "U_htaphy0tx",
+                      "U_zqpuo89p9"
+                    ],
+                    "count": 5
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_3jjlbw0t4",
+                "text": "Thanks Emily! I’ll give it a look this morning—any part you’re most concerned about or want extra eyes on?",
+                "ts": "1763798782.756202",
+                "thread_ts": "1763763010.771000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_3jjlbw0t4",
+                "text": "🎉",
+                "ts": "1763810365.017735",
+                "thread_ts": "1763763010.771000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "thumbsup",
+                    "users": [
+                      "U_s9ga3a9et",
+                      "U_zqpuo89p9"
+                    ],
+                    "count": 2
+                  },
+                  {
+                    "name": "rocket",
+                    "users": [
+                      "U_zqpuo89p9",
+                      "U_zl1poeuww"
+                    ],
+                    "count": 2
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_3jjlbw0t4",
+                "text": "sounds great",
+                "ts": "1763821484.938261",
+                "thread_ts": "1763763010.771000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              }
+            ],
+            "totalMessages": 7
+          },
+          {
+            "threadId": "1764035149.979000",
+            "channel": "C_eleguaysp",
+            "parentMessage": {
+              "type": "message",
+              "user": "U_eeuactkjv",
+              "text": "Hey team 👋,\n\nI've just opened PR #28232 (Fix #59744) – “Add SSE configuration details to S3 bucket documentation.” This update adds a dedicated section on Server‑Side Encryption settings, including examples and best‑practice recommendations, so our docs now cover the full configuration flow.\n\nCould you take a look when you have a moment? Any feedback or suggestions are welcome. Thanks in advance! \n\n— Emily Thompson (@emily)",
+              "ts": "1764035149.979000",
+              "channel": "C_eleguaysp",
+              "reactions": []
+            },
+            "replies": [
+              {
+                "type": "message",
+                "user": "U_zqpuo89p9",
+                "text": "on it",
+                "ts": "1764035553.316849",
+                "thread_ts": "1764035149.979000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_o8cwle5dw",
+                "text": "Thanks Emily! I’ll dive in today and ping you if I have any thoughts. Appreciate the update.",
+                "ts": "1764048644.333736",
+                "thread_ts": "1764035149.979000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_o8cwle5dw",
+                "text": "Got it, Emily – I’ll give it a look this afternoon and let you know if anything pops up. Quick q: did you already update the CI checks for the new examples? Thanks for the heads‑up!",
+                "ts": "1764069582.750586",
+                "thread_ts": "1764035149.979000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_zl1poeuww",
+                "text": "On it, will check shortly!",
+                "ts": "1764089170.489145",
+                "thread_ts": "1764035149.979000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "laughing",
+                    "users": [
+                      "U_zqpuo89p9",
+                      "U_3jjlbw0t4",
+                      "U_s9ga3a9et",
+                      "U_o8cwle5dw",
+                      "U_htaphy0tx"
+                    ],
+                    "count": 5
+                  },
+                  {
+                    "name": "tada",
+                    "users": [
+                      "U_s9ga3a9et",
+                      "U_ssux114im",
+                      "U_1jrg95uuj",
+                      "U_zqpuo89p9",
+                      "U_o8cwle5dw"
+                    ],
+                    "count": 5
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_o8cwle5dw",
+                "text": "Sure thing, Emily! Will revieew soon.",
+                "ts": "1764096997.087270",
+                "thread_ts": "1764035149.979000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_o8cwle5dw",
+                "text": "Sounds good, Emily – I’ll dig into #28232 this afternoon and ping you if anything pops up. Quick q: do we need to bump the doc version for the new SSE section?",
+                "ts": "1764109866.315618",
+                "thread_ts": "1764035149.979000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "white_check_mark",
+                    "users": [
+                      "U_zl1poeuww",
+                      "U_cojk6gm58",
+                      "U_1jrg95uuj",
+                      "U_htaphy0tx"
+                    ],
+                    "count": 4
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_htaphy0tx",
+                "text": "Sounds good, Emily – I think we’ll bump the doc version to v2.1 to capture the SSE section, unless you’d prefer a minor patch instead? Will dive into #28232 shortly.",
+                "ts": "1764127009.209961",
+                "thread_ts": "1764035149.979000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_htaphy0tx",
+                "text": "Got it, Emily! I’ll dive into #28232 today and ping you with any notes. Are we aiming to bump the doc version to v2.1 next week, or hold off for the next minor release?",
+                "ts": "1764130991.018861",
+                "thread_ts": "1764035149.979000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "thinking_face",
+                    "users": [
+                      "U_3jjlbw0t4"
+                    ],
+                    "count": 1
+                  },
+                  {
+                    "name": "clap",
+                    "users": [
+                      "U_3jjlbw0t4",
+                      "U_s9ga3a9et",
+                      "U_1jrg95uuj",
+                      "U_o8cwle5dw"
+                    ],
+                    "count": 4
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_zqpuo89p9",
+                "text": "Sounds good Emily – I’ll start reviewing #28232 tday and we can plan to bump the docs to v2.1 in the next minor release unless you’d rather do a quick patch. 🚀",
+                "ts": "1764141577.296192",
+                "thread_ts": "1764035149.979000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "muscle",
+                    "users": [
+                      "U_eeuactkjv",
+                      "U_htaphy0tx",
+                      "U_o8cwle5dw"
+                    ],
+                    "count": 3
+                  },
+                  {
+                    "name": "laughing",
+                    "users": [
+                      "U_ssux114im",
+                      "U_o8cwle5dw",
+                      "U_s9ga3a9et",
+                      "U_3jjlbw0t4"
+                    ],
+                    "count": 4
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_zl1poeuww",
+                "text": "Will give #28232 a look later today – sounds solid. I’m leaning toward the v2.1 bump for the next minor release, but happy to patch if that’s easier for the team. Let’s sync tomorrow on the final plan!",
+                "ts": "1764143777.074850",
+                "thread_ts": "1764035149.979000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_o8cwle5dw",
+                "text": "yeah",
+                "ts": "1764152520.002755",
+                "thread_ts": "1764035149.979000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_htaphy0tx",
+                "text": "Sure thing, Emily! I'll review it ASAP.",
+                "ts": "1764168864.998056",
+                "thread_ts": "1764035149.979000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "clap",
+                    "users": [
+                      "U_o8cwle5dw",
+                      "U_3jjlbw0t4",
+                      "U_eeuactkjv",
+                      "U_1jrg95uuj",
+                      "U_s9ga3a9et"
+                    ],
+                    "count": 5
+                  }
+                ]
+              }
+            ],
+            "totalMessages": 13
+          }
+        ]
       },
-      {
-        "query": "In the Slack thread 1765850585.393000 in channel C_dfrn222il discussing GitHub issue #55676, what commitments were made regarding contributions to the PR #92033 for README updates on VPC and RDS modules, and how does it align with the PR's merge date?",
-        "evaluationCriteria": {
-          "mustInclude": [
-            "draft updated README this week",
-            "PR ready by Friday EOD",
-            "drop snippets in the PR thread",
-            "replies from U_hhicd6cd9 and U_25k8s7uvd offering VPC/RDS snippets",
-            "PR #92033 merged 2025-12-17T10:50:07.626Z"
-          ]
+      "crossReferences": [
+        {
+          "type": "pr-to-issue",
+          "from": "pr-28232",
+          "to": "issue-59744",
+          "context": "PR references issue in body"
+        },
+        {
+          "type": "pr-to-issue",
+          "from": "pr-9730",
+          "to": "issue-59744",
+          "context": "PR references issue in body"
+        },
+        {
+          "type": "slack-to-issue",
+          "from": "slack-thread-1764231266.860000",
+          "to": "issue-59744",
+          "context": "Slack thread mentions issue #59744"
+        },
+        {
+          "type": "slack-to-issue",
+          "from": "slack-thread-1763763010.771000",
+          "to": "issue-59744",
+          "context": "Slack thread mentions issue #59744"
+        },
+        {
+          "type": "slack-to-issue",
+          "from": "slack-thread-1764035149.979000",
+          "to": "issue-59744",
+          "context": "Slack thread mentions issue #59744"
+        },
+        {
+          "type": "notion-to-issue",
+          "from": "notion-notion-page_qhd9yostc3d0",
+          "to": "issue-59744",
+          "context": "Notion page references issue"
         }
+      ],
+      "metrics": {
+        "totalRecords": 7,
+        "totalMessages": 21,
+        "participantCount": 6,
+        "servicesCovered": [
+          "github",
+          "github-pr",
+          "slack",
+          "notion"
+        ]
       }
-    ]
-  },
-  {
-    "workflowId": "workflow-issue-79460",
+    },
     "testCases": [
       {
-        "query": "What is the full name and GitHub login of the author of issue #79460 'Add Getting Started guide for the new GRagger CLI (v2.0)' in the gragger-docs repository?",
+        "query": "Who raised GitHub issue #59744 about the S3 bucket missing server-side encryption in gragger-infra, and what was the recommended fix including the SSE algorithm?",
         "evaluationCriteria": {
           "mustInclude": [
-            "Chris Anderson",
-            "chrisanderson",
-            "gragger/gragger-docs",
-            "#79460",
-            "Add Getting Started guide for the new GRagger CLI (v2.0)"
+            "Alex Kim",
+            "alexkim",
+            "server_side_encryption_configuration",
+            "sse_algorithm = \"AES256\"",
+            "modules/s3_bucket"
           ]
         }
       },
       {
-        "query": "When was pull request #71894 titled 'Add Getting Started guide for GRagger CLI v2.0' created by Priya Patel and merged, and what issue does it fix?",
+        "query": "When was PR #9730 merged in gragger-matchmaking to add SSE configuration for matchmaking assets fixing issue #59744, who authored it, and who merged it?",
         "evaluationCriteria": {
           "mustInclude": [
             "Priya Patel",
             "priyap",
-            "#71894",
-            "Fixes #79460",
-            "created 2025-12-09T00:17:49.042Z",
-            "merged 2025-12-10T05:30:34.877Z"
-          ]
-        }
-      },
-      {
-        "query": "What specific action items and commitments were mentioned by team members in Slack thread 1765227239.805000 regarding GitHub issue #79460 for the GRagger CLI v2.0 Getting Started guide?",
-        "evaluationCriteria": {
-          "mustInclude": [
-            "feedback on the outline",
-            "FAQ tips or gotchas",
-            "example workflow script",
-            "review outline",
-            "troubleshooting FAQ",
-            "Taylor Morgan",
-            "#79460",
-            "draft outline in docs/guide folder"
-          ]
-        }
-      }
-    ]
-  },
-  {
-    "workflowId": "workflow-meeting-548611",
-    "testCases": [
-      {
-        "query": "What matchmaking latency achievement from the last sprint did James Wilson mention at timestamp 00:00:20 in the Sprint Planning meeting transcript (recording_id 548611) on 12/10/2025?",
-        "evaluationCriteria": {
-          "mustInclude": [
-            "matchmaking latency down to 120 ms",
-            "James Wilson",
-            "last sprint",
-            "00:00:20"
-          ]
-        }
-      },
-      {
-        "query": "What specific implementation did Marcus Rodriguez propose for the dynamic weather system using particle-based cloud module and physics integration in the Sprint Planning on 12/10/2025, including art dependencies?",
-        "evaluationCriteria": {
-          "mustInclude": [
-            "particle-based cloud module prototyped last month",
-            "tie it into the time-of-day manager",
-            "shader switch between wet and dry states",
-            "art team to deliver wet surface textures by Tuesday",
-            "route wind through existing wind zones",
-            "expose public API for dynamic wind strength"
-          ]
-        }
-      },
-      {
-        "query": "What were James Wilson's action items in the Fathom summary for recording_id 548611 from the Sprint Planning on 12/10/2025, and compare to the slack thread 1765205785.853000 recapping the same meeting?",
-        "evaluationCriteria": {
-          "mustInclude": [
-            "James Wilson: Create and assign the user stories for matchmaking (due 12/12)",
-            "Fathom summary recording_id 548611",
-            "slack thread 1765205785.853000",
-            "Sprint Planning 12/10/2025",
-            "no direct James Wilson action in slack thread, signed by James Wilson with other actions like Jane UI mockups by 12/13"
-          ]
-        }
-      }
-    ]
-  },
-  {
-    "workflowId": "workflow-meeting-392277",
-    "testCases": [
-      {
-        "query": "What frame rate did Taylor Morgan mention during the Unity ECS integration discussion in the GRagger Sprint Retrospective on December 10th, 2025?",
-        "evaluationCriteria": {
-          "mustInclude": [
-            "Taylor Morgan",
-            "frame rate stayed above 60fps",
-            "Unity ECS",
-            "test rigs"
-          ]
-        }
-      },
-      {
-        "query": "What did Priya Patel commit to regarding texture atlases in the Sprint Retrospective recording_id 392277 on 12/10/2025?",
-        "evaluationCriteria": {
-          "mustInclude": [
-            "Priya Patel",
-            "revise the texture atlases",
-            "boss level",
-            "schedule a design review for Thursday"
-          ]
-        }
-      },
-      {
-        "query": "What action items were assigned to Taylor Morgan and Maya Patel in the GRagger Sprint Retrospective transcript for recording_id 392277?",
-        "evaluationCriteria": {
-          "mustInclude": [
-            "Taylor Morgan",
-            "GC pre-warm",
-            "boss AI behavior tree",
-            "unit test 50ms budget",
             "Maya Patel",
-            "latency monitoring hook",
-            "staging servers by Friday",
-            "UI animation migration plan"
+            "2025-11-26T16:34:06.542Z",
+            "AES-256",
+            "s3_bucket_test.go"
+          ]
+        }
+      },
+      {
+        "query": "What documentation updates were made in PR #28232 addressing issue #59744, including the files changed and merge details, and how does it relate to the Notion page on SSE feature requirements?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "storage/s3.md",
+            "Server-Side Encryption (SSE) subsection",
+            "Terraform snippets",
+            "Maya Patel",
+            "2025-12-04T07:25:25.275Z",
+            "Feature Requirements: Server‑Side Encryption for S3 Buckets (Issue #59744)",
+            "notion-page_qhd9yostc3d0"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "workflow": {
+      "groupId": "workflow-issue-89145",
+      "title": "Add integration tests for user authentication flow",
+      "description": "GitHub Issue #89145",
+      "timeline": {
+        "startDate": "2025-11-22T00:46:38.140Z",
+        "endDate": "2025-11-29T00:53:59.331Z"
+      },
+      "records": {
+        "githubIssues": [
+          {
+            "id": 426362,
+            "node_id": "MDU6SXNzdWUZzBveHJnOTk",
+            "number": 89145,
+            "title": "Add integration tests for user authentication flow",
+            "body": "### Description\r\nThe current test suite lacks integration coverage for the authentication endpoints (`/api/auth/login`, `/api/auth/register`, `/api/auth/refresh`). This results in undetected regressions when changes are made to the auth middleware or related services.\r\n\r\n### Acceptance Criteria\r\n- Implement integration tests for the login, registration, and token refresh flows using **Jest** and **SuperTest**.\r\n- Tests should cover:\r\n  - Successful login with valid credentials.\r\n  - Failed login with invalid credentials (wrong password, non‑existent email).\r\n  - Successful registration with a new user and proper validation errors for duplicate email or missing fields.\r\n  - Token refresh using a valid refresh token and handling of expired/invalid tokens.\r\n  - Verification that the `Set-Cookie` header is correctly set for JWT and refresh tokens.\r\n- Achieve at least **80%** line coverage for the `auth.controller.ts` and `auth.service.ts` files.\r\n- CI pipeline must run the new tests and fail if coverage drops below the threshold.\r\n\r\n### Steps to Implement\r\n1. Add a new test file at `tests/integration/auth.integration.test.ts`.\r\n2. Set up an in‑memory SQLite database (or use the existing test DB) and run migrations before each test suite.\r\n3. Use `supertest(app)` to make HTTP requests against the Express server.\r\n4. Mock external dependencies (e.g., email service) where necessary.\r\n5. Update `jest.config.js` to include the new integration test directory and configure coverage thresholds.\r\n\r\n### Additional Notes\r\n- Ensure that the test environment clears the database between runs to avoid state leakage.\r\n- Review the existing `auth.middleware.ts` for any edge cases that need explicit testing.\r\n- Add documentation for running integration tests locally: `npm run test:integration`.\r\n\r\n### Labels\r\n- testing\r\n\r\n*Created by Emily Thompson*",
+            "state": "open",
+            "state_reason": null,
+            "user": {
+              "login": "emilyt",
+              "id": 852323,
+              "node_id": "MDQ6VXNlcgZGRnY2oycTQ",
+              "avatar_url": "https://avatars.githubusercontent.com/u/852323?v=4",
+              "html_url": "https://github.com/emilyt",
+              "type": "User",
+              "site_admin": false,
+              "name": "Emily Thompson",
+              "email": "emily@gragger.com"
+            },
+            "labels": [
+              {
+                "id": 886984,
+                "node_id": "MDU6TGFiZWwOG5ubm84d3Q",
+                "name": "testing",
+                "description": null,
+                "color": "0e8a16",
+                "default": false
+              }
+            ],
+            "assignees": [],
+            "milestone": null,
+            "comments": 8,
+            "created_at": "2025-11-22T08:53:50.587Z",
+            "updated_at": "2025-11-22T08:53:50.587Z",
+            "closed_at": null,
+            "author_association": "CONTRIBUTOR",
+            "locked": false,
+            "repository_url": "https://api.github.com/repos/gragger/gragger-server",
+            "html_url": "https://github.com/gragger/gragger-server/issues/89145"
+          }
+        ],
+        "githubPRs": [
+          {
+            "id": 322465,
+            "node_id": "MDExOlB1bGxSZXF1ZXN0ODRzOGRsazA",
+            "number": 38852,
+            "title": "Add integration tests for user authentication flow",
+            "body": "This PR introduces a suite of integration tests covering the user authentication flow in the GRagger client.\n\n**What’s changed**\n- Added `Tests/Integration/AuthTests.cs` with scenarios for login, token refresh, and logout using the Unity Test Framework.\n- Implemented a lightweight mock authentication server (`MockAuthServer`) that simulates the real backend responses.\n- Updated the `AuthManager` to expose hooks for dependency injection during testing.\n- Added test fixtures to initialise a clean player prefs state before each test.\n- Included CI configuration updates (`.github/workflows/unity-tests.yml`) to run the new integration tests on each PR.\n\n**Why**\nThe authentication system is a critical entry point for players. Previously we only had unit tests for isolated methods, leaving the end‑to‑end flow unverified. These integration tests catch regressions such as incorrect token handling, race conditions, and API contract mismatches before they reach production.\n\n**Testing**\nRun the tests locally with `UnityTestRunner` or via the CI pipeline. All new tests pass on both Windows and macOS runners.\n\nFixes #89145",
+            "state": "closed",
+            "user": {
+              "login": "taylormorgan",
+              "id": 953794,
+              "node_id": "MDQ6VXNlcjEyMzQ1Njc4bjZ6cTRwZ28",
+              "avatar_url": "https://avatars.githubusercontent.com/u/953794?v=4",
+              "html_url": "https://github.com/taylormorgan",
+              "type": "User",
+              "site_admin": false,
+              "name": "Taylor Morgan"
+            },
+            "labels": [],
+            "assignees": [],
+            "requested_reviewers": [],
+            "requested_teams": [],
+            "milestone": null,
+            "draft": false,
+            "merged": true,
+            "mergeable": null,
+            "mergeable_state": "unknown",
+            "merged_at": "2025-11-29T11:47:08.843Z",
+            "merged_by": {
+              "id": 185999,
+              "login": "marcusr",
+              "node_id": "MDQ6VXNlcgZ2VvNjJrYjI",
+              "avatar_url": "https://avatars.githubusercontent.com/u/185999?v=4",
+              "html_url": "https://github.com/marcusr",
+              "type": "User",
+              "site_admin": false,
+              "name": "Marcus Rodriguez",
+              "email": "marcus@gragger.com"
+            },
+            "merge_commit_sha": "2e0fe523766c266c85d8330573c6b24344564040",
+            "head": {
+              "label": "gragger:feature-branch-38852",
+              "ref": "feature-branch-38852",
+              "sha": "7c0627fce33ba30806513477a83160f57b3ac315",
+              "user": {
+                "id": 378909,
+                "login": "sarahchen",
+                "node_id": "MDQ6VXNlcgMGV6dGs3d3g",
+                "avatar_url": "https://avatars.githubusercontent.com/u/378909?v=4",
+                "html_url": "https://github.com/sarahchen",
+                "type": "User",
+                "site_admin": false,
+                "name": "Sarah Chen",
+                "email": "sarah@gragger.com"
+              },
+              "repo": {
+                "id": 7015,
+                "node_id": "MDEwOlJlcG9zaXRvcnkYWowbW9qYnE",
+                "name": "gragger-game",
+                "full_name": "gragger/gragger-game",
+                "owner": {
+                  "id": 378909,
+                  "login": "sarahchen",
+                  "node_id": "MDQ6VXNlcgMGV6dGs3d3g",
+                  "avatar_url": "https://avatars.githubusercontent.com/u/378909?v=4",
+                  "html_url": "https://github.com/sarahchen",
+                  "type": "User",
+                  "site_admin": false,
+                  "name": "Sarah Chen",
+                  "email": "sarah@gragger.com"
+                },
+                "description": "Unity game client (C#)",
+                "private": false,
+                "html_url": "https://github.com/gragger/gragger-game",
+                "created_at": "2024-12-18T06:09:47.297Z",
+                "updated_at": "2025-12-18T06:09:47.297Z",
+                "pushed_at": "2025-12-18T06:09:47.297Z",
+                "size": 9287,
+                "stargazers_count": 64,
+                "watchers_count": 50,
+                "language": "C#",
+                "topics": [
+                  "unity",
+                  "game-development",
+                  "multiplayer"
+                ],
+                "default_branch": "main",
+                "archived": false,
+                "disabled": false,
+                "fork": false,
+                "forks_count": 2,
+                "open_issues_count": 19
+              }
+            },
+            "base": {
+              "label": "gragger:main",
+              "ref": "main",
+              "sha": "b827d4e3ecaf0ea8f0d4b82370f059a199d77f4c",
+              "user": {
+                "id": 378909,
+                "login": "sarahchen",
+                "node_id": "MDQ6VXNlcgMGV6dGs3d3g",
+                "avatar_url": "https://avatars.githubusercontent.com/u/378909?v=4",
+                "html_url": "https://github.com/sarahchen",
+                "type": "User",
+                "site_admin": false,
+                "name": "Sarah Chen",
+                "email": "sarah@gragger.com"
+              },
+              "repo": {
+                "id": 7015,
+                "node_id": "MDEwOlJlcG9zaXRvcnkYWowbW9qYnE",
+                "name": "gragger-game",
+                "full_name": "gragger/gragger-game",
+                "owner": {
+                  "id": 378909,
+                  "login": "sarahchen",
+                  "node_id": "MDQ6VXNlcgMGV6dGs3d3g",
+                  "avatar_url": "https://avatars.githubusercontent.com/u/378909?v=4",
+                  "html_url": "https://github.com/sarahchen",
+                  "type": "User",
+                  "site_admin": false,
+                  "name": "Sarah Chen",
+                  "email": "sarah@gragger.com"
+                },
+                "description": "Unity game client (C#)",
+                "private": false,
+                "html_url": "https://github.com/gragger/gragger-game",
+                "created_at": "2024-12-18T06:09:47.297Z",
+                "updated_at": "2025-12-18T06:09:47.297Z",
+                "pushed_at": "2025-12-18T06:09:47.297Z",
+                "size": 9287,
+                "stargazers_count": 64,
+                "watchers_count": 50,
+                "language": "C#",
+                "topics": [
+                  "unity",
+                  "game-development",
+                  "multiplayer"
+                ],
+                "default_branch": "main",
+                "archived": false,
+                "disabled": false,
+                "fork": false,
+                "forks_count": 2,
+                "open_issues_count": 19
+              }
+            },
+            "created_at": "2025-11-27T04:08:35.155Z",
+            "updated_at": "2025-11-29T11:47:08.843Z",
+            "closed_at": "2025-11-29T11:47:08.843Z",
+            "html_url": "https://github.com/gragger/gragger-game/pull/38852",
+            "diff_url": "https://github.com/gragger/gragger-game/pull/38852.diff",
+            "patch_url": "https://github.com/gragger/gragger-game/pull/38852.patch",
+            "commits": 4,
+            "additions": 128,
+            "deletions": 30,
+            "changed_files": 9,
+            "author_association": "CONTRIBUTOR",
+            "locked": false
+          }
+        ],
+        "notionPages": [],
+        "fathomMeetings": [],
+        "fathomTranscripts": [],
+        "fathomSummaries": [],
+        "slackThreads": [
+          {
+            "threadId": "1764377639.331000",
+            "channel": "C_nc5l2ld7a",
+            "parentMessage": {
+              "type": "message",
+              "user": "U_zqpuo89p9",
+              "text": "Hey team! 👋 Maya here – I just opened GitHub issue **#89145**: *Add integration tests for the user authentication flow*.  \n\nThe goal is to cover the full login‑logout cycle, password resets, and social‑login hooks with automated integration tests so we can catch regressions early.  \n\nI’ve started sketching the test framework and have a basic test for the standard login path ready. I could use a quick review of the test design and any edge‑case scenarios you think we should include (e.g., expired tokens, multi‑factor prompts).  \n\nIf you’re working on auth‑related code this sprint, could you take a look and let me know if the approach aligns with upcoming changes? I’ll open a PR later today and would love some eyeballs on it before we merge.  \n\nFeel free to drop any thoughts, suggestions, or help with the test data setup in this thread. Thanks, everyone! 🚀",
+              "ts": "1764377639.331000",
+              "channel": "C_nc5l2ld7a",
+              "reactions": []
+            },
+            "replies": [
+              {
+                "type": "message",
+                "user": "U_cojk6gm58",
+                "text": "Hey Maya, looks solid – I’ll give the test design a spin tomorrow and add a couple of edge cases like expired refresh tokens and MFA timeouts. Let me know if you need any mock user data or helper utils; happy to hop on a quick sync if that helps. 🚀",
+                "ts": "1764378878.674470",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_s9ga3a9et",
+                "text": "agreed",
+                "ts": "1764398202.908735",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "eyes",
+                    "users": [
+                      "U_o8cwle5dw",
+                      "U_zl1poeuww",
+                      "U_1jrg95uuj",
+                      "U_cojk6gm58",
+                      "U_zqpuo89p9"
+                    ],
+                    "count": 5
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_ssux114im",
+                "text": "Thanks, Maya – I’ll ping over some mock users and a helper lib later today; let’s sync tomorrow if you need anything else! 🚀",
+                "ts": "1764407505.236218",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "fire",
+                    "users": [
+                      "U_1jrg95uuj",
+                      "U_o8cwle5dw",
+                      "U_htaphy0tx",
+                      "U_s9ga3a9et",
+                      "U_3jjlbw0t4"
+                    ],
+                    "count": 5
+                  },
+                  {
+                    "name": "muscle",
+                    "users": [
+                      "U_cojk6gm58",
+                      "U_eeuactkjv",
+                      "U_zqpuo89p9",
+                      "U_1jrg95uuj"
+                    ],
+                    "count": 4
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_cojk6gm58",
+                "text": "on it",
+                "ts": "1764426704.138862",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "thumbsup",
+                    "users": [
+                      "U_3jjlbw0t4",
+                      "U_o8cwle5dw",
+                      "U_s9ga3a9et",
+                      "U_zl1poeuww"
+                    ],
+                    "count": 4
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_s9ga3a9et",
+                "text": "Hey Maya, the design looks good – I’ll review it today and toss in a few edge‑case scenarios like expired tokens and MFA timeouts. Ping me if you need extra mock data or want to walk through the flow together!",
+                "ts": "1764432140.225210",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "fire",
+                    "users": [
+                      "U_eeuactkjv"
+                    ],
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_zl1poeuww",
+                "text": "Sounds good, Maya – just ping me the PR link when it’s up and I’ll take a quick look. I can also throw in some mock social‑login payloads if you need ’em. Let’s catch up tomorrow to sync on the MFA edge cases!",
+                "ts": "1764440767.118828",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_o8cwle5dw",
+                "text": "Thanks, will push the PR as soon as it’s ready—appreciate the help on MFA edge cases and any social‑login mock payloads you can share! 🚀",
+                "ts": "1764443485.020430",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "100",
+                    "users": [
+                      "U_htaphy0tx",
+                      "U_ssux114im",
+                      "U_zqpuo89p9",
+                      "U_s9ga3a9et"
+                    ],
+                    "count": 4
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_zl1poeuww",
+                "text": "👏",
+                "ts": "1764448669.936339",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "raised_hands",
+                    "users": [
+                      "U_htaphy0tx",
+                      "U_ssux114im"
+                    ],
+                    "count": 2
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_ssux114im",
+                "text": "👌",
+                "ts": "1764456150.823818",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_zl1poeuww",
+                "text": "Sure thing, Maya! Ping me when the PR is up and I’ll take a look—happy to share some mock social‑login payloads and run through the MFA edge cases with you.",
+                "ts": "1764471366.364708",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "muscle",
+                    "users": [
+                      "U_ssux114im",
+                      "U_s9ga3a9et",
+                      "U_cojk6gm58",
+                      "U_eeuactkjv"
+                    ],
+                    "count": 4
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_ssux114im",
+                "text": "Sounds good, Maya – I’ll keep an eye out for the PR and can help spin up some test users for the MFA and token expiry scenarios. Let me know if you need any sample social‑login fixtures or a quick sanity‑check on the DB seeds. 🚀",
+                "ts": "1764481188.938816",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "laughing",
+                    "users": [
+                      "U_htaphy0tx",
+                      "U_cojk6gm58",
+                      "U_eeuactkjv",
+                      "U_s9ga3a9et"
+                    ],
+                    "count": 4
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_o8cwle5dw",
+                "text": "Sounds good, Maya – just ping me when the PR lands and I’ll run through the MFA/expiry matrix and toss in a few social‑login mocks if needed. 🚀",
+                "ts": "1764494515.654091",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "tada",
+                    "users": [
+                      "U_zqpuo89p9",
+                      "U_3jjlbw0t4",
+                      "U_s9ga3a9et",
+                      "U_cojk6gm58",
+                      "U_1jrg95uuj"
+                    ],
+                    "count": 5
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_o8cwle5dw",
+                "text": "Sounds good Maya, just drop the PR when it’s ready and I’ll dive in—let me know if you need any extra token‑expiry or social‑login fixtures.",
+                "ts": "1764500677.380153",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "raised_hands",
+                    "users": [
+                      "U_htaphy0tx",
+                      "U_1jrg95uuj"
+                    ],
+                    "count": 2
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_zl1poeuww",
+                "text": "Sure thing, Maya – just ping me when the PR is up and I’ll spin up some MFA users and expired‑token cases. If you need any extra social‑login mocks or seed tweaks just shout. 🚀",
+                "ts": "1764517864.425417",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "fire",
+                    "users": [
+                      "U_3jjlbw0t4",
+                      "U_zqpuo89p9"
+                    ],
+                    "count": 2
+                  },
+                  {
+                    "name": "tada",
+                    "users": [
+                      "U_htaphy0tx",
+                      "U_eeuactkjv",
+                      "U_1jrg95uuj",
+                      "U_zqpuo89p9",
+                      "U_3jjlbw0t4"
+                    ],
+                    "count": 5
+                  },
+                  {
+                    "name": "clap",
+                    "users": [
+                      "U_s9ga3a9et",
+                      "U_3jjlbw0t4"
+                    ],
+                    "count": 2
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_cojk6gm58",
+                "text": "On it, will review this afternoon! ✅",
+                "ts": "1764530856.603288",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "raised_hands",
+                    "users": [
+                      "U_3jjlbw0t4",
+                      "U_htaphy0tx",
+                      "U_ssux114im",
+                      "U_eeuactkjv",
+                      "U_s9ga3a9et"
+                    ],
+                    "count": 5
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_cojk6gm58",
+                "text": "Sounds good! Will review today, thx! 🎉",
+                "ts": "1764545389.042677",
+                "thread_ts": "1764377639.331000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "muscle",
+                    "users": [
+                      "U_eeuactkjv",
+                      "U_zl1poeuww",
+                      "U_ssux114im"
+                    ],
+                    "count": 3
+                  }
+                ]
+              }
+            ],
+            "totalMessages": 17
+          },
+          {
+            "threadId": "1763772398.140000",
+            "channel": "C_nc5l2ld7a",
+            "parentMessage": {
+              "type": "message",
+              "user": "U_cojk6gm58",
+              "text": "hey team,\n\nJordan Lee (@jordan) opened GitHub Issue #89145: **Add integration tests for the user authentication flow**. The goal is to cover the full login/sign‑up sequence, including edge cases like password resets and token expiration.\n\nI’ve started sketching the test suite and have the basic happy‑path covered. Before I dive deeper, I’d love some quick input:\n\n- **Test scenarios**: Are there any specific edge cases or user roles we should prioritize?\n- **Mocking strategy**: Should we stick with our current `msw` setup or switch to a different approach for the auth service?\n- **CI integration**: Any thoughts on how we want these tests to run (e.g., only on PRs, nightly builds, etc.)?\n\nIf anyone has already started work on related tests or has reusable helpers, please drop a link or ping me. Let’s sync up briefly (maybe a 15‑minute stand‑up later today) to make sure we’re aligned and can get this merged quickly.\n\nThanks for the collaboration! 🚀",
+              "ts": "1763772398.140000",
+              "channel": "C_nc5l2ld7a",
+              "reactions": [
+                {
+                  "name": "tada",
+                  "users": [
+                    "U_o8cwle5dw",
+                    "U_1jrg95uuj",
+                    "U_ssux114im",
+                    "U_zl1poeuww",
+                    "U_htaphy0tx"
+                  ],
+                  "count": 5
+                }
+              ]
+            },
+            "replies": [
+              {
+                "type": "message",
+                "user": "U_s9ga3a9et",
+                "text": "Hey Jordan, happy to chime in—let's make sure we cover admin vs regular user edge cases and things like token revocation/refresh. I think sticking with our `msw` setup works fine, maybe just add a tiny wrapper for the auth service mocks. I’m down for a quick 15‑min sync around 3 pm today, ping me if that works!",
+                "ts": "1763773190.729568",
+                "thread_ts": "1763772398.140000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_zqpuo89p9",
+                "text": "Sounds good, Jordan—3 pm works for me, just ping me the meeting link and I’ll bring any auth‑mock helpers I have. 🚀",
+                "ts": "1763780853.226307",
+                "thread_ts": "1763772398.140000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "thumbsup",
+                    "users": [
+                      "U_o8cwle5dw"
+                    ],
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_s9ga3a9et",
+                "text": "Hey Jordan 3 pm works for me—just dropped a quick Zoom link in the channel. I’ll pull in the auth‑mock utils we used for the password‑reset flow and we can hash out any missing edge cases then. 🚀",
+                "ts": "1763796170.572579",
+                "thread_ts": "1763772398.140000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_s9ga3a9et",
+                "text": "sure, happy to sync. Let's prioritize password reset.",
+                "ts": "1763796997.891750",
+                "thread_ts": "1763772398.140000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_s9ga3a9et",
+                "text": "Sure thing, happy to sync later today! 👍",
+                "ts": "1763811596.361616",
+                "thread_ts": "1763772398.140000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_zqpuo89p9",
+                "text": "Sounds good, 3 pm works for me – I’ll have the auth‑mock utils ready and we can walk through the edge‑case list then. I’ll also drop a quick doc with the current test outline so we can tweak it live. See you on Zoom! 🚀",
+                "ts": "1763816398.858603",
+                "thread_ts": "1763772398.140000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "heart",
+                    "users": [
+                      "U_o8cwle5dw",
+                      "U_ssux114im"
+                    ],
+                    "count": 2
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_zqpuo89p9",
+                "text": "k",
+                "ts": "1763821210.972971",
+                "thread_ts": "1763772398.140000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "clap",
+                    "users": [
+                      "U_cojk6gm58",
+                      "U_zl1poeuww"
+                    ],
+                    "count": 2
+                  }
+                ]
+              }
+            ],
+            "totalMessages": 8
+          }
+        ]
+      },
+      "crossReferences": [
+        {
+          "type": "pr-to-issue",
+          "from": "pr-38852",
+          "to": "issue-89145",
+          "context": "PR references issue in body"
+        },
+        {
+          "type": "slack-to-issue",
+          "from": "slack-thread-1764377639.331000",
+          "to": "issue-89145",
+          "context": "Slack thread mentions issue #89145"
+        },
+        {
+          "type": "slack-to-issue",
+          "from": "slack-thread-1763772398.140000",
+          "to": "issue-89145",
+          "context": "Slack thread mentions issue #89145"
+        }
+      ],
+      "metrics": {
+        "totalRecords": 4,
+        "totalMessages": 25,
+        "participantCount": 6,
+        "servicesCovered": [
+          "github",
+          "github-pr",
+          "slack"
+        ]
+      }
+    },
+    "testCases": [
+      {
+        "query": "Who created GitHub issue #89145 titled 'Add integration tests for user authentication flow' in the gragger-server repository, and what is the required minimum line coverage for auth.controller.ts and auth.service.ts?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "Emily Thompson",
+            "emilyt",
+            "80%",
+            "auth.controller.ts",
+            "auth.service.ts"
+          ]
+        }
+      },
+      {
+        "query": "In the gragger-game repository, what PR #38852 adds integration tests for user authentication flow fixing issue #89145, who merged it and when, and what key components like test file and mock server were introduced?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "Taylor Morgan",
+            "Marcus Rodriguez",
+            "2025-11-29T11:47:08.843Z",
+            "Tests/Integration/AuthTests.cs",
+            "MockAuthServer"
+          ]
+        }
+      },
+      {
+        "query": "How does the discussion in Slack channel C_nc5l2ld7a thread 1764377639.331000 about GitHub issue #89145 relate to PR #38852 in gragger-game merged by Marcus Rodriguez, specifically mentioning suggested edge cases like expired tokens and MFA that align with the implemented tests using Unity Test Framework?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "#89145",
+            "expired refresh tokens",
+            "MFA timeouts",
+            "mock user data",
+            "Unity Test Framework",
+            "Marcus Rodriguez"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "workflow": {
+      "groupId": "workflow-issue-9050",
+      "title": "Severe FPS drop when loading large scenes with many particle systems",
+      "description": "GitHub Issue #9050",
+      "timeline": {
+        "startDate": "2025-11-22T05:41:32.743Z",
+        "endDate": "2025-12-02T19:59:54.380Z"
+      },
+      "records": {
+        "githubIssues": [
+          {
+            "id": 285186,
+            "node_id": "MDU6SXNzdWUNXUzY2xhb2U",
+            "number": 9050,
+            "title": "Severe FPS drop when loading large scenes with many particle systems",
+            "body": "### Description\r\nWhen loading scenes that contain more than 30 particle systems (e.g., \"Forest_Level\"), the frame rate drops from ~60 FPS to under 20 FPS within the first few seconds. The slowdown persists even after the scene is fully loaded and appears to be CPU‑bound.\r\n\r\n### Environment\r\n- Unity 2022.3.12f1\r\n- Platform: Windows 10 (64‑bit), DirectX 12\r\n- Project: gragger-game (C#)\r\n- Graphics settings: URP High Fidelity\r\n\r\n### Steps to Reproduce\r\n1. Open the project in Unity.\r\n2. Open the \"Forest_Level\" scene (contains 35 `ParticleSystem` components, each with custom shaders).\r\n3. Press Play.\r\n4. Observe the FPS counter (enabled via the `DebugFPS` script).\r\n\r\n### Expected Behavior\r\nThe game should maintain a stable 55‑60 FPS after the scene finishes loading.\r\n\r\n### Actual Behavior\r\nFPS drops to ~18‑22 FPS within 3‑5 seconds of entering Play mode and stays low. The Unity Profiler shows a spike in `ParticleSystem.Update` and `ShaderVariantCollection` processing.\r\n\r\n### Profiling Data\r\n- **CPU Usage:** `ParticleSystem.Update` takes ~12 ms per frame (peak).\r\n- **GPU Usage:** No significant increase; render time stays ~5 ms.\r\n- **GC Allocations:** ~2 MB per frame during the drop period.\r\n\r\n### Possible Causes\r\n- Excessive per‑frame particle simulation on the main thread.\r\n- Custom particle shaders not using GPU instancing.\r\n- Lack of culling for off‑screen particle emitters.\r\n\r\n### Suggested Fixes\r\n1. Enable `ParticleSystem` GPU simulation for the heavy emitters.\r\n2. Batch particle shaders using `Shader Graph` with instancing enabled.\r\n3. Add a simple distance‑based culling script to disable emitters outside the camera frustum.\r\n4. Investigate the `ParticleSystem` `Simulation Space` settings; consider using `World` instead of `Local` where appropriate.\r\n\r\n### Additional Notes\r\n- The issue does not appear in the \"Desert_Level\" scene, which only has 8 particle systems.\r\n- Running the same scene on a lower graphics tier (URP Low) reduces the FPS drop but does not eliminate it.\r\n\r\n### Request\r\nPlease prioritize performance profiling of the particle system pipeline and implement the suggested optimizations. A regression test should be added to monitor FPS stability for scenes with >30 particle systems.\r\n\r\n*Reported by Alex Kim*",
+            "state": "open",
+            "state_reason": null,
+            "user": {
+              "login": "alexkim",
+              "id": 511873,
+              "node_id": "MDQ6VXNlcgcXZlb3F1ZHk",
+              "avatar_url": "https://avatars.githubusercontent.com/u/511873?v=4",
+              "html_url": "https://github.com/alexkim",
+              "type": "User",
+              "site_admin": false,
+              "name": "Alex Kim",
+              "email": "alex@gragger.com"
+            },
+            "labels": [
+              {
+                "id": 310370,
+                "node_id": "MDU6TGFiZWwM3M5N2twdTg",
+                "name": "performance",
+                "description": null,
+                "color": "0e8a16",
+                "default": false
+              }
+            ],
+            "assignees": [],
+            "milestone": null,
+            "comments": 3,
+            "created_at": "2025-11-25T02:43:31.137Z",
+            "updated_at": "2025-11-25T02:43:31.137Z",
+            "closed_at": null,
+            "author_association": "CONTRIBUTOR",
+            "locked": false,
+            "repository_url": "https://api.github.com/repos/gragger/gragger-game",
+            "html_url": "https://github.com/gragger/gragger-game/issues/9050"
+          }
+        ],
+        "githubPRs": [],
+        "notionPages": [
+          {
+            "object": "page",
+            "id": "notion-page_s4dlet7hl4n0",
+            "created_time": "2025-12-02T19:59:54.380Z",
+            "last_edited_time": "2025-12-07T06:32:57.208Z",
+            "created_by": {
+              "object": "user",
+              "id": "notion-user_dho214okn0"
+            },
+            "last_edited_by": {
+              "object": "user",
+              "id": "notion-user_dho214okn0"
+            },
+            "parent": {
+              "type": "workspace",
+              "workspace": true
+            },
+            "archived": false,
+            "properties": {
+              "title": {
+                "id": "title",
+                "type": "title",
+                "title": [
+                  {
+                    "type": "text",
+                    "text": {
+                      "content": "GRagger Meeting Notes – FPS Performance Review (Issue #9050)",
+                      "link": null
+                    },
+                    "annotations": {
+                      "bold": false,
+                      "italic": false,
+                      "strikethrough": false,
+                      "underline": false,
+                      "code": false,
+                      "color": "default"
+                    },
+                    "plain_text": "GRagger Meeting Notes – FPS Performance Review (Issue #9050)",
+                    "href": null
+                  }
+                ]
+              }
+            },
+            "url": "https://notion.so/page_9sehwrfzbas000000000000000000000"
+          }
+        ],
+        "fathomMeetings": [],
+        "fathomTranscripts": [],
+        "fathomSummaries": [],
+        "slackThreads": [
+          {
+            "threadId": "1763868282.836000",
+            "channel": "C_nc5l2ld7a",
+            "parentMessage": {
+              "type": "message",
+              "user": "U_eeuactkjv",
+              "text": "Hey everyone 👋,\n\nEmily Thompson (@emily) just opened a new GitHub issue ( #9050 ) titled **“Severe FPS drop when loading large scenes with many particle systems.”** The problem shows up when we load complex environments—FPS can plunge from ~60 fps to under 20 fps within the first few seconds.\n\n**What we know so far**\n- The drop occurs right after the particle system batch is instantiated.\n- Preliminary profiling points to a spike in CPU overhead during the particle manager’s initialization.\n- A quick test with the “forest‑scene” benchmark reproduces the issue consistently on both Windows and macOS.\n\n**What we need from the team**\n- **Graphics/Rendering**: Any thoughts on whether this could be a shader compilation bottleneck or a texture streaming issue?\n- **Engine Performance**: Can anyone dig into the particle system’s update loop to see if we’re hitting any hidden sync points?\n- **QA**: If you have scenes with heavy particle usage, please try loading them and share any timings or logs you capture.\n\n**Next steps**\n1. I’ll create a small repro project by early tomorrow and push it to the repo.\n2. Let’s aim to have a quick sync (15 min) by Thursday AM to discuss findings and decide on a mitigation plan.\n3. If you spot any related tickets or have a patch suggestion, feel free to comment directly on the issue or drop a note here.\n\nThanks for the collaboration, team! Looking forward to cracking this together. 🚀",
+              "ts": "1763868282.836000",
+              "channel": "C_nc5l2ld7a",
+              "reactions": [
+                {
+                  "name": "white_check_mark",
+                  "users": [
+                    "U_s9ga3a9et",
+                    "U_o8cwle5dw",
+                    "U_zqpuo89p9"
+                  ],
+                  "count": 3
+                }
+              ]
+            },
+            "replies": [
+              {
+                "type": "message",
+                "user": "U_cojk6gm58",
+                "text": "alright",
+                "ts": "1763869687.446698",
+                "thread_ts": "1763868282.836000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_htaphy0tx",
+                "text": "Sounds good, I’ll start poking the particle update loop and see if any sync points are causing that CPU spike—will ping you with any early findings. 🚀",
+                "ts": "1763889902.529335",
+                "thread_ts": "1763868282.836000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "thumbsup",
+                    "users": [
+                      "U_ssux114im",
+                      "U_s9ga3a9et",
+                      "U_3jjlbw0t4",
+                      "U_cojk6gm58",
+                      "U_eeuactkjv"
+                    ],
+                    "count": 5
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_htaphy0tx",
+                "text": "sure thing",
+                "ts": "1763891456.214211",
+                "thread_ts": "1763868282.836000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "laughing",
+                    "users": [
+                      "U_3jjlbw0t4",
+                      "U_zl1poeuww",
+                      "U_s9ga3a9et",
+                      "U_zqpuo89p9",
+                      "U_1jrg95uuj"
+                    ],
+                    "count": 5
+                  },
+                  {
+                    "name": "heart",
+                    "users": [
+                      "U_3jjlbw0t4"
+                    ],
+                    "count": 1
+                  },
+                  {
+                    "name": "thinking_face",
+                    "users": [
+                      "U_cojk6gm58",
+                      "U_s9ga3a9et"
+                    ],
+                    "count": 2
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_3jjlbw0t4",
+                "text": "Sounds good, keep me posted on what you uncover—I'll dig into the shader/texture side and see if anything pops up in the logs. 🚀",
+                "ts": "1763896022.364530",
+                "thread_ts": "1763868282.836000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_cojk6gm58",
+                "text": "on it",
+                "ts": "1763907034.873854",
+                "thread_ts": "1763868282.836000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_cojk6gm58",
+                "text": "Got it, I’ll start profiling the particle manager’s update loop and see if any hidden syncs are causing that CPU spike. Ping me if you spot anything weird on the shader side – happy to sync up later this week! 🚀",
+                "ts": "1763916803.300595",
+                "thread_ts": "1763868282.836000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "100",
+                    "users": [
+                      "U_3jjlbw0t4",
+                      "U_htaphy0tx",
+                      "U_s9ga3a9et",
+                      "U_o8cwle5dw"
+                    ],
+                    "count": 4
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_3jjlbw0t4",
+                "text": "Agreed",
+                "ts": "1763917877.010093",
+                "thread_ts": "1763868282.836000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_htaphy0tx",
+                "text": "on it",
+                "ts": "1763923961.366510",
+                "thread_ts": "1763868282.836000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "white_check_mark",
+                    "users": [
+                      "U_o8cwle5dw",
+                      "U_zl1poeuww",
+                      "U_3jjlbw0t4",
+                      "U_s9ga3a9et"
+                    ],
+                    "count": 4
+                  }
+                ]
+              }
+            ],
+            "totalMessages": 9
+          },
+          {
+            "threadId": "1763790092.743000",
+            "channel": "C_eleguaysp",
+            "parentMessage": {
+              "type": "message",
+              "user": "U_3jjlbw0t4",
+              "text": "Hey @channel, I’ve been digging into #9050 – the severe FPS drop when loading large scenes with many particle systems (https://github.com/gragger/gragger-game/issues/9050). So far I’ve pinpointed the particle update loop as a major spike on the main thread, but I haven’t landed on a solid fix yet. Has anyone run into similar performance issues or have ideas on optimizing/offloading the particle system? Would love to get your thoughts and brainstorm solutions together!",
+              "ts": "1763790092.743000",
+              "channel": "C_eleguaysp",
+              "reactions": [
+                {
+                  "name": "laughing",
+                  "users": [
+                    "U_htaphy0tx"
+                  ],
+                  "count": 1
+                }
+              ]
+            },
+            "replies": [
+              {
+                "type": "message",
+                "user": "U_ssux114im",
+                "text": "Gotcha, let’s chat tomorrow and brainstorm",
+                "ts": "1763791261.679341",
+                "thread_ts": "1763790092.743000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_eeuactkjv",
+                "text": "Got it, let’s huddle later and brainstorm! ✅",
+                "ts": "1763799582.893164",
+                "thread_ts": "1763790092.743000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "clap",
+                    "users": [
+                      "U_s9ga3a9et",
+                      "U_htaphy0tx"
+                    ],
+                    "count": 2
+                  },
+                  {
+                    "name": "muscle",
+                    "users": [
+                      "U_zl1poeuww",
+                      "U_3jjlbw0t4"
+                    ],
+                    "count": 2
+                  },
+                  {
+                    "name": "heart",
+                    "users": [
+                      "U_3jjlbw0t4",
+                      "U_s9ga3a9et",
+                      "U_ssux114im",
+                      "U_htaphy0tx",
+                      "U_cojk6gm58"
+                    ],
+                    "count": 5
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_ssux114im",
+                "text": "All set",
+                "ts": "1763807958.764091",
+                "thread_ts": "1763790092.743000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "thumbsup",
+                    "users": [
+                      "U_3jjlbw0t4",
+                      "U_cojk6gm58",
+                      "U_s9ga3a9et",
+                      "U_zqpuo89p9",
+                      "U_zl1poeuww"
+                    ],
+                    "count": 5
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_eeuactkjv",
+                "text": "Sounds tough! Let's sync later.",
+                "ts": "1763818177.574768",
+                "thread_ts": "1763790092.743000",
+                "channel": "C_eleguaysp",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_eeuactkjv",
+                "text": "On it",
+                "ts": "1763830764.304105",
+                "thread_ts": "1763790092.743000",
+                "channel": "C_eleguaysp",
+                "reactions": [
+                  {
+                    "name": "heart",
+                    "users": [
+                      "U_1jrg95uuj",
+                      "U_o8cwle5dw"
+                    ],
+                    "count": 2
+                  }
+                ]
+              }
+            ],
+            "totalMessages": 6
+          }
+        ]
+      },
+      "crossReferences": [
+        {
+          "type": "slack-to-issue",
+          "from": "slack-thread-1763868282.836000",
+          "to": "issue-9050",
+          "context": "Slack thread mentions issue #9050"
+        },
+        {
+          "type": "slack-to-issue",
+          "from": "slack-thread-1763790092.743000",
+          "to": "issue-9050",
+          "context": "Slack thread mentions issue #9050"
+        },
+        {
+          "type": "notion-to-issue",
+          "from": "notion-notion-page_s4dlet7hl4n0",
+          "to": "issue-9050",
+          "context": "Notion page references issue"
+        }
+      ],
+      "metrics": {
+        "totalRecords": 4,
+        "totalMessages": 15,
+        "participantCount": 5,
+        "servicesCovered": [
+          "github",
+          "slack",
+          "notion"
+        ]
+      }
+    },
+    "testCases": [
+      {
+        "query": "In GitHub issue #9050, what FPS drop and peak CPU usage for ParticleSystem.Update are reported in the Forest_Level scene with 35 particle systems?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "~60 FPS to under 20 FPS",
+            "~18-22 FPS stays low",
+            "ParticleSystem.Update ~12 ms per frame peak",
+            "35 ParticleSystem components",
+            "Forest_Level scene"
+          ]
+        }
+      },
+      {
+        "query": "What next steps and team requests are outlined in Slack thread 1763868282.836000 channel C_nc5l2ld7a for GitHub issue #9050 FPS drop?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "create small repro project by early tomorrow",
+            "quick sync 15 min by Thursday AM discuss findings and mitigation plan",
+            "Graphics/Rendering shader compilation bottleneck or texture streaming",
+            "Engine Performance particle system update loop hidden sync points",
+            "QA load scenes with heavy particle usage share timings logs"
+          ]
+        }
+      },
+      {
+        "query": "What suggested fixes are listed in GitHub issue #9050 by Alex Kim for particle systems in Forest_Level, and who in Slack thread 1763868282.836000 channel C_nc5l2ld7a committed to checking the particle update loop?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "Enable ParticleSystem GPU simulation for heavy emitters",
+            "Batch particle shaders Shader Graph instancing enabled",
+            "Add distance-based culling script disable off-screen emitters",
+            "ParticleSystem Simulation Space World instead of Local",
+            "U_htaphy0tx poking particle update loop CPU spike"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "workflow": {
+      "groupId": "workflow-issue-96687",
+      "title": "Refactor VPC module to use locals and improve variable naming",
+      "description": "GitHub Issue #96687",
+      "timeline": {
+        "startDate": "2025-11-25T23:14:16.218Z",
+        "endDate": "2025-11-29T21:24:33.209Z"
+      },
+      "records": {
+        "githubIssues": [
+          {
+            "id": 506448,
+            "node_id": "MDU6SXNzdWUNWR1YXQxY20",
+            "number": 96687,
+            "title": "Refactor VPC module to use locals and improve variable naming",
+            "body": "## Description\nThe current `modules/vpc` implementation mixes hard‑coded values with variables and uses ambiguous variable names (e.g., `cidr_block`, `subnet_cidrs`). This makes the module difficult to reuse across environments and hampers readability.\n\n## Goals\n- Replace inline CIDR calculations with explicit `locals` for each subnet type (public, private, intra).\n- Rename variables to be self‑descriptive (e.g., `vpc_cidr`, `public_subnet_cidrs`).\n- Consolidate repeated `aws_subnet` resources using `for_each` and a map of subnet definitions.\n- Update the module's `README.md` with the new input/output schema.\n- Ensure the module still passes all existing `terraform validate` and `terraform plan` checks in the `dev`, `staging`, and `prod` workspaces.\n\n## Acceptance Criteria\n1. All resources in `modules/vpc/main.tf` are defined using `for_each` with a single `local.subnets` map.\n2. Variable definitions in `variables.tf` reflect the new naming convention and include `description` blocks.\n3. No hard‑coded CIDR blocks remain; all are derived from the new `locals`.\n4. The module's output values are updated accordingly and referenced correctly in the root module.\n5. Run `terraform fmt` and `terraform validate` with no errors across all environments.\n6. Update CI pipeline to include a lint step for module naming conventions.\n\n## Steps to Verify\n1. Checkout a new branch from `main`:\n   ```\n   git checkout -b refactor/vpc-module locals\n   ```\n2. Apply the changes locally in the `dev` workspace:\n   ```\n   terraform workspace select dev\n   terraform init -upgrade\n   terraform plan\n   ```\n3. Ensure the plan shows no resource replacements (only updates to variable names).\n4. Run the same steps for `staging` and `prod`.\n5. Review the updated `modules/vpc/README.md` for correctness.\n\n## Additional Notes\n- This refactor aligns with the team's new naming standards documented in the internal style guide.\n- Consider adding a `variables.tf` example block for future contributors.\n- Priya Patel will review the PR before merging.\n",
+            "state": "closed",
+            "state_reason": "completed",
+            "user": {
+              "login": "priyap",
+              "id": 119015,
+              "node_id": "MDQ6VXNlcgbmhyeXRzazY",
+              "avatar_url": "https://avatars.githubusercontent.com/u/119015?v=4",
+              "html_url": "https://github.com/priyap",
+              "type": "User",
+              "site_admin": false,
+              "name": "Priya Patel",
+              "email": "priya@gragger.com"
+            },
+            "labels": [
+              {
+                "id": 119392,
+                "node_id": "MDU6TGFiZWwc2NoaG5taGU",
+                "name": "refactor",
+                "description": null,
+                "color": "0e8a16",
+                "default": false
+              }
+            ],
+            "assignees": [],
+            "milestone": null,
+            "comments": 5,
+            "created_at": "2025-11-29T21:24:33.209Z",
+            "updated_at": "2025-12-03T06:41:39.826Z",
+            "closed_at": "2025-12-03T06:41:39.826Z",
+            "author_association": "CONTRIBUTOR",
+            "locked": false,
+            "repository_url": "https://api.github.com/repos/gragger/gragger-infra",
+            "html_url": "https://github.com/gragger/gragger-infra/issues/96687"
+          }
+        ],
+        "githubPRs": [
+          {
+            "id": 145298,
+            "node_id": "MDExOlB1bGxSZXF1ZXN0MHhwendqMzg",
+            "number": 17372,
+            "title": "Refactor VPC module: use locals & improve naming",
+            "body": "This pull request addresses **Fixes #96687** by refactoring the VPC (Virtual Player Controller) module to improve readability, maintainability, and performance.\n\n### What changed\n- Replaced multiple nested property accesses with local variables to reduce repeated lookups and improve runtime efficiency.\n- Updated variable names to be more descriptive (e.g., `playerSpeed` → `currentMovementSpeed`, `pos` → `targetPosition`).\n- Consolidated duplicated logic into helper methods (`CalculateMovementDirection`, `ClampVelocity`).\n- Added XML documentation comments for newly introduced locals and methods.\n- Updated unit tests in `Tests/Gameplay/VPCModuleTests.cs` to reflect the new method signatures and verify behavior remains unchanged.\n- Adjusted related scripts (`PlayerInputHandler.cs`, `NetworkSync.cs`) to reference the renamed fields.\n- Ran the static code analyzer; all warnings resolved.\n\n### Why\nThe original implementation relied heavily on deep property chains and ambiguous variable names, which made debugging and future enhancements difficult. By introducing locals and clearer naming, the codebase becomes easier to understand, reduces the risk of runtime errors, and aligns with our coding standards.\n\n### Additional notes\n- No functional changes to gameplay were introduced; all existing tests pass (71 passed, 0 failed).\n- Documentation in `Docs/Architecture/VPC.md` has been updated to reflect the new structure.\n- Performance profiling shows a ~4% reduction in CPU usage for the VPC update loop.\n\nPlease review the changes and merge if everything looks good.",
+            "state": "closed",
+            "user": {
+              "login": "chrisanderson",
+              "id": 730723,
+              "node_id": "MDQ6VXNlcjEyMzQ1Njc4ZTFscGI3OGg",
+              "avatar_url": "https://avatars.githubusercontent.com/u/730723?v=4",
+              "html_url": "https://github.com/chrisanderson",
+              "type": "User",
+              "site_admin": false,
+              "name": "Chris Anderson"
+            },
+            "labels": [],
+            "assignees": [],
+            "requested_reviewers": [],
+            "requested_teams": [],
+            "milestone": null,
+            "draft": false,
+            "merged": false,
+            "mergeable": null,
+            "mergeable_state": "unknown",
+            "merged_at": null,
+            "merged_by": null,
+            "merge_commit_sha": null,
+            "head": {
+              "label": "gragger:feature-branch-17372",
+              "ref": "feature-branch-17372",
+              "sha": "ada8e7ce719d894224e51b9ef0b0ce53ed6fa3d3",
+              "user": {
+                "id": 960926,
+                "login": "sarahchen",
+                "node_id": "MDQ6VXNlcgcjJ4cjk1aWo",
+                "avatar_url": "https://avatars.githubusercontent.com/u/960926?v=4",
+                "html_url": "https://github.com/sarahchen",
+                "type": "User",
+                "site_admin": false,
+                "name": "Sarah Chen",
+                "email": "sarah@gragger.com"
+              },
+              "repo": {
+                "id": 6206,
+                "node_id": "MDEwOlJlcG9zaXRvcnkYWhmM2FjdTg",
+                "name": "gragger-game",
+                "full_name": "gragger/gragger-game",
+                "owner": {
+                  "id": 960926,
+                  "login": "sarahchen",
+                  "node_id": "MDQ6VXNlcgcjJ4cjk1aWo",
+                  "avatar_url": "https://avatars.githubusercontent.com/u/960926?v=4",
+                  "html_url": "https://github.com/sarahchen",
+                  "type": "User",
+                  "site_admin": false,
+                  "name": "Sarah Chen",
+                  "email": "sarah@gragger.com"
+                },
+                "description": "Unity game client (C#)",
+                "private": false,
+                "html_url": "https://github.com/gragger/gragger-game",
+                "created_at": "2024-12-18T06:04:48.520Z",
+                "updated_at": "2025-12-18T06:04:48.521Z",
+                "pushed_at": "2025-12-18T06:04:48.521Z",
+                "size": 5597,
+                "stargazers_count": 36,
+                "watchers_count": 83,
+                "language": "C#",
+                "topics": [
+                  "unity",
+                  "game-development",
+                  "multiplayer"
+                ],
+                "default_branch": "main",
+                "archived": false,
+                "disabled": false,
+                "fork": false,
+                "forks_count": 6,
+                "open_issues_count": 8
+              }
+            },
+            "base": {
+              "label": "gragger:main",
+              "ref": "main",
+              "sha": "8e095c574bbf325c397d0ecc9fccb341a43bf49c",
+              "user": {
+                "id": 960926,
+                "login": "sarahchen",
+                "node_id": "MDQ6VXNlcgcjJ4cjk1aWo",
+                "avatar_url": "https://avatars.githubusercontent.com/u/960926?v=4",
+                "html_url": "https://github.com/sarahchen",
+                "type": "User",
+                "site_admin": false,
+                "name": "Sarah Chen",
+                "email": "sarah@gragger.com"
+              },
+              "repo": {
+                "id": 6206,
+                "node_id": "MDEwOlJlcG9zaXRvcnkYWhmM2FjdTg",
+                "name": "gragger-game",
+                "full_name": "gragger/gragger-game",
+                "owner": {
+                  "id": 960926,
+                  "login": "sarahchen",
+                  "node_id": "MDQ6VXNlcgcjJ4cjk1aWo",
+                  "avatar_url": "https://avatars.githubusercontent.com/u/960926?v=4",
+                  "html_url": "https://github.com/sarahchen",
+                  "type": "User",
+                  "site_admin": false,
+                  "name": "Sarah Chen",
+                  "email": "sarah@gragger.com"
+                },
+                "description": "Unity game client (C#)",
+                "private": false,
+                "html_url": "https://github.com/gragger/gragger-game",
+                "created_at": "2024-12-18T06:04:48.520Z",
+                "updated_at": "2025-12-18T06:04:48.521Z",
+                "pushed_at": "2025-12-18T06:04:48.521Z",
+                "size": 5597,
+                "stargazers_count": 36,
+                "watchers_count": 83,
+                "language": "C#",
+                "topics": [
+                  "unity",
+                  "game-development",
+                  "multiplayer"
+                ],
+                "default_branch": "main",
+                "archived": false,
+                "disabled": false,
+                "fork": false,
+                "forks_count": 6,
+                "open_issues_count": 8
+              }
+            },
+            "created_at": "2025-11-30T01:04:50.186Z",
+            "updated_at": "2025-11-30T01:04:50.186Z",
+            "closed_at": "2025-11-30T01:04:50.186Z",
+            "html_url": "https://github.com/gragger/gragger-game/pull/17372",
+            "diff_url": "https://github.com/gragger/gragger-game/pull/17372.diff",
+            "patch_url": "https://github.com/gragger/gragger-game/pull/17372.patch",
+            "commits": 4,
+            "additions": 197,
+            "deletions": 18,
+            "changed_files": 5,
+            "author_association": "CONTRIBUTOR",
+            "locked": false
+          }
+        ],
+        "notionPages": [],
+        "fathomMeetings": [],
+        "fathomTranscripts": [],
+        "fathomSummaries": [],
+        "slackThreads": [
+          {
+            "threadId": "1764112456.218000",
+            "channel": "C_nc5l2ld7a",
+            "parentMessage": {
+              "type": "message",
+              "user": "U_cojk6gm58",
+              "text": "Hey @channel – just wanted to give everyone a heads‑up on a new GitHub issue Jordan Lee opened: **#96687 – Refactor VPC module to use locals and improve variable naming**.\n\nThe goal is to clean up the VPC Terraform module by pulling repetitive values into `locals` and giving our variables clearer more consistent names. This should make the codebase easier to read and reduce the risk of config drift.\n\n**Where we’re at**\n- Jordan has drafted an initial plan and added some placeholder locals.\n- The module compiles but we still need to verify that the changes don’t affect any downstream environments.\n\n**What we need from the team**\n1. **Review the proposed locals & naming conventions** – does anything look confusing or conflict with existing patterns? Feel free to drop comments on the PR.\n2. **Testing coverage** – if you own any stacks that consume the VPC module could you spin up a quick test environment with the new changes and let us know if anything breaks?\n3. **Input on rollout strategy** – should we merge to `main` now and let downstream pipelines pick it up or hold off for a coordinated release next sprint?\n\nI’ll be taking the lead on merging once we have the green light from reviewers and the test runs are clean. If you’d like to pair‑program on any part of this or have suggestions for additional refactors just ping me or jump into the PR thread.\n\nThanks in advance for the collaboration – looking forward to polishing up the VPC module together! 🚀",
+              "ts": "1764112456.218000",
+              "channel": "C_nc5l2ld7a",
+              "reactions": []
+            },
+            "replies": [
+              {
+                "type": "message",
+                "user": "U_htaphy0tx",
+                "text": "On it",
+                "ts": "1764112852.698586",
+                "thread_ts": "1764112456.218000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_3jjlbw0t4",
+                "text": "Sounds good! I’ll spin up a test today",
+                "ts": "1764128910.288982",
+                "thread_ts": "1764112456.218000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_1jrg95uuj",
+                "text": "on it",
+                "ts": "1764149382.054860",
+                "thread_ts": "1764112456.218000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "eyes",
+                    "users": [
+                      "U_ssux114im",
+                      "U_zl1poeuww",
+                      "U_s9ga3a9et"
+                    ],
+                    "count": 3
+                  },
+                  {
+                    "name": "thumbsup",
+                    "users": [
+                      "U_eeuactkjv",
+                      "U_3jjlbw0t4",
+                      "U_s9ga3a9et",
+                      "U_o8cwle5dw"
+                    ],
+                    "count": 4
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_3jjlbw0t4",
+                "text": "Got it, I’ll dig into the PR and let you know if anything looks off – happy to chime in on testing too! 🚀",
+                "ts": "1764165682.071157",
+                "thread_ts": "1764112456.218000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_3jjlbw0t4",
+                "text": "Thank you!",
+                "ts": "1764171254.549814",
+                "thread_ts": "1764112456.218000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "heart",
+                    "users": [
+                      "U_htaphy0tx",
+                      "U_o8cwle5dw",
+                      "U_1jrg95uuj",
+                      "U_s9ga3a9et",
+                      "U_zqpuo89p9"
+                    ],
+                    "count": 5
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_3jjlbw0t4",
+                "text": "Sounds good, I’ll dive into the PR and shoot over any feedback – let me know if you need an extra pair of eyes on testing! 🚀",
+                "ts": "1764191154.385629",
+                "thread_ts": "1764112456.218000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_3jjlbw0t4",
+                "text": "Sounds good, I’ll take a look at the locals and run a quick test stack today – will ping you if I hit anything odd. Also curious, do we want a feature flag for the naming changes before the full rollout? 🚀",
+                "ts": "1764205350.668816",
+                "thread_ts": "1764112456.218000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              },
+              {
+                "type": "message",
+                "user": "U_1jrg95uuj",
+                "text": "Sure thing, I’ll spin up a test env today and see if anything breaks – happy to add a feature flag if that helps the rollout. Ping me if you need another set of eyes!",
+                "ts": "1764208445.034958",
+                "thread_ts": "1764112456.218000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": [
+                  {
+                    "name": "white_check_mark",
+                    "users": [
+                      "U_ssux114im",
+                      "U_s9ga3a9et",
+                      "U_zqpuo89p9"
+                    ],
+                    "count": 3
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "user": "U_htaphy0tx",
+                "text": "👌",
+                "ts": "1764210050.988364",
+                "thread_ts": "1764112456.218000",
+                "channel": "C_nc5l2ld7a",
+                "reactions": []
+              }
+            ],
+            "totalMessages": 10
+          }
+        ]
+      },
+      "crossReferences": [
+        {
+          "type": "pr-to-issue",
+          "from": "pr-17372",
+          "to": "issue-96687",
+          "context": "PR references issue in body"
+        },
+        {
+          "type": "slack-to-issue",
+          "from": "slack-thread-1764112456.218000",
+          "to": "issue-96687",
+          "context": "Slack thread mentions issue #96687"
+        }
+      ],
+      "metrics": {
+        "totalRecords": 3,
+        "totalMessages": 10,
+        "participantCount": 4,
+        "servicesCovered": [
+          "github",
+          "github-pr",
+          "slack"
+        ]
+      }
+    },
+    "testCases": [
+      {
+        "query": "What is the state_reason and closed_at timestamp for GitHub issue #96687 authored by Priya Patel in gragger-infra?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "completed",
+            "2025-12-03T06:41:39.826Z",
+            "Priya Patel",
+            "#96687",
+            "gragger-infra"
+          ]
+        }
+      },
+      {
+        "query": "In Slack channel C_nc5l2ld7a thread 1764112456.218000 about GitHub issue #96687 VPC module refactor, what are the three specific actions requested from the team?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "Review the proposed locals & naming conventions",
+            "Testing coverage – spin up a quick test environment",
+            "Input on rollout strategy – merge to main or coordinated release",
+            "#96687",
+            "C_nc5l2ld7a"
+          ]
+        }
+      },
+      {
+        "query": "What variable rename example and CPU performance metric are mentioned by Chris Anderson in gragger-game PR #17372 that fixes VPC refactor issue #96687?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "playerSpeed → currentMovementSpeed",
+            "~4% reduction in CPU usage",
+            "VPC update loop",
+            "Chris Anderson",
+            "#17372"
           ]
         }
       }

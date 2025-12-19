@@ -323,9 +323,8 @@ export const executeAmpSDK = async (
       for await (const message of execute({
         prompt: query,
         options: {
-          mcpConfig: agent.mcpConfig, // TODO: fix typing
-          dangerouslyAllowAll: true,
-          // TODO: restrict permissions, don't read local files
+          mcpConfig: agent.mcpConfig,
+          dangerouslyAllowAll: false,
         },
       })) {
         if (verbose) {

@@ -9,7 +9,7 @@ import { RecordStore } from "../../stores/record.store.js";
 import { LLMService } from "../llm/llm.service.js";
 import { RerankerService } from "../reranker/reranker.service.js";
 import {
-  LIGHTRAG_QUERY_TOOL,
+  lightragQueryTool,
   LightRAGQuery,
 } from "../../types/lightrag.types.js";
 import { resolveSerializedZodOutput } from "../../utils/resolveSerializedZodOutput.js";
@@ -21,13 +21,13 @@ import logger from "../../utils/logger.js";
 /**
  * Register the LightRAG query tool with the MCP server
  */
-export function registerLightRAGTool(
+export async function registerLightRAGTool(
   mcpServer: McpServer,
   connections: {
     memgraph: MemgraphConnection;
     qdrant: QdrantConnection;
   }
-): void {
+): Promise<void> {
   logger.info("� Registering eBee Search tool...");
 
   // Initialize OpenAI client
@@ -47,18 +47,22 @@ export function registerLightRAGTool(
     embeddingModel: env.LLM_EMBEDDING_MODEL,
   };
 
+  const { name, description, inputSchema } = await lightragQueryTool();
+
   // Register the tool
   mcpServer.registerTool(
-    LIGHTRAG_QUERY_TOOL.name,
+    name,
     {
-      description: LIGHTRAG_QUERY_TOOL.description,
+      description,
       inputSchema: resolveSerializedZodOutput(
-        jsonSchemaToZod(LIGHTRAG_QUERY_TOOL.inputSchema)
+        jsonSchemaToZod(inputSchema)
       ) as {},
     },
     async (args) => {
       try {
         const query = args as unknown as LightRAGQuery;
+        query.score_threshold = query.score_threshold ?? 0.1;
+
         const response = await lightragQuery(query, deps);
 
         return {

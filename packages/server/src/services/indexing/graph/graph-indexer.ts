@@ -658,6 +658,20 @@ export const indexAllRecords = async (
         continue;
       }
 
+      // Build mapping of relationships to their source documents BEFORE processing
+      // This prevents re-running orphan detection which causes the double-processing bug
+      const relToDocuments = new Map<string, string[]>();
+      for (const result of validResults) {
+        for (const rel of result.relationships) {
+          const normalizedSource = normalizeEntityName(rel.source);
+          const normalizedTarget = normalizeEntityName(rel.target);
+          const key = `${normalizedSource}|${rel.type}|${normalizedTarget}`;
+          const docs = relToDocuments.get(key) || [];
+          docs.push(result.recordId);
+          relToDocuments.set(key, docs);
+        }
+      }
+
       // Process to graph format (pure function)
       const { nodes, relationships, entityNameToId, entityIdToType } =
         processRecordsToGraph(validResults);
@@ -813,6 +827,7 @@ export const indexAllRecords = async (
         });
 
         // 2. Collect all document-to-relationship links
+        // Use the pre-computed mapping to avoid re-running processRecordsToGraph per record
         const relLinks: Array<{
           documentId: string;
           relationshipType: string;
@@ -820,11 +835,48 @@ export const indexAllRecords = async (
           targetEntityId: string;
           confidence: number;
         }> = [];
-        for (const result of validResults) {
-          const { relationships: recordRels } = processRecordsToGraph([result]);
-          for (const rel of recordRels) {
+
+        for (const rel of relationships) {
+          // Reconstruct the key to lookup source documents
+          // We need to reverse-lookup entity names from IDs
+          let sourceEntityName = "";
+          let targetEntityName = "";
+
+          // Find entity names by looking through the entityNameToId map
+          for (const [name, id] of entityNameToId.entries()) {
+            if (id === rel.sourceId) sourceEntityName = name;
+            if (id === rel.targetId) targetEntityName = name;
+            if (sourceEntityName && targetEntityName) break;
+          }
+
+          if (!sourceEntityName || !targetEntityName) {
+            logger.warn({
+              msg: "⚠️  Could not find entity names for relationship",
+              sourceId: rel.sourceId,
+              targetId: rel.targetId,
+              relType: rel.type,
+            });
+            continue;
+          }
+
+          const lookupKey = `${sourceEntityName}|${rel.type}|${targetEntityName}`;
+          const documentIds = relToDocuments.get(lookupKey) || [];
+
+          if (documentIds.length === 0) {
+            logger.warn({
+              msg: "⚠️  No source documents found for relationship",
+              sourceId: rel.sourceId,
+              targetId: rel.targetId,
+              relType: rel.type,
+              lookupKey,
+            });
+            continue;
+          }
+
+          // Link this relationship to all documents that mentioned it
+          for (const docId of documentIds) {
             relLinks.push({
-              documentId: result.recordId,
+              documentId: docId,
               relationshipType: rel.type,
               sourceEntityId: rel.sourceId,
               targetEntityId: rel.targetId,
@@ -832,6 +884,13 @@ export const indexAllRecords = async (
             });
           }
         }
+
+        logger.info({
+          msg: "🔗 DEBUG: Document-to-relationship links created",
+          linksCount: relLinks.length,
+          relationshipsCount: relationships.length,
+          avgLinksPerRel: (relLinks.length / relationships.length).toFixed(2),
+        });
 
         // 3. Link ALL documents to relationships in one batch
         await graphStore.linkDocumentsToRelationshipsBatch(relLinks);

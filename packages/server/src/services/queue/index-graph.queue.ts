@@ -3,9 +3,14 @@ import { Processor, Queue, Worker } from "bullmq";
 import { initializeServices } from "../../mcp/initialization.js";
 import { GraphStore } from "../../stores/graph.store.js";
 import { RecordStore } from "../../stores/record.store.js";
+import { VectorStore } from "../../stores/vector.store.js";
 import { SourceType } from "../../types/index.js";
 import logger from "../../utils/logger.js";
 import { indexAllRecords } from "../indexing/graph/graph-indexer.js";
+import {
+  indexEntityEmbeddings,
+  indexRelationshipEmbeddings,
+} from "../indexing/graph/graph-embeddings.js";
 import { createLLMClient } from "../llm/providers.js";
 import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
 import { GitHubMCPClient } from "../sources/github/mcpClient.js";
@@ -25,11 +30,12 @@ const processor: Processor<
   string
 > = async ({ data: { source } }) => {
   // Initialize services
-  const { memgraph } = await initializeServices();
+  const { memgraph, qdrant } = await initializeServices();
 
   // Create stores
   const recordStore = new RecordStore();
   const graphStore = new GraphStore(memgraph);
+  const vectorStore = new VectorStore(qdrant);
 
   const adapters = new Map<SourceType, BaseRecordAdapter>();
 
@@ -69,7 +75,7 @@ const processor: Processor<
   const openaiClient = createLLMClient();
 
   // Use functional approach for indexing
-  await indexAllRecords(
+  const result = await indexAllRecords(
     source,
     recordStore,
     graphStore,
@@ -83,6 +89,26 @@ const processor: Processor<
       force: false,
     }
   );
+
+  // Index entity and relationship embeddings after graph extraction
+  if (result.nodes > 0 || result.relationships > 0) {
+    logger.info({
+      msg: `🔮 Indexing entity and relationship embeddings for ${source}`,
+    });
+
+    const deps = { vectorStore, recordStore, graphStore };
+
+    const entityStats = await indexEntityEmbeddings(source, deps);
+    const relStats = await indexRelationshipEmbeddings(source, deps);
+
+    logger.info({
+      msg: `✅ Embedding indexing complete`,
+      entityEmbeddingsIndexed: entityStats.indexed,
+      entityEmbeddingsSkipped: entityStats.skipped,
+      relationshipEmbeddingsIndexed: relStats.indexed,
+      relationshipEmbeddingsSkipped: relStats.skipped,
+    });
+  }
 };
 
 type IndexGraphJobData = {

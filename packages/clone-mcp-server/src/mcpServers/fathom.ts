@@ -114,10 +114,14 @@ fathomMcpServer.registerTool(
     const transcript = mockData.fathom.transcripts.find(
       (t) => t.recording_id.toString() === args.recording_id
     );
-    const result = transcript || {
-      recording_id: parseInt(args.recording_id),
-      transcripts: [],
-    };
+
+    const result = transcript
+      ? { ...transcript, transcript: transcript.transcripts }
+      : {
+          recording_id: parseInt(args.recording_id),
+          transcript: [],
+        };
+
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };

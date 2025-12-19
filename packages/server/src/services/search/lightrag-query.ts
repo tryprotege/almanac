@@ -334,7 +334,7 @@ async function mixMode(
 
     // Filter by score_threshold after reranking
     const filteredChunks = rerankedChunks.filter(
-      (chunk) => chunk.score >= (params.score_threshold || 0.6)
+      (chunk) => chunk.score >= (params.score_threshold ?? 0.6)
     );
 
     return { ...hybridResult, chunks: filteredChunks, reranked: true };

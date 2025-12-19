@@ -836,7 +836,23 @@ export const indexAllRecords = async (
           confidence: number;
         }> = [];
 
+        // First, process LLM-extracted relationships
         for (const rel of relationships) {
+          // Skip adapter relationships (they'll be processed separately)
+          const isAdapterRel = validResults.some((result) =>
+            result.adapterRelationships.some(
+              (adapterRel) =>
+                adapterRel.sourceId === rel.sourceId &&
+                adapterRel.targetId === rel.targetId &&
+                adapterRel.type === rel.type
+            )
+          );
+
+          if (isAdapterRel) {
+            // Will process this in the adapter relationships section below
+            continue;
+          }
+
           // Reconstruct the key to lookup source documents
           // We need to reverse-lookup entity names from IDs
           let sourceEntityName = "";
@@ -885,11 +901,37 @@ export const indexAllRecords = async (
           }
         }
 
+        // Second, process adapter relationships (these use direct record IDs)
+        const adapterRelCount = validResults.reduce(
+          (sum, result) => sum + result.adapterRelationships.length,
+          0
+        );
+        let adapterLinksAdded = 0;
+
+        for (const result of validResults) {
+          for (const adapterRel of result.adapterRelationships) {
+            relLinks.push({
+              documentId: result.recordId,
+              relationshipType: adapterRel.type,
+              sourceEntityId: adapterRel.sourceId,
+              targetEntityId: adapterRel.targetId,
+              confidence: adapterRel.confidence,
+            });
+            adapterLinksAdded++;
+          }
+        }
+
         logger.info({
           msg: "🔗 DEBUG: Document-to-relationship links created",
-          linksCount: relLinks.length,
+          totalLinksCount: relLinks.length,
+          llmLinks: relLinks.length - adapterLinksAdded,
+          adapterLinks: adapterLinksAdded,
           relationshipsCount: relationships.length,
-          avgLinksPerRel: (relLinks.length / relationships.length).toFixed(2),
+          adapterRelationshipsCount: adapterRelCount,
+          avgLinksPerRel:
+            relationships.length > 0
+              ? (relLinks.length / relationships.length).toFixed(2)
+              : "0",
         });
 
         // 3. Link ALL documents to relationships in one batch

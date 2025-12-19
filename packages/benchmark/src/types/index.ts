@@ -3,7 +3,7 @@
  * All types are immutable and composable
  */
 
-import { McpStdioServerConfig } from "@anthropic-ai/claude-agent-sdk";
+import { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 
 // Import types from server package (defined locally to avoid dependency issues)
 export type LightRAGMode = "naive" | "local" | "global" | "hybrid" | "mix";
@@ -146,7 +146,7 @@ export interface AgentConfig {
   readonly baseURL?: string;
   readonly systemPrompt?: string;
   readonly command?: string; // For CLI-based agents (amp, claude-cli, cline)
-  readonly mcpConfig?: Record<string, McpStdioServerConfig>; // MCP server configuration
+  readonly mcpConfig?: Record<string, McpServerConfig>; // MCP server configuration
 }
 
 export interface EvaluationCriteria {

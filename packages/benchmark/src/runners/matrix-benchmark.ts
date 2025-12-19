@@ -95,30 +95,61 @@ export async function runMatrixBenchmark(
 
         // Test with each MCP setup
         for (const setup of config.mcpSetups) {
-          // Stdio-based setup (direct or clone-mcp)
-          console.log(`     🔗 Running with ${setup.name}...`);
-          const result = await executeSDKQuery(
-            {
-              ...agent,
-              mcpConfig: setup.packages,
-            },
-            scenario.query,
-            { verbose: config.verbose }
-          );
-          const cell = toMatrixCell(result, scenario);
-          if (setup.name === "ebee") {
-            ebeeResults.push(cell);
-          } else {
+          if (setup.url) {
+            // URL-based setup (eBee or clone-mcp-http)
+            console.log(`     � Running with ${setup.name}...`);
+
+            const result = await executeSDKQuery(
+              {
+                ...agent,
+                mcpConfig: {
+                  [setup.name]: {
+                    type: "http",
+                    url: setup.url,
+                  },
+                },
+              },
+              scenario.query,
+              { verbose: config.verbose }
+            );
+
+            const cell = toMatrixCell(result, scenario);
+
+            if (setup.name === "ebee") {
+            } else {
+              directResults.push(cell);
+            }
+
+            console.log(
+              `        ✓ Completed in ${result.executionTime}ms, ${result.totalTokens} tokens`
+            );
+
+            // Show evaluation results if available
+            if (cell.evaluation) {
+              console.log(`        ${formatEvaluationResult(cell.evaluation)}`);
+            }
+          } else if (setup.servers && setup.packages) {
+            // Stdio-based setup (direct or clone-mcp)
+            console.log(`     🔗 Running with ${setup.name}...`);
+            const result = await executeSDKQuery(
+              {
+                ...agent,
+                mcpConfig: setup.packages,
+              },
+              scenario.query,
+              { verbose: config.verbose }
+            );
+            const cell = toMatrixCell(result, scenario);
             directResults.push(cell);
-          }
 
-          console.log(
-            `        ✓ Completed in ${result.executionTime}ms, ${result.totalTokens} tokens`
-          );
+            console.log(
+              `        ✓ Completed in ${result.executionTime}ms, ${result.totalTokens} tokens`
+            );
 
-          // Show evaluation results if available
-          if (cell.evaluation) {
-            console.log(`        ${formatEvaluationResult(cell.evaluation)}`);
+            // Show evaluation results if available
+            if (cell.evaluation) {
+              console.log(`        ${formatEvaluationResult(cell.evaluation)}`);
+            }
           }
         }
 

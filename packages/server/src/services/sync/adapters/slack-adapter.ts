@@ -1,6 +1,6 @@
 import { MessageElement as SlackMessage } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse.js";
 import { Channel as SlackChannel } from "@slack/web-api/dist/types/response/ConversationsListResponse.js";
-import { Member } from "@slack/web-api/dist/types/response/UsersListResponse.js";
+import { Member as SlackUser } from "@slack/web-api/dist/types/response/UsersListResponse.js";
 import { z } from "zod";
 import { zodResponseFormat } from "openai/helpers/zod";
 import pLimit from "p-limit";
@@ -12,8 +12,6 @@ import { BaseRecordAdapter } from "./base-adapter.js";
 import { createLLMClient } from "../../llm/providers.js";
 import { env } from "../../../env.js";
 import logger from "../../../utils/logger.js";
-
-type SlackUser = Pick<Member, "id" | "name" | "real_name">;
 
 type SlackRecord = SlackChannel | SlackMessage | SlackUser;
 
@@ -65,10 +63,10 @@ export class SlackAdapter extends BaseRecordAdapter<Record> {
   async *fetchAll(options?: FetchOptions): AsyncIterable<Record[]> {
     const batchSize = options?.batchSize || 100;
 
-    // Fetch users
-    const users = await this.client.getAllUsers();
-    const transformedUsers = users.map((user) => this.transformUser(user));
-    yield transformedUsers;
+    // TODO: // Fetch users
+    // const users = await this.client.getAllUsers();
+    // const transformedUsers = users.map((user) => this.transformUser(user));
+    // yield transformedUsers;
 
     // Fetch channels
     const channels = await this.client.getAllChannels();
@@ -501,14 +499,23 @@ Group related messages together. Each message can only belong to ONE group.`;
   /**
    * Transform Slack user to unified Record format
    */
-  private transformUser(
-    user: Awaited<ReturnType<typeof this.client.getAllUsers>>[0]
-  ): Record {
-    const sourceId = user.UserID!;
+  private transformUser(user: SlackUser): Record {
+    const sourceId = user.id!;
     const _id = this.generateRecordId("user", sourceId);
 
-    const title = user.RealName;
-    const content = [user.UserName, user.RealName].join(" - ");
+    const title = user.real_name || user.name || "Unknown User";
+    const parts: string[] = [];
+    if (user.real_name) {
+      parts.push(user.real_name);
+    }
+    if (user.profile?.title) {
+      parts.push(user.profile.title);
+    }
+    if (user.profile?.status_text) {
+      parts.push(user.profile.status_text);
+    }
+    const content = parts.join(" - ");
+    const primaryDate = user.updated ? new Date(user.updated * 1000) : null;
 
     const record: Record = {
       _id,
@@ -518,13 +525,13 @@ Group related messages together. Each message can only belong to ONE group.`;
       title,
       content: content || title,
       people: [],
-      primaryDate: null,
+      primaryDate,
       tags: [],
       rawData: user,
       checksum: "",
       version: 1,
       syncedAt: new Date(),
-      sourceUpdatedAt: new Date(),
+      sourceUpdatedAt: primaryDate || new Date(),
       deletedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),

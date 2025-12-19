@@ -163,7 +163,7 @@ const main = async () => {
 
       // Package test cases with workflow ID
       const testCases = {
-        workflow: g,
+        workflow: { groupId: g.groupId },
         testCases: parsedResult.testCases,
       };
 

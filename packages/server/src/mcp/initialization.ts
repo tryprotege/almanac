@@ -22,48 +22,53 @@ import logger from "../utils/logger.js";
 
 export async function initializeRemoteServers(
   configs: MCPServerConfig[],
-  mcpSever: McpServer
+  mcpSever: McpServer,
+  skipMcpProxy = false
 ): Promise<void> {
-  for (const config of configs) {
-    try {
-      await mcpClientManager.connect(config);
+  await Promise.all(
+    configs.map(async (config) => {
+      try {
+        await mcpClientManager.connect(config);
 
-      // Get tools only from the server we just connected to
-      const tools = mcpClientManager.getServerTools(config.name);
+        if (skipMcpProxy) return;
 
-      tools.forEach((tool) => {
-        mcpSever.registerTool(
-          `${config.name}__${tool.name}`,
-          {
-            description: `[${config.name}] ${tool.description}`,
-            title: tool.title,
-            _meta: tool._meta,
-            annotations: tool.annotations,
-            inputSchema: resolveSerializedZodOutput(
-              jsonSchemaToZod(tool.inputSchema)
-            ) as {},
-            outputSchema: tool.outputSchema
-              ? (resolveSerializedZodOutput(
-                  jsonSchemaToZod(tool.outputSchema, { module: "esm" })
-                ) as {})
-              : undefined,
-          },
-          async (args, _extra) => {
-            return await mcpClientManager.callTool(
-              config.name,
-              tool.name,
-              args
-            );
-          }
+        // Get tools only from the server we just connected to
+        const tools = mcpClientManager.getServerTools(config.name);
+
+        tools.forEach((tool) => {
+          mcpSever.registerTool(
+            `${config.name}__${tool.name}`,
+            {
+              description: `[${config.name}] ${tool.description}`,
+              title: tool.title,
+              _meta: tool._meta,
+              annotations: tool.annotations,
+              inputSchema: resolveSerializedZodOutput(
+                jsonSchemaToZod(tool.inputSchema)
+              ) as {},
+              outputSchema: tool.outputSchema
+                ? (resolveSerializedZodOutput(
+                    jsonSchemaToZod(tool.outputSchema, { module: "esm" })
+                  ) as {})
+                : undefined,
+            },
+            async (args, _extra) => {
+              return await mcpClientManager.callTool(
+                config.name,
+                tool.name,
+                args
+              );
+            }
+          );
+        });
+      } catch (err) {
+        logger.error(
+          { err, configName: config.name },
+          `Failed to connect to ${config.name}`
         );
-      });
-    } catch (err) {
-      logger.error(
-        { err, configName: config.name },
-        `Failed to connect to ${config.name}`
-      );
-    }
-  }
+      }
+    })
+  );
 
   const connectedServers = mcpClientManager.getConnectedServers();
   logger.info({
@@ -73,7 +78,7 @@ export async function initializeRemoteServers(
   });
 }
 
-const connectMcpServers = async () => {
+const connectMcpServers = async (skipMcpProxy: boolean) => {
   const validConfigs = await loadProxyConfig();
   if (validConfigs.length > 0) {
     await initializeRemoteServers(
@@ -84,7 +89,8 @@ const connectMcpServers = async () => {
           ? Object.fromEntries(c.headers.entries())
           : undefined,
       })),
-      mcpServer
+      mcpServer,
+      skipMcpProxy
     );
   } else {
     logger.info({ msg: "No remote MCP servers configured" });
@@ -106,7 +112,9 @@ export const mcpServer = new McpServer({
   version: "0.1.0",
 });
 
-export async function initializeServices(): Promise<ServiceConnections> {
+export async function initializeServices(
+  skipMcpProxy = false
+): Promise<ServiceConnections> {
   if (services) {
     return services;
   }
@@ -129,7 +137,7 @@ export async function initializeServices(): Promise<ServiceConnections> {
     registerLightRAGTool(mcpServer, { memgraph, qdrant }),
     // Ensure Qdrant collection exists
     vectorStore.ensureCollection(),
-    connectMcpServers(),
+    connectMcpServers(skipMcpProxy),
   ]);
 
   // start the bullmq workers. Don't wait for them, otherwise it'll hang

@@ -329,4 +329,27 @@ slackMcpServer.registerTool(
   }
 );
 
+slackMcpServer.registerResource(
+  "Directory of Slack users",
+  "slack://workspace-a/users",
+  {
+    mimeType: "text/csv",
+    description: "This resource provides a directory of Slack users.",
+  },
+  async (uri) => {
+    const csv = stringify(
+      mockData.slack.users.map((u) => ({
+        UserID: u.id,
+        UserName: u.name,
+        RealName: u.real_name,
+      })),
+      { header: true }
+    );
+
+    return {
+      contents: [{ uri: uri.toString(), mimeType: "text/csv", text: csv }],
+    };
+  }
+);
+
 export { slackMcpServer };

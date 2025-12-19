@@ -443,12 +443,27 @@ export class SlackMCPClient {
    * Note: This functionality is not available in the current MCP server
    * Keeping this method for compatibility but it will throw an error
    */
-  async getAllUsers(): Promise<Member[]> {
-    throw new Error(
-      "getAllUsers is not supported by the Slack MCP server. " +
-        "The users_list tool is not available in https://github.com/korotovsky/slack-mcp-server. " +
-        "Consider using the Slack WebClient directly for user operations or requesting this feature."
+  async getAllUsers(): Promise<
+    { UserID: string; UserName: string; RealName: string }[]
+  > {
+    const resources = await mcpClientManager.listResources(this.serverName);
+
+    const userResource = resources.find((r) => r.uri.endsWith("/users"));
+
+    if (!userResource) {
+      throw new Error("User resource not found");
+    }
+
+    const response = await mcpClientManager.readResource(
+      this.serverName,
+      userResource.uri
     );
+
+    if (response[0] && "text" in response[0]) {
+      return this.parseCsvResponse(response[0].text);
+    }
+
+    return [];
   }
 
   /**

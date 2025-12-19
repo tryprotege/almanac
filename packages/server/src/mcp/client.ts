@@ -213,6 +213,34 @@ class MCPClientManager {
   }
 
   /**
+   * List resources
+   */
+  async listResources(serverName: string) {
+    const client = this.clients.get(serverName);
+    if (!client) {
+      throw new Error(`Client ${serverName} not connected`);
+    }
+
+    const response = await client.listResources({});
+
+    return response.resources;
+  }
+
+  /**
+   * Read a resource
+   */
+  async readResource(serverName: string, uri: string) {
+    const client = this.clients.get(serverName);
+    if (!client) {
+      throw new Error(`Client ${serverName} not connected`);
+    }
+
+    const response = await client.readResource({ uri });
+
+    return response.contents;
+  }
+
+  /**
    * Get list of connected servers
    */
   getConnectedServers(): string[] {

@@ -217,6 +217,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.24.3
         version: 1.24.3(zod@3.25.76)
+      '@neo4j/cypher-builder':
+        specifier: ^2.11.0
+        version: 2.11.0
       '@qdrant/js-client-rest':
         specifier: ^1.16.0
         version: 1.16.0(typescript@5.9.3)
@@ -1146,6 +1149,10 @@ packages:
 
   '@napi-rs/wasm-runtime@0.2.12':
     resolution: {integrity: sha512-ZVWUcfwY4E/yPitQJl481FjFo3K22D6qF0DuFH6Y/nbnE11GY5uguDxZMGXPQ8WQ0128MXQD7TnfHyK4oWoIJQ==}
+
+  '@neo4j/cypher-builder@2.11.0':
+    resolution: {integrity: sha512-4egNORSKT/dKzWydHFSksNCjTwxKfzOkUyfVo0dUc6lsnQV4KtlgboF1v8q7uRLQ7oyoQFQO8Sy1BWgRoViwlg==}
+    engines: {node: '>=16.0.0'}
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
@@ -4467,6 +4474,8 @@ snapshots:
       '@emnapi/runtime': 1.7.1
       '@tybys/wasm-util': 0.10.1
     optional: true
+
+  '@neo4j/cypher-builder@2.11.0': {}
 
   '@pinojs/redact@0.4.0': {}
 

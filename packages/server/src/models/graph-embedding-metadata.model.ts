@@ -5,6 +5,16 @@ import { Schema, model } from "mongoose";
  * One entry per global entity or relationship (deduplicated across documents)
  */
 
+/**
+ * Represents a single mention of a relationship in a document
+ * Used to track provenance: which documents mention which relationships
+ */
+export interface IRelationshipMention {
+  documentId: string; // MongoDB record ID that mentions this relationship
+  confidence: number; // Extraction confidence (0.0-1.0)
+  extractedAt: Date; // When this mention was extracted
+}
+
 export interface IGraphEmbeddingMetadata {
   _id: string; // Format: "entity_{globalId}" or "rel_{sourceId}_{type}_{targetId}" - Semantic MongoDB ID
   qdrantId?: string; // UUID for Qdrant point ID (required by Qdrant, generated on first embedding)
@@ -34,6 +44,11 @@ export interface IGraphEmbeddingMetadata {
   // Provenance - which documents contributed to this element
   sourceDocumentIds: string[]; // Array of MongoDB record IDs
   lastUpdatedBy: string; // Which document triggered the last update
+
+  // NEW: Relationship mentions tracking (for relationships only)
+  // Tracks which documents mention this relationship and with what confidence
+  // Used for orphan detection: relationships with empty array can be deleted
+  mentionedInDocuments?: IRelationshipMention[];
 
   createdAt: Date;
   updatedAt: Date;
@@ -136,6 +151,19 @@ const graphEmbeddingMetadataSchema = new Schema<IGraphEmbeddingMetadata>(
       type: String,
       required: true,
     },
+
+    // Relationship mentions tracking
+    mentionedInDocuments: {
+      type: [
+        {
+          documentId: { type: String, required: true },
+          confidence: { type: Number, required: true },
+          extractedAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+      sparse: true, // Only for relationships
+    },
   },
   {
     timestamps: true,
@@ -165,6 +193,13 @@ graphEmbeddingMetadataSchema.index({
   source: 1,
   embeddedAt: 1,
 }); // Filter by type + source + embedding status
+
+// Relationship mention tracking indexes
+graphEmbeddingMetadataSchema.index({ "mentionedInDocuments.documentId": 1 }); // Find relationships by document
+graphEmbeddingMetadataSchema.index({
+  itemType: 1,
+  mentionedInDocuments: 1,
+}); // Find orphaned relationships (empty array)
 
 export const GraphEmbeddingMetadata = model<IGraphEmbeddingMetadata>(
   "GraphEmbeddingMetadata",

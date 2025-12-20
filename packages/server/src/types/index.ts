@@ -87,7 +87,21 @@ export interface FetchOptions {
 }
 
 /**
+ * Document-to-Document relationship (structural links from adapters)
+ * These link MongoDB records to each other (e.g., transcript to meeting, page to database)
+ * IDs use the record ID format: {source}_{type}_{id}
+ */
+export interface DocumentRelationship {
+  sourceId: string; // MongoDB record ID (e.g., "fathom_transcript_123")
+  targetId: string; // MongoDB record ID (e.g., "fathom_meeting_456")
+  type: string; // "TRANSCRIPT_OF", "CHILD_OF", "ROW_OF", etc.
+  confidence: number; // 0.0 - 1.0
+}
+
+/**
  * Entity relationship extracted from source data
+ * @deprecated Use DocumentRelationship for adapter relationships
+ * This type is still used for backwards compatibility but will be removed
  */
 export interface EntityRelationship {
   sourceId: string;

@@ -160,6 +160,70 @@ export function unescapeIdentifier(escapedIdentifier: string): string {
 }
 
 /**
+ * Sanitize a Cypher identifier to contain only valid characters
+ * Valid: letters (a-z, A-Z), digits (0-9), underscore (_)
+ * Must start with letter or underscore (not digit)
+ *
+ * This is a whitelist approach - replaces ALL invalid characters with underscores
+ * Returns null if the identifier cannot be salvaged
+ *
+ * @param identifier The identifier to sanitize (relationship type, label, etc.)
+ * @param options Sanitization options
+ * @returns Sanitized identifier or null if unsalvageable
+ */
+export function sanitizeCypherIdentifier(
+  identifier: string,
+  options: {
+    toUpperCase?: boolean;
+    prefix?: string;
+  } = {}
+): string | null {
+  if (!identifier || typeof identifier !== "string") {
+    return null;
+  }
+
+  // Remove all characters that are NOT alphanumeric or underscore
+  // This handles ALL problematic Cypher characters: ?, +, -, *, /, etc.
+  let sanitized = identifier.replace(/[^a-zA-Z0-9_]/g, "_");
+
+  // Remove consecutive underscores
+  sanitized = sanitized.replace(/_+/g, "_");
+
+  // Remove leading/trailing underscores
+  sanitized = sanitized.replace(/^_+|_+$/g, "");
+
+  // Must start with letter or underscore (not digit)
+  if (/^[0-9]/.test(sanitized)) {
+    sanitized = (options.prefix || "_") + sanitized;
+  }
+
+  // Return null if empty after sanitization
+  if (sanitized.length === 0) {
+    return null;
+  }
+
+  // Optionally convert to uppercase (common for relationship types)
+  if (options.toUpperCase) {
+    sanitized = sanitized.toUpperCase();
+  }
+
+  return sanitized;
+}
+
+/**
+ * Sanitize a relationship type for safe use in Cypher queries
+ * Applies whitelist-based sanitization and converts to uppercase
+ *
+ * @param relationshipType The relationship type to sanitize
+ * @returns Sanitized type or null if invalid
+ */
+export function sanitizeRelationshipType(
+  relationshipType: string
+): string | null {
+  return sanitizeCypherIdentifier(relationshipType, { toUpperCase: true });
+}
+
+/**
  * Validate a relationship type and provide helpful error messages
  * Use this for validation/warning purposes in the indexing pipeline
  *

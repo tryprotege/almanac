@@ -217,6 +217,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.24.3
         version: 1.24.3(zod@3.25.76)
+      '@neo4j/cypher-builder':
+        specifier: ^2.11.0
+        version: 2.11.0
       '@qdrant/js-client-rest':
         specifier: ^1.16.0
         version: 1.16.0(typescript@5.9.3)
@@ -1147,6 +1150,10 @@ packages:
   '@napi-rs/wasm-runtime@0.2.12':
     resolution: {integrity: sha512-ZVWUcfwY4E/yPitQJl481FjFo3K22D6qF0DuFH6Y/nbnE11GY5uguDxZMGXPQ8WQ0128MXQD7TnfHyK4oWoIJQ==}
 
+  '@neo4j/cypher-builder@2.11.0':
+    resolution: {integrity: sha512-4egNORSKT/dKzWydHFSksNCjTwxKfzOkUyfVo0dUc6lsnQV4KtlgboF1v8q7uRLQ7oyoQFQO8Sy1BWgRoViwlg==}
+    engines: {node: '>=16.0.0'}
+
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
 
@@ -1306,8 +1313,8 @@ packages:
     resolution: {integrity: sha512-058GAcqHd3I7oYLnLIMhcZMdg8i6hCvD4K3s5PY8RuSXp7QAl9/+usOIxrDSfNMGK4cfya94LqHj+txwIe3wUQ==}
     engines: {node: '>=18'}
 
-  '@sourcegraph/amp@0.0.1765972876-g98b07c':
-    resolution: {integrity: sha512-cu01egzqU0/rtCy8745gcgdRrDP4EMKk46u6YjszBB/rrLuvL0VhvhoVjQM2xdXEhQyPNUOQoPYMuSMVDHPuJg==}
+  '@sourcegraph/amp@0.0.1766131291-ge77fe8':
+    resolution: {integrity: sha512-XxUtkLomMztiZXSDXEHjm/fPy6eJe95DD7kRBAYmBUS0OYW51+zF5zaJt/vRUGmpcYp6pDmGEg48/Dog9jyFkw==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -4468,6 +4475,8 @@ snapshots:
       '@tybys/wasm-util': 0.10.1
     optional: true
 
+  '@neo4j/cypher-builder@2.11.0': {}
+
   '@pinojs/redact@0.4.0': {}
 
   '@pkgjs/parseargs@0.11.0':
@@ -4586,10 +4595,10 @@ snapshots:
 
   '@sourcegraph/amp-sdk@0.1.0-20251217003600-gcd4203a':
     dependencies:
-      '@sourcegraph/amp': 0.0.1765972876-g98b07c
+      '@sourcegraph/amp': 0.0.1766131291-ge77fe8
       zod: 3.25.76
 
-  '@sourcegraph/amp@0.0.1765972876-g98b07c':
+  '@sourcegraph/amp@0.0.1766131291-ge77fe8':
     dependencies:
       '@napi-rs/keyring': 1.1.9
 

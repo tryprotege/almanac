@@ -6,6 +6,7 @@
 import { RecordStore } from "../../../stores/record.store.js";
 import { GraphStore } from "../../../stores/graph.store.js";
 import { VectorStore } from "../../../stores/vector.store.js";
+import { RelationshipMentionStore } from "../../../stores/relationship-mention.store.js";
 import { SourceType } from "../../../types/index.js";
 import {
   cleanupDeletedEntityEmbeddings,
@@ -17,6 +18,8 @@ export interface CleanupStats {
   nodes: number;
   entityEmbeddings?: number;
   relationshipEmbeddings?: number;
+  orphanedRelationships?: number;
+  deletedRelationshipMetadata?: number;
 }
 
 /**
@@ -89,4 +92,77 @@ export const cleanupDeletedRecords = async (
   }
 
   return result;
+};
+
+/**
+ * Clean up document graph (remove relationship mentions and orphaned relationships)
+ * Called when a document is re-indexed or deleted
+ */
+export const cleanupDocumentGraph = async (
+  documentId: string,
+  graphStore: GraphStore
+): Promise<{
+  removedMentions: number;
+  orphanedRelationships: number;
+  deletedMetadata: number;
+}> => {
+  logger.info({ msg: "🧹 Cleaning up document graph", documentId });
+
+  const relationshipMentionStore = new RelationshipMentionStore();
+
+  // 1. Remove relationship mentions from MongoDB
+  const removedMentions = await relationshipMentionStore.removeDocumentMentions(
+    documentId
+  );
+
+  logger.info({
+    msg: "Removed relationship mentions",
+    documentId,
+    removedMentions,
+  });
+
+  // 2. Find orphaned relationships in MongoDB
+  const orphanedRels =
+    await relationshipMentionStore.findOrphanedRelationships();
+
+  logger.info({
+    msg: "Found orphaned relationships",
+    count: orphanedRels.length,
+  });
+
+  // 3. Delete orphaned relationships from Memgraph
+  if (orphanedRels.length > 0) {
+    for (const rel of orphanedRels) {
+      try {
+        await graphStore.deleteRelationship(
+          rel.sourceEntityId,
+          rel.type,
+          rel.targetEntityId
+        );
+      } catch (err) {
+        logger.error({
+          msg: "Failed to delete orphaned relationship from Memgraph",
+          err,
+          relationship: rel,
+        });
+      }
+    }
+  }
+
+  // 4. Delete orphaned relationship metadata from MongoDB
+  const deletedMetadata =
+    await relationshipMentionStore.deleteOrphanedRelationships();
+
+  logger.info({
+    msg: "✅ Graph cleanup complete",
+    documentId,
+    orphanedRelationships: orphanedRels.length,
+    deletedMetadata,
+  });
+
+  return {
+    removedMentions,
+    orphanedRelationships: orphanedRels.length,
+    deletedMetadata,
+  };
 };

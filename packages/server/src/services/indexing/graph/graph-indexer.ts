@@ -8,24 +8,25 @@ import pLimit from "p-limit";
 import { Record } from "../../../models/record.model.js";
 import { RecordStore } from "../../../stores/record.store.js";
 import { GraphStore } from "../../../stores/graph.store.js";
-import { SourceType, EntityRelationship } from "../../../types/index.js";
+import { SourceType, DocumentRelationship } from "../../../types/index.js";
 import { BaseRecordAdapter } from "../../sync/adapters/base-adapter.js";
-import { extractGraphFromContent } from "./schema/schema-extraction.js";
+import { extractGraphFromContent } from "./extraction/content-extractor.js";
+import { processRecordsToGraph } from "./processing/graph-builder.js";
 import {
   Entity,
   Relationship,
-  mergeRelationships,
-  filterLowValueRelationships,
-} from "./schema/entity-deduplication.js";
+  ExtractionResult,
+  IndexingOptions,
+  IndexingStats,
+} from "./types.js";
+import { filterLowValueRelationships } from "./schema/entity-deduplication.js";
 import {
   isToxicChunk,
   truncateEntities,
 } from "../../../utils/toxic-chunk-detector.js";
 import {
   entitiesToGraphNodes,
-  relationshipsToGraphRelationships,
   generateGlobalEntityId,
-  GraphNode,
   GraphRelationship,
 } from "./graph-converter.js";
 import { normalizeEntityName } from "./schema/entity-deduplication.js";
@@ -36,48 +37,12 @@ import {
 } from "./schema-auto-discovery.js";
 import { getSchema, createSchema } from "../../../stores/graph-schema.store.js";
 import { GraphEmbeddingMetadata } from "../../../models/graph-embedding-metadata.model.js";
+import { RelationshipMentionStore } from "../../../stores/relationship-mention.store.js";
+import { cleanupDocumentGraph } from "./graph-cleanup.js";
 import logger from "../../../utils/logger.js";
 import { env } from "../../../env.js";
 import { calculateEmbeddingChecksum } from "../../../utils/checksum.js";
-import { validateRelationshipType } from "../../../utils/cypher-escape.js";
-
-// ============================================================================
-// Types
-// ============================================================================
-
-export interface ExtractionResult {
-  entities: Entity[];
-  relationships: Relationship[];
-  adapterRelationships: GraphRelationship[];
-  recordId: string;
-  recordChecksum: string;
-  wasFilteredAsToxic?: boolean;
-}
-
-export interface IndexingOptions {
-  recordType?: string;
-  batchSize?: number;
-  concurrency?: number;
-  enableToxicFilter?: boolean;
-  maxEntitiesPerDoc?: number;
-  force?: boolean;
-  limit?: number;
-}
-
-export interface IndexingStats {
-  nodes: number;
-  relationships: number;
-  errors: number;
-  skippedToxic: number;
-  emptyExtractions: number;
-  processedRecords: number;
-  failedRecords: number;
-  successfulRecords: number;
-  totalRuntimeMs: number;
-  avgTimePerDocMs: number;
-  avgBatchTimeMs: number;
-  throughputDocsPerSec: number;
-}
+import { sanitizeRelationshipType } from "../../../utils/cypher-escape.js";
 
 // ============================================================================
 // Core Functions
@@ -134,18 +99,8 @@ export const extractGraphFromRecord = async (
     };
   }
 
-  // Clean up old entity and relationship mentions before re-extraction if:
-  // 1. This is a re-index (lastGraphIndexAt exists), OR
-  // 2. Force mode is enabled (always clean)
-  // NOTE: Orphaned entity/relationship cleanup is now done in batch after all records
-  // are processed to improve performance and reduce transaction conflicts.
-  if (options.graphStore && (record.lastGraphIndexAt || options.force)) {
-    // Cleanup is handled in batch after indexing completes
-    // See indexAllRecords() for the cleanup logic
-  }
-
-  // Extract explicit relationships using adapter
-  let adapterRelationships: EntityRelationship[] = [];
+  // Extract explicit relationships using adapter (document-to-document)
+  let adapterRelationships: DocumentRelationship[] = [];
   if (adapter && record.rawData) {
     try {
       adapterRelationships = await adapter.extractRelationships(record.rawData);
@@ -252,176 +207,6 @@ export const extractGraphFromRecord = async (
     adapterRelationships: graphAdapterRels,
     recordId: record._id,
     recordChecksum: record.checksum,
-  };
-};
-
-/**
- * High-value entity types that should be preserved even without relationships
- * These entities are considered important enough to exist standalone
- */
-const HIGH_VALUE_ENTITY_TYPES = new Set([
-  "PERSON",
-  "ORGANIZATION",
-  "COMPANY",
-  "LOCATION",
-  "PRODUCT",
-  "PROJECT",
-]);
-
-/**
- * Minimum description length for standalone entities
- * Entities with substantial descriptions may be valuable even without relationships
- */
-const MIN_DESCRIPTION_LENGTH = 50;
-
-/**
- * Check if an entity should be created even without relationships
- */
-const shouldPreserveEntity = (entity: Entity): boolean => {
-  // Preserve high-value entity types
-  if (HIGH_VALUE_ENTITY_TYPES.has(entity.type.toUpperCase())) {
-    return true;
-  }
-
-  // Preserve entities with substantial descriptions
-  if (
-    entity.description &&
-    entity.description.length >= MIN_DESCRIPTION_LENGTH
-  ) {
-    return true;
-  }
-
-  return false;
-};
-
-/**
- * Process batch of extraction results to graph format
- * Pure function - no side effects
- * Returns entity mappings for consistent ID generation
- * Now includes orphan prevention logic
- */
-export const processRecordsToGraph = (
-  recordsData: ExtractionResult[]
-): {
-  nodes: GraphNode[];
-  relationships: GraphRelationship[];
-  entityNameToId: Map<string, string>;
-  entityIdToType: Map<string, string>;
-} => {
-  // Flatten all relationships
-  const allRelationships = recordsData.flatMap((data) => data.relationships);
-
-  // Merge relationships
-  const mergedRelationships = mergeRelationships(allRelationships);
-
-  // Build a set of entity names that have at least one valid relationship
-  const entitiesWithRelationships = new Set<string>();
-  for (const rel of mergedRelationships) {
-    const normalizedSource = normalizeEntityName(rel.source);
-    const normalizedTarget = normalizeEntityName(rel.target);
-    entitiesWithRelationships.add(normalizedSource);
-    entitiesWithRelationships.add(normalizedTarget);
-  }
-
-  // Convert to graph format
-  // We need to map entity names to node IDs across all records
-  const entityNameToId = new Map<string, string>();
-  const entityIdToType = new Map<string, string>();
-  const nodes: GraphNode[] = [];
-
-  // Track orphan prevention stats
-  let preventedOrphanCount = 0;
-  const preventedEntities: Array<{
-    name: string;
-    type: string;
-    reason: string;
-  }> = [];
-
-  // First pass: collect all unique entities (now global, not per-record)
-  // Filter out entities that would become orphans
-  for (const data of recordsData) {
-    const allEntities = data.entities;
-
-    // Filter entities: only include if they have relationships OR are high-value
-    const connectedEntities = allEntities.filter((entity) => {
-      const normalizedName = normalizeEntityName(entity.name);
-      const hasRelationships = entitiesWithRelationships.has(normalizedName);
-      const shouldPreserve = shouldPreserveEntity(entity);
-
-      if (!hasRelationships && !shouldPreserve) {
-        preventedOrphanCount++;
-        preventedEntities.push({
-          name: entity.name,
-          type: entity.type,
-          reason: "No valid relationships and not a high-value entity type",
-        });
-        return false;
-      }
-
-      return true;
-    });
-
-    const { nodes: recordNodes, entityNameToId: recordMapping } =
-      entitiesToGraphNodes(connectedEntities);
-
-    // Merge mappings and nodes (deduplication happens naturally with global IDs)
-    for (const [name, id] of recordMapping.entries()) {
-      if (!entityNameToId.has(name)) {
-        entityNameToId.set(name, id);
-        const node = recordNodes.find((n) => n.id === id)!;
-        nodes.push(node);
-        entityIdToType.set(id, node.type);
-      }
-    }
-  }
-
-  // Log orphan prevention results
-  if (preventedOrphanCount > 0) {
-    logger.info({
-      msg: `🛡️  Prevented creation of ${preventedOrphanCount} entities that would become orphans`,
-      preventedCount: preventedOrphanCount,
-    });
-
-    if (logger.level === "debug" || logger.level === "trace") {
-      logger.debug({
-        msg: "📋 Prevented orphan entities (sample)",
-        entities: preventedEntities.slice(0, 20),
-        totalPrevented: preventedOrphanCount,
-      });
-    }
-  }
-
-  // Convert LLM relationships to graph relationships
-  const llmGraphRels = relationshipsToGraphRelationships(
-    mergedRelationships,
-    entityNameToId
-  );
-
-  // Merge adapter relationships with LLM relationships
-  const allAdapterRels = recordsData.flatMap(
-    (data) => data.adapterRelationships
-  );
-  const allGraphRels = [...llmGraphRels, ...allAdapterRels];
-
-  // Validate relationship types and log warnings for special characters
-  const uniqueRelTypes = new Set(allGraphRels.map((r) => r.type));
-  for (const relType of uniqueRelTypes) {
-    const validation = validateRelationshipType(relType);
-    if (validation.warnings.length > 0) {
-      logger.warn({
-        msg: "⚠️  Relationship type contains special characters",
-        relationshipType: relType,
-        warnings: validation.warnings,
-        needsEscaping: validation.needsEscaping,
-      });
-    }
-  }
-
-  return {
-    nodes,
-    relationships: allGraphRels,
-    entityNameToId,
-    entityIdToType,
   };
 };
 
@@ -557,18 +342,125 @@ export const indexAllRecords = async (
             existingEntityTypes,
             existingRelTypes,
             { enableToxicFilter, maxEntitiesPerDoc, graphStore, force }
-          ).catch((err) => {
-            // Wrap errors with record info for better logging
-            return {
-              error: err,
-              recordId: record._id,
-              recordTitle: record.title,
-              entities: [],
-              relationships: [],
-              adapterRelationships: [],
-              recordChecksum: record.checksum,
-            };
-          })
+          )
+            .then(async (result) => {
+              // Log extraction details immediately after each document finishes
+              if (
+                result.entities.length > 0 &&
+                result.relationships.length > 0
+              ) {
+                // Get entity IDs from result
+                const entityIds = result.entities.map((e) =>
+                  generateGlobalEntityId(e.name, e.type)
+                );
+
+                // Query graph store to check which entities already exist
+                const existingEntityIds = await graphStore.getExistingEntityIds(
+                  entityIds
+                );
+
+                // Separate entities into NEW vs EXISTING
+                const newEntities: Entity[] = [];
+                const existingEntities: Entity[] = [];
+
+                for (const entity of result.entities) {
+                  const entityId = generateGlobalEntityId(
+                    entity.name,
+                    entity.type
+                  );
+                  if (existingEntityIds.has(entityId)) {
+                    existingEntities.push(entity);
+                  } else {
+                    newEntities.push(entity);
+                  }
+                }
+
+                // Build entity name to type map for relationship lookups
+                const entityNameToType = new Map<string, string>();
+                for (const entity of result.entities) {
+                  entityNameToType.set(
+                    normalizeEntityName(entity.name),
+                    entity.type
+                  );
+                }
+
+                // Build relationship keys for checking existence
+                const relKeys = result.relationships.map((r) => {
+                  const sourceType =
+                    entityNameToType.get(normalizeEntityName(r.source)) ||
+                    "Entity";
+                  const targetType =
+                    entityNameToType.get(normalizeEntityName(r.target)) ||
+                    "Entity";
+                  return {
+                    sourceId: generateGlobalEntityId(r.source, sourceType),
+                    targetId: generateGlobalEntityId(r.target, targetType),
+                    type: r.type,
+                  };
+                });
+
+                // Query graph store to check which relationships already exist
+                const existingRelKeys =
+                  await graphStore.getExistingRelationshipKeys(relKeys);
+
+                // Separate relationships into NEW vs EXISTING
+                const newRelationships: Relationship[] = [];
+                const existingRelationships: Relationship[] = [];
+
+                for (const rel of result.relationships) {
+                  const sourceType =
+                    entityNameToType.get(normalizeEntityName(rel.source)) ||
+                    "Entity";
+                  const targetType =
+                    entityNameToType.get(normalizeEntityName(rel.target)) ||
+                    "Entity";
+                  const sourceId = generateGlobalEntityId(
+                    rel.source,
+                    sourceType
+                  );
+                  const targetId = generateGlobalEntityId(
+                    rel.target,
+                    targetType
+                  );
+                  const key = `${sourceId}|${rel.type}|${targetId}`;
+
+                  if (existingRelKeys.has(key)) {
+                    existingRelationships.push(rel);
+                  } else {
+                    newRelationships.push(rel);
+                  }
+                }
+
+                // Log simplified extraction summary with new entities only
+                logger.info({
+                  msg: "📊 Document extraction",
+                  docId: result.recordId,
+                  entities: {
+                    total: result.entities.length,
+                    new: newEntities.length,
+                  },
+                  relationships: {
+                    total: result.relationships.length,
+                    new: newRelationships.length,
+                  },
+                  newEntities: newEntities.map((e) => `${e.name} (${e.type})`),
+                });
+              }
+
+              return result;
+            })
+            .catch((err) => {
+              // Wrap errors with record info for better logging
+              return {
+                error: err,
+                recordId: record._id,
+                recordTitle: record.title,
+                entities: [],
+                relationships: [],
+                adapterRelationships: [],
+                recordChecksum: record.checksum,
+              };
+            })
         )
       );
 
@@ -658,10 +550,41 @@ export const indexAllRecords = async (
         continue;
       }
 
-      // Build mapping of relationships to their source documents BEFORE processing
-      // This prevents re-running orphan detection which causes the double-processing bug
-      const relToDocuments = new Map<string, string[]>();
+      // Clean up old graph data for records that are being re-indexed
+      // This removes old relationship mentions and orphaned relationships
+      let cleanupCount = 0;
       for (const result of validResults) {
+        const record = records.find((r) => r._id === result.recordId);
+
+        // If record was previously indexed, clean up old graph data
+        if (record?.lastGraphIndexAt) {
+          try {
+            await cleanupDocumentGraph(result.recordId, graphStore);
+            cleanupCount++;
+          } catch (err) {
+            logger.error({
+              msg: "Failed to cleanup document graph",
+              err,
+              recordId: result.recordId,
+            });
+          }
+        }
+      }
+
+      if (cleanupCount > 0) {
+        logger.info({
+          msg: "Cleaned up old graph data for re-indexed records",
+          cleanupCount,
+        });
+      }
+
+      // Build mapping of entities and relationships to their source documents BEFORE processing
+      // This prevents re-running orphan detection and simplifies MongoDB metadata creation
+      const relToDocuments = new Map<string, string[]>();
+      const entityToDocuments = new Map<string, string[]>();
+
+      for (const result of validResults) {
+        // Map relationships to documents
         for (const rel of result.relationships) {
           const normalizedSource = normalizeEntityName(rel.source);
           const normalizedTarget = normalizeEntityName(rel.target);
@@ -670,22 +593,41 @@ export const indexAllRecords = async (
           docs.push(result.recordId);
           relToDocuments.set(key, docs);
         }
+
+        // Map entities to documents
+        for (const entity of result.entities) {
+          const normalizedName = normalizeEntityName(entity.name);
+          const docs = entityToDocuments.get(normalizedName) || [];
+          docs.push(result.recordId);
+          entityToDocuments.set(normalizedName, docs);
+        }
       }
 
       // Process to graph format (pure function)
-      const { nodes, relationships, entityNameToId, entityIdToType } =
-        processRecordsToGraph(validResults);
+      const {
+        nodes,
+        relationships,
+        documentRelationships,
+        entityNameToId,
+        entityIdToType,
+      } = processRecordsToGraph(validResults);
 
       // DEBUG: Log what processRecordsToGraph returned
       logger.info({
         msg: "🔍 DEBUG: processRecordsToGraph results",
         nodesCount: nodes.length,
         relationshipsCount: relationships.length,
+        documentRelationshipsCount: documentRelationships.length,
         entityMappings: entityNameToId.size,
         sampleNodes: nodes
           .slice(0, 3)
           .map((n) => ({ id: n.id, type: n.type, title: n.title })),
         sampleRels: relationships.slice(0, 3).map((r) => ({
+          source: r.sourceId,
+          target: r.targetId,
+          type: r.type,
+        })),
+        sampleDocRels: documentRelationships.slice(0, 3).map((r) => ({
           source: r.sourceId,
           target: r.targetId,
           type: r.type,
@@ -742,6 +684,33 @@ export const indexAllRecords = async (
           throw err;
         }
 
+        // 1.5. Create/update ALL document nodes in one batch
+        // CRITICAL: Must exist before linking entities/relationships to documents
+        const documentNodes = validResults.map((result) => {
+          // Find the original record to get title
+          const record = records.find((r) => r._id === result.recordId);
+          return {
+            id: result.recordId,
+            title: record?.title || result.recordId,
+            source: source,
+          };
+        });
+
+        try {
+          await graphStore.upsertDocumentNodes(documentNodes);
+          logger.info({
+            msg: "✅ DEBUG: Successfully saved document nodes to Memgraph",
+            documentCount: documentNodes.length,
+          });
+        } catch (err) {
+          logger.error({
+            msg: "❌ DEBUG: Failed to save document nodes to Memgraph",
+            err,
+            documentCount: documentNodes.length,
+          });
+          throw err;
+        }
+
         // 2. Collect all entity-to-document links
         const entityLinks: Array<{
           entityId: string;
@@ -758,9 +727,20 @@ export const indexAllRecords = async (
         }
 
         // 3. Link ALL entities to documents in one batch
+        logger.info({
+          msg: "🔗 Linking entities to documents (MENTIONED_IN)",
+          totalCount: entityLinks.length,
+        });
+
         await graphStore.linkEntitiesToDocuments(entityLinks);
 
         // 4. Create MongoDB metadata for all entities (for embedding tracking)
+        // Build entity ID to normalized name map for reverse lookup
+        const entityIdToNormalizedName = new Map<string, string>();
+        for (const [normalizedName, id] of entityNameToId.entries()) {
+          entityIdToNormalizedName.set(id, normalizedName);
+        }
+
         const entityMetadataOps = nodes.map((node) => {
           // Calculate content checksum for this entity
           const contentChecksum = calculateEmbeddingChecksum({
@@ -768,6 +748,12 @@ export const indexAllRecords = async (
             description: node.description,
             text: node.title,
           });
+
+          // Lookup source documents directly from pre-computed map
+          const normalizedName = entityIdToNormalizedName.get(node.id);
+          const documentIds = normalizedName
+            ? entityToDocuments.get(normalizedName) || []
+            : [];
 
           return {
             updateOne: {
@@ -785,16 +771,7 @@ export const indexAllRecords = async (
                 $addToSet: {
                   sources: source,
                   sourceDocumentIds: {
-                    $each: validResults
-                      .filter((r) =>
-                        r.entities.some((e) => {
-                          // Use the entityNameToId map for consistent ID lookup
-                          const normalizedName = normalizeEntityName(e.name);
-                          const mappedId = entityNameToId.get(normalizedName);
-                          return mappedId === node.id;
-                        })
-                      )
-                      .map((r) => r.recordId),
+                    $each: documentIds, // Direct lookup - no filtering needed!
                   },
                 },
               },
@@ -810,10 +787,72 @@ export const indexAllRecords = async (
         stats.nodes += nodes.length;
       }
 
+      // Store document relationships (document-to-document links from adapters)
+      if (documentRelationships.length > 0) {
+        logger.info({
+          msg: "🔗 Creating document-to-document relationships",
+          count: documentRelationships.length,
+        });
+
+        await graphStore.createDocumentRelationships(documentRelationships);
+
+        logger.info({
+          msg: "✅ Successfully created document relationships",
+          count: documentRelationships.length,
+        });
+      }
+
       if (relationships.length > 0) {
-        // 1. Create ALL semantic relationships in one batch
+        // Sanitize relationship types before logging and saving
+        const sanitizationResults = relationships.map((rel) => ({
+          original: rel,
+          sanitizedType: sanitizeRelationshipType(rel.type),
+          rawType: rel.type,
+        }));
+
+        // Separate valid from invalid relationships
+        const validRelationships = sanitizationResults
+          .filter((r) => r.sanitizedType !== null)
+          .map((r) => ({
+            ...r.original,
+            type: r.sanitizedType!, // Use sanitized type
+          }));
+
+        const invalidRelationships = sanitizationResults.filter(
+          (r) => r.sanitizedType === null
+        );
+
+        // Log invalid relationships for debugging
+        if (invalidRelationships.length > 0) {
+          logger.warn({
+            msg: "⚠️  Found invalid relationship types (will be skipped)",
+            count: invalidRelationships.length,
+            invalidRelationships: invalidRelationships.map((r) => ({
+              sourceId: r.original.sourceId,
+              targetId: r.original.targetId,
+              rawType: r.rawType,
+              confidence: r.original.confidence,
+            })),
+          });
+        }
+
+        // Group VALID relationships by type for summary
+        const relsByType = new Map<string, number>();
+        for (const rel of validRelationships) {
+          relsByType.set(rel.type, (relsByType.get(rel.type) || 0) + 1);
+        }
+
+        logger.info({
+          msg: "� Saving relationships to Memgraph",
+          totalCount: validRelationships.length,
+          invalidSkipped: invalidRelationships.length,
+          summary: Object.fromEntries(relsByType),
+          uniqueTypes: relsByType.size,
+        });
+
+        // 1. Create ALL semantic relationships in one batch (using VALID relationships only)
         await graphStore.upsertRelationshipsBatch(
-          relationships.map((rel) => ({
+          validRelationships.map((rel) => ({
             sourceId: rel.sourceId,
             targetId: rel.targetId,
             type: rel.type,
@@ -823,7 +862,7 @@ export const indexAllRecords = async (
 
         logger.info({
           msg: "✅ DEBUG: Successfully saved relationships to Memgraph",
-          relationshipsCount: relationships.length,
+          relationshipsCount: validRelationships.length,
         });
 
         // 2. Collect all document-to-relationship links
@@ -836,8 +875,8 @@ export const indexAllRecords = async (
           confidence: number;
         }> = [];
 
-        // First, process LLM-extracted relationships
-        for (const rel of relationships) {
+        // First, process LLM-extracted relationships (using VALID relationships only)
+        for (const rel of validRelationships) {
           // Skip adapter relationships (they'll be processed separately)
           const isAdapterRel = validResults.some((result) =>
             result.adapterRelationships.some(
@@ -908,6 +947,7 @@ export const indexAllRecords = async (
         );
         let adapterLinksAdded = 0;
 
+        // Re-enabled adapter relationships for document-to-document links
         for (const result of validResults) {
           for (const adapterRel of result.adapterRelationships) {
             relLinks.push({
@@ -921,21 +961,55 @@ export const indexAllRecords = async (
           }
         }
 
+        // Log document-to-relationship links summary
         logger.info({
-          msg: "🔗 DEBUG: Document-to-relationship links created",
-          totalLinksCount: relLinks.length,
+          msg: "🔗 Tracking relationship mentions in MongoDB",
+          totalMentions: relLinks.length,
           llmLinks: relLinks.length - adapterLinksAdded,
           adapterLinks: adapterLinksAdded,
-          relationshipsCount: relationships.length,
-          adapterRelationshipsCount: adapterRelCount,
-          avgLinksPerRel:
-            relationships.length > 0
-              ? (relLinks.length / relationships.length).toFixed(2)
-              : "0",
         });
 
-        // 3. Link ALL documents to relationships in one batch
-        await graphStore.linkDocumentsToRelationshipsBatch(relLinks);
+        // 3. Track relationship mentions in MongoDB (NEW approach - replaces MENTIONS_REL)
+        const relationshipMentionStore = new RelationshipMentionStore();
+
+        // Group mentions by document for efficient batch processing
+        const mentionsByDocument = new Map<
+          string,
+          Array<{
+            sourceEntityId: string;
+            targetEntityId: string;
+            type: string;
+            confidence: number;
+          }>
+        >();
+
+        for (const link of relLinks) {
+          const existing = mentionsByDocument.get(link.documentId) || [];
+          existing.push({
+            sourceEntityId: link.sourceEntityId,
+            targetEntityId: link.targetEntityId,
+            type: link.relationshipType,
+            confidence: link.confidence,
+          });
+          mentionsByDocument.set(link.documentId, existing);
+        }
+
+        // Add mentions for each document in parallel
+        await Promise.all(
+          Array.from(mentionsByDocument.entries()).map(
+            ([documentId, mentions]) =>
+              relationshipMentionStore.addDocumentMentionsBatch(
+                documentId,
+                mentions
+              )
+          )
+        );
+
+        logger.info({
+          msg: "✅ Tracked relationship mentions in MongoDB",
+          totalMentions: relLinks.length,
+          documentsWithMentions: mentionsByDocument.size,
+        });
 
         // 4. Create MongoDB metadata for all relationships (for embedding tracking)
         // Build a map of relationship descriptions from original extraction results
@@ -958,7 +1032,7 @@ export const indexAllRecords = async (
           }
         }
 
-        const relMetadataOps = relationships.map((rel) => {
+        const relMetadataOps = validRelationships.map((rel) => {
           const relId = `rel_${rel.sourceId}_${rel.type}_${rel.targetId}`;
 
           // Look up description from original extraction
@@ -971,6 +1045,19 @@ export const indexAllRecords = async (
             targetId: rel.targetId,
             relType: rel.type,
           });
+
+          // Find all documents that mention this relationship
+          // Use the entity names to lookup in relToDocuments map
+          let sourceEntityName = "";
+          let targetEntityName = "";
+          for (const [name, id] of entityNameToId.entries()) {
+            if (id === rel.sourceId) sourceEntityName = name;
+            if (id === rel.targetId) targetEntityName = name;
+            if (sourceEntityName && targetEntityName) break;
+          }
+
+          const lookupKey2 = `${sourceEntityName}|${rel.type}|${targetEntityName}`;
+          const documentIds = relToDocuments.get(lookupKey2) || [];
 
           return {
             updateOne: {
@@ -988,7 +1075,9 @@ export const indexAllRecords = async (
                 },
                 $addToSet: {
                   sources: source,
-                  sourceDocumentIds: source,
+                  sourceDocumentIds: {
+                    $each: documentIds, // Array of actual document IDs
+                  },
                 },
               },
               upsert: true,
@@ -1000,7 +1089,7 @@ export const indexAllRecords = async (
           await GraphEmbeddingMetadata.bulkWrite(relMetadataOps);
         }
 
-        stats.relationships += relationships.length;
+        stats.relationships += validRelationships.length;
       }
 
       // Update ALL record metadata in parallel (MongoDB handles concurrency)
@@ -1135,27 +1224,6 @@ export const indexAllRecords = async (
       msg: "⚠️  Some records failed to index",
       failedRecords: stats.failedRecords,
     });
-  }
-
-  // Batch cleanup: Delete orphaned entities and relationships after all indexing is complete
-  // This is more efficient than cleaning up after each record and reduces transaction conflicts
-  logger.info({
-    msg: `🧹 Cleaning up orphaned entities and relationships`,
-    source,
-  });
-  try {
-    const deletedEntities = await graphStore.deleteOrphanedEntities();
-    const deletedRelationships = await graphStore.deleteOrphanedRelationships();
-
-    if (deletedEntities > 0 || deletedRelationships > 0) {
-      logger.info({
-        msg: `✅ Cleaned up ${deletedEntities} orphaned entities and ${deletedRelationships} orphaned relationships`,
-      });
-    } else {
-      logger.info({ msg: `✅ No orphaned entities or relationships found` });
-    }
-  } catch (err) {
-    logger.error({ err }, `⚠️  Error during cleanup phase for ${source}`);
   }
 
   return stats;

@@ -1,7 +1,9 @@
+import Cypher from "@neo4j/cypher-builder";
 import { MemgraphNode, MemgraphRelationship } from "../types/index.js";
 import { MemgraphConnection } from "../connections/memgraph.js";
 import sleep from "../utils/sleep.js";
 import logger from "../utils/logger.js";
+import { sanitizeRelationshipType } from "../utils/cypher-escape.js";
 
 /**
  * Generate Memgraph label from type
@@ -9,6 +11,25 @@ import logger from "../utils/logger.js";
  */
 export function getNodeLabel(type: string): string {
   return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+/**
+ * Orphaned entity details for logging
+ */
+export interface OrphanedEntityDetails {
+  id: string;
+  type: string;
+  title: string;
+}
+
+/**
+ * Orphaned relationship details for logging
+ */
+export interface OrphanedRelationshipDetails {
+  sourceId: string;
+  targetId: string;
+  type: string;
+  confidence?: number;
 }
 
 /**
@@ -22,17 +43,20 @@ export class GraphStore {
    */
   async createNode(node: MemgraphNode): Promise<void> {
     const label = getNodeLabel(node.type);
+    const nodeVar = new Cypher.Node();
 
-    const query = `
-      MERGE (n:${label} {id: $id})
-      SET n.title = $title, n.type = $type
-    `;
+    const query = new Cypher.Merge(
+      new Cypher.Pattern(nodeVar, {
+        labels: [label],
+        properties: { id: new Cypher.Param(node.id) },
+      })
+    ).set(
+      [nodeVar.property("title"), new Cypher.Param(node.title)],
+      [nodeVar.property("type"), new Cypher.Param(node.type)]
+    );
 
-    await this.memgraph.executeQuery(query, {
-      id: node.id,
-      title: node.title,
-      type: node.type,
-    });
+    const { cypher, params } = query.build();
+    await this.memgraph.executeQuery(cypher, params);
   }
 
   /**
@@ -75,19 +99,34 @@ export class GraphStore {
    * Create a relationship between two nodes
    */
   async createRelationship(relationship: MemgraphRelationship): Promise<void> {
-    // Find nodes by ID (they might have different types/labels)
-    const query = `
-      MATCH (source {id: $sourceId})
-      MATCH (target {id: $targetId})
-      MERGE (source)-[r:${relationship.type}]->(target)
-      SET r.confidence = $confidence
-    `;
+    const sourceNode = new Cypher.Node();
+    const targetNode = new Cypher.Node();
+    const rel = new Cypher.Relationship();
 
-    await this.memgraph.executeQuery(query, {
-      sourceId: relationship.sourceId,
-      targetId: relationship.targetId,
-      confidence: relationship.confidence,
-    });
+    const matchSource = new Cypher.Match(
+      new Cypher.Pattern(sourceNode, {
+        properties: { id: new Cypher.Param(relationship.sourceId) },
+      })
+    );
+
+    const matchTarget = new Cypher.Match(
+      new Cypher.Pattern(targetNode, {
+        properties: { id: new Cypher.Param(relationship.targetId) },
+      })
+    );
+
+    const mergeRel = new Cypher.Merge(
+      new Cypher.Pattern(sourceNode)
+        .related(rel, { type: relationship.type })
+        .to(targetNode)
+    ).set([
+      rel.property("confidence"),
+      new Cypher.Param(relationship.confidence),
+    ]);
+
+    const query = Cypher.utils.concat(matchSource, matchTarget, mergeRel);
+    const { cypher, params } = query.build();
+    await this.memgraph.executeQuery(cypher, params);
   }
 
   /**
@@ -131,14 +170,16 @@ export class GraphStore {
    * Check if a node exists by ID
    */
   async nodeExists(id: string): Promise<boolean> {
-    const query = `
-      MATCH (n {id: $id})
-      RETURN count(n) > 0 AS exists
-    `;
+    const node = new Cypher.Node();
 
+    const query = new Cypher.Match(new Cypher.Pattern(node))
+      .where(Cypher.eq(node.property("id"), new Cypher.Param(id)))
+      .return([Cypher.gt(Cypher.count(node), new Cypher.Literal(0)), "exists"]);
+
+    const { cypher, params } = query.build();
     const results = await this.memgraph.executeQuery<{ exists: boolean }>(
-      query,
-      { id }
+      cypher,
+      params
     );
 
     return results[0]?.exists || false;
@@ -152,14 +193,25 @@ export class GraphStore {
     type: string,
     targetId: string
   ): Promise<boolean> {
-    const query = `
-      MATCH (source {id: $sourceId})-[r:${type}]->(target {id: $targetId})
-      RETURN count(r) > 0 AS exists
-    `;
+    const sourceNode = new Cypher.Node();
+    const targetNode = new Cypher.Node();
+    const rel = new Cypher.Relationship();
 
+    const query = new Cypher.Match(
+      new Cypher.Pattern(sourceNode).related(rel, { type }).to(targetNode)
+    )
+      .where(
+        Cypher.and(
+          Cypher.eq(sourceNode.property("id"), new Cypher.Param(sourceId)),
+          Cypher.eq(targetNode.property("id"), new Cypher.Param(targetId))
+        )
+      )
+      .return([Cypher.gt(Cypher.count(rel), new Cypher.Literal(0)), "exists"]);
+
+    const { cypher, params } = query.build();
     const results = await this.memgraph.executeQuery<{ exists: boolean }>(
-      query,
-      { sourceId, targetId }
+      cypher,
+      params
     );
 
     return results[0]?.exists || false;
@@ -169,17 +221,24 @@ export class GraphStore {
    * Get a node by ID
    */
   async getNode(id: string): Promise<MemgraphNode | null> {
-    const query = `
-      MATCH (n {id: $id})
-      RETURN n.id AS id, n.type AS type, n.title AS title, labels(n) AS labels
-    `;
+    const node = new Cypher.Node();
 
+    const query = new Cypher.Match(new Cypher.Pattern(node))
+      .where(Cypher.eq(node.property("id"), new Cypher.Param(id)))
+      .return(
+        [node.property("id"), "id"],
+        [node.property("type"), "type"],
+        [node.property("title"), "title"],
+        [Cypher.labels(node), "labels"]
+      );
+
+    const { cypher, params } = query.build();
     const results = await this.memgraph.executeQuery<{
       id: string;
       type: string;
       title: string;
       labels: string[];
-    }>(query, { id });
+    }>(cypher, params);
 
     if (results.length === 0) return null;
 
@@ -201,16 +260,20 @@ export class GraphStore {
   ): Promise<Map<string, number>> {
     if (nodeIds.length === 0) return new Map();
 
-    const query = `
-      MATCH (n)-[r]-()
-      WHERE n.id IN $nodeIds
-      RETURN n.id AS nodeId, count(r) AS degree
-    `;
+    const node = new Cypher.Node();
+    const rel = new Cypher.Relationship();
 
+    const query = new Cypher.Match(
+      new Cypher.Pattern(node).related(rel).to(new Cypher.Node())
+    )
+      .where(Cypher.in(node.property("id"), new Cypher.Param(nodeIds)))
+      .return([node.property("id"), "nodeId"], [Cypher.count(rel), "degree"]);
+
+    const { cypher, params } = query.build();
     const results = await this.memgraph.executeQuery<{
       nodeId: string;
       degree: number;
-    }>(query, { nodeIds });
+    }>(cypher, params);
 
     const countMap = new Map<string, number>();
     results.forEach((r) => {
@@ -624,12 +687,14 @@ export class GraphStore {
    * Delete a node and all its relationships
    */
   async deleteNode(id: string): Promise<void> {
-    const query = `
-      MATCH (n {id: $id})
-      DETACH DELETE n
-    `;
+    const node = new Cypher.Node();
 
-    await this.memgraph.executeQuery(query, { id });
+    const query = new Cypher.Match(new Cypher.Pattern(node))
+      .where(Cypher.eq(node.property("id"), new Cypher.Param(id)))
+      .detachDelete(node);
+
+    const { cypher, params } = query.build();
+    await this.memgraph.executeQuery(cypher, params);
   }
 
   /**
@@ -668,13 +733,21 @@ export class GraphStore {
     title: string;
     description?: string;
   }): Promise<void> {
-    const query = `
-      MERGE (e:Entity {id: $id})
-      SET e.type = $type,
-          e.title = $title,
-          e.description = $description
-    `;
-    await this.memgraph.executeQuery(query, entity);
+    const entityNode = new Cypher.Node();
+
+    const query = new Cypher.Merge(
+      new Cypher.Pattern(entityNode, {
+        labels: ["Entity"],
+        properties: { id: new Cypher.Param(entity.id) },
+      })
+    ).set(
+      [entityNode.property("type"), new Cypher.Param(entity.type)],
+      [entityNode.property("title"), new Cypher.Param(entity.title)],
+      [entityNode.property("description"), new Cypher.Param(entity.description)]
+    );
+
+    const { cypher, params } = query.build();
+    await this.memgraph.executeQuery(cypher, params);
   }
 
   /**
@@ -703,6 +776,29 @@ export class GraphStore {
   }
 
   /**
+   * Batch create or update multiple document nodes
+   * Uses UNWIND for efficient batch processing - no write conflicts
+   */
+  async upsertDocumentNodes(
+    documents: Array<{
+      id: string;
+      title: string;
+      source: string;
+    }>
+  ): Promise<void> {
+    if (documents.length === 0) return;
+
+    const query = `
+      UNWIND $documents AS doc
+      MERGE (d:Document {id: doc.id})
+      SET d.title = doc.title,
+          d.source = doc.source
+    `;
+
+    await this.memgraph.executeQuery(query, { documents });
+  }
+
+  /**
    * Link an entity to a document using MENTIONED_IN relationship
    */
   async linkEntityToDocument(
@@ -710,18 +806,460 @@ export class GraphStore {
     documentId: string,
     metadata?: { confidence?: number }
   ): Promise<void> {
+    const entityNode = new Cypher.Node();
+    const docNode = new Cypher.Node();
+    const rel = new Cypher.Relationship();
+
+    const matchEntity = new Cypher.Match(
+      new Cypher.Pattern(entityNode, {
+        labels: ["Entity"],
+        properties: { id: new Cypher.Param(entityId) },
+      })
+    );
+
+    const matchDoc = new Cypher.Match(
+      new Cypher.Pattern(docNode, {
+        properties: { id: new Cypher.Param(documentId) },
+      })
+    );
+
+    const mergeRel = new Cypher.Merge(
+      new Cypher.Pattern(entityNode)
+        .related(rel, { type: "MENTIONED_IN" })
+        .to(docNode)
+    ).set(
+      [rel.property("extractedAt"), Cypher.datetime()],
+      [
+        rel.property("confidence"),
+        new Cypher.Param(metadata?.confidence || 1.0),
+      ]
+    );
+
+    const query = Cypher.utils.concat(matchEntity, matchDoc, mergeRel);
+    const { cypher, params } = query.build();
+    await this.memgraph.executeQuery(cypher, params);
+  }
+
+  /**
+   * Batch link multiple documents to relationships
+   * Processes each link individually to catch and log specific errors
+   * Auto-creates document nodes if they don't exist (MERGE)
+   */
+  async linkDocumentsToRelationshipsBatch(
+    links: Array<{
+      documentId: string;
+      relationshipType: string;
+      sourceEntityId: string;
+      targetEntityId: string;
+      confidence: number;
+    }>
+  ): Promise<void> {
+    if (links.length === 0) return;
+
+    // OLD BATCH CODE (commented out for debugging):
+    // const query = `
+    //   UNWIND $links AS link
+    //   MATCH (source:Entity {id: link.sourceEntityId})
+    //   MERGE (doc:Document {id: link.documentId})
+    //   MERGE (doc)-[r:MENTIONS_REL]->(source)
+    //   SET r.relationshipType = link.relationshipType,
+    //       r.sourceEntityId = link.sourceEntityId,
+    //       r.targetEntityId = link.targetEntityId,
+    //       r.confidence = link.confidence,
+    //       r.extractedAt = datetime()
+    // `;
+    // await this.memgraph.executeQuery(query, { links });
+
+    // NEW: Process individually to catch specific errors
+    let successCount = 0;
+    let failureCount = 0;
+
+    for (const link of links) {
+      try {
+        const query = `
+          MATCH (source:Entity {id: $sourceEntityId})
+          MERGE (doc:Document {id: $documentId})
+          MERGE (doc)-[r:MENTIONS_REL]->(source)
+          SET r.relationshipType = $relationshipType,
+              r.sourceEntityId = $sourceEntityId,
+              r.targetEntityId = $targetEntityId,
+              r.confidence = $confidence,
+              r.extractedAt = datetime()
+          RETURN source.id AS sourceId
+        `;
+
+        const result = await this.memgraph.executeQuery<{ sourceId: string }>(
+          query,
+          {
+            documentId: link.documentId,
+            sourceEntityId: link.sourceEntityId,
+            relationshipType: link.relationshipType,
+            targetEntityId: link.targetEntityId,
+            confidence: link.confidence,
+          }
+        );
+
+        // Check if MATCH actually found the source entity
+        if (result.length === 0) {
+          failureCount++;
+          logger.error({
+            msg: "❌ MENTIONS_REL failed: Source entity does not exist in graph",
+            documentId: link.documentId,
+            relationshipType: link.relationshipType,
+            sourceEntityId: link.sourceEntityId,
+            targetEntityId: link.targetEntityId,
+            confidence: link.confidence,
+          });
+        } else {
+          successCount++;
+        }
+      } catch (err) {
+        failureCount++;
+        logger.error({
+          msg: "❌ Failed to create MENTIONS_REL relationship (exception)",
+          err,
+          documentId: link.documentId,
+          relationshipType: link.relationshipType,
+          sourceEntityId: link.sourceEntityId,
+          targetEntityId: link.targetEntityId,
+          confidence: link.confidence,
+        });
+      }
+    }
+
+    if (failureCount > 0) {
+      logger.warn({
+        msg: `⚠️  Some MENTIONS_REL relationships failed to create`,
+        successCount,
+        failureCount,
+        totalLinks: links.length,
+      });
+    } else {
+      logger.info({
+        msg: `✅ All MENTIONS_REL relationships created successfully`,
+        successCount,
+        totalLinks: links.length,
+      });
+    }
+  }
+
+  /**
+   * Remove all entity mentions from a specific document
+   * Returns the list of entity IDs that were unlinked
+   */
+  async unlinkAllEntitiesFromDocument(documentId: string): Promise<string[]> {
     const query = `
-      MATCH (entity:Entity {id: $entityId})
-      MATCH (doc {id: $documentId})
-      MERGE (entity)-[r:MENTIONED_IN]->(doc)
-      SET r.extractedAt = datetime(),
-          r.confidence = $confidence
+      MATCH (entity:Entity)-[r:MENTIONED_IN]->(doc {id: $documentId})
+      WITH entity, r
+      DELETE r
+      RETURN entity.id AS entityId
     `;
-    await this.memgraph.executeQuery(query, {
-      entityId,
-      documentId,
-      confidence: metadata?.confidence || 1.0,
-    });
+
+    const results = await this.memgraph.executeQuery<{ entityId: string }>(
+      query,
+      { documentId }
+    );
+
+    return results.map((r) => r.entityId);
+  }
+
+  /**
+   * Delete entities that have no relationships at all (truly orphaned entities)
+   * Only deletes entities with NO relationships including MENTIONED_IN
+   * Returns details of deleted entities for enhanced logging
+   * Includes retry logic for Memgraph transaction conflicts
+   */
+  async deleteOrphanedEntities(
+    maxRetries: number = 3
+  ): Promise<{ count: number; entities: OrphanedEntityDetails[] }> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Always get full details of orphaned entities BEFORE deletion
+        const detailsQuery = `
+          MATCH (entity:Entity)
+          WHERE NOT (entity)-[]-(  )
+          RETURN entity.id AS id, entity.type AS type, entity.title AS title
+          LIMIT 500
+        `;
+
+        const detailsResults = await this.memgraph.executeQuery<{
+          id: string;
+          type: string;
+          title: string;
+        }>(detailsQuery, {});
+
+        const orphanedEntities: OrphanedEntityDetails[] = detailsResults.map(
+          (e) => ({
+            id: e.id,
+            type: e.type,
+            title: e.title,
+          })
+        );
+
+        const finalCount = orphanedEntities.length;
+
+        if (finalCount > 0) {
+          // Delete the orphaned entities
+          const deleteQuery = `
+            MATCH (entity:Entity)
+            WHERE NOT (entity)-[]-()
+            DETACH DELETE entity
+          `;
+          await this.memgraph.executeQuery(deleteQuery, {});
+        }
+
+        return { count: finalCount, entities: orphanedEntities };
+      } catch (err: any) {
+        // Check if it's a retriable Memgraph transaction conflict
+        const isTransientError =
+          err.code?.includes("TransientError") ||
+          err.retriable === true ||
+          err.retryable === true;
+
+        if (isTransientError && attempt < maxRetries) {
+          const delayMs = 1000 * Math.pow(2, attempt - 1); // 1s, 2s, 4s
+          logger.warn(
+            `⚠️  Memgraph transaction conflict in deleteOrphanedEntities, retrying in ${delayMs}ms (attempt ${
+              attempt + 1
+            }/${maxRetries})`
+          );
+          await sleep(delayMs);
+        } else {
+          // Not retriable or max retries reached
+          logger.error(
+            { err, attempt, maxRetries },
+            `❌ Failed to delete orphaned entities after ${attempt} attempts`
+          );
+          throw err;
+        }
+      }
+    }
+
+    // Should never reach here
+    return { count: 0, entities: [] };
+  }
+
+  /**
+   * Get all entities mentioned in a document
+   */
+  async getDocumentEntities(documentId: string): Promise<
+    Array<{
+      id: string;
+      type: string;
+      title: string;
+    }>
+  > {
+    const entityNode = new Cypher.Node();
+    const docNode = new Cypher.Node();
+    const rel = new Cypher.Relationship();
+
+    const query = new Cypher.Match(
+      new Cypher.Pattern(entityNode, { labels: ["Entity"] })
+        .related(rel, { type: "MENTIONED_IN" })
+        .to(docNode)
+    )
+      .where(Cypher.eq(docNode.property("id"), new Cypher.Param(documentId)))
+      .return(
+        [entityNode.property("id"), "id"],
+        [entityNode.property("type"), "type"],
+        [entityNode.property("title"), "title"]
+      );
+
+    const { cypher, params } = query.build();
+    return this.memgraph.executeQuery(cypher, params);
+  }
+
+  /**
+   * Create or update a semantic relationship (without document binding)
+   */
+  async upsertRelationship(relationship: {
+    sourceId: string;
+    targetId: string;
+    type: string;
+    confidence?: number;
+  }): Promise<void> {
+    const sourceNode = new Cypher.Node();
+    const targetNode = new Cypher.Node();
+    const rel = new Cypher.Relationship();
+
+    const matchSource = new Cypher.Match(
+      new Cypher.Pattern(sourceNode, {
+        labels: ["Entity"],
+        properties: { id: new Cypher.Param(relationship.sourceId) },
+      })
+    );
+
+    const matchTarget = new Cypher.Match(
+      new Cypher.Pattern(targetNode, {
+        labels: ["Entity"],
+        properties: { id: new Cypher.Param(relationship.targetId) },
+      })
+    );
+
+    const mergeRel = new Cypher.Merge(
+      new Cypher.Pattern(sourceNode)
+        .related(rel, { type: relationship.type })
+        .to(targetNode)
+    ).set([
+      rel.property("confidence"),
+      new Cypher.Param(relationship.confidence || 1.0),
+    ]);
+
+    const query = Cypher.utils.concat(matchSource, matchTarget, mergeRel);
+    const { cypher, params } = query.build();
+    await this.memgraph.executeQuery(cypher, params);
+  }
+
+  /**
+   * Batch create or update multiple semantic relationships
+   * Uses UNWIND for efficient batch processing - no write conflicts
+   * Groups by relationship type to handle dynamic relationship types in Cypher
+   */
+  async upsertRelationshipsBatch(
+    relationships: Array<{
+      sourceId: string;
+      targetId: string;
+      type: string;
+      confidence?: number;
+    }>
+  ): Promise<void> {
+    if (relationships.length === 0) return;
+
+    // Group by relationship type (Cypher requirement for dynamic relationship types)
+    const relsByType = new Map<string, typeof relationships>();
+    let skippedCount = 0;
+
+    for (const rel of relationships) {
+      // Sanitize the relationship type before using it in the query
+      const sanitizedType = sanitizeRelationshipType(rel.type);
+
+      if (!sanitizedType) {
+        // Invalid type - log warning and skip
+        logger.warn({
+          msg: "⚠️  Skipping relationship with invalid type during upsert",
+          originalType: rel.type,
+          sourceId: rel.sourceId,
+          targetId: rel.targetId,
+        });
+        skippedCount++;
+        continue;
+      }
+
+      const existing = relsByType.get(sanitizedType) || [];
+      existing.push(rel);
+      relsByType.set(sanitizedType, existing);
+    }
+
+    if (skippedCount > 0) {
+      logger.warn({
+        msg: `⚠️  Skipped ${skippedCount} relationships with invalid types`,
+        skippedCount,
+        totalRelationships: relationships.length,
+      });
+    }
+
+    // Process each type sequentially (UNWIND within each type for batch efficiency)
+    for (const [sanitizedType, typeRels] of relsByType.entries()) {
+      try {
+        const query = `
+          UNWIND $rels AS rel
+          MERGE (source:Entity {id: rel.sourceId})
+          MERGE (target:Entity {id: rel.targetId})
+          MERGE (source)-[r:${sanitizedType}]->(target)
+          SET r.confidence = rel.confidence
+        `;
+
+        await this.memgraph.executeQuery(query, {
+          rels: typeRels.map((r) => ({
+            sourceId: r.sourceId,
+            targetId: r.targetId,
+            confidence: r.confidence ?? null,
+          })),
+        });
+      } catch (err) {
+        // Log the error but don't crash - other relationship types can still be processed
+        logger.error({
+          msg: "❌ Error upserting relationships",
+          err,
+          sanitizedType,
+          relationshipCount: typeRels.length,
+        });
+      }
+    }
+  }
+
+  /**
+   * Delete a specific semantic relationship
+   * Used by cleanup logic to remove orphaned relationships
+   */
+  async deleteRelationship(
+    sourceId: string,
+    type: string,
+    targetId: string
+  ): Promise<void> {
+    const sanitizedType = sanitizeRelationshipType(type);
+
+    if (!sanitizedType) {
+      logger.warn({
+        msg: "⚠️  Cannot delete relationship with invalid type",
+        originalType: type,
+        sourceId,
+        targetId,
+      });
+      return;
+    }
+
+    const query = `
+      MATCH (source:Entity {id: $sourceId})-[r:${sanitizedType}]->(target:Entity {id: $targetId})
+      DELETE r
+    `;
+
+    await this.memgraph.executeQuery(query, { sourceId, targetId });
+  }
+
+  /**
+   * Link a document to a relationship it mentions
+   * @deprecated This method is deprecated and will be removed. Use RelationshipMentionStore instead.
+   */
+  async linkDocumentToRelationship(
+    documentId: string,
+    relationshipType: string,
+    sourceEntityId: string,
+    targetEntityId: string,
+    metadata: { confidence: number }
+  ): Promise<void> {
+    const docNode = new Cypher.Node();
+    const sourceNode = new Cypher.Node();
+    const rel = new Cypher.Relationship();
+
+    const matchDoc = new Cypher.Match(
+      new Cypher.Pattern(docNode, {
+        properties: { id: new Cypher.Param(documentId) },
+      })
+    );
+
+    const matchSource = new Cypher.Match(
+      new Cypher.Pattern(sourceNode, {
+        labels: ["Entity"],
+        properties: { id: new Cypher.Param(sourceEntityId) },
+      })
+    );
+
+    const mergeRel = new Cypher.Merge(
+      new Cypher.Pattern(docNode)
+        .related(rel, { type: "MENTIONS_REL" })
+        .to(sourceNode)
+    ).set(
+      [rel.property("relationshipType"), new Cypher.Param(relationshipType)],
+      [rel.property("sourceEntityId"), new Cypher.Param(sourceEntityId)],
+      [rel.property("targetEntityId"), new Cypher.Param(targetEntityId)],
+      [rel.property("confidence"), new Cypher.Param(metadata.confidence)],
+      [rel.property("extractedAt"), Cypher.datetime()]
+    );
+
+    const query = Cypher.utils.concat(matchDoc, matchSource, mergeRel);
+    const { cypher, params } = query.build();
+    await this.memgraph.executeQuery(cypher, params);
   }
 
   /**
@@ -756,262 +1294,6 @@ export class GraphStore {
   }
 
   /**
-   * Remove all entity mentions from a specific document
-   * Returns the list of entity IDs that were unlinked
-   */
-  async unlinkAllEntitiesFromDocument(documentId: string): Promise<string[]> {
-    const query = `
-      MATCH (entity:Entity)-[r:MENTIONED_IN]->(doc {id: $documentId})
-      WITH entity, r
-      DELETE r
-      RETURN entity.id AS entityId
-    `;
-
-    const results = await this.memgraph.executeQuery<{ entityId: string }>(
-      query,
-      { documentId }
-    );
-
-    return results.map((r) => r.entityId);
-  }
-
-  /**
-   * Delete entities that have no relationships at all (truly orphaned entities)
-   * Only deletes entities with NO relationships including MENTIONED_IN
-   * Returns count of deleted entities
-   * Includes retry logic for Memgraph transaction conflicts
-   */
-  async deleteOrphanedEntities(maxRetries: number = 3): Promise<number> {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        // First, get details of orphaned entities BEFORE deletion
-        const detailsQuery =
-          `
-          MATCH (entity:Entity)
-          WHERE NOT (entity)-[]-()` +
-          (logger.level === "debug" || logger.level === "trace"
-            ? ` RETURN entity.id AS id, entity.type AS type, entity.title AS title LIMIT 100`
-            : ` RETURN count(entity) AS count`);
-
-        const detailsResults = await this.memgraph.executeQuery<any>(
-          detailsQuery,
-          {}
-        );
-
-        let finalCount = 0;
-        if (detailsResults.length > 0 && "count" in detailsResults[0]) {
-          // Count-only query
-          const count = detailsResults[0]?.count || 0;
-          finalCount =
-            typeof count === "object" && count !== null && "toNumber" in count
-              ? (count as any).toNumber()
-              : count || 0;
-        } else {
-          // Details query - log them and get count
-          finalCount = detailsResults.length;
-
-          if (finalCount > 0) {
-            logger.warn({
-              msg: `📋 Orphaned entities about to be deleted`,
-              count: finalCount,
-              entities: detailsResults.map((e: any) => ({
-                id: e.id,
-                type: e.type,
-                title: e.title,
-              })),
-            });
-          }
-        }
-
-        if (finalCount > 0) {
-          logger.info({
-            msg: `🗑️  Deleting ${finalCount} truly orphaned entities (no relationships at all)`,
-          });
-
-          // Delete the orphaned entities
-          const deleteQuery = `
-            MATCH (entity:Entity)
-            WHERE NOT (entity)-[]-()
-            DETACH DELETE entity
-          `;
-          await this.memgraph.executeQuery(deleteQuery, {});
-        }
-
-        return finalCount;
-      } catch (err: any) {
-        // Check if it's a retriable Memgraph transaction conflict
-        const isTransientError =
-          err.code?.includes("TransientError") ||
-          err.retriable === true ||
-          err.retryable === true;
-
-        if (isTransientError && attempt < maxRetries) {
-          const delayMs = 1000 * Math.pow(2, attempt - 1); // 1s, 2s, 4s
-          logger.warn(
-            `⚠️  Memgraph transaction conflict in deleteOrphanedEntities, retrying in ${delayMs}ms (attempt ${
-              attempt + 1
-            }/${maxRetries})`
-          );
-          await sleep(delayMs);
-        } else {
-          // Not retriable or max retries reached
-          logger.error(
-            { err, attempt, maxRetries },
-            `❌ Failed to delete orphaned entities after ${attempt} attempts`
-          );
-          throw err;
-        }
-      }
-    }
-
-    // Should never reach here
-    return 0;
-  }
-
-  /**
-   * Get all entities mentioned in a document
-   */
-  async getDocumentEntities(documentId: string): Promise<
-    Array<{
-      id: string;
-      type: string;
-      title: string;
-    }>
-  > {
-    const query = `
-      MATCH (entity:Entity)-[:MENTIONED_IN]->(doc {id: $documentId})
-      RETURN entity.id AS id, entity.type AS type, entity.title AS title
-    `;
-
-    return this.memgraph.executeQuery(query, { documentId });
-  }
-
-  /**
-   * Create or update a semantic relationship (without document binding)
-   */
-  async upsertRelationship(relationship: {
-    sourceId: string;
-    targetId: string;
-    type: string;
-    confidence?: number;
-  }): Promise<void> {
-    const query = `
-      MATCH (source:Entity {id: $sourceId})
-      MATCH (target:Entity {id: $targetId})
-      MERGE (source)-[r:${relationship.type}]->(target)
-      SET r.confidence = $confidence
-    `;
-    await this.memgraph.executeQuery(query, {
-      sourceId: relationship.sourceId,
-      targetId: relationship.targetId,
-      confidence: relationship.confidence || 1.0,
-    });
-  }
-
-  /**
-   * Batch create or update multiple semantic relationships
-   * Uses UNWIND for efficient batch processing - no write conflicts
-   * Groups by relationship type to handle dynamic relationship types in Cypher
-   */
-  async upsertRelationshipsBatch(
-    relationships: Array<{
-      sourceId: string;
-      targetId: string;
-      type: string;
-      confidence?: number;
-    }>
-  ): Promise<void> {
-    if (relationships.length === 0) return;
-
-    // Group by relationship type (Cypher requirement for dynamic relationship types)
-    const relsByType = new Map<string, typeof relationships>();
-    for (const rel of relationships) {
-      const existing = relsByType.get(rel.type) || [];
-      existing.push(rel);
-      relsByType.set(rel.type, existing);
-    }
-
-    // Process each type sequentially (UNWIND within each type for batch efficiency)
-    for (const [type, typeRels] of relsByType.entries()) {
-      const query = `
-        UNWIND $rels AS rel
-        MERGE (source:Entity {id: rel.sourceId})
-        MERGE (target:Entity {id: rel.targetId})
-        MERGE (source)-[r:${type}]->(target)
-        SET r.confidence = rel.confidence
-      `;
-
-      await this.memgraph.executeQuery(query, {
-        rels: typeRels.map((r) => ({
-          sourceId: r.sourceId,
-          targetId: r.targetId,
-          confidence: r.confidence ?? null,
-        })),
-      });
-    }
-  }
-
-  /**
-   * Link a document to a relationship it mentions
-   */
-  async linkDocumentToRelationship(
-    documentId: string,
-    relationshipType: string,
-    sourceEntityId: string,
-    targetEntityId: string,
-    metadata: { confidence: number }
-  ): Promise<void> {
-    const query = `
-      MATCH (doc {id: $documentId})
-      MATCH (source:Entity {id: $sourceEntityId})
-      MERGE (doc)-[r:MENTIONS_REL]->(source)
-      SET r.relationshipType = $relationshipType,
-          r.sourceEntityId = $sourceEntityId,
-          r.targetEntityId = $targetEntityId,
-          r.confidence = $confidence,
-          r.extractedAt = datetime()
-    `;
-
-    await this.memgraph.executeQuery(query, {
-      documentId,
-      relationshipType,
-      sourceEntityId,
-      targetEntityId,
-      confidence: metadata.confidence,
-    });
-  }
-
-  /**
-   * Batch link multiple documents to relationships
-   * Uses UNWIND for efficient batch processing - no write conflicts
-   */
-  async linkDocumentsToRelationshipsBatch(
-    links: Array<{
-      documentId: string;
-      relationshipType: string;
-      sourceEntityId: string;
-      targetEntityId: string;
-      confidence: number;
-    }>
-  ): Promise<void> {
-    if (links.length === 0) return;
-
-    const query = `
-      UNWIND $links AS link
-      MATCH (doc {id: link.documentId})
-      MATCH (source:Entity {id: link.sourceEntityId})
-      MERGE (doc)-[r:MENTIONS_REL]->(source)
-      SET r.relationshipType = link.relationshipType,
-          r.sourceEntityId = link.sourceEntityId,
-          r.targetEntityId = link.targetEntityId,
-          r.confidence = link.confidence,
-          r.extractedAt = datetime()
-    `;
-
-    await this.memgraph.executeQuery(query, { links });
-  }
-
-  /**
    * Remove all relationship mentions from a document
    */
   async unlinkRelationshipsFromDocument(documentId: string): Promise<number> {
@@ -1036,11 +1318,14 @@ export class GraphStore {
   /**
    * Delete semantic relationships that have no document mentions
    * Uses LEFT JOIN pattern to avoid complex nested EXISTS queries
+   * Returns details of deleted relationships for enhanced logging
    */
-  async deleteOrphanedRelationships(): Promise<number> {
-    // First, get details of orphaned relationships BEFORE deletion (if debug logging enabled)
-    const detailsQuery =
-      `
+  async deleteOrphanedRelationships(): Promise<{
+    count: number;
+    relationships: OrphanedRelationshipDetails[];
+  }> {
+    // Always get full details of orphaned relationships BEFORE deletion
+    const detailsQuery = `
       MATCH (source:Entity)-[r]->(target:Entity)
       WHERE type(r) <> 'MENTIONED_IN' 
         AND type(r) <> 'MENTIONS_REL'
@@ -1049,48 +1334,30 @@ export class GraphStore {
         AND m.sourceEntityId = source.id
         AND m.targetEntityId = target.id
       WITH r, source, target, count(m) AS mentionCount
-      WHERE mentionCount = 0` +
-      (logger.level === "debug" || logger.level === "trace"
-        ? ` RETURN source.id AS sourceId, target.id AS targetId, type(r) AS relType, r.confidence AS confidence LIMIT 100`
-        : ` RETURN count(r) AS count`);
+      WHERE mentionCount = 0
+      RETURN source.id AS sourceId, target.id AS targetId, type(r) AS relType, r.confidence AS confidence
+      LIMIT 500
+    `;
 
-    const detailsResults = await this.memgraph.executeQuery<any>(
-      detailsQuery,
-      {}
-    );
+    const detailsResults = await this.memgraph.executeQuery<{
+      sourceId: string;
+      targetId: string;
+      relType: string;
+      confidence: number;
+    }>(detailsQuery, {});
 
-    let finalCount = 0;
-    if (detailsResults.length > 0 && "count" in detailsResults[0]) {
-      // Count-only query
-      const count = detailsResults[0]?.count || 0;
-      finalCount =
-        typeof count === "object" && count !== null && "toNumber" in count
-          ? (count as any).toNumber()
-          : count || 0;
-    } else {
-      // Details query - log them and get count
-      finalCount = detailsResults.length;
+    const orphanedRelationships: OrphanedRelationshipDetails[] =
+      detailsResults.map((r) => ({
+        sourceId: r.sourceId,
+        targetId: r.targetId,
+        type: r.relType,
+        confidence: r.confidence,
+      }));
 
-      if (finalCount > 0) {
-        logger.warn({
-          msg: `📋 Orphaned relationships about to be deleted`,
-          count: finalCount,
-          relationships: detailsResults.map((r: any) => ({
-            source: r.sourceId,
-            target: r.targetId,
-            type: r.relType,
-            confidence: r.confidence,
-          })),
-        });
-      }
-    }
+    const finalCount = orphanedRelationships.length;
 
     // Then delete if there are any orphans
     if (finalCount > 0) {
-      logger.info({
-        msg: `🗑️  Deleting ${finalCount} orphaned relationships (no document mentions)`,
-      });
-
       const deleteQuery = `
         MATCH (source:Entity)-[r]->(target:Entity)
         WHERE type(r) <> 'MENTIONED_IN' 
@@ -1107,7 +1374,7 @@ export class GraphStore {
       await this.memgraph.executeQuery(deleteQuery, {});
     }
 
-    return finalCount;
+    return { count: finalCount, relationships: orphanedRelationships };
   }
 
   /**
@@ -1121,27 +1388,216 @@ export class GraphStore {
       confidence: number;
     }>
   > {
-    const query = `
-      MATCH (doc {id: $documentId})-[r:MENTIONS_REL]->()
-      RETURN r.relationshipType AS type,
-             r.sourceEntityId AS sourceId,
-             r.targetEntityId AS targetId,
-             r.confidence AS confidence
-    `;
+    const docNode = new Cypher.Node();
+    const rel = new Cypher.Relationship();
+    const targetNode = new Cypher.Node();
 
-    return this.memgraph.executeQuery(query, { documentId });
+    const query = new Cypher.Match(
+      new Cypher.Pattern(docNode)
+        .related(rel, { type: "MENTIONS_REL" })
+        .to(targetNode)
+    )
+      .where(Cypher.eq(docNode.property("id"), new Cypher.Param(documentId)))
+      .return(
+        [rel.property("relationshipType"), "type"],
+        [rel.property("sourceEntityId"), "sourceId"],
+        [rel.property("targetEntityId"), "targetId"],
+        [rel.property("confidence"), "confidence"]
+      );
+
+    const { cypher, params } = query.build();
+    return this.memgraph.executeQuery(cypher, params);
+  }
+
+  /**
+   * Create document-to-document relationships (structural links from adapters)
+   * These link Document nodes to each other (e.g., transcript to meeting)
+   * Uses document IDs directly - no entity resolution needed
+   */
+  async createDocumentRelationships(
+    relationships: Array<{
+      sourceId: string;
+      targetId: string;
+      type: string;
+      confidence: number;
+    }>
+  ): Promise<void> {
+    if (relationships.length === 0) return;
+
+    // Group by relationship type for efficient processing
+    const relsByType = new Map<string, typeof relationships>();
+    let skippedCount = 0;
+
+    for (const rel of relationships) {
+      const sanitizedType = sanitizeRelationshipType(rel.type);
+
+      if (!sanitizedType) {
+        logger.warn({
+          msg: "⚠️  Skipping document relationship with invalid type",
+          originalType: rel.type,
+          sourceId: rel.sourceId,
+          targetId: rel.targetId,
+        });
+        skippedCount++;
+        continue;
+      }
+
+      const existing = relsByType.get(sanitizedType) || [];
+      existing.push(rel);
+      relsByType.set(sanitizedType, existing);
+    }
+
+    if (skippedCount > 0) {
+      logger.warn({
+        msg: `⚠️  Skipped ${skippedCount} document relationships with invalid types`,
+        skippedCount,
+        totalRelationships: relationships.length,
+      });
+    }
+
+    // Process each type sequentially
+    for (const [sanitizedType, typeRels] of relsByType.entries()) {
+      try {
+        const query = `
+          UNWIND $rels AS rel
+          MATCH (source {id: rel.sourceId})
+          MATCH (target {id: rel.targetId})
+          MERGE (source)-[r:${sanitizedType}]->(target)
+          SET r.confidence = rel.confidence
+        `;
+
+        await this.memgraph.executeQuery(query, {
+          rels: typeRels.map((r) => ({
+            sourceId: r.sourceId,
+            targetId: r.targetId,
+            confidence: r.confidence ?? null,
+          })),
+        });
+
+        logger.info({
+          msg: `✅ Created ${typeRels.length} document relationships of type ${sanitizedType}`,
+          relationshipType: sanitizedType,
+          count: typeRels.length,
+        });
+      } catch (err) {
+        logger.error({
+          msg: "❌ Error creating document relationships",
+          err,
+          sanitizedType,
+          relationshipCount: typeRels.length,
+        });
+      }
+    }
   }
 
   /**
    * Delete all nodes and relationships
    */
   async deleteAll(): Promise<void> {
+    const node = new Cypher.Node();
+
+    const query = new Cypher.Match(new Cypher.Pattern(node)).detachDelete(node);
+
+    const { cypher, params } = query.build();
+    await this.memgraph.executeQuery(cypher, params);
+  }
+
+  /**
+   * Get existing entity IDs from a list of IDs
+   * Used to determine which entities are new vs existing during extraction
+   */
+  async getExistingEntityIds(entityIds: string[]): Promise<Set<string>> {
+    if (entityIds.length === 0) return new Set();
+
     const query = `
-      MATCH (n)
-      DETACH DELETE n
+      UNWIND $entityIds AS entityId
+      MATCH (e:Entity {id: entityId})
+      RETURN e.id AS id
     `;
 
-    await this.memgraph.executeQuery(query, {});
+    const results = await this.memgraph.executeQuery<{ id: string }>(query, {
+      entityIds,
+    });
+
+    return new Set(results.map((r) => r.id));
+  }
+
+  /**
+   * Get existing relationship keys from a list of source/target/type combinations
+   * Used to determine which relationships are new vs existing during extraction
+   */
+  async getExistingRelationshipKeys(
+    relationships: Array<{ sourceId: string; targetId: string; type: string }>
+  ): Promise<Set<string>> {
+    if (relationships.length === 0) return new Set();
+
+    // Group by type for efficient querying
+    const relsByType = new Map<
+      string,
+      Array<{ sourceId: string; targetId: string; originalType: string }>
+    >();
+
+    for (const rel of relationships) {
+      // Sanitize the relationship type before using it in the query
+      const sanitizedType = sanitizeRelationshipType(rel.type);
+
+      if (!sanitizedType) {
+        // Invalid type - log warning and skip
+        logger.warn({
+          msg: "⚠️  Skipping relationship with invalid type",
+          originalType: rel.type,
+          sourceId: rel.sourceId,
+          targetId: rel.targetId,
+        });
+        continue;
+      }
+
+      // Track both sanitized and original types
+      const existing = relsByType.get(sanitizedType) || [];
+      existing.push({
+        sourceId: rel.sourceId,
+        targetId: rel.targetId,
+        originalType: rel.type,
+      });
+      relsByType.set(sanitizedType, existing);
+    }
+
+    const existingKeys = new Set<string>();
+
+    for (const [sanitizedType, rels] of relsByType.entries()) {
+      try {
+        const query = `
+          UNWIND $rels AS rel
+          MATCH (source:Entity {id: rel.sourceId})-[r:${sanitizedType}]->(target:Entity {id: rel.targetId})
+          RETURN source.id AS sourceId, target.id AS targetId
+        `;
+
+        const results = await this.memgraph.executeQuery<{
+          sourceId: string;
+          targetId: string;
+        }>(query, { rels });
+
+        // Use the ORIGINAL type in the key, not the sanitized one
+        for (const r of results) {
+          // Find the original type for this relationship
+          const relData = rels.find(
+            (rel) => rel.sourceId === r.sourceId && rel.targetId === r.targetId
+          );
+          const originalType = relData?.originalType || sanitizedType;
+          existingKeys.add(`${r.sourceId}|${originalType}|${r.targetId}`);
+        }
+      } catch (err) {
+        // Log the error but don't crash - other relationship types can still be processed
+        logger.error({
+          msg: "❌ Error querying existing relationships",
+          err,
+          sanitizedType,
+          relationshipCount: rels.length,
+        });
+      }
+    }
+
+    return existingKeys;
   }
 }
 

@@ -26,6 +26,7 @@
   "dependencies": {
     "@ebee-oss/shared-util": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.24.3",
+    "@neo4j/cypher-builder": "^2.11.0",
     "@qdrant/js-client-rest": "^1.16.0",
     "@slack/web-api": "^7.13.0",
     "bullmq": "^5.64.1",

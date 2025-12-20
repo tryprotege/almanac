@@ -334,7 +334,7 @@ async function mixMode(
 
     // Filter by score_threshold after reranking
     const filteredChunks = rerankedChunks.filter(
-      (chunk) => chunk.score >= (params.score_threshold ?? 0.6)
+      (chunk) => chunk.score >= (params.score_threshold ?? 0)
     );
 
     return { ...hybridResult, chunks: filteredChunks, reranked: true };
@@ -715,6 +715,6 @@ function applyDefaults(query: LightRAGQuery): LightRAGQuery {
     top_k: query.top_k ?? 60,
     chunk_top_k: query.chunk_top_k ?? 20,
     enable_rerank: query.enable_rerank ?? true,
-    score_threshold: query.score_threshold ?? 0.6,
+    score_threshold: query.score_threshold ?? 0,
   };
 }

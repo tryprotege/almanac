@@ -83,7 +83,17 @@ export const matrixBenchmarkConfig: MatrixBenchmarkConfig = {
     // Uses centralized eBee server for MCP orchestration
     {
       name: "ebee",
-      url: env.EBEE_URL,
+      servers: ["ebee-oss"],
+      packages: {
+        "ebee-oss": {
+          command: "npx",
+          args: [
+            "-y",
+            "tsx",
+            path.join(__dirname, "../../../server/src/mcp/stdio.ts"),
+          ],
+        },
+      },
     },
 
     // TODO: uncomment for testing clone MCP server

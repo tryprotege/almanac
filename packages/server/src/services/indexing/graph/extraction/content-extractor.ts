@@ -111,10 +111,12 @@ async function extractBothFromContent(
           });
         }
 
+        const type = stripExtraQuotes(entity.type);
+
         entities.push({
-          ...entity,
+          description: `${type} ${cleanName}: ${entity.description}`,
           name: cleanName,
-          type: stripExtraQuotes(entity.type),
+          type,
         });
       }
 

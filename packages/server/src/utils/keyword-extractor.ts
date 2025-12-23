@@ -131,7 +131,7 @@ export function extractKeywordsNER(query: string): ExtractedKeywords {
   );
 
   return {
-    high_level: uniqueHighLevel.slice(0, 5), // Top 5 conceptual keywords
-    low_level: lowLevelArray.slice(0, 7), // Top 7 entity keywords
+    high_level: uniqueHighLevel.length ? uniqueHighLevel.slice(0, 5) : [query], // Top 5 conceptual keywords
+    low_level: lowLevelArray.length ? lowLevelArray.slice(0, 7) : [query], // Top 7 entity keywords
   };
 }

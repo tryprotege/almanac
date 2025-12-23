@@ -129,26 +129,26 @@ export async function lightragQuery(
     documents: countUniqueDocuments(chunks),
   });
 
-  return {
-    query: query.query,
-    mode,
-    processing_time_ms: processingTime,
-    chunks,
-    stats: {
-      total_chunks: chunks.length,
-      unique_documents: countUniqueDocuments(chunks),
-      processing_time_ms: processingTime,
-      retrieval_breakdown: {
-        vector_matches: vectorMatches,
-        graph_expanded: graphExpanded,
-        reranked,
-      },
-    },
-    metadata: {
-      keywords_extracted: keywords,
-      filters_applied: !!query.filters,
-    },
-  };
+  const uniqueDocIds = Array.from(new Set(chunks.map((c) => c.document_id)));
+
+  const records = await RecordModel.find({ _id: { $in: uniqueDocIds } }).lean();
+
+  const sortedChunks = chunks.sort((a, b) => b.score - a.score);
+
+  return records
+    .sort((a, b) => {
+      const aScore =
+        sortedChunks.find((c) => c.document_id === a._id)?.score || 0;
+      const bScore =
+        sortedChunks.find((c) => c.document_id === b._id)?.score || 0;
+      return bScore - aScore;
+    })
+    .map((r) => ({
+      source: r.source,
+      recordType: r.recordType,
+      rawData: r.rawData,
+      score: sortedChunks.find((c) => c.document_id === r._id)?.score || 0,
+    }));
 }
 
 // ============================================
@@ -167,7 +167,17 @@ async function naiveMode(
   // Vector search
   const vectorResults = await deps.vectorStore.search(queryVector, {
     limit: params.chunk_top_k || 20,
-    scoreThreshold: params.score_threshold || 0.6,
+    scoreThreshold: 0,
+    filter: {
+      must_not: [
+        {
+          key: "type",
+          match: {
+            any: ["entity", "relationship"],
+          },
+        },
+      ],
+    },
   });
 
   // Convert to chunks
@@ -384,20 +394,18 @@ async function searchEntitiesByKeywords(
   });
 
   // Fetch full records from MongoDB using entityId (which is now the MongoDB document ID)
-  const entityIds = results
-    .map((r) => r.payload.entityId)
+  const recordIds = results
+    .map((r) => r.payload.mongoId)
     .filter((id): id is string => id !== undefined && id !== null);
 
-  const records = await RecordModel.find({ _id: { $in: entityIds } }).lean();
+  const records = await RecordModel.find({ _id: { $in: recordIds } }).lean();
   const recordMap = new Map(records.map((r) => [r._id, r]));
 
-  const entities: LightRAGEntity[] = results
-    .map((result) => {
-      const recordId = result.payload.entityId;
-      if (!recordId) return null;
+  const entities = results
+    .map<LightRAGEntity>((result) => {
+      const recordId = result.payload.mongoId;
 
-      const record = recordMap.get(recordId);
-      if (!record) return null;
+      const record = recordMap.get(recordId)!;
 
       return {
         id: record._id,
@@ -412,10 +420,9 @@ async function searchEntitiesByKeywords(
         relevance_score: result.score,
       };
     })
-    .filter((e) => e !== null) as LightRAGEntity[];
-
-  // Sort by degree (graph centrality)
-  entities.sort((a, b) => b.degree - a.degree);
+    .filter((e) => e !== null)
+    // Sort by degree (graph centrality)
+    .sort((a, b) => b.degree - a.degree);
 
   return entities;
 }
@@ -561,18 +568,25 @@ async function getChunksForEntities(
     _id: { $in: entities.map((e) => e.id) },
   }).lean();
 
-  const chunks: LightRAGChunk[] = records.map((record) => ({
-    id: record._id,
-    document_id: record._id,
-    chunk_index: 0,
-    title: record.title,
-    source: record.source,
-    source_id: record.sourceId,
-    snippet: record.content.substring(0, 500),
-    score: 0.8,
-    type: record.recordType,
-    people: record.people || [],
-  }));
+  const chunks: LightRAGChunk[] = records
+    .sort((a, b) => {
+      const aScore = entities.find((e) => e.id === a._id)?.relevance_score || 0;
+      const bScore = entities.find((e) => e.id === b._id)?.relevance_score || 0;
+      return bScore - aScore;
+    })
+    .map((record) => ({
+      id: record._id,
+      document_id: record._id,
+      chunk_index: 9,
+      title: record.title,
+      source: record.source,
+      source_id: record.sourceId,
+      snippet: record.content.substring(0, 500),
+      score: entities.find((e) => e.id === record._id)?.relevance_score ?? 0,
+      type: record.recordType,
+      people: record.people || [],
+      record,
+    }));
 
   return chunks.slice(0, limit);
 }

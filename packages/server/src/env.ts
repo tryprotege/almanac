@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { z } from "zod";
 
 const envSchema = z.object({
@@ -39,7 +41,7 @@ const envSchema = z.object({
 
   // Model Configuration - Separate for chat and embeddings
   LLM_CHAT_MODEL: z.string().default("openai/gpt-oss-20b"),
-  LLM_EMBEDDING_MODEL: z.string().default("qwen/qwen-3-embedding-0.6b"),
+  LLM_EMBEDDING_MODEL: z.string().default("qwen/qwen3-embedding-4b"),
 
   // Reranker Configuration (generic - works with any provider)
   RERANKER_ENABLED: z.preprocess((val) => {

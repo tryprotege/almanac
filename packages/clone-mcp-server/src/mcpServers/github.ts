@@ -1151,7 +1151,7 @@ githubMcpServer.registerTool(
   async (args) => {
     const perPage = args.perPage || 30;
     const allIssues = mockData.github.issues.filter((i) =>
-      i.repository_url?.includes(`${args.owner}/${args.repo}`)
+      i.repository_url?.endsWith(`/${args.repo}`)
     );
 
     // Find starting index based on cursor

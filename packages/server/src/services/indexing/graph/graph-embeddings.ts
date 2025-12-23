@@ -132,8 +132,9 @@ export async function indexEntityEmbeddings(
           vector: embeddings[index],
           payload: {
             type: "entity" as const,
-            entityId: entity.mongoId, // Store MongoDB ID for direct lookup
+            entityId: entity.memgraphEntityId, // Store MongoDB ID for direct lookup
             entityType: entity.type,
+            mongoId: entity.mongoId,
             source: source,
             degree: degreeCounts.get(entity.memgraphEntityId) || 0,
             checksum: computeChecksum(entityTexts[index]),
@@ -145,14 +146,14 @@ export async function indexEntityEmbeddings(
       await deps.vectorStore.upsertPoints(points);
       stats.indexed += points.length;
 
-      // Update or create GraphEmbeddingMetadata using MongoDB ID as _id
+      // Update or create GraphEmbeddingMetadata using memgraphEntityId as _id
       for (let j = 0; j < batch.length; j++) {
         const entity = batch[j];
         const embeddedChecksum = computeChecksum(entityTexts[j]);
         const qdrantId = points[j].id;
 
         await GraphEmbeddingMetadata.findOneAndUpdate(
-          { _id: entity.mongoId }, // Use MongoDB ID as the primary key
+          { _id: entity.memgraphEntityId }, // Use memgraphEntityIdas the primary key
           {
             $set: {
               itemType: "entity",
@@ -385,6 +386,7 @@ export async function indexRelationshipEmbeddings(
               embeddedAt: new Date(),
               embeddingModelVersion: env.LLM_EMBEDDING_MODEL,
               lastUpdatedBy: source,
+              source: source,
             },
           },
           { upsert: true }

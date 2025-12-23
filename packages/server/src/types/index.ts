@@ -38,6 +38,7 @@ export interface EntityVectorPayload extends Record<string, unknown> {
   // Global entity from Memgraph
   entityId: string; // Global entity ID from Memgraph (required)
   entityType: string; // Entity type from Memgraph (required)
+  mongoId: string; // Record ID from MongoDB (required)
   // Shared fields
   source: SourceType;
   degree: number; // Graph centrality (cached)

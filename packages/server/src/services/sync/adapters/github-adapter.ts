@@ -12,31 +12,26 @@ import {
   GitHubDiscussion,
   GitHubCodeScanningAlert,
   GitHubDependabotAlert,
-  GitHubUser,
   GitHubAdapterConfig,
 } from "@ebee-oss/shared-util";
 import { GitHubMCPClient } from "../../sources/github/mcpClient.js";
 import pLimit from "p-limit";
 
 const REPO_CONCURRENCY = 3; // Process 3 repositories concurrently
-const WORKFLOW_CONCURRENCY = 5; // Process 5 workflows concurrently
 
 /**
  * GitHub adapter for syncing GitHub records
  * Supports: repositories, issues, PRs, workflows, releases, discussions, security alerts
  */
-export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
+export class GitHubAdapter extends BaseRecordAdapter<Record> {
   readonly source = "github" as const;
   readonly supportedRecordTypes = [
     "repository",
     "issue",
     "pull_request",
-    "workflow",
-    "workflow_run",
     "release",
     "discussion",
     "code_scanning_alert",
-    "dependabot_alert",
     "user",
   ];
 
@@ -50,7 +45,7 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
   /**
    * Fetch all records from GitHub
    */
-  async *fetchAll(options?: FetchOptions): AsyncIterable<GitHubRecord[]> {
+  async *fetchAll(options?: FetchOptions): AsyncIterable<Record[]> {
     const batchSize = options?.batchSize || 100;
     const user = await this.client.getMe();
     if (!user) {
@@ -58,17 +53,12 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
     }
     const repos = await this.getRepositoriesToSync(user.login);
 
-    // Fetch users (organization members)
-    try {
-      const users = await this.client.listOrganizationMembers(user.login);
-      yield users as GitHubRecord[];
-    } catch (error) {
-      console.warn("Failed to fetch organization members:", error);
-    }
-
     // Fetch repositories
-    for (let i = 0; i < repos.length; i += batchSize) {
-      yield repos.slice(i, i + batchSize) as GitHubRecord[];
+    const transformedRepos = repos.map((repo) =>
+      this.transformRepository(repo)
+    );
+    for (let i = 0; i < transformedRepos.length; i += batchSize) {
+      yield transformedRepos.slice(i, i + batchSize);
     }
 
     // Process repositories in parallel with controlled concurrency
@@ -77,12 +67,15 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
       limit(async () => {
         const owner = repo.owner.login;
         const repoName = repo.name;
-        const allRecords: GitHubRecord[] = [];
+        const allRecords: Record[] = [];
 
         // Fetch issues
         try {
           const issues = await this.client.listIssues(owner, repoName);
-          allRecords.push(...(issues as GitHubRecord[]));
+          const transformedIssues = issues.map((issue) =>
+            this.transformIssue(issue)
+          );
+          allRecords.push(...transformedIssues);
         } catch (error) {
           console.warn(
             `Failed to fetch issues for ${owner}/${repoName}:`,
@@ -97,52 +90,19 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
             repoName,
             "all"
           );
-          allRecords.push(...(prs as GitHubRecord[]));
+          const transformedPRs = prs.map((pr) => this.transformPullRequest(pr));
+          allRecords.push(...transformedPRs);
         } catch (error) {
           console.warn(`Failed to fetch PRs for ${owner}/${repoName}:`, error);
-        }
-
-        // Fetch workflows and runs
-        try {
-          const workflows = await this.client.listWorkflows(owner, repoName);
-          if (workflows.length > 0) {
-            allRecords.push(...(workflows as GitHubRecord[]));
-
-            // Fetch workflow runs in parallel
-            const workflowLimit = pLimit(WORKFLOW_CONCURRENCY);
-            const runPromises = workflows.map((workflow) =>
-              workflowLimit(async () => {
-                try {
-                  return await this.client.listWorkflowRuns(
-                    owner,
-                    repoName,
-                    workflow.id
-                  );
-                } catch (error) {
-                  console.warn(
-                    `Failed to fetch runs for workflow ${workflow.id}:`,
-                    error
-                  );
-                  return [];
-                }
-              })
-            );
-            const allRuns = await Promise.all(runPromises);
-            allRuns.forEach((runs) =>
-              allRecords.push(...(runs as GitHubRecord[]))
-            );
-          }
-        } catch (error) {
-          console.warn(
-            `Failed to fetch workflows for ${owner}/${repoName}:`,
-            error
-          );
         }
 
         // Fetch releases
         try {
           const releases = await this.client.listReleases(owner, repoName);
-          allRecords.push(...(releases as GitHubRecord[]));
+          const transformedReleases = releases.map((release) =>
+            this.transformRelease(release)
+          );
+          allRecords.push(...transformedReleases);
         } catch (error) {
           console.warn(
             `Failed to fetch releases for ${owner}/${repoName}:`,
@@ -156,37 +116,13 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
             owner,
             repoName
           );
-          allRecords.push(...(discussions as GitHubRecord[]));
+          const transformedDiscussions = discussions.map((discussion) =>
+            this.transformDiscussion(discussion)
+          );
+          allRecords.push(...transformedDiscussions);
         } catch (error) {
           console.warn(
             `Failed to fetch discussions for ${owner}/${repoName}:`,
-            error
-          );
-        }
-
-        // Fetch security alerts
-        try {
-          const codeScanningAlerts = await this.client.listCodeScanningAlerts(
-            owner,
-            repoName
-          );
-          allRecords.push(...(codeScanningAlerts as GitHubRecord[]));
-        } catch (error) {
-          console.warn(
-            `Failed to fetch code scanning alerts for ${owner}/${repoName}:`,
-            error
-          );
-        }
-
-        try {
-          const dependabotAlerts = await this.client.listDependabotAlerts(
-            owner,
-            repoName
-          );
-          allRecords.push(...(dependabotAlerts as GitHubRecord[]));
-        } catch (error) {
-          console.warn(
-            `Failed to fetch Dependabot alerts for ${owner}/${repoName}:`,
             error
           );
         }
@@ -210,7 +146,7 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
   async *fetchIncremental(
     since: Date,
     _cursor?: string
-  ): AsyncIterable<GitHubRecord[]> {
+  ): AsyncIterable<Record[]> {
     const user = await this.client.getMe();
     const repos = await this.getRepositoriesToSync(user.login);
 
@@ -220,7 +156,7 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
       limit(async () => {
         const owner = repo.owner.login;
         const repoName = repo.name;
-        const allRecords: GitHubRecord[] = [];
+        const allRecords: Record[] = [];
 
         // Fetch recently updated issues
         try {
@@ -228,7 +164,10 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
           const recentIssues = issues.filter(
             (issue) => new Date(issue.updated_at) > since
           );
-          allRecords.push(...(recentIssues as GitHubRecord[]));
+          const transformedIssues = recentIssues.map((issue) =>
+            this.transformIssue(issue)
+          );
+          allRecords.push(...transformedIssues);
         } catch (error) {
           console.warn(
             `Failed to fetch recent issues for ${owner}/${repoName}:`,
@@ -244,24 +183,13 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
             "all"
           );
           const recentPRs = prs.filter((pr) => new Date(pr.updated_at) > since);
-          allRecords.push(...(recentPRs as GitHubRecord[]));
+          const transformedPRs = recentPRs.map((pr) =>
+            this.transformPullRequest(pr)
+          );
+          allRecords.push(...transformedPRs);
         } catch (error) {
           console.warn(
             `Failed to fetch recent PRs for ${owner}/${repoName}:`,
-            error
-          );
-        }
-
-        // Fetch recent workflow runs
-        try {
-          const runs = await this.client.listWorkflowRuns(owner, repoName);
-          const recentRuns = runs.filter(
-            (run) => new Date(run.updated_at) > since
-          );
-          allRecords.push(...(recentRuns as GitHubRecord[]));
-        } catch (error) {
-          console.warn(
-            `Failed to fetch recent workflow runs for ${owner}/${repoName}:`,
             error
           );
         }
@@ -280,127 +208,30 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
   }
 
   /**
-   * Fetch single record by ID
-   */
-  async fetchById(id: string): Promise<GitHubRecord | null> {
-    // Parse ID format: github_<type>_<owner>_<repo>_<number/id>
-    const parts = id.split("_");
-    if (parts.length < 4) return null;
-
-    const [, type, owner, repo, ...rest] = parts;
-    const identifier = rest.join("_");
-
-    try {
-      switch (type) {
-        case "repository":
-          return (await this.client.getRepository(owner, repo)) as GitHubRecord;
-
-        case "issue": {
-          const issueNumber = parseInt(identifier, 10);
-          return (await this.client.getIssue(
-            owner,
-            repo,
-            issueNumber
-          )) as GitHubRecord;
-        }
-
-        case "pull_request": {
-          const prNumber = parseInt(identifier, 10);
-          return (await this.client.getPullRequest(
-            owner,
-            repo,
-            prNumber
-          )) as GitHubRecord;
-        }
-
-        case "workflow": {
-          const workflowId = parseInt(identifier, 10);
-          return (await this.client.getWorkflow(
-            owner,
-            repo,
-            workflowId
-          )) as GitHubRecord;
-        }
-
-        case "workflow_run": {
-          const runId = parseInt(identifier, 10);
-          return (await this.client.getWorkflowRun(
-            owner,
-            repo,
-            runId
-          )) as GitHubRecord;
-        }
-
-        case "release": {
-          const releaseId = parseInt(identifier, 10);
-          return (await this.client.getRelease(
-            owner,
-            repo,
-            releaseId
-          )) as GitHubRecord;
-        }
-
-        case "user":
-          return (await this.client.getUser(identifier)) as GitHubRecord;
-
-        default:
-          return null;
-      }
-    } catch (error) {
-      console.warn(`Failed to fetch record ${id}:`, error);
-      return null;
-    }
-  }
-
-  /**
    * Transform GitHub record to unified format
    */
-  async transform(sourceRecord: GitHubRecord): Promise<Record> {
-    const recordType = this.getRecordType(sourceRecord);
-    const sourceId = this.getSourceId(sourceRecord);
-    const _id = this.generateRecordId(recordType, sourceId);
-
-    const title = this.extractTitle(sourceRecord);
-    const content = this.extractTextContent(sourceRecord);
-    const people = this.extractPeople(sourceRecord);
-    const primaryDate = this.extractPrimaryDate(sourceRecord);
-    const tags = this.extractTags(sourceRecord);
-    return {
-      _id,
-      source: this.source,
-      sourceId,
-      recordType,
-      title,
-      content,
-      people,
-      primaryDate,
-      tags,
-      rawData: sourceRecord,
-      checksum: this.computeChecksum(sourceRecord),
-      version: 1,
-      syncedAt: new Date(),
-      sourceUpdatedAt: this.getUpdatedAt(sourceRecord),
-      // deletedAt: this.isDeleted(sourceRecord) ? new Date() : null,
-      deletedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+  async transform(sourceRecord: Record): Promise<Record> {
+    // Transform is now done in fetchAll/fetchIncremental
+    // This method just passes through the already-transformed record
+    return sourceRecord;
   }
 
   /**
    * Extract relationships from GitHub record
    */
   async extractRelationships(
-    sourceRecord: GitHubRecord
+    sourceRecord: Record
   ): Promise<EntityRelationship[]> {
+    // Extract from rawData which contains the original GitHub record
+    const githubRecord = sourceRecord.rawData as GitHubRecord;
     const relationships: EntityRelationship[] = [];
-    const recordType = this.getRecordType(sourceRecord);
-    const sourceId = this.getSourceId(sourceRecord);
+    const recordType = sourceRecord.recordType;
+    const sourceId = sourceRecord.sourceId;
     const recordId = this.generateRecordId(recordType, sourceId);
 
     // Repository relationships
     if (recordType === "repository") {
-      const repo = sourceRecord as GitHubRepository;
+      const repo = githubRecord as GitHubRepository;
       // Owner relationship
       relationships.push({
         sourceId: recordId,
@@ -412,7 +243,7 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
 
     // Issue relationships
     if (recordType === "issue") {
-      const issue = sourceRecord as GitHubIssue;
+      const issue = githubRecord as GitHubIssue;
       const repoId = this.extractRepoIdFromUrl(issue.repository_url);
 
       // Repository relationship
@@ -459,7 +290,7 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
 
     // Pull Request relationships
     if (recordType === "pull_request") {
-      const pr = sourceRecord as GitHubPullRequest;
+      const pr = githubRecord as GitHubPullRequest;
       const repoId = this.generateRecordId(
         "repository",
         `${pr.base.repo.owner.login}_${pr.base.repo.name}`
@@ -523,7 +354,7 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
 
     // Workflow relationships
     if (recordType === "workflow") {
-      const workflow = sourceRecord as GitHubWorkflow;
+      const workflow = githubRecord as GitHubWorkflow;
       const repoId = this.extractRepoIdFromUrl(workflow.url);
 
       if (repoId) {
@@ -538,7 +369,7 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
 
     // Workflow Run relationships
     if (recordType === "workflow_run") {
-      const run = sourceRecord as GitHubWorkflowRun;
+      const run = githubRecord as GitHubWorkflowRun;
 
       // Workflow relationship
       relationships.push({
@@ -576,7 +407,7 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
       recordType === "code_scanning_alert" ||
       recordType === "dependabot_alert"
     ) {
-      const alert = sourceRecord as
+      const alert = githubRecord as
         | GitHubCodeScanningAlert
         | GitHubDependabotAlert;
       const repoId = this.extractRepoIdFromUrl(alert.url);
@@ -593,7 +424,7 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
 
     // Discussion relationships
     if (recordType === "discussion") {
-      const discussion = sourceRecord as GitHubDiscussion;
+      const discussion = githubRecord as GitHubDiscussion;
       const repoId = this.extractRepoIdFromUrl(discussion.repository_url);
 
       if (repoId) {
@@ -631,29 +462,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
   }
 
   /**
-   * Check if record is deleted
-   */
-  isDeleted(sourceRecord: GitHubRecord): boolean {
-    const recordType = this.getRecordType(sourceRecord);
-
-    if (recordType === "repository") {
-      return (sourceRecord as GitHubRepository).archived;
-    }
-
-    if (recordType === "issue" || recordType === "pull_request") {
-      return (
-        (sourceRecord as GitHubIssue | GitHubPullRequest).state === "closed"
-      );
-    }
-
-    if (recordType === "workflow") {
-      return (sourceRecord as GitHubWorkflow).state !== "active";
-    }
-
-    return false;
-  }
-
-  /**
    * Get deleted records (GitHub doesn't provide this directly)
    */
   async *getDeletedRecords(_since: Date): AsyncIterable<string[]> {
@@ -663,328 +471,234 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
   }
 
   // ============================================
-  // Protected Helper Methods
+  // Private Transform Methods
   // ============================================
 
   /**
-   * Extract text content from record
+   * Transform GitHub repository to unified Record format
    */
-  protected extractTextContent(sourceRecord: GitHubRecord): string {
-    const recordType = this.getRecordType(sourceRecord);
+  private transformRepository(repo: GitHubRepository): Record {
+    const sourceId = repo.id.toString() || repo.name;
+    const _id = this.generateRecordId("repository", sourceId);
 
-    switch (recordType) {
-      case "repository": {
-        const repo = sourceRecord as GitHubRepository;
-        return [
-          repo.description || "",
-          `Language: ${repo.language || "N/A"}`,
-          `Topics: ${repo.topics?.length ? repo.topics.join(", ") : ""}`,
-        ]
-          .filter(Boolean)
-          .join("\n");
-      }
+    const title = repo.full_name;
+    const content = [
+      title,
+      repo.description || "",
+      `Language: ${repo.language || "N/A"}`,
+      `Topics: ${repo.topics?.length ? repo.topics.join(", ") : ""}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
 
-      case "issue": {
-        const issue = sourceRecord as GitHubIssue;
-        return [issue.title, issue.body || ""].filter(Boolean).join("\n\n");
-      }
+    const people = [repo.owner.login];
+    const primaryDate = new Date(repo.created_at);
 
-      case "pull_request": {
-        const pr = sourceRecord as GitHubPullRequest;
-        return [pr.title, pr.body || ""].filter(Boolean).join("\n\n");
-      }
-
-      case "workflow_run": {
-        const run = sourceRecord as GitHubWorkflowRun;
-        return `Workflow: ${run.name}\nBranch: ${run.head_branch}\nStatus: ${
-          run.status
-        }\nConclusion: ${run.conclusion || "N/A"}`;
-      }
-
-      case "release": {
-        const release = sourceRecord as GitHubRelease;
-        return [release.name, release.body || ""].filter(Boolean).join("\n\n");
-      }
-
-      case "discussion": {
-        const discussion = sourceRecord as GitHubDiscussion;
-        return [discussion.title, discussion.body].filter(Boolean).join("\n\n");
-      }
-
-      case "code_scanning_alert": {
-        const alert = sourceRecord as GitHubCodeScanningAlert;
-        return `${alert.rule.name}: ${alert.rule.description}`;
-      }
-
-      case "dependabot_alert": {
-        const alert = sourceRecord as GitHubDependabotAlert;
-        return `${alert.security_advisory.summary}\n${alert.security_advisory.description}`;
-      }
-
-      case "user": {
-        const user = sourceRecord as GitHubUser;
-        return [user.bio || "", user.company || "", user.location || ""]
-          .filter(Boolean)
-          .join(" | ");
-      }
-
-      default:
-        return "";
-    }
-  }
-
-  /**
-   * Extract title from record
-   */
-  protected extractTitle(sourceRecord: GitHubRecord): string {
-    const recordType = this.getRecordType(sourceRecord);
-
-    switch (recordType) {
-      case "repository":
-        return (sourceRecord as GitHubRepository).full_name;
-
-      case "issue":
-        return `#${(sourceRecord as GitHubIssue).number}: ${
-          (sourceRecord as GitHubIssue).title
-        }`;
-
-      case "pull_request":
-        return `PR #${(sourceRecord as GitHubPullRequest).number}: ${
-          (sourceRecord as GitHubPullRequest).title
-        }`;
-
-      case "workflow":
-        return (sourceRecord as GitHubWorkflow).name;
-
-      case "workflow_run":
-        return `${(sourceRecord as GitHubWorkflowRun).name} #${
-          (sourceRecord as GitHubWorkflowRun).run_number
-        }`;
-
-      case "release":
-        return (
-          (sourceRecord as GitHubRelease).name ||
-          (sourceRecord as GitHubRelease).tag_name
-        );
-
-      case "discussion":
-        return (sourceRecord as GitHubDiscussion).title;
-
-      case "code_scanning_alert":
-        return `Security Alert #${
-          (sourceRecord as GitHubCodeScanningAlert).number
-        }`;
-
-      case "dependabot_alert":
-        return `Dependabot Alert #${
-          (sourceRecord as GitHubDependabotAlert).number
-        }`;
-
-      case "user":
-        return (
-          (sourceRecord as GitHubUser).name ||
-          (sourceRecord as GitHubUser).login
-        );
-
-      default:
-        return "Unknown";
-    }
-  }
-
-  /**
-   * Extract people from record
-   */
-  protected extractPeople(sourceRecord: GitHubRecord): string[] {
-    const people: string[] = [];
-    const recordType = this.getRecordType(sourceRecord);
-
-    switch (recordType) {
-      case "repository": {
-        const repo = sourceRecord as GitHubRepository;
-        people.push(repo.owner.login);
-        break;
-      }
-
-      case "issue": {
-        const issue = sourceRecord as GitHubIssue;
-        people.push(issue.user.login);
-        issue.assignees?.forEach((a) => people.push(a.login));
-        break;
-      }
-
-      case "pull_request": {
-        const pr = sourceRecord as GitHubPullRequest;
-        people.push(pr.user.login);
-        pr.assignees?.forEach((a) => people.push(a.login));
-        pr.requested_reviewers?.forEach((r) => people.push(r.login));
-        if (pr.merged_by) people.push(pr.merged_by.login);
-        break;
-      }
-
-      case "workflow_run": {
-        const run = sourceRecord as GitHubWorkflowRun;
-        people.push(run.actor.login);
-        people.push(run.triggering_actor.login);
-        break;
-      }
-
-      case "release": {
-        const release = sourceRecord as GitHubRelease;
-        people.push(release.author.login);
-        break;
-      }
-
-      case "discussion": {
-        const discussion = sourceRecord as GitHubDiscussion;
-        people.push(discussion.user.login);
-        if (discussion.answer_chosen_by) {
-          people.push(discussion.answer_chosen_by.login);
-        }
-        break;
-      }
-
-      case "code_scanning_alert": {
-        const alert = sourceRecord as GitHubCodeScanningAlert;
-        if (alert.dismissed_by) people.push(alert.dismissed_by.login);
-        break;
-      }
-
-      case "dependabot_alert": {
-        const alert = sourceRecord as GitHubDependabotAlert;
-        if (alert.dismissed_by) people.push(alert.dismissed_by.login);
-        break;
-      }
-    }
-
-    return [...new Set(people)]; // Remove duplicates
-  }
-
-  /**
-   * Extract primary date from record
-   */
-  protected extractPrimaryDate(sourceRecord: GitHubRecord): Date | null {
-    const recordType = this.getRecordType(sourceRecord);
-
-    switch (recordType) {
-      case "repository":
-        return new Date((sourceRecord as GitHubRepository).created_at);
-
-      case "issue":
-        return new Date((sourceRecord as GitHubIssue).created_at);
-
-      case "pull_request":
-        return new Date((sourceRecord as GitHubPullRequest).created_at);
-
-      case "workflow":
-        return new Date((sourceRecord as GitHubWorkflow).created_at);
-
-      case "workflow_run":
-        return new Date((sourceRecord as GitHubWorkflowRun).created_at);
-
-      case "release":
-        return new Date((sourceRecord as GitHubRelease).published_at);
-
-      case "discussion":
-        return new Date((sourceRecord as GitHubDiscussion).created_at);
-
-      case "code_scanning_alert":
-        return new Date((sourceRecord as GitHubCodeScanningAlert).created_at);
-
-      case "dependabot_alert":
-        return new Date((sourceRecord as GitHubDependabotAlert).created_at);
-
-      case "user":
-        return (sourceRecord as GitHubUser).created_at
-          ? new Date((sourceRecord as GitHubUser).created_at!)
-          : null;
-
-      default:
-        return null;
-    }
-  }
-
-  /**
-   * Extract tags from record
-   */
-  protected extractTags(sourceRecord: GitHubRecord): string[] {
     const tags: string[] = [];
-    const recordType = this.getRecordType(sourceRecord);
+    if (repo.topics?.length) tags.push(...repo.topics);
+    if (repo.language) tags.push(repo.language);
+    if (repo.private) tags.push("private");
+    if (repo.archived) tags.push("archived");
+    if (repo.fork) tags.push("fork");
 
-    switch (recordType) {
-      case "repository": {
-        const repo = sourceRecord as GitHubRepository;
-        if (repo.topics?.length) {
-          tags.push(...repo.topics);
-        }
-        if (repo.language) tags.push(repo.language);
-        if (repo.private) tags.push("private");
-        if (repo.archived) tags.push("archived");
-        if (repo.fork) tags.push("fork");
-        break;
-      }
+    const record: Record = {
+      _id,
+      source: this.source,
+      sourceId,
+      recordType: "repository",
+      title,
+      content,
+      people,
+      primaryDate,
+      tags,
+      rawData: repo,
+      checksum: "",
+      version: 1,
+      syncedAt: new Date(),
+      sourceUpdatedAt: new Date(repo.updated_at),
+      deletedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-      case "issue": {
-        const issue = sourceRecord as GitHubIssue;
-        tags.push(...(issue.labels?.map((l) => l.name) || []));
-        tags.push(issue.state);
-        break;
-      }
+    record.checksum = this.computeChecksum(record);
+    return record;
+  }
 
-      case "pull_request": {
-        const pr = sourceRecord as GitHubPullRequest;
-        tags.push(...(pr.labels?.map((l) => l.name) || []));
-        tags.push(pr.state);
-        if (pr.draft) tags.push("draft");
-        if (pr.merged) tags.push("merged");
-        break;
-      }
+  /**
+   * Transform GitHub issue to unified Record format
+   */
+  private transformIssue(issue: GitHubIssue): Record {
+    const sourceId = issue.id.toString() || issue.number.toString();
+    const _id = this.generateRecordId("issue", sourceId);
 
-      case "workflow": {
-        const workflow = sourceRecord as GitHubWorkflow;
-        tags.push(workflow.state);
-        break;
-      }
+    const title = `#${issue.number}: ${issue.title}`;
+    const content = [title, issue.body || ""].filter(Boolean).join("\n\n");
 
-      case "workflow_run": {
-        const run = sourceRecord as GitHubWorkflowRun;
-        tags.push(run.status);
-        if (run.conclusion) tags.push(run.conclusion);
-        tags.push(run.event);
-        break;
-      }
-
-      case "release": {
-        const release = sourceRecord as GitHubRelease;
-        if (release.draft) tags.push("draft");
-        if (release.prerelease) tags.push("prerelease");
-        break;
-      }
-
-      case "discussion": {
-        const discussion = sourceRecord as GitHubDiscussion;
-        tags.push(discussion.state);
-        tags.push(discussion.category.name);
-        break;
-      }
-
-      case "code_scanning_alert": {
-        const alert = sourceRecord as GitHubCodeScanningAlert;
-        tags.push(alert.state);
-        tags.push(alert.rule.severity);
-        tags.push(...alert.rule.tags);
-        break;
-      }
-
-      case "dependabot_alert": {
-        const alert = sourceRecord as GitHubDependabotAlert;
-        tags.push(alert.state);
-        tags.push(alert.security_advisory.severity);
-        tags.push(alert.dependency.package.ecosystem);
-        break;
-      }
+    if (_id === "github_issue_392858") {
+      console.log("content....", issue, content);
     }
 
-    return tags;
+    const people = [issue.user.login];
+    issue.assignees?.forEach((a) => people.push(a.login));
+
+    const primaryDate = new Date(issue.created_at);
+
+    const tags = [...(issue.labels?.map((l) => l.name) || []), issue.state];
+
+    const record: Record = {
+      _id,
+      source: this.source,
+      sourceId,
+      recordType: "issue",
+      title,
+      content,
+      people: [...new Set(people)],
+      primaryDate,
+      tags,
+      rawData: issue,
+      checksum: "",
+      version: 1,
+      syncedAt: new Date(),
+      sourceUpdatedAt: new Date(issue.updated_at),
+      deletedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    record.checksum = this.computeChecksum(record);
+    return record;
+  }
+
+  /**
+   * Transform GitHub pull request to unified Record format
+   */
+  private transformPullRequest(pr: GitHubPullRequest): Record {
+    const sourceId = pr.id.toString() || pr.number.toString();
+    const _id = this.generateRecordId("pull_request", sourceId);
+
+    const title = `PR #${pr.number}: ${pr.title}`;
+    const content = [title, pr.body || ""].filter(Boolean).join("\n\n");
+
+    const people = [pr.user.login];
+    pr.assignees?.forEach((a) => people.push(a.login));
+    pr.requested_reviewers?.forEach((r) => people.push(r.login));
+    if (pr.merged_by) people.push(pr.merged_by.login);
+
+    const primaryDate = new Date(pr.created_at);
+
+    const tags = [...(pr.labels?.map((l) => l.name) || []), pr.state];
+    if (pr.draft) tags.push("draft");
+    if (pr.merged) tags.push("merged");
+
+    const record: Record = {
+      _id,
+      source: this.source,
+      sourceId,
+      recordType: "pull_request",
+      title,
+      content,
+      people: [...new Set(people)],
+      primaryDate,
+      tags,
+      rawData: pr,
+      checksum: "",
+      version: 1,
+      syncedAt: new Date(),
+      sourceUpdatedAt: new Date(pr.updated_at),
+      deletedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    record.checksum = this.computeChecksum(record);
+    return record;
+  }
+
+  /**
+   * Transform GitHub release to unified Record format
+   */
+  private transformRelease(release: GitHubRelease): Record {
+    const sourceId = (release as any).id?.toString() || "unknown";
+    const _id = this.generateRecordId("release", sourceId);
+
+    const title = release.name || release.tag_name;
+    const content = [title, release.body || ""].filter(Boolean).join("\n\n");
+
+    const people = [release.author.login];
+    const primaryDate = new Date(release.published_at);
+
+    const tags: string[] = [];
+    if (release.draft) tags.push("draft");
+    if (release.prerelease) tags.push("prerelease");
+
+    const record: Record = {
+      _id,
+      source: this.source,
+      sourceId,
+      recordType: "release",
+      title,
+      content,
+      people,
+      primaryDate,
+      tags,
+      rawData: release,
+      checksum: "",
+      version: 1,
+      syncedAt: new Date(),
+      sourceUpdatedAt: new Date(release.published_at),
+      deletedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    record.checksum = this.computeChecksum(record);
+    return record;
+  }
+
+  /**
+   * Transform GitHub discussion to unified Record format
+   */
+  private transformDiscussion(discussion: GitHubDiscussion): Record {
+    const sourceId = discussion.id.toString() || discussion.number.toString();
+    const _id = this.generateRecordId("discussion", sourceId);
+
+    const title = discussion.title;
+    const content = [discussion.title, discussion.body]
+      .filter(Boolean)
+      .join("\n\n");
+
+    const people = [discussion.user.login];
+    if (discussion.answer_chosen_by) {
+      people.push(discussion.answer_chosen_by.login);
+    }
+
+    const primaryDate = new Date(discussion.created_at);
+
+    const tags = [discussion.state, discussion.category.name];
+
+    const record: Record = {
+      _id,
+      source: this.source,
+      sourceId,
+      recordType: "discussion",
+      title,
+      content,
+      people: [...new Set(people)],
+      primaryDate,
+      tags,
+      rawData: discussion,
+      checksum: "",
+      version: 1,
+      syncedAt: new Date(),
+      sourceUpdatedAt: new Date(discussion.updated_at),
+      deletedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    record.checksum = this.computeChecksum(record);
+    return record;
   }
 
   // ============================================
@@ -1007,95 +721,6 @@ export class GitHubAdapter extends BaseRecordAdapter<GitHubRecord> {
       if (!this.config.includePrivate && repo.private) return false;
       return true;
     });
-  }
-
-  /**
-   * Get record type from source record
-   */
-  private getRecordType(record: GitHubRecord): string {
-    if ("full_name" in record && "owner" in record) return "repository";
-    if ("pull_request" in record) return "issue";
-    if ("head" in record && "base" in record) return "pull_request";
-    if ("path" in record && "badge_url" in record) return "workflow";
-    if ("workflow_id" in record && "run_number" in record)
-      return "workflow_run";
-    if ("tag_name" in record && "assets" in record) return "release";
-    if ("category" in record && "answer_html_url" in record)
-      return "discussion";
-    if ("rule" in record && "tool" in record) return "code_scanning_alert";
-    if ("security_advisory" in record && "dependency" in record)
-      return "dependabot_alert";
-    if ("login" in record && "avatar_url" in record) return "user";
-    return "unknown";
-  }
-
-  /**
-   * Get source ID from record
-   */
-  private getSourceId(record: GitHubRecord): string {
-    const recordType = this.getRecordType(record);
-
-    switch (recordType) {
-      case "repository": {
-        const repo = record as GitHubRepository;
-        return repo.id.toString() || repo.name;
-      }
-
-      case "issue": {
-        const issue = record as GitHubIssue;
-        return issue.id.toString() || issue.number.toString();
-      }
-
-      case "pull_request": {
-        const pr = record as GitHubPullRequest;
-        return pr.id.toString() || pr.number.toString();
-      }
-
-      case "discussion": {
-        const discussion = record as GitHubDiscussion;
-        return discussion.id.toString() || discussion.number.toString();
-      }
-
-      case "user":
-        return (record as GitHubUser).login;
-
-      default:
-        return (record as any).id?.toString() || "unknown";
-    }
-  }
-
-  /**
-   * Get updated_at timestamp from record
-   */
-  private getUpdatedAt(record: GitHubRecord): Date {
-    const recordType = this.getRecordType(record);
-
-    switch (recordType) {
-      case "repository":
-        return new Date((record as GitHubRepository).updated_at);
-      case "issue":
-        return new Date((record as GitHubIssue).updated_at);
-      case "pull_request":
-        return new Date((record as GitHubPullRequest).updated_at);
-      case "workflow":
-        return new Date((record as GitHubWorkflow).updated_at);
-      case "workflow_run":
-        return new Date((record as GitHubWorkflowRun).updated_at);
-      case "release":
-        return new Date((record as GitHubRelease).published_at);
-      case "discussion":
-        return new Date((record as GitHubDiscussion).updated_at);
-      case "code_scanning_alert":
-        return new Date((record as GitHubCodeScanningAlert).updated_at);
-      case "dependabot_alert":
-        return new Date((record as GitHubDependabotAlert).updated_at);
-      case "user":
-        return (record as GitHubUser).updated_at
-          ? new Date((record as GitHubUser).updated_at!)
-          : new Date();
-      default:
-        return new Date();
-    }
   }
 
   /**

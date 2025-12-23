@@ -124,8 +124,7 @@ export const indexGraphWorker = new Worker<
   connection: createRedisConnection(),
   concurrency: 2,
   autorun: false,
-  skipLockRenewal: true,
-  skipStalledCheck: true,
+  lockDuration: 5 * 60 * 60 * 1000,
 });
 
 // Set up worker event handlers

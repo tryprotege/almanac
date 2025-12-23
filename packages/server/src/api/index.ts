@@ -4,6 +4,7 @@ import { graphRouter } from "./graph/index.js";
 import { personaRouter } from "./persona/index.js";
 import { schemaRouter } from "./schema/index.js";
 import { statsRouter } from "./stats/index.js";
+import indexingConfigRouter from "./indexing-config/index.js";
 
 const router: Router = Router();
 
@@ -12,5 +13,6 @@ router.use("/schema", personaRouter);
 router.use("/stats", statsRouter);
 router.use("/config", configRouter);
 router.use("/graph", graphRouter);
+router.use("/indexing-config", indexingConfigRouter);
 
 export { router };

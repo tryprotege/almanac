@@ -13,6 +13,7 @@ import type {
   MatrixCellResult,
   MatrixAnalysis,
   MatrixScenario,
+  DetailedQueryResult,
 } from "../types/index.js";
 import { loadScenarios } from "../utils/query-loader.js";
 import {
@@ -70,6 +71,7 @@ export async function runMatrixBenchmark(
   console.log(`   Query Source: ${config.queriesSource.type}\n`);
 
   const matrix: Record<string, MatrixAgentResult> = {};
+  const detailedResults: DetailedQueryResult[] = [];
 
   // Test each agent
   for (const agent of config.agents) {
@@ -97,20 +99,70 @@ export async function runMatrixBenchmark(
         for (const setup of config.mcpSetups) {
           // Stdio-based setup (direct or clone-mcp)
           console.log(`     🔗 Running with ${setup.name}...`);
-          const result = await executeSDKQuery(
-            {
-              ...agent,
-              mcpConfig: setup.packages,
-            },
-            scenario.query,
-            { verbose: config.verbose }
-          );
+
+          let result: SDKQueryResult;
+          let error: string | undefined;
+
+          try {
+            result = await executeSDKQuery(
+              {
+                ...agent,
+                mcpConfig: setup.packages,
+              },
+              scenario.query,
+              { verbose: config.verbose }
+            );
+          } catch (err) {
+            // Capture error but continue with other tests
+            error = err instanceof Error ? err.message : String(err);
+            console.error(`        ✗ Error: ${error}`);
+
+            // Create a minimal result for failed queries
+            result = {
+              response: "",
+              mcpCalls: [],
+              inputTokens: 0,
+              outputTokens: 0,
+              thinkingTokens: 0,
+              cacheCreationTokens: 0,
+              cacheReadTokens: 0,
+              totalTokens: 0,
+              executionTime: 0,
+              rawOutput: "",
+              cost: 0,
+            };
+          }
+
           const cell = toMatrixCell(result, scenario);
           if (setup.name === "ebee") {
             ebeeResults.push(cell);
           } else {
             directResults.push(cell);
           }
+
+          // Capture detailed result for CSV export
+          const detailedResult: DetailedQueryResult = {
+            queryId: scenario.id,
+            query: scenario.query,
+            category: scenario.category,
+            agentName: agent.name,
+            setupName: setup.name,
+            iteration: i + 1,
+            response: result.response,
+            evaluation: cell.evaluation,
+            executionTime: result.executionTime,
+            totalTokens: result.totalTokens,
+            inputTokens: result.inputTokens,
+            outputTokens: result.outputTokens,
+            thinkingTokens: result.thinkingTokens,
+            cacheCreationTokens: result.cacheCreationTokens,
+            cacheReadTokens: result.cacheReadTokens,
+            cost: result.cost || 0,
+            timestamp: new Date().toISOString(),
+            targetServers: scenario.targetServers,
+            error,
+          };
+          detailedResults.push(detailedResult);
 
           console.log(
             `        ✓ Completed in ${result.executionTime}ms, ${result.totalTokens} tokens`
@@ -179,6 +231,7 @@ export async function runMatrixBenchmark(
     config,
     matrix,
     analysis,
+    detailedResults,
     timestamp: new Date().toISOString(),
   };
 }

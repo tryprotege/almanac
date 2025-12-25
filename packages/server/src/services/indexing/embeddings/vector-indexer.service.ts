@@ -162,7 +162,7 @@ export async function insertRecordToVectorDB(
       vector: embeddings[index],
       payload: {
         // Link to MongoDB (required)
-        mongoId: record._id,
+        recordId: record._id,
         // Change detection (for re-indexing)
         checksum: record.checksum,
         // Chunk metadata (for result assembly)

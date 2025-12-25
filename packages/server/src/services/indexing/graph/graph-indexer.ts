@@ -741,7 +741,9 @@ export const indexAllRecords = async (
           entityIdToNormalizedName.set(id, normalizedName);
         }
 
-        const entityMetadataOps = nodes.map((node) => {
+        const entityMetadataOps = nodes.map<
+          Parameters<typeof GraphEmbeddingMetadata.bulkWrite>[0][0]
+        >((node) => {
           // Calculate content checksum for this entity
           const contentChecksum = calculateEmbeddingChecksum({
             entityType: node.type,
@@ -757,16 +759,15 @@ export const indexAllRecords = async (
 
           return {
             updateOne: {
-              filter: { _id: node.id },
+              filter: { memgraphId: node.id },
               update: {
                 $set: {
                   itemType: "entity",
-                  entityId: node.id,
+                  memgraphId: node.id,
                   entityType: node.type,
                   entityDescription: node.description, // Store LLM-extracted description
-                  source: source,
                   contentChecksum: contentChecksum,
-                  lastUpdatedBy: source,
+                  lastUpdatedBy: documentIds[documentIds.length - 1],
                 },
                 $addToSet: {
                   sources: source,
@@ -1061,17 +1062,17 @@ export const indexAllRecords = async (
 
           return {
             updateOne: {
-              filter: { _id: relId },
+              filter: { memgraphId: relId },
               update: {
                 $set: {
                   itemType: "relationship",
+                  memgraphId: relId,
                   sourceId: rel.sourceId,
                   targetId: rel.targetId,
                   relType: rel.type,
                   relationshipDescription: description, // Store LLM-extracted description
-                  source: source,
                   contentChecksum: contentChecksum,
-                  lastUpdatedBy: source,
+                  lastUpdatedBy: documentIds[documentIds.length - 1],
                 },
                 $addToSet: {
                   sources: source,

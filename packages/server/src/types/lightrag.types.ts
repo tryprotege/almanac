@@ -59,13 +59,11 @@ export interface LightRAGEntity {
   name: string;
   type: string;
   description?: string;
-  degree: number;
-  rank: number;
   source?: SourceType;
   sourceId?: string;
   url?: string;
   date?: string;
-  relevance_score: number;
+  relevanceScore: number;
 }
 
 export interface LightRAGRelationship {
@@ -77,17 +75,16 @@ export interface LightRAGRelationship {
   confidence: number;
   weight: number;
   rank: number;
-  relevance_score?: number;
+  relevanceScore?: number;
 }
 
 // ============================================
 // Chunk Result (Agent-Friendly Response)
 // ============================================
 
-export interface LightRAGChunk {
+export interface LightRAGRecord {
   // Chunk identity
   id: string;
-  chunk_index?: number; // Which chunk of the document (0, 1, 2...)
 
   // Document reference
   document_id: string; // Parent document ID
@@ -110,7 +107,7 @@ export interface LightRAGChunk {
   people?: string[]; // People mentioned
 }
 
-export interface LightRAGChunkFull extends LightRAGChunk {
+export interface LightRAGChunkFull extends LightRAGRecord {
   // Full mode additions
   full_content: string; // Complete document text
   position?: {

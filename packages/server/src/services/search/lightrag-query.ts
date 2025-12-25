@@ -16,13 +16,14 @@ import OpenAI from "openai";
 import {
   LightRAGQuery,
   LightRAGResponse,
-  LightRAGChunk,
+  LightRAGRecord,
   LightRAGChunkFull,
   LightRAGEntity,
   LightRAGRelationship,
   ExtractedKeywords,
 } from "../../types/lightrag.types.js";
 import logger from "../../utils/logger.js";
+import { GraphEmbeddingMetadata } from "../../models/graph-embedding-metadata.model.js";
 
 // ============================================
 // Dependencies Interface
@@ -70,7 +71,7 @@ export async function lightragQuery(
   }
 
   // Execute mode-specific retrieval
-  let chunks: LightRAGChunk[];
+  let records: LightRAGRecord[];
   let vectorMatches = 0;
   let graphExpanded = 0;
   let reranked = false;
@@ -78,34 +79,34 @@ export async function lightragQuery(
   switch (mode) {
     case "naive": {
       const result = await naiveMode(params, deps);
-      chunks = result.chunks;
+      records = result.chunks;
       vectorMatches = result.vectorMatches;
       break;
     }
     case "local": {
       const result = await localMode(params, keywords, deps);
-      chunks = result.chunks;
+      records = result.records;
       vectorMatches = result.vectorMatches;
       graphExpanded = result.graphExpanded;
       break;
     }
     case "global": {
       const result = await globalMode(params, keywords, deps);
-      chunks = result.chunks;
+      records = result.records;
       vectorMatches = result.vectorMatches;
       graphExpanded = result.graphExpanded;
       break;
     }
     case "hybrid": {
       const result = await hybridMode(params, keywords, deps);
-      chunks = result.chunks;
+      records = result.chunks;
       vectorMatches = result.vectorMatches;
       graphExpanded = result.graphExpanded;
       break;
     }
     case "mix": {
       const result = await mixMode(params, keywords, deps);
-      chunks = result.chunks;
+      records = result.chunks;
       vectorMatches = result.vectorMatches;
       graphExpanded = result.graphExpanded;
       reranked = result.reranked;
@@ -117,7 +118,7 @@ export async function lightragQuery(
 
   // Add full content if requested
   if (responseFormat === "full") {
-    chunks = await enrichWithFullContent(chunks, deps.recordStore);
+    records = await enrichWithFullContent(records, deps.recordStore);
   }
 
   const processingTime = Date.now() - startTime;
@@ -125,17 +126,17 @@ export async function lightragQuery(
   logger.info({
     msg: "[LightRAG] Query complete",
     processingTime,
-    chunks: chunks.length,
-    documents: countUniqueDocuments(chunks),
+    chunks: records.length,
+    documents: countUniqueDocuments(records),
   });
 
-  const uniqueDocIds = Array.from(new Set(chunks.map((c) => c.document_id)));
+  const uniqueDocIds = Array.from(new Set(records.map((c) => c.document_id)));
 
-  const records = await RecordModel.find({ _id: { $in: uniqueDocIds } }).lean();
+  const results = await RecordModel.find({ _id: { $in: uniqueDocIds } }).lean();
 
-  const sortedChunks = chunks.sort((a, b) => b.score - a.score);
+  const sortedChunks = records.sort((a, b) => b.score - a.score);
 
-  return records
+  return results
     .sort((a, b) => {
       const aScore =
         sortedChunks.find((c) => c.document_id === a._id)?.score || 0;
@@ -158,7 +159,7 @@ export async function lightragQuery(
 async function naiveMode(
   params: LightRAGQuery,
   deps: LightRAGDependencies
-): Promise<{ chunks: LightRAGChunk[]; vectorMatches: number }> {
+): Promise<{ chunks: LightRAGRecord[]; vectorMatches: number }> {
   logger.info({ msg: `[LightRAG] Running naive mode (vector-only)` });
 
   // Generate embedding
@@ -195,7 +196,7 @@ async function localMode(
   keywords: ExtractedKeywords,
   deps: LightRAGDependencies
 ): Promise<{
-  chunks: LightRAGChunk[];
+  records: LightRAGRecord[];
   vectorMatches: number;
   graphExpanded: number;
 }> {
@@ -227,14 +228,13 @@ async function localMode(
   const allRelationships = [...entityRelationships, ...graphRelationships];
 
   // Get chunks
-  const chunks = await getChunksForEntities(
+  const records = await getRecordsForEntities(
     entities,
-    params.chunk_top_k || 20,
-    deps.recordStore
+    params.chunk_top_k || 20
   );
 
   return {
-    chunks,
+    records,
     vectorMatches: entities.length,
     graphExpanded: allRelationships.length,
   };
@@ -245,7 +245,7 @@ async function globalMode(
   keywords: ExtractedKeywords,
   deps: LightRAGDependencies
 ): Promise<{
-  chunks: LightRAGChunk[];
+  records: LightRAGRecord[];
   vectorMatches: number;
   graphExpanded: number;
 }> {
@@ -269,14 +269,13 @@ async function globalMode(
   const entities = await getEntitiesByIds(Array.from(entityIds), deps);
 
   // Get chunks
-  const chunks = await getChunksForEntities(
+  const records = await getRecordsForEntities(
     entities,
-    params.chunk_top_k || 20,
-    deps.recordStore
+    params.chunk_top_k || 20
   );
 
   return {
-    chunks,
+    records,
     vectorMatches: relationships.length,
     graphExpanded: entities.length,
   };
@@ -287,7 +286,7 @@ async function hybridMode(
   keywords: ExtractedKeywords,
   deps: LightRAGDependencies
 ): Promise<{
-  chunks: LightRAGChunk[];
+  chunks: LightRAGRecord[];
   vectorMatches: number;
   graphExpanded: number;
 }> {
@@ -301,8 +300,8 @@ async function hybridMode(
 
   // Merge and deduplicate
   const chunks = deduplicateChunks([
-    ...localResult.chunks,
-    ...globalResult.chunks,
+    ...localResult.records,
+    ...globalResult.records,
   ]);
 
   const limitedChunks = chunks.slice(0, params.chunk_top_k || 20);
@@ -319,7 +318,7 @@ async function mixMode(
   keywords: ExtractedKeywords,
   deps: LightRAGDependencies
 ): Promise<{
-  chunks: LightRAGChunk[];
+  chunks: LightRAGRecord[];
   vectorMatches: number;
   graphExpanded: number;
   reranked: boolean;
@@ -393,36 +392,40 @@ async function searchEntitiesByKeywords(
     scoreThreshold: scoreThreshold || 0.5,
   });
 
+  const graphEmbeddingMetadata = await GraphEmbeddingMetadata.find({
+    _id: { $in: results.map((r) => r.payload.graphEmbeddingMetadataId) },
+  }).lean();
+
   // Fetch full records from MongoDB using entityId (which is now the MongoDB document ID)
-  const recordIds = results
-    .map((r) => r.payload.mongoId)
-    .filter((id): id is string => id !== undefined && id !== null);
+  const recordIds = Array.from(
+    new Set(graphEmbeddingMetadata.map((i) => i.sourceDocumentIds).flat())
+  );
 
   const records = await RecordModel.find({ _id: { $in: recordIds } }).lean();
-  const recordMap = new Map(records.map((r) => [r._id, r]));
 
-  const entities = results
-    .map<LightRAGEntity>((result) => {
-      const recordId = result.payload.mongoId;
-
-      const record = recordMap.get(recordId)!;
-
-      return {
-        id: record._id,
-        name: record.title,
-        type: record.recordType,
-        description: record.content.substring(0, 200),
-        degree: result.payload.degree,
-        rank: calculateNodeRank(result.payload.degree),
-        source: record.source,
-        sourceId: record.sourceId,
-        date: record.primaryDate?.toISOString(),
-        relevance_score: result.score,
-      };
-    })
-    .filter((e) => e !== null)
-    // Sort by degree (graph centrality)
-    .sort((a, b) => b.degree - a.degree);
+  const entities = records.map<LightRAGEntity>((record) => {
+    let relevanceScore = 0;
+    results.forEach((r) => {
+      const metadata = graphEmbeddingMetadata.find(
+        (i) => i._id === r.payload.graphEmbeddingMetadataId
+      );
+      if (metadata?.sourceDocumentIds.includes(record._id)) {
+        if (r.score > relevanceScore) {
+          relevanceScore = r.score;
+        }
+      }
+    });
+    return {
+      id: record._id,
+      name: record.title,
+      type: record.recordType,
+      description: record.content.substring(0, 200),
+      source: record.source,
+      sourceId: record.sourceId,
+      date: record.primaryDate?.toISOString(),
+      relevanceScore,
+    };
+  });
 
   return entities;
 }
@@ -500,7 +503,7 @@ async function getEntitiesByIds(
     recordIds
   );
 
-  const entities: LightRAGEntity[] = records.map((record) => {
+  const entities = records.map<LightRAGEntity>((record) => {
     const degree = degreeCounts.get(record._id) || 0;
 
     return {
@@ -513,7 +516,7 @@ async function getEntitiesByIds(
       source: record.source,
       sourceId: record.sourceId,
       date: record.primaryDate?.toISOString(),
-      relevance_score: 0,
+      relevanceScore: 0,
     };
   });
 
@@ -559,57 +562,54 @@ async function getEntityRelationships(
   return deduplicateRelationships(relationships);
 }
 
-async function getChunksForEntities(
+async function getRecordsForEntities(
   entities: LightRAGEntity[],
-  limit: number,
-  _recordStore: RecordStore
-): Promise<LightRAGChunk[]> {
+  limit: number
+): Promise<LightRAGRecord[]> {
   const records = await RecordModel.find({
     _id: { $in: entities.map((e) => e.id) },
   }).lean();
 
-  const chunks: LightRAGChunk[] = records
+  const lightRAGRecords: LightRAGRecord[] = records
     .sort((a, b) => {
-      const aScore = entities.find((e) => e.id === a._id)?.relevance_score || 0;
-      const bScore = entities.find((e) => e.id === b._id)?.relevance_score || 0;
+      const aScore = entities.find((e) => e.id === a._id)?.relevanceScore || 0;
+      const bScore = entities.find((e) => e.id === b._id)?.relevanceScore || 0;
       return bScore - aScore;
     })
     .map((record) => ({
       id: record._id,
       document_id: record._id,
-      chunk_index: 9,
       title: record.title,
       source: record.source,
       source_id: record.sourceId,
       snippet: record.content.substring(0, 500),
-      score: entities.find((e) => e.id === record._id)?.relevance_score ?? 0,
+      score: entities.find((e) => e.id === record._id)?.relevanceScore ?? 0,
       type: record.recordType,
       people: record.people || [],
       record,
     }));
 
-  return chunks.slice(0, limit);
+  return lightRAGRecords.slice(0, limit);
 }
 
 async function resultsToChunks(
   results: Array<{ id: string; score: number; payload: any }>,
   recordStore: RecordStore
-): Promise<LightRAGChunk[]> {
+): Promise<LightRAGRecord[]> {
   // Extract MongoDB IDs from payload
-  const mongoIds = results.map((r) => r.payload.mongoId);
-  const records = await recordStore.findByIds(mongoIds);
+  const recordIds = results.map((r) => r.payload.recordId);
+  const records = await recordStore.findByIds(recordIds);
   const recordMap = new Map(records.map((r) => [r._id, r]));
 
-  const chunks: LightRAGChunk[] = [];
+  const chunks: LightRAGRecord[] = [];
 
   for (const result of results) {
-    const record = recordMap.get(result.payload.mongoId);
+    const record = recordMap.get(result.payload.recordId);
     if (!record) continue;
 
     chunks.push({
       id: record._id,
       document_id: record._id,
-      chunk_index: 0,
       title: record.title,
       source: record.source,
       source_id: record.sourceId,
@@ -625,9 +625,9 @@ async function resultsToChunks(
 
 async function rerankChunks(
   query: string,
-  chunks: LightRAGChunk[],
+  chunks: LightRAGRecord[],
   reranker: RerankerService
-): Promise<LightRAGChunk[]> {
+): Promise<LightRAGRecord[]> {
   const docs = chunks.map((c) => ({
     id: c.id,
     text: `${c.title}\n${c.snippet}`,
@@ -652,7 +652,7 @@ async function rerankChunks(
 }
 
 async function enrichWithFullContent(
-  chunks: LightRAGChunk[],
+  chunks: LightRAGRecord[],
   recordStore: RecordStore
 ): Promise<LightRAGChunkFull[]> {
   const recordIds = [...new Set(chunks.map((c) => c.document_id))];
@@ -708,7 +708,7 @@ function deduplicateRelationships(
   });
 }
 
-function deduplicateChunks(chunks: LightRAGChunk[]): LightRAGChunk[] {
+function deduplicateChunks(chunks: LightRAGRecord[]): LightRAGRecord[] {
   const seen = new Set<string>();
   return chunks.filter((c) => {
     if (seen.has(c.id)) return false;
@@ -717,7 +717,7 @@ function deduplicateChunks(chunks: LightRAGChunk[]): LightRAGChunk[] {
   });
 }
 
-function countUniqueDocuments(chunks: LightRAGChunk[]): number {
+function countUniqueDocuments(chunks: LightRAGRecord[]): number {
   return new Set(chunks.map((c) => c.document_id)).size;
 }
 

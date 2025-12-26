@@ -463,6 +463,28 @@ export interface MatrixCellResult {
   readonly evaluation?: EvaluationResult; // For generated queries
 }
 
+export interface DetailedQueryResult {
+  readonly queryId: string;
+  readonly query: string;
+  readonly category?: string;
+  readonly agentName: string;
+  readonly setupName: string;
+  readonly iteration: number;
+  readonly response: string;
+  readonly evaluation?: EvaluationResult;
+  readonly executionTime: number;
+  readonly totalTokens: number;
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly thinkingTokens?: number;
+  readonly cacheCreationTokens?: number;
+  readonly cacheReadTokens?: number;
+  readonly cost: number;
+  readonly timestamp: string;
+  readonly targetServers: readonly string[];
+  readonly error?: string;
+}
+
 export interface MatrixAgentResult {
   readonly ebee: MatrixCellResult;
   readonly direct: MatrixCellResult;
@@ -484,6 +506,7 @@ export interface MatrixBenchmarkResults {
   readonly config: MatrixBenchmarkConfig;
   readonly matrix: MatrixResult;
   readonly analysis: MatrixAnalysis;
+  readonly detailedResults: readonly DetailedQueryResult[];
   readonly timestamp: string;
 }
 

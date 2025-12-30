@@ -12,10 +12,6 @@ import { InferSchemaType, Schema, model } from "mongoose";
 
 const graphEmbeddingMetadataSchema = new Schema(
   {
-    _id: {
-      type: String,
-      required: true,
-    },
     qdrantId: {
       type: String,
       index: true,
@@ -92,7 +88,7 @@ const graphEmbeddingMetadataSchema = new Schema(
     },
 
     // Provenance
-    sourceDocumentIds: {
+    sourceRecordIds: {
       type: [String],
       default: [],
       index: true,
@@ -103,10 +99,10 @@ const graphEmbeddingMetadataSchema = new Schema(
     },
 
     // Relationship mentions tracking
-    mentionedInDocuments: {
+    mentionedInRecords: {
       type: [
         {
-          documentId: { type: String, required: true },
+          recordId: { type: String, required: true },
           confidence: { type: Number, required: true },
           extractedAt: { type: Date, default: Date.now },
         },
@@ -124,7 +120,7 @@ const graphEmbeddingMetadataSchema = new Schema(
 // Indexes for efficient queries
 graphEmbeddingMetadataSchema.index({ itemType: 1, embeddedAt: 1 });
 graphEmbeddingMetadataSchema.index({ embeddingModelVersion: 1 });
-graphEmbeddingMetadataSchema.index({ sourceDocumentIds: 1 });
+graphEmbeddingMetadataSchema.index({ sourceRecordIds: 1 });
 
 // Performance indexes for LightRAG queries (added for optimization)
 graphEmbeddingMetadataSchema.index({ entityType: 1, embeddedAt: -1 }); // Filter by entity type
@@ -133,7 +129,7 @@ graphEmbeddingMetadataSchema.index({
   entityType: 1,
   embeddedAt: -1,
 }); // Combined filter
-graphEmbeddingMetadataSchema.index({ sourceDocumentIds: 1, itemType: 1 }); // Document lookup
+graphEmbeddingMetadataSchema.index({ sourceRecordIds: 1, itemType: 1 }); // Document lookup
 
 // Checksum-based embedding queries
 graphEmbeddingMetadataSchema.index({ contentChecksum: 1, embeddedChecksum: 1 }); // For change detection
@@ -145,10 +141,10 @@ graphEmbeddingMetadataSchema.index({
 }); // Filter by type + source + embedding status
 
 // Relationship mention tracking indexes
-graphEmbeddingMetadataSchema.index({ "mentionedInDocuments.documentId": 1 }); // Find relationships by document
+graphEmbeddingMetadataSchema.index({ "mentionedInRecords.recordId": 1 }); // Find relationships by document
 graphEmbeddingMetadataSchema.index({
   itemType: 1,
-  mentionedInDocuments: 1,
+  mentionedInRecords: 1,
 }); // Find orphaned relationships (empty array)
 
 export type GraphEmbeddingMetadataSchema = InferSchemaType<

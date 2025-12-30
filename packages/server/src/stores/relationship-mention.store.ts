@@ -30,7 +30,7 @@ export class RelationshipMentionStore {
       type: string;
       confidence: number;
     },
-    documentId: string
+    recordId: string
   ): Promise<void> {
     const relationshipKey = this.getRelationshipKey(
       relationship.sourceEntityId,
@@ -50,11 +50,11 @@ export class RelationshipMentionStore {
           targetId: relationship.targetEntityId,
           relType: relationship.type,
           contentChecksum: relationshipKey, // Use key as checksum for now
-          lastUpdatedBy: documentId,
+          lastUpdatedBy: recordId,
         },
         $addToSet: {
-          mentionedInDocuments: {
-            documentId,
+          mentionedInRecords: {
+            recordId,
             confidence: relationship.confidence,
             extractedAt: new Date(),
           },
@@ -69,7 +69,7 @@ export class RelationshipMentionStore {
    * More efficient than individual calls for bulk operations
    */
   async addDocumentMentionsBatch(
-    documentId: string,
+    recordId: string,
     relationships: Array<{
       sourceEntityId: string;
       targetEntityId: string;
@@ -85,24 +85,24 @@ export class RelationshipMentionStore {
         rel.type,
         rel.targetEntityId
       );
-      const _id = `rel_${relationshipKey}`;
+      const memgraphId = `rel_${relationshipKey}`;
 
       return {
         updateOne: {
-          filter: { _id },
+          filter: { memgraphId },
           update: {
             $setOnInsert: {
-              _id,
+              memgraphId,
               itemType: "relationship",
               sourceId: rel.sourceEntityId,
               targetId: rel.targetEntityId,
               relType: rel.type,
               contentChecksum: relationshipKey,
-              lastUpdatedBy: documentId,
+              lastUpdatedBy: recordId,
             },
             $addToSet: {
-              mentionedInDocuments: {
-                documentId,
+              mentionedInRecords: {
+                recordId,
                 confidence: rel.confidence,
                 extractedAt: new Date(),
               },
@@ -117,7 +117,7 @@ export class RelationshipMentionStore {
 
     logger.debug({
       msg: "Added relationship mentions in batch",
-      documentId,
+      recordId,
       relationshipCount: relationships.length,
       upserted: result.upsertedCount,
       modified: result.modifiedCount,
@@ -128,22 +128,22 @@ export class RelationshipMentionStore {
    * Remove all mentions from a document (for re-indexing)
    * Returns the number of relationships modified
    */
-  async removeDocumentMentions(documentId: string): Promise<number> {
+  async removeDocumentMentions(recordId: string): Promise<number> {
     const result = await GraphEmbeddingMetadata.updateMany(
       {
         itemType: "relationship",
-        "mentionedInDocuments.documentId": documentId,
+        "mentionedInRecords.recordId": recordId,
       },
       {
         $pull: {
-          mentionedInDocuments: { documentId } as any,
+          mentionedInRecords: { recordId } as any,
         },
       }
     );
 
     logger.debug({
       msg: "Removed document mentions",
-      documentId,
+      recordId,
       modifiedCount: result.modifiedCount,
     });
 
@@ -164,8 +164,8 @@ export class RelationshipMentionStore {
     const orphans = await GraphEmbeddingMetadata.find({
       itemType: "relationship",
       $or: [
-        { mentionedInDocuments: { $exists: false } },
-        { mentionedInDocuments: { $size: 0 } },
+        { mentionedInRecords: { $exists: false } },
+        { mentionedInRecords: { $size: 0 } },
       ],
     }).lean();
 
@@ -184,8 +184,8 @@ export class RelationshipMentionStore {
     const result = await GraphEmbeddingMetadata.deleteMany({
       itemType: "relationship",
       $or: [
-        { mentionedInDocuments: { $exists: false } },
-        { mentionedInDocuments: { $size: 0 } },
+        { mentionedInRecords: { $exists: false } },
+        { mentionedInRecords: { $size: 0 } },
       ],
     });
 
@@ -201,7 +201,7 @@ export class RelationshipMentionStore {
    * Get all relationships mentioned in a document
    * Useful for debugging and analytics
    */
-  async getDocumentRelationships(documentId: string): Promise<
+  async getDocumentRelationships(recordId: string): Promise<
     Array<{
       sourceEntityId: string;
       targetEntityId: string;
@@ -211,12 +211,12 @@ export class RelationshipMentionStore {
   > {
     const relationships = await GraphEmbeddingMetadata.find({
       itemType: "relationship",
-      "mentionedInDocuments.documentId": documentId,
+      "mentionedInRecords.recordId": recordId,
     }).lean();
 
     return relationships.map((r) => {
-      const mention = r.mentionedInDocuments?.find(
-        (m) => m.documentId === documentId
+      const mention = r.mentionedInRecords?.find(
+        (m) => m.recordId === recordId
       );
 
       return {
@@ -243,13 +243,13 @@ export class RelationshipMentionStore {
         GraphEmbeddingMetadata.countDocuments({ itemType: "relationship" }),
         GraphEmbeddingMetadata.countDocuments({
           itemType: "relationship",
-          "mentionedInDocuments.0": { $exists: true },
+          "mentionedInRecords.0": { $exists: true },
         }),
         GraphEmbeddingMetadata.countDocuments({
           itemType: "relationship",
           $or: [
-            { mentionedInDocuments: { $exists: false } },
-            { mentionedInDocuments: { $size: 0 } },
+            { mentionedInRecords: { $exists: false } },
+            { mentionedInRecords: { $size: 0 } },
           ],
         }),
         GraphEmbeddingMetadata.aggregate([
@@ -257,7 +257,7 @@ export class RelationshipMentionStore {
           {
             $project: {
               mentionCount: {
-                $size: { $ifNull: ["$mentionedInDocuments", []] },
+                $size: { $ifNull: ["$mentionedInRecords", []] },
               },
             },
           },

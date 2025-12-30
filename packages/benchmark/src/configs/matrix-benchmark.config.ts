@@ -63,10 +63,10 @@ export const matrixBenchmarkConfig: MatrixBenchmarkConfig = {
   // Comment out any agent you don't want to test
   // Each agent will be tested with ALL MCP setups and ALL queries
   agents: [
-    // {
-    //   name: "amp",
-    //   model: "claude-haiku-4-5-20251001",
-    // },
+    {
+      name: "amp",
+      model: "claude-haiku-4-5-20251001",
+    },
     {
       name: "claude-cli",
       model: "claude-haiku-4-5-20251001",

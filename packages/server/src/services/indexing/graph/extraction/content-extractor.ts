@@ -88,7 +88,7 @@ async function extractBothFromContent(
       let skippedCount = 0;
 
       for (const entity of rawEntities) {
-        const cleanName = sanitizeEntityName(entity.name, entity.type);
+        const cleanName = sanitizeEntityName(entity.name);
 
         if (!cleanName) {
           skippedCount++;

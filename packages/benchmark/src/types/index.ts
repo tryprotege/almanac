@@ -483,6 +483,7 @@ export interface DetailedQueryResult {
   readonly timestamp: string;
   readonly targetServers: readonly string[];
   readonly error?: string;
+  readonly steps?: readonly any[]; // Agent interaction steps for debugging
 }
 
 export interface MatrixAgentResult {

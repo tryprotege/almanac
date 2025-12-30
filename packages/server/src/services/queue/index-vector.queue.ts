@@ -21,6 +21,8 @@ const processor: Processor<
   const vectorStore = new VectorStore(qdrant);
 
   await insertAllRecordsToVectorDB(recordStore, vectorStore, source);
+
+  console.log("✅ vector", source);
 };
 
 type IndexVectorJobData = {

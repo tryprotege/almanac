@@ -10,6 +10,9 @@ import { RecordTransformer } from "@ebee-oss/indexing-engine";
 import { RecordStore } from "../../stores/record.store.js";
 import { VectorStore } from "../../stores/vector.store.js";
 import { insertRecordToVectorDB } from "../../services/indexing/embeddings/vector-indexer.service.js";
+import { indexConfigEntities } from "../../services/indexing/graph/config-entity-indexer.js";
+import { GraphStore } from "../../stores/graph.store.js";
+import { connectMemgraph } from "../../connections/memgraph.js";
 import { createHash } from "crypto";
 import logger from "../../utils/logger.js";
 import type {
@@ -85,8 +88,8 @@ router.post("/validate", async (req, res) => {
       errors,
       warnings,
     });
-  } catch (error) {
-    logger.error({ error }, "Failed to validate config");
+  } catch (err) {
+    logger.error({ err }, "Failed to validate config");
     res.status(500).json({ error: "Validation failed" });
   }
 });
@@ -131,11 +134,11 @@ router.post("/preview", async (req, res) => {
       recordTypeName,
       recordCount: transformedRecords.length,
     });
-  } catch (error) {
-    logger.error({ error }, "Failed to preview config");
+  } catch (err) {
+    logger.error({ err }, "Failed to preview config");
     res.status(500).json({
       error: "Preview failed",
-      message: error instanceof Error ? error.message : "Unknown error",
+      message: err instanceof Error ? err.message : "Unknown error",
     });
   }
 });
@@ -173,8 +176,8 @@ router.post("/save", async (req, res) => {
         serverName: configDoc.serverName,
       },
     });
-  } catch (error) {
-    logger.error({ error }, "Failed to save config");
+  } catch (err) {
+    logger.error({ err }, "Failed to save config");
     res.status(500).json({ error: "Failed to save config" });
   }
 });
@@ -216,7 +219,18 @@ router.post("/sync", async (req, res) => {
     const qdrant = await connectQdrant();
     const vectorStore = new VectorStore(qdrant);
 
+    // Initialize graph store (optional - fails gracefully if Memgraph unavailable)
+    let graphStore: GraphStore | null = null;
+    try {
+      const memgraphConnection = await connectMemgraph();
+      graphStore = new GraphStore(memgraphConnection);
+      logger.info("Memgraph connected for entity indexing");
+    } catch (err) {
+      logger.warn("Memgraph not available, skipping entity indexing");
+    }
+
     let vectorChunks = 0;
+    let entitiesIndexed = 0;
 
     // Process batches
     for await (const { records } of syncGenerator) {
@@ -285,22 +299,48 @@ router.post("/sync", async (req, res) => {
             `Failed to index record to vector store`
           );
         }
+
+        // 3. Index entities to graph store (if available and record has entities)
+        if (
+          graphStore &&
+          (record.extractedEntities?.length ||
+            record.extractedRelationships?.length)
+        ) {
+          try {
+            await indexConfigEntities(
+              record._id,
+              record.title || "",
+              serverName,
+              record.extractedEntities || [],
+              record.extractedRelationships || [],
+              graphStore
+            );
+            entitiesIndexed += record.extractedEntities?.length || 0;
+          } catch (error) {
+            logger.error(
+              { error, recordId: record._id },
+              `Failed to index entities to graph store`
+            );
+          }
+        }
       }
 
       recordsProcessed += records.length;
 
       logger.info(
-        `Processed ${recordsProcessed} records from ${serverName} (${vectorChunks} vector chunks)`
+        `Processed ${recordsProcessed} records from ${serverName} (${vectorChunks} vectors, ${entitiesIndexed} entities)`
       );
     }
 
     res.json({
       success: true,
       recordsProcessed,
+      vectorChunks,
+      entitiesIndexed,
       syncType: incremental ? "incremental" : "full",
     });
-  } catch (error) {
-    logger.error({ error }, "Failed to sync with config");
+  } catch (err) {
+    logger.error({ err }, "Failed to sync with config");
     res.status(500).json({ error: "Sync failed" });
   }
 });
@@ -322,8 +362,8 @@ router.get("/:serverName", async (req, res) => {
     }
 
     res.json({ data: configDoc });
-  } catch (error) {
-    logger.error({ error }, "Failed to get config");
+  } catch (err) {
+    logger.error({ err }, "Failed to get config");
     res.status(500).json({ error: "Failed to get config" });
   }
 });
@@ -349,8 +389,8 @@ router.get("/", async (req, res) => {
         })),
       },
     });
-  } catch (error) {
-    logger.error({ error }, "Failed to list configs");
+  } catch (err) {
+    logger.error({ err }, "Failed to list configs");
     res.status(500).json({ error: "Failed to list configs" });
   }
 });
@@ -374,8 +414,8 @@ router.delete("/:serverName", async (req, res) => {
     logger.info(`Deleted IndexingConfig for ${serverName}`);
 
     res.json({ data: { success: true } });
-  } catch (error) {
-    logger.error({ error }, "Failed to delete config");
+  } catch (err) {
+    logger.error({ err }, "Failed to delete config");
     res.status(500).json({ error: "Failed to delete config" });
   }
 });

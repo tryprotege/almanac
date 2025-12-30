@@ -15,12 +15,18 @@ const ModelConfigSchema = new mongoose.Schema(
     llmChatModel: {
       type: String,
       required: true,
-      default: "openai/gpt-4o-mini",
+      default: "openai/gpt-oss-20b",
     },
     llmEmbeddingModel: {
       type: String,
       required: true,
-      default: "text-embedding-3-small",
+      default: "qwen/qwen3-embedding-4b",
+    },
+    // Indexing Config Generation Model (separate from query model)
+    llmIndexingConfigModel: {
+      type: String,
+      required: false,
+      default: "openai/gpt-oss-120b",
     },
     // Reranker Configuration
     rerankerEnabled: { type: Boolean, default: false },

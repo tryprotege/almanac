@@ -174,13 +174,23 @@ async function callLLM(prompt: string): Promise<string> {
     modelConfig.llmBaseURL || undefined
   );
 
+  // Use dedicated indexing config model if set, otherwise fall back to chat model
+  const modelToUse =
+    modelConfig.llmIndexingConfigModel || modelConfig.llmChatModel;
+
   logger.info(
-    `Calling LLM for tool classification: ${modelConfig.llmProvider} / ${modelConfig.llmChatModel}`
+    `Calling LLM for tool classification: ${
+      modelConfig.llmProvider
+    } / ${modelToUse}${
+      modelConfig.llmIndexingConfigModel
+        ? " (indexing config model)"
+        : " (chat model fallback)"
+    }`
   );
 
   // Call LLM with the prompt
   const response = await chat(client, [{ role: "user", content: prompt }], {
-    model: modelConfig.llmChatModel,
+    model: modelToUse,
     temperature: 0.2, // Lower temperature for more consistent classification
     maxTokens: 4000,
   });

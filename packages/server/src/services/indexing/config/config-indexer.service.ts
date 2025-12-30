@@ -6,6 +6,7 @@ import type {
 import { RecordTransformer } from "@ebee-oss/indexing-engine";
 import { fetchAll as fetchPaginated } from "./paginated-fetcher.js";
 import { enrich as enrichRecord } from "./enrichment-executor.js";
+import { extractEntities, extractRelationships } from "./entity-extractor.js";
 import { MCPSyncStateModel } from "../../../models/mcp-sync-state.model.js";
 import { mcpClientManager } from "../../../mcp/client.js";
 import logger from "../../../utils/logger.js";
@@ -107,11 +108,28 @@ export async function* indexAll(
             enrichments,
           });
 
+          // Extract entities and relationships (NEW)
+          if (recordType.entities && recordType.entities.length > 0) {
+            transformed.extractedEntities = extractEntities(
+              rawRecord,
+              recordType.entities
+            );
+          }
+
+          if (recordType.relationships && recordType.relationships.length > 0) {
+            transformed.extractedRelationships = extractRelationships(
+              rawRecord,
+              transformed._id,
+              recordType.name,
+              recordType.relationships
+            );
+          }
+
           transformedBatch.push(transformed);
           recordsProcessed++;
-        } catch (error) {
+        } catch (err) {
           logger.error(
-            { error, recordType: recordType.name },
+            { err, recordType: recordType.name },
             `Error transforming record`
           );
         }
@@ -227,8 +245,8 @@ export async function* runIncrementalSync(
 
           transformedBatch.push(transformed);
           recordsProcessed++;
-        } catch (error) {
-          logger.error({ error }, `Error transforming record`);
+        } catch (err) {
+          logger.error({ err }, `Error transforming record`);
         }
       }
 
@@ -281,9 +299,9 @@ function matchRecordType(
         if (conditionFn(record)) {
           return recordType;
         }
-      } catch (error) {
+      } catch (err) {
         logger.error(
-          { error, condition: recordType.detection.condition },
+          { err, condition: recordType.detection.condition },
           `Error evaluating detection condition`
         );
       }

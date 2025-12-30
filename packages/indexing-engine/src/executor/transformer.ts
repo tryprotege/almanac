@@ -25,6 +25,18 @@ export class RecordTransformer {
   async transform(enrichedRecord: EnrichedRecord): Promise<TransformedRecord> {
     const { record, enrichments } = enrichedRecord;
 
+    // Validate input record
+    if (!record || typeof record !== "object") {
+      throw new Error(`Invalid record: expected object, got ${typeof record}`);
+    }
+
+    // Skip wrapper objects that look like pagination responses
+    if (record.pageInfo && (record.content || record.results)) {
+      throw new Error(
+        `Invalid record: appears to be a pagination wrapper object, not an individual record`
+      );
+    }
+
     const context = {
       record,
       enrichments,

@@ -78,6 +78,9 @@ export async function generateConfig(
   // Step 8: Validate generated config
   const validation = validateConfig(config);
 
+  // Log the full prompt for debugging
+  logger.debug({ prompt }, "Full prompt sent to LLM for config generation");
+
   return {
     config,
     validation,
@@ -217,9 +220,9 @@ async function callLLMForConfig(prompt: string): Promise<IndexingConfig> {
   const response = await callLLM(prompt);
 
   logger.info(`LLM response received: ${response.length} characters`);
-  logger.debug(`LLM response preview: ${response.substring(0, 200)}...`);
+  logger.debug({ msg: `LLM response preview...`, response });
 
-  // Parse YAML response to IndexingConfig
+  // Parse JSON response to IndexingConfig
   const config = parseConfigFromLLM(response);
 
   logger.info("Successfully parsed config from LLM response");
@@ -247,26 +250,34 @@ async function callLLM(prompt: string): Promise<string> {
     modelConfig.llmBaseURL || undefined
   );
 
+  // Use dedicated indexing config model if set, otherwise fall back to chat model
+  const modelToUse =
+    modelConfig.llmIndexingConfigModel || modelConfig.llmChatModel;
+
   logger.info(
-    `Calling LLM: ${modelConfig.llmProvider} / ${modelConfig.llmChatModel}`
+    `Calling LLM: ${modelConfig.llmProvider} / ${modelToUse}${
+      modelConfig.llmIndexingConfigModel
+        ? " (indexing config model)"
+        : " (chat model fallback)"
+    }`
   );
   logger.debug(`Prompt length: ${prompt.length} characters`);
 
   try {
     // Call LLM with the prompt
     const response = await chat(client, [{ role: "user", content: prompt }], {
-      model: modelConfig.llmChatModel,
+      model: modelToUse,
       temperature: 0.3, // Lower temperature for structured output
       maxTokens: 16000, // Allow large configs (increased for complex servers)
     });
 
     logger.info("LLM call completed successfully");
     return response;
-  } catch (error) {
-    logger.error({ error }, "LLM call failed");
+  } catch (err) {
+    logger.error({ err }, "LLM call failed");
     throw new Error(
       `LLM API call failed: ${
-        error instanceof Error ? error.message : "Unknown error"
+        err instanceof Error ? err.message : "Unknown error"
       }`
     );
   }

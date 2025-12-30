@@ -57,16 +57,97 @@ Map the data to these unified fields:
 - **tags** (optional): Categories, labels, or tags
 - **parentId** (optional): Reference to parent record
 
+## Entity Extraction (Graph RAG)
+
+Analyze the sample data for embedded objects that should become graph entities. Common patterns:
+
+1. **Status Objects**: \`{ id, name, color }\` - workflow states (e.g., Backlog, In Progress, Done)
+2. **User References**: \`{ id, name, email }\` - people involved (assignees, creators, etc.)
+3. **Team/Group Objects**: \`{ id, name }\` - organizational units
+4. **Labels/Tags**: \`{ id, name, color }\` - shared classifications across records
+5. **Projects/Containers**: \`{ id, name }\` - parent groupings for records
+
+For each entity found, add to the \`entities\` array:
+
+\`\`\`json
+"entities": [
+  {
+    "name": "status",
+    "type": "Status",
+    "idPath": "$.status.id",
+    "titlePath": "$.status.name",
+    "condition": "record.status && record.status.id",
+    "properties": {
+      "color": "$.status.color"
+    }
+  },
+  {
+    "name": "assignee",
+    "type": "User",
+    "idPath": "$.assignee.id",
+    "titlePath": "$.assignee.name",
+    "condition": "record.assignee && record.assignee.id"
+  }
+]
+\`\`\`
+
+## Relationship Extraction (Graph Edges)
+
+Define relationships between the document and extracted entities:
+
+\`\`\`json
+"relationships": [
+  {
+    "name": "issue_status",
+    "type": "HAS_STATUS",
+    "targetType": "Status",
+    "targetIdPath": "$.status.id",
+    "condition": "record.status && record.status.id"
+  },
+  {
+    "name": "issue_assignee",
+    "type": "ASSIGNED_TO",
+    "targetType": "User",
+    "targetIdPath": "$.assignee.id",
+    "condition": "record.assignee && record.assignee.id"
+  },
+  {
+    "name": "issue_project",
+    "type": "BELONGS_TO",
+    "targetType": "Project",
+    "targetIdPath": "$.project.id",
+    "condition": "record.project && record.project.id"
+  }
+]
+\`\`\`
+
 ## Format Processors
 
-Use these built-in processors for rich content:
+Use these built-in processors for rich content (all support options for customization):
 
-- **notion-rich-text**: Convert Notion rich text array to Markdown
-- **notion-blocks**: Convert Notion blocks array to formatted Markdown document
-- **slack-mrkdwn**: Convert Slack markdown to standard Markdown
-- **fathom-transcript**: Format Fathom meeting transcript with speaker names
-- **html-to-markdown**: Convert HTML to Markdown
-- **extract-text**: Extract plain text from any format
+- **rich-text-to-markdown**: Convert rich text arrays to Markdown
+  - Default: Works with Notion-style rich text (text.content, plain_text, annotations)
+  - Options: textPath, plainTextPath, hrefPath, annotationsPath
+  - Use for: Notion properties, custom rich text APIs
+
+- **blocks-to-markdown**: Convert block arrays to Markdown documents
+  - Default: Works with Notion blocks (type, rich_text field)
+  - Options: typePath, contentPath, richTextField, maxDepth, blockTypeMap
+  - Use for: Notion pages, custom block-based content
+
+- **markup-to-markdown**: Convert custom markup to standard Markdown
+  - Default: Converts Slack mrkdwn syntax
+  - Options: rules (regex patterns), userMap, channelMap
+  - Use for: Slack messages, Discord, custom markup formats
+
+- **transcript-to-markdown**: Format transcript segments with speakers and timestamps
+  - Default: Works with Fathom transcripts (speaker, text, start_time)
+  - Options: speakerPath, textPath, timestampPath, timeFormat
+  - Use for: Fathom, Zoom, custom meeting transcripts
+
+- **html-to-markdown**: Convert HTML to Markdown (no options)
+
+- **extract-text**: Extract plain text from any format (no options)
 
 ## Field Mapping Types
 

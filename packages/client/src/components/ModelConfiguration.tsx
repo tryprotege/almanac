@@ -22,6 +22,7 @@ export function ModelConfiguration() {
     llmBaseURL: "",
     llmChatModel: "",
     llmEmbeddingModel: "",
+    llmIndexingConfigModel: "",
     rerankerEnabled: false,
     rerankerApiKey: "",
     rerankerBaseURL: "",
@@ -39,6 +40,7 @@ export function ModelConfiguration() {
         llmBaseURL: config.llmBaseURL || "",
         llmChatModel: config.llmChatModel,
         llmEmbeddingModel: config.llmEmbeddingModel,
+        llmIndexingConfigModel: config.llmIndexingConfigModel || "",
         rerankerEnabled: config.rerankerEnabled,
         rerankerApiKey: config.rerankerApiKey || "",
         rerankerBaseURL: config.rerankerBaseURL || "",
@@ -191,6 +193,29 @@ export function ModelConfiguration() {
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Model for generating vector embeddings
+            </p>
+          </div>
+
+          {/* Indexing Config Model */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Indexing Config Model (Optional)
+            </label>
+            <input
+              type="text"
+              value={formData.llmIndexingConfigModel}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  llmIndexingConfigModel: e.target.value,
+                })
+              }
+              className="input"
+              placeholder="Leave empty to use Chat Model"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Model for indexing config generation and tool classification
+              (defaults to Chat Model if empty)
             </p>
           </div>
         </div>

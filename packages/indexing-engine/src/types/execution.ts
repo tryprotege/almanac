@@ -3,6 +3,28 @@
  */
 
 /**
+ * ExtractedEntity - Entity extracted from a record for graph indexing
+ */
+export interface ExtractedEntity {
+  id: string;
+  type: string;
+  title: string;
+  properties?: Record<string, any>;
+}
+
+/**
+ * ExtractedRelationship - Relationship extracted from a record for graph indexing
+ */
+export interface ExtractedRelationship {
+  sourceId: string;
+  sourceType: string;
+  targetId: string;
+  targetType: string;
+  type: string;
+  confidence: number;
+}
+
+/**
  * TransformedRecord - Unified record format after transformation
  */
 export interface TransformedRecord {
@@ -23,6 +45,10 @@ export interface TransformedRecord {
 
   checksum?: string;
   version?: number;
+
+  // NEW: Graph data extracted from record
+  extractedEntities?: ExtractedEntity[];
+  extractedRelationships?: ExtractedRelationship[];
 }
 
 /**

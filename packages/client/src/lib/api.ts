@@ -294,6 +294,7 @@ export interface ModelConfigData {
   llmBaseURL?: string;
   llmChatModel: string;
   llmEmbeddingModel: string;
+  llmIndexingConfigModel?: string;
   rerankerEnabled: boolean;
   rerankerApiKey?: string;
   rerankerBaseURL?: string;

@@ -1,6 +1,8 @@
 /**
  * Format processors for specialized data transformations
  * These run in the Bun sandbox and handle complex conversions
+ *
+ * Design: Generic processors with configurable options instead of platform-specific implementations
  */
 
 import type { FormatProcessor } from "../types/format-processors.js";
@@ -11,27 +13,55 @@ import TurndownService from "turndown";
  */
 export const formatProcessors: Record<string, FormatProcessor> = {
   /**
-   * Notion rich text → Markdown
+   * Rich text array → Markdown (generic, adapter-based)
+   * Supports any rich text format via options configuration
    */
-  "notion-rich-text": {
-    name: "Notion Rich Text",
-    description: "Convert Notion rich text arrays to Markdown",
-    process: async (richText: any[]) => {
+  "rich-text-to-markdown": {
+    name: "Rich Text to Markdown",
+    description:
+      "Convert rich text arrays to Markdown using configurable field mapping",
+    process: async (
+      richText: any[],
+      options?: {
+        textPath?: string; // JSONPath to extract text content (default: "text.content")
+        plainTextPath?: string; // Fallback plain text path (default: "plain_text")
+        hrefPath?: string; // Path to link URL (default: "href")
+        annotationsPath?: string; // Path to annotations object (default: "annotations")
+      }
+    ) => {
       if (!Array.isArray(richText)) return "";
+
+      const opts = {
+        textPath: options?.textPath || "text.content",
+        plainTextPath: options?.plainTextPath || "plain_text",
+        hrefPath: options?.hrefPath || "href",
+        annotationsPath: options?.annotationsPath || "annotations",
+      };
 
       return richText
         .map((block) => {
-          let text = block.text?.content || block.plain_text || "";
+          // Extract text using configured paths
+          let text = "";
+          const textParts = opts.textPath.split(".");
+          let current: any = block;
+          for (const part of textParts) {
+            current = current?.[part];
+          }
+          text = current || block[opts.plainTextPath] || "";
 
-          // Apply annotations
-          if (block.annotations?.bold) text = `**${text}**`;
-          if (block.annotations?.italic) text = `*${text}*`;
-          if (block.annotations?.code) text = `\`${text}\``;
-          if (block.annotations?.strikethrough) text = `~~${text}~~`;
-          if (block.annotations?.underline) text = `<u>${text}</u>`;
+          // Apply annotations if present
+          const annotations = block[opts.annotationsPath];
+          if (annotations) {
+            if (annotations.bold) text = `**${text}**`;
+            if (annotations.italic) text = `*${text}*`;
+            if (annotations.code) text = `\`${text}\``;
+            if (annotations.strikethrough) text = `~~${text}~~`;
+            if (annotations.underline) text = `<u>${text}</u>`;
+          }
 
           // Handle links
-          if (block.href) text = `[${text}](${block.href})`;
+          const href = block[opts.hrefPath];
+          if (href) text = `[${text}](${href})`;
 
           return text;
         })
@@ -40,70 +70,102 @@ export const formatProcessors: Record<string, FormatProcessor> = {
   },
 
   /**
-   * Notion blocks → Markdown
+   * Block array → Markdown (generic, adapter-based)
+   * Supports any block-based format via type mapping
    */
-  "notion-blocks": {
-    name: "Notion Blocks",
-    description: "Convert Notion block array to Markdown document",
-    process: async (blocks: any[], options?: { maxDepth?: number }) => {
+  "blocks-to-markdown": {
+    name: "Blocks to Markdown",
+    description:
+      "Convert block arrays to Markdown using configurable block type handlers",
+    process: async (
+      blocks: any[],
+      options?: {
+        typePath?: string; // Path to block type field (default: "type")
+        contentPath?: string; // Path to content object (default: uses type as key)
+        richTextField?: string; // Field name for rich text (default: "rich_text")
+        maxDepth?: number; // Max nesting depth (default: 3)
+        blockTypeMap?: Record<string, (content: any, text: string) => string>;
+      }
+    ) => {
       if (!Array.isArray(blocks)) return "";
 
-      const maxDepth = options?.maxDepth || 3;
+      const opts = {
+        typePath: options?.typePath || "type",
+        richTextField: options?.richTextField || "rich_text",
+        maxDepth: options?.maxDepth || 3,
+        blockTypeMap: options?.blockTypeMap,
+      };
 
       function processBlock(block: any, depth: number = 0): string {
-        if (depth > maxDepth || !block) return "";
+        if (depth > opts.maxDepth || !block) return "";
 
-        const type = block.type;
-        const content = block[type];
+        const type = block[opts.typePath];
+        const content = options?.contentPath
+          ? block[options.contentPath]
+          : block[type];
 
-        // Extract text using the rich-text processor
-        const textPromise = content?.rich_text
-          ? formatProcessors["notion-rich-text"].process(content.rich_text)
+        // Extract text from rich text field
+        const richText = content?.[opts.richTextField];
+        const text = richText
+          ? formatProcessors["rich-text-to-markdown"].process(richText)
           : "";
 
-        // For now, handle synchronously (will be awaited at top level)
-        const text = String(textPromise);
+        // Use custom block type map if provided
+        if (opts.blockTypeMap && opts.blockTypeMap[type]) {
+          return opts.blockTypeMap[type](content, String(text));
+        }
 
+        // Default block type handling
         switch (type) {
           case "paragraph":
-            return text;
+            return String(text);
 
           case "heading_1":
+          case "h1":
             return `# ${text}`;
 
           case "heading_2":
+          case "h2":
             return `## ${text}`;
 
           case "heading_3":
+          case "h3":
             return `### ${text}`;
 
           case "bulleted_list_item":
+          case "bullet":
             return `- ${text}`;
 
           case "numbered_list_item":
+          case "number":
             return `1. ${text}`;
 
           case "to_do":
-            return `- [${content.checked ? "x" : " "}] ${text}`;
+          case "todo":
+          case "checkbox":
+            const checked = content?.checked || content?.done || false;
+            return `- [${checked ? "x" : " "}] ${text}`;
 
           case "code":
-            return `\`\`\`${content.language || ""}\n${text}\n\`\`\``;
+            const language = content?.language || "";
+            return `\`\`\`${language}\n${text}\n\`\`\``;
 
           case "quote":
             return `> ${text}`;
 
           case "divider":
+          case "separator":
             return "---";
 
           case "callout":
-            const icon = content.icon?.emoji || "📌";
+            const icon = content?.icon?.emoji || content?.icon || "📌";
             return `> ${icon} ${text}`;
 
           case "toggle":
             return `▶ ${text}`;
 
           default:
-            return text;
+            return String(text);
         }
       }
 
@@ -115,22 +177,42 @@ export const formatProcessors: Record<string, FormatProcessor> = {
   },
 
   /**
-   * Slack mrkdwn → Markdown
+   * Custom markup → Markdown (generic)
+   * Supports any markup syntax via regex rules
    */
-  "slack-mrkdwn": {
-    name: "Slack Mrkdwn",
-    description: "Convert Slack mrkdwn to standard Markdown",
+  "markup-to-markdown": {
+    name: "Markup to Markdown",
+    description:
+      "Convert custom markup syntax to standard Markdown using transformation rules",
     process: async (
       text: string,
-      context?: { users?: Record<string, string> }
+      options?: {
+        rules?: Array<{ pattern: string | RegExp; replacement: string }>;
+        userMap?: Record<string, string>; // For user mentions
+        channelMap?: Record<string, string>; // For channel mentions
+      }
     ) => {
       if (!text) return "";
 
       let result = text;
+      const opts = options || {};
 
-      // Convert user mentions <@U123> to names
+      // Apply custom rules if provided
+      if (opts.rules) {
+        for (const rule of opts.rules) {
+          const pattern =
+            typeof rule.pattern === "string"
+              ? new RegExp(rule.pattern, "g")
+              : rule.pattern;
+          result = result.replace(pattern, rule.replacement);
+        }
+        return result;
+      }
+
+      // Default rules (Slack-like syntax)
+      // Convert user mentions <@U123>
       result = result.replace(/<@(\w+)>/g, (_, userId) => {
-        return context?.users?.[userId] || `@${userId}`;
+        return opts.userMap?.[userId] || `@${userId}`;
       });
 
       // Convert channel mentions <#C123|channel-name>
@@ -154,15 +236,35 @@ export const formatProcessors: Record<string, FormatProcessor> = {
   },
 
   /**
-   * Fathom transcript processing
+   * Transcript segments → Markdown (generic)
+   * Supports any transcript format via field mapping
    */
-  "fathom-transcript": {
-    name: "Fathom Transcript",
-    description: "Format Fathom meeting transcripts",
-    process: async (segments: any[]) => {
+  "transcript-to-markdown": {
+    name: "Transcript to Markdown",
+    description: "Format transcript segments with timestamps and speakers",
+    process: async (
+      segments: any[],
+      options?: {
+        speakerPath?: string; // Path to speaker field (default: "speaker")
+        textPath?: string; // Path to text field (default: "text")
+        timestampPath?: string; // Path to timestamp field (default: "start_time")
+        timeFormat?: "seconds" | "milliseconds" | "timestamp";
+      }
+    ) => {
       if (!Array.isArray(segments)) return "";
 
-      function formatTime(seconds: number): string {
+      const opts = {
+        speakerPath: options?.speakerPath || "speaker",
+        textPath: options?.textPath || "text",
+        timestampPath: options?.timestampPath || "start_time",
+        timeFormat: options?.timeFormat || "seconds",
+      };
+
+      function formatTime(value: number): string {
+        let seconds = value;
+        if (opts.timeFormat === "milliseconds") {
+          seconds = value / 1000;
+        }
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins}:${secs.toString().padStart(2, "0")}`;
@@ -170,9 +272,11 @@ export const formatProcessors: Record<string, FormatProcessor> = {
 
       return segments
         .map((seg) => {
-          const speaker = seg.speaker || "Unknown";
-          const time = seg.start_time ? `[${formatTime(seg.start_time)}]` : "";
-          const text = seg.text || "";
+          const speaker = seg[opts.speakerPath] || "Unknown";
+          const text = seg[opts.textPath] || "";
+          const timestamp = seg[opts.timestampPath];
+          const time = timestamp ? `[${formatTime(timestamp)}]` : "";
+
           return `${time} **${speaker}**: ${text}`;
         })
         .join("\n\n");

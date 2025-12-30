@@ -104,7 +104,7 @@ export class FathomMCPClient {
             try {
               // First try to parse as-is
               return JSON.parse(textContent.text) as T;
-            } catch (error) {
+            } catch (err) {
               // If parsing fails, try to extract JSON from mixed content
               // Handle cases where error messages are prefixed before JSON
               const text = textContent.text;
@@ -122,14 +122,14 @@ export class FathomMCPClient {
                   return extractedJson as T;
                 } catch (innerError) {
                   logger.error(
-                    { innerError },
+                    { err: innerError },
                     "Failed to parse extracted JSON:"
                   );
                 }
               }
 
               // If we still can't parse, throw a detailed error
-              logger.error({ error }, "Failed to parse MCP response:");
+              logger.error({ err }, "Failed to parse MCP response:");
               logger.error("Response text:", text.substring(0, 500));
               throw new Error(
                 `Invalid JSON in MCP response: ${text.substring(0, 100)}...`
@@ -140,8 +140,8 @@ export class FathomMCPClient {
 
         // Fallback: return response as-is if it doesn't match expected format
         return response as T;
-      } catch (error) {
-        lastError = error as Error;
+      } catch (err) {
+        lastError = err as Error;
 
         // If it's a 429 error and we have retries left, continue
         if (lastError.message.includes("429") && attempt < this.MAX_RETRIES) {

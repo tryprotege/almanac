@@ -66,17 +66,23 @@ async function executeEnrichment(
 /**
  * Build parameters from paramMapping
  * Maps parameter names to values extracted from record using JSONPath
+ * or uses literal values directly
  */
 function buildParams(
   record: any,
-  paramMapping: Record<string, string>
+  paramMapping: Record<string, any>
 ): Record<string, any> {
   const result: Record<string, any> = {};
 
-  for (const [paramName, jsonPath] of Object.entries(paramMapping)) {
-    // Extract value from record using JSONPath
-    const value = extractPath(record, jsonPath);
-    if (value !== undefined) {
+  for (const [paramName, value] of Object.entries(paramMapping)) {
+    // If it's a string starting with $, treat as JSONPath
+    if (typeof value === "string" && value.startsWith("$")) {
+      const extracted = extractPath(record, value);
+      if (extracted !== undefined) {
+        result[paramName] = extracted;
+      }
+    } else {
+      // Otherwise, use as literal value
       result[paramName] = value;
     }
   }

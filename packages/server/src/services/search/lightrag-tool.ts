@@ -69,8 +69,7 @@ export async function registerLightRAGTool(
         // query.chunk_top_k = query.chunk_top_k ?? 20;
         query.enable_rerank = true;
         query.score_threshold = 0.5;
-
-        console.log("🚀🚀🚀🚀🚀", deps);
+        query.filters = {};
 
         const response = await lightragQuery(query, deps);
 

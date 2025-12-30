@@ -298,9 +298,6 @@ async function hybridMode(
     globalMode(params, keywords, deps),
   ]);
 
-  console.log("localResult", JSON.stringify(localResult));
-  console.log("globalResult", JSON.stringify(globalResult));
-
   // Merge and deduplicate
   const chunks = deduplicateChunks([
     ...localResult.records,
@@ -330,11 +327,6 @@ async function mixMode(
 
   // Run hybrid mode first
   const hybridResult = await hybridMode(params, keywords, deps);
-
-  console.log(
-    "hybridResulthybridResulthybridResulthybridResult",
-    JSON.stringify(hybridResult)
-  );
 
   // Apply reranking if enabled
   if (

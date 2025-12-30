@@ -39,12 +39,14 @@ router.post("/generate", async (req, res) => {
       sampleLimit,
     });
 
-    res.json(result);
-  } catch (error) {
-    logger.error({ error }, "Failed to generate indexing config");
+    logger.info(`Successfully generated config for ${serverName}`);
+
+    res.json({ data: result });
+  } catch (err) {
+    logger.error({ err, msg: "Failed to generate indexing config" });
     res.status(500).json({
       error: "Failed to generate config",
-      message: error instanceof Error ? error.message : "Unknown error",
+      message: err instanceof Error ? err.message : "Unknown error",
     });
   }
 });
@@ -165,9 +167,11 @@ router.post("/save", async (req, res) => {
     logger.info(`Saved IndexingConfig for ${config.source}`);
 
     res.json({
-      success: true,
-      configId: configDoc._id,
-      serverName: configDoc.serverName,
+      data: {
+        success: true,
+        configId: configDoc._id,
+        serverName: configDoc.serverName,
+      },
     });
   } catch (error) {
     logger.error({ error }, "Failed to save config");
@@ -317,7 +321,7 @@ router.get("/:serverName", async (req, res) => {
         .json({ error: `No config found for ${serverName}` });
     }
 
-    res.json(configDoc);
+    res.json({ data: configDoc });
   } catch (error) {
     logger.error({ error }, "Failed to get config");
     res.status(500).json({ error: "Failed to get config" });
@@ -333,15 +337,17 @@ router.get("/", async (req, res) => {
     const configs = await IndexingConfigModel.find({}).sort({ updatedAt: -1 });
 
     res.json({
-      configs: configs.map((c) => ({
-        id: c._id,
-        serverName: c.serverName,
-        displayName: c.config.displayName,
-        status: c.status,
-        updatedAt: c.updatedAt,
-        fetcherCount: Object.keys(c.config.fetchers).length,
-        recordTypeCount: Object.keys(c.config.recordTypes).length,
-      })),
+      data: {
+        configs: configs.map((c) => ({
+          id: c._id,
+          serverName: c.serverName,
+          displayName: c.config.displayName,
+          status: c.status,
+          updatedAt: c.updatedAt,
+          fetcherCount: Object.keys(c.config.fetchers).length,
+          recordTypeCount: Object.keys(c.config.recordTypes).length,
+        })),
+      },
     });
   } catch (error) {
     logger.error({ error }, "Failed to list configs");
@@ -367,7 +373,7 @@ router.delete("/:serverName", async (req, res) => {
 
     logger.info(`Deleted IndexingConfig for ${serverName}`);
 
-    res.json({ success: true, serverName });
+    res.json({ data: { success: true } });
   } catch (error) {
     logger.error({ error }, "Failed to delete config");
     res.status(500).json({ error: "Failed to delete config" });

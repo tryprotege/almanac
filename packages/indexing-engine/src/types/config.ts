@@ -1,4 +1,19 @@
 /**
+ * Tool operation category for determining indexing behavior
+ */
+export type ToolCategory = "read" | "search" | "write";
+
+/**
+ * LLM-generated classification for an MCP tool
+ */
+export interface ToolClassification {
+  toolName: string;
+  category: ToolCategory;
+  confidence: number; // 0-1 scale
+  reasoning: string;
+}
+
+/**
  * IndexingConfig - Configuration for MCP server data indexing
  * This defines how to fetch, transform, and index data from MCP servers
  */
@@ -10,6 +25,12 @@ export interface IndexingConfig {
 
   fetchers: Record<string, FetcherConfig>;
   recordTypes: Record<string, RecordTypeConfig>;
+
+  /**
+   * Tool classifications from LLM analysis
+   * Maps tool name -> classification
+   */
+  toolClassifications?: Record<string, ToolClassification>;
 }
 
 /**

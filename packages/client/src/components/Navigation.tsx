@@ -55,14 +55,14 @@ export function Navigation() {
                 Dashboard
               </NavLink>
               <NavLink
-                to="/connections"
+                to="/data-sources"
                 className={getLinkClass}
-                aria-label="Go to Connections"
+                aria-label="Go to Data Sources"
               >
                 <span role="img" aria-hidden="true">
-                  🔌
+                  �️
                 </span>{" "}
-                Connections
+                Data Sources
               </NavLink>
               <NavLink
                 to="/schema"
@@ -165,15 +165,15 @@ export function Navigation() {
               Dashboard
             </NavLink>
             <NavLink
-              to="/connections"
+              to="/data-sources"
               className={getMobileLinkClass}
               onClick={handleLinkClick}
-              aria-label="Go to Connections"
+              aria-label="Go to Data Sources"
             >
               <span role="img" aria-hidden="true">
-                🔌
+                �️
               </span>{" "}
-              Connections
+              Data Sources
             </NavLink>
             <NavLink
               to="/schema"
@@ -182,7 +182,7 @@ export function Navigation() {
               aria-label="Go to Schema"
             >
               <span role="img" aria-hidden="true">
-                🕸️
+                �️
               </span>{" "}
               Schema
             </NavLink>

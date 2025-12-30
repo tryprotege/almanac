@@ -325,3 +325,111 @@ export const modelConfigApi = {
       testConfig
     ),
 };
+
+// Indexing Config API Types
+export interface ToolClassification {
+  toolName: string;
+  category: "read" | "search" | "write";
+  confidence: number;
+  reasoning: string;
+}
+
+export interface IndexingConfigData {
+  _id: string;
+  serverName: string;
+  displayName?: string;
+  status: "draft" | "active" | "disabled";
+  config: {
+    version: string;
+    source: string;
+    displayName: string;
+    fetchers: Record<string, any>;
+    recordTypes: Record<string, any>;
+    toolClassifications?: Record<string, ToolClassification>;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IndexingConfigSummary {
+  id: string;
+  serverName: string;
+  displayName: string;
+  status: "draft" | "active" | "disabled";
+  updatedAt: string;
+  fetcherCount: number;
+  recordTypeCount: number;
+}
+
+export interface GeneratedConfigResult {
+  config: IndexingConfigData["config"];
+  validation: {
+    valid: boolean;
+    errors: Array<{ path: string; message: string; code: string }>;
+    warnings: Array<{ path: string; message: string; suggestion?: string }>;
+  };
+  samples: Record<string, any>;
+  toolsUsed: string[];
+}
+
+export interface PreviewResult {
+  transformedRecords: any[];
+  recordTypeName: string;
+  recordCount: number;
+}
+
+export interface SyncResult {
+  success: boolean;
+  recordsProcessed: number;
+  syncType: "full" | "incremental";
+}
+
+// Indexing Config API
+export const indexingConfigApi = {
+  list: () =>
+    api.get<ApiResponse<{ configs: IndexingConfigSummary[] }>>(
+      "/indexing-config"
+    ),
+
+  get: (serverName: string) =>
+    api.get<ApiResponse<IndexingConfigData>>(
+      `/indexing-config/${encodeURIComponent(serverName)}`
+    ),
+
+  generate: (params: {
+    serverName: string;
+    displayName?: string;
+    sampleLimit?: number;
+  }) =>
+    api.post<ApiResponse<GeneratedConfigResult>>(
+      "/indexing-config/generate",
+      params,
+      { timeout: 300000 } // 5 minutes for complex config generation
+    ),
+
+  validate: (config: IndexingConfigData["config"]) =>
+    api.post<ApiResponse<{ valid: boolean; errors: any[]; warnings: any[] }>>(
+      "/indexing-config/validate",
+      config
+    ),
+
+  preview: (params: {
+    config: any;
+    sampleRecords: any[];
+    recordTypeName: string;
+  }) =>
+    api.post<ApiResponse<PreviewResult>>("/indexing-config/preview", params),
+
+  save: (params: { config: any; status?: "draft" | "active" | "disabled" }) =>
+    api.post<
+      ApiResponse<{ success: boolean; configId: string; serverName: string }>
+    >("/indexing-config/save", params),
+
+  sync: (params: { serverName: string; incremental?: boolean }) =>
+    api.post<ApiResponse<SyncResult>>("/indexing-config/sync", params),
+
+  delete: (serverName: string) =>
+    api.delete<ApiResponse<{ success: boolean }>>(
+      `/indexing-config/${encodeURIComponent(serverName)}`
+    ),
+};

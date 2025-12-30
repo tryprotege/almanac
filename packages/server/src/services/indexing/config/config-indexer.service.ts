@@ -7,6 +7,7 @@ import { RecordTransformer } from "@ebee-oss/indexing-engine";
 import { fetchAll as fetchPaginated } from "./paginated-fetcher.js";
 import { enrich as enrichRecord } from "./enrichment-executor.js";
 import { MCPSyncStateModel } from "../../../models/mcp-sync-state.model.js";
+import { mcpClientManager } from "../../../mcp/client.js";
 import logger from "../../../utils/logger.js";
 
 export interface IndexProgress {
@@ -28,7 +29,40 @@ export async function* indexAll(
   records: TransformedRecord[];
   progress: IndexProgress;
 }> {
+  // Load tool classifications if available
+  if (config.toolClassifications) {
+    mcpClientManager.setToolClassifications(
+      serverName,
+      config.toolClassifications
+    );
+    logger.info(
+      { serverName, count: Object.keys(config.toolClassifications).length },
+      "Tool classifications loaded for indexing"
+    );
+  }
+
   for (const [fetcherName, fetcherConfig] of Object.entries(config.fetchers)) {
+    // Skip if this fetcher uses a write or search tool
+    if (config.toolClassifications) {
+      const classification = config.toolClassifications[fetcherConfig.tool];
+
+      if (classification?.category === "write") {
+        logger.warn(
+          { fetcherName, toolName: fetcherConfig.tool },
+          "Skipping fetcher that uses WRITE tool"
+        );
+        continue;
+      }
+
+      if (classification?.category === "search") {
+        logger.info(
+          { fetcherName, toolName: fetcherConfig.tool },
+          "Skipping fetcher that uses SEARCH tool"
+        );
+        continue;
+      }
+    }
+
     logger.info(`Starting fetch: ${fetcherName}`);
 
     let recordsProcessed = 0;
@@ -110,12 +144,40 @@ export async function* runIncrementalSync(
   records: TransformedRecord[];
   progress: IndexProgress;
 }> {
+  // Load tool classifications if available
+  if (config.toolClassifications) {
+    mcpClientManager.setToolClassifications(
+      serverName,
+      config.toolClassifications
+    );
+  }
+
   // Load sync state
   const syncState = await MCPSyncStateModel.findOne({
     serverName,
   });
 
   for (const [fetcherName, fetcherConfig] of Object.entries(config.fetchers)) {
+    // Skip if this fetcher uses a write or search tool
+    if (config.toolClassifications) {
+      const classification = config.toolClassifications[fetcherConfig.tool];
+
+      if (classification?.category === "write") {
+        logger.warn(
+          { fetcherName, toolName: fetcherConfig.tool },
+          "Skipping fetcher that uses WRITE tool for incremental sync"
+        );
+        continue;
+      }
+
+      if (classification?.category === "search") {
+        logger.info(
+          { fetcherName, toolName: fetcherConfig.tool },
+          "Skipping fetcher that uses SEARCH tool for incremental sync"
+        );
+        continue;
+      }
+    }
     const params: Record<string, any> = {};
 
     // Add incremental sync params

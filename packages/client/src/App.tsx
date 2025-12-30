@@ -7,7 +7,8 @@ import { Skeleton } from "./components/Skeleton";
 
 // Lazy load pages for better performance
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Connections = lazy(() => import("./pages/Connections"));
+const DataSources = lazy(() => import("./pages/DataSources"));
+const IndexingConfigDetail = lazy(() => import("./pages/IndexingConfigDetail"));
 const Schema = lazy(() => import("./pages/Schema"));
 const Settings = lazy(() => import("./pages/Settings"));
 
@@ -40,9 +41,22 @@ function App() {
                   element={<Navigate to="/dashboard" replace />}
                 />
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/connections" element={<Connections />} />
+                <Route path="/data-sources" element={<DataSources />} />
+                <Route
+                  path="/indexing/:serverName"
+                  element={<IndexingConfigDetail />}
+                />
                 <Route path="/schema" element={<Schema />} />
                 <Route path="/settings" element={<Settings />} />
+                {/* Legacy redirects */}
+                <Route
+                  path="/connections"
+                  element={<Navigate to="/data-sources" replace />}
+                />
+                <Route
+                  path="/indexing"
+                  element={<Navigate to="/data-sources" replace />}
+                />
               </Routes>
             </Suspense>
           </ErrorBoundary>

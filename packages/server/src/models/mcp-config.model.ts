@@ -25,14 +25,7 @@ const MCPServerConfigSchema = new mongoose.Schema(
       required: true,
       unique: true,
       index: true,
-      enum: [
-        "notion",
-        "slack",
-        "calendar",
-        "jira",
-        "github",
-        "fathom",
-      ] satisfies SourceType[],
+      // No enum constraint - allow any server name for custom MCP servers
     },
     type: {
       type: String,

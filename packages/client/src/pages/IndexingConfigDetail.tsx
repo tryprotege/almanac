@@ -1,0 +1,467 @@
+import { AlertCircle, ArrowLeft, FileJson, Loader2, Plus } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  useIndexingConfig,
+  useGenerateConfig,
+  useSaveConfig,
+} from "../hooks/useIndexingConfigs";
+import { useState, useEffect } from "react";
+
+type GenerationStep = "idle" | "generating" | "result";
+
+export default function IndexingConfigDetail() {
+  const { serverName } = useParams<{ serverName: string }>();
+  const navigate = useNavigate();
+  const [generationStep, setGenerationStep] = useState<GenerationStep>("idle");
+  const [generatedResult, setGeneratedResult] = useState<any>(null);
+
+  // Disable refetching while generating to prevent state reset
+  const { data: config, isLoading } = useIndexingConfig(serverName || null);
+  const generateConfig = useGenerateConfig();
+  const saveConfig = useSaveConfig();
+
+  // Debug logging
+  useEffect(() => {
+    console.log("IndexingConfigDetail mounted/updated", {
+      serverName,
+      generationStep,
+      hasGeneratedResult: !!generatedResult,
+      hasConfig: !!config,
+    });
+  }, [serverName, generationStep, generatedResult, config]);
+
+  if (isLoading) {
+    return (
+      <div className="bg-gray-50 dark:bg-gray-900">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-primary-600 dark:text-primary-400 animate-spin" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!config) {
+    return (
+      <div className="bg-gray-50 dark:bg-gray-900">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+          {/* Header */}
+          <div className="mb-8">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Back
+            </button>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                  Indexing Config: {serverName}
+                </h1>
+                <p className="mt-2 text-gray-600 dark:text-gray-300">
+                  {generationStep === "result"
+                    ? "Configuration generated - review and save below"
+                    : generationStep === "generating"
+                    ? "Generating configuration..."
+                    : "No indexing configuration found"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* No Config - Idle State */}
+          {generationStep === "idle" && (
+            <div className="card text-center py-12">
+              <FileJson className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                No Indexing Config
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                This data source doesn't have an indexing configuration yet.
+                Generate one to start indexing data.
+              </p>
+              <button
+                onClick={async () => {
+                  console.log("Starting config generation for:", serverName);
+                  setGenerationStep("generating");
+                  try {
+                    console.log("Calling generateConfig.mutateAsync...");
+                    const result = await generateConfig.mutateAsync({
+                      serverName: serverName!,
+                    });
+                    console.log(
+                      "Config generation completed successfully:",
+                      result
+                    );
+                    setGeneratedResult(result);
+                    setGenerationStep("result");
+                    console.log("State updated to result");
+                  } catch (error) {
+                    console.error("Failed to generate config:", error);
+                    setGenerationStep("idle");
+                  }
+                }}
+                className="btn btn-primary inline-flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                Generate Config
+              </button>
+
+              <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 max-w-2xl mx-auto text-left">
+                <h3 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">
+                  What happens next?
+                </h3>
+                <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1 list-disc list-inside">
+                  <li>
+                    Tools will be classified using LLM (READ/SEARCH/WRITE)
+                  </li>
+                  <li>Only READ tools will be used for indexing</li>
+                  <li>Sample data will be fetched to understand structure</li>
+                  <li>An IndexingConfig will be generated automatically</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Generating State */}
+          {generationStep === "generating" && (
+            <div className="card text-center py-12">
+              <Loader2 className="w-12 h-12 text-primary-600 dark:text-primary-400 animate-spin mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                Generating Config...
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300">
+                Analyzing MCP server and generating indexing configuration
+              </p>
+            </div>
+          )}
+
+          {/* Result State */}
+          {generationStep === "result" && generatedResult && (
+            <div className="space-y-6">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="card">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-success-100 dark:bg-success-900/30 rounded-lg">
+                      <FileJson className="w-6 h-6 text-success-600 dark:text-success-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        READ Tools
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {generatedResult.toolsUsed.length}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
+                      <FileJson className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        Fetchers
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {Object.keys(generatedResult.config.fetchers).length}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                      <FileJson className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        Record Types
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {Object.keys(generatedResult.config.recordTypes).length}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Validation Results */}
+              {generatedResult.validation.errors.length > 0 && (
+                <div className="card bg-error-50 dark:bg-error-900/20 border-error-200 dark:border-error-800">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-error-600 dark:text-error-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="text-sm font-medium text-error-900 dark:text-error-200">
+                        Validation Errors
+                      </h3>
+                      <ul className="mt-2 text-sm text-error-700 dark:text-error-300 space-y-1">
+                        {generatedResult.validation.errors.map(
+                          (error: any, i: number) => (
+                            <li key={i}>
+                              {error.path}: {error.message}
+                            </li>
+                          )
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {generatedResult.validation.warnings.length > 0 && (
+                <div className="card bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="text-sm font-medium text-yellow-900 dark:text-yellow-200">
+                        Warnings
+                      </h3>
+                      <ul className="mt-2 text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                        {generatedResult.validation.warnings.map(
+                          (warning: any, i: number) => (
+                            <li key={i}>
+                              {warning.path}: {warning.message}
+                            </li>
+                          )
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Success Message */}
+              {generatedResult.validation.valid && (
+                <div className="card bg-success-50 dark:bg-success-900/20 border-success-200 dark:border-success-800">
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-success-600 dark:bg-success-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg
+                        className="w-3 h-3 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-success-900 dark:text-success-200">
+                        Config generated successfully!
+                      </h3>
+                      <p className="mt-1 text-sm text-success-700 dark:text-success-300">
+                        The configuration passed all validation checks and is
+                        ready to use.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Config Preview */}
+              <div className="card">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  Configuration Preview
+                </h3>
+                <div className="bg-gray-900 rounded-lg overflow-hidden">
+                  <pre className="p-4 overflow-x-auto text-sm max-h-96 text-gray-100 leading-relaxed">
+                    <code className="language-json">
+                      {JSON.stringify(generatedResult.config, null, 2)}
+                    </code>
+                  </pre>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setGenerationStep("idle");
+                    setGeneratedResult(null);
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await saveConfig.mutateAsync({
+                        config: generatedResult.config,
+                        status: "draft",
+                      });
+                      window.location.reload();
+                    } catch (error) {
+                      console.error("Failed to save config:", error);
+                    }
+                  }}
+                  disabled={saveConfig.isPending}
+                  className="btn btn-secondary"
+                >
+                  Save as Draft
+                </button>
+                <button
+                  onClick={async () => {
+                    console.log("Save & Activate clicked");
+                    console.log("Config to save:", generatedResult.config);
+                    try {
+                      const result = await saveConfig.mutateAsync({
+                        config: generatedResult.config,
+                        status: "active",
+                      });
+                      console.log("Save successful:", result);
+                      // Wait a moment before reloading to ensure save completes
+                      setTimeout(() => {
+                        window.location.reload();
+                      }, 500);
+                    } catch (error) {
+                      console.error("Failed to save config:", error);
+                      alert(
+                        "Failed to save config. Check console for details."
+                      );
+                    }
+                  }}
+                  disabled={
+                    saveConfig.isPending || !generatedResult?.validation.valid
+                  }
+                  className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saveConfig.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save & Activate"
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gray-50 dark:bg-gray-900">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Back
+          </button>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Indexing Config: {config.displayName}
+              </h1>
+              <p className="mt-2 text-gray-600 dark:text-gray-300">
+                Auto-generated configuration for {config.serverName}
+              </p>
+            </div>
+            <span
+              className={`px-3 py-1 text-sm font-medium rounded-full ${
+                config.status === "active"
+                  ? "bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400"
+                  : config.status === "draft"
+                  ? "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                  : "bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-400"
+              }`}
+            >
+              {config.status.charAt(0).toUpperCase() + config.status.slice(1)}
+            </span>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="card">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
+                <FileJson className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Fetchers
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {config.config.fetchers?.length || 0}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-success-100 dark:bg-success-900/30 rounded-lg">
+                <FileJson className="w-6 h-6 text-success-600 dark:text-success-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Record Types
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {config.config.recordTypes?.length || 0}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <FileJson className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Last Updated
+                </p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {new Date(config.updatedAt).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Config JSON */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Configuration JSON
+            </h2>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(
+                  JSON.stringify(config.config, null, 2)
+                );
+              }}
+              className="btn btn-secondary text-sm"
+            >
+              Copy to Clipboard
+            </button>
+          </div>
+          <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
+            {JSON.stringify(config.config, null, 2)}
+          </pre>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -7,6 +7,7 @@ export interface ConfigPromptInput {
     inputSchema: any;
   }>;
   samples: Record<string, any>;
+  classifications?: Record<string, any>; // Optional tool classifications
 }
 
 /**
@@ -17,9 +18,16 @@ export function generateConfigPrompt(input: ConfigPromptInput): string {
 
   return `# Generate IndexingConfig for "${displayName}"
 
-You are an expert at creating IndexingConfig files for MCP servers. Your task is to generate a valid IndexingConfig in YAML format that will enable automated data indexing from the "${displayName}" MCP server.
+You are an expert at creating IndexingConfig files for MCP servers. Your task is to generate a valid IndexingConfig in JSON format that will enable automated data indexing from the "${displayName}" MCP server.
 
-## Available Tools
+## Important: Read-Only Indexing
+
+The tools listed below have been pre-filtered to include ONLY READ operations.
+- Write operations (create, update, delete) are automatically passed through to the upstream MCP server
+- Search tools are skipped unless explicitly needed for pagination
+- You should only use these READ tools for creating fetchers and enrichments
+
+## Available Tools (Read-Only)
 
 ${tools
   .map(
@@ -63,58 +71,76 @@ Use these built-in processors for rich content:
 ## Field Mapping Types
 
 1. **path**: Simple JSONPath extraction
-   \`\`\`yaml
-   title:
-     type: path
-     path: $.properties.Name.title[0].text.content
+   \`\`\`json
+   {
+     "title": {
+       "type": "path",
+       "path": "$.properties.Name.title[0].text.content"
+     }
+   }
    \`\`\`
 
 2. **paths**: Combine multiple paths
-   \`\`\`yaml
-   tags:
-     type: paths
-     paths:
-       - $.properties.Tags.multi_select[*].name
-       - $.properties.Status.status.name
+   \`\`\`json
+   {
+     "tags": {
+       "type": "paths",
+       "paths": [
+         "$.properties.Tags.multi_select[*].name",
+         "$.properties.Status.status.name"
+       ]
+     }
+   }
    \`\`\`
 
 3. **template**: String template
-   \`\`\`yaml
-   title:
-     type: template
-     template: "\${record.name} - \${record.id}"
+   \`\`\`json
+   {
+     "title": {
+       "type": "template",
+       "template": "\${record.name} - \${record.id}"
+     }
+   }
    \`\`\`
 
 4. **processor**: Use format processor
-   \`\`\`yaml
-   content:
-     type: processor
-     processor: notion-blocks
-     input: $.blocks
+   \`\`\`json
+   {
+     "content": {
+       "type": "processor",
+       "processor": "notion-blocks",
+       "input": "$.blocks"
+     }
+   }
    \`\`\`
 
 5. **code**: TypeScript code for complex transformations
-   \`\`\`yaml
-   content:
-     type: code
-     code: |
-       // Access: record, enrichments
-       return enrichments.blocks
-         .map(b => b.text)
-         .join('\\n');
+   \`\`\`json
+   {
+     "content": {
+       "type": "code",
+       "code": "// Access: record, enrichments\\nreturn enrichments.blocks\\n  .map(b => b.text)\\n  .join('\\\\n');"
+     }
+   }
    \`\`\`
 
 ## Enrichments
 
 Define additional fetches per record:
 
-\`\`\`yaml
-enrichments:
-  - name: blocks
-    tool: get_page_blocks
-    paramMapping:
-      page_id: $.id
-    resultPath: $.results
+\`\`\`json
+{
+  "enrichments": [
+    {
+      "name": "blocks",
+      "tool": "get_page_blocks",
+      "paramMapping": {
+        "page_id": "$.id"
+      },
+      "resultPath": "$.results"
+    }
+  ]
+}
 \`\`\`
 
 ## Instructions
@@ -128,60 +154,73 @@ enrichments:
 
 ## Output Format
 
-Return ONLY valid YAML with this structure:
+Return ONLY valid JSON with this structure:
 
-\`\`\`yaml
-version: "1.0"
-source: "${serverName}"
-displayName: "${displayName}"
-
-fetchers:
-  list_pages:
-    tool: search_pages
-    description: "Fetch all pages"
-    params:
-      filter:
-        property: object
-        value: page
-    pagination:
-      type: cursor
-      limitParam: page_size
-      cursorParam: start_cursor
-      cursorPath: $.next_cursor
-    resultPath: $.results
-
-recordTypes:
-  page:
-    name: page
-    fetcher: list_pages
-    detection:
-      condition: "record.object === 'page'"
-    
-    enrichments:
-      - name: blocks
-        tool: get_page_blocks
-        paramMapping:
-          page_id: $.id
-        resultPath: $.results
-    
-    fields:
-      title:
-        type: path
-        path: $.properties.title.title[0].plain_text
-      
-      content:
-        type: processor
-        processor: notion-blocks
-        input: enrichments.blocks
-      
-      primaryDate:
-        type: path
-        path: $.created_time
-      
-      tags:
-        type: paths
-        paths:
-          - $.properties.Tags.multi_select[*].name
+\`\`\`json
+{
+  "version": "1.0",
+  "source": "${serverName}",
+  "displayName": "${displayName}",
+  "fetchers": {
+    "list_pages": {
+      "tool": "search_pages",
+      "description": "Fetch all pages",
+      "params": {
+        "filter": {
+          "property": "object",
+          "value": "page"
+        }
+      },
+      "pagination": {
+        "type": "cursor",
+        "limitParam": "page_size",
+        "cursorParam": "start_cursor",
+        "cursorPath": "$.next_cursor"
+      },
+      "resultPath": "$.results"
+    }
+  },
+  "recordTypes": {
+    "page": {
+      "name": "page",
+      "fetcher": "list_pages",
+      "detection": {
+        "condition": "record.object === 'page'"
+      },
+      "enrichments": [
+        {
+          "name": "blocks",
+          "tool": "get_page_blocks",
+          "paramMapping": {
+            "page_id": "$.id"
+          },
+          "resultPath": "$.results"
+        }
+      ],
+      "fields": {
+        "title": {
+          "type": "path",
+          "path": "$.properties.title.title[0].plain_text"
+        },
+        "content": {
+          "type": "processor",
+          "processor": "notion-blocks",
+          "input": "enrichments.blocks"
+        },
+        "primaryDate": {
+          "type": "path",
+          "path": "$.created_time"
+        },
+        "tags": {
+          "type": "paths",
+          "paths": [
+            "$.properties.Tags.multi_select[*].name"
+          ]
+        }
+      }
+    }
+  }
+}
 \`\`\`
 
 ## Important Rules

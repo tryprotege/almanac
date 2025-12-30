@@ -12,18 +12,7 @@ const RecordSchema = new mongoose.Schema(
       type: String,
       required: true,
       index: true,
-      enum: [
-        "notion",
-        "slack",
-        "calendar",
-        "jira",
-        "fathom",
-        "whatsapp",
-        "codebase",
-        "asana",
-        "google_drive",
-        "github",
-      ] satisfies SourceType[],
+      // No enum constraint - allow any source name for custom MCP servers
     },
     sourceId: { type: String, required: true, index: true }, // Original ID from source
     recordType: { type: String, required: true, index: true }, // 'page' | 'message' | 'event' | 'task' | 'issue' | etc.

@@ -4,6 +4,7 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
+import type { ToolClassification } from "@ebee-oss/indexing-engine";
 import logger from "../utils/logger.js";
 
 export interface MCPServerConfig {
@@ -22,6 +23,8 @@ class MCPClientManager {
   private clients: Map<string, Client> = new Map();
   private transports: Map<string, Transport> = new Map();
   private toolCache: Map<string, Tool[]> = new Map();
+  private toolClassifications: Map<string, Record<string, ToolClassification>> =
+    new Map();
 
   /**
    * Connect to an MCP server
@@ -252,6 +255,94 @@ class MCPClientManager {
    */
   isConnected(serverName: string): boolean {
     return this.clients.has(serverName);
+  }
+
+  /**
+   * Set tool classifications for a server
+   */
+  setToolClassifications(
+    serverName: string,
+    classifications: Record<string, ToolClassification>
+  ): void {
+    this.toolClassifications.set(serverName, classifications);
+    logger.debug(
+      { serverName, count: Object.keys(classifications).length },
+      "Tool classifications set for server"
+    );
+  }
+
+  /**
+   * Get tool classifications for a server
+   */
+  getToolClassifications(
+    serverName: string
+  ): Record<string, ToolClassification> | undefined {
+    return this.toolClassifications.get(serverName);
+  }
+
+  /**
+   * Check if a tool is a write operation
+   */
+  isWriteTool(serverName: string, toolName: string): boolean {
+    const classifications = this.toolClassifications.get(serverName);
+    if (!classifications) return false;
+
+    const classification = classifications[toolName];
+    return classification?.category === "write";
+  }
+
+  /**
+   * Check if a tool is a search operation
+   */
+  isSearchTool(serverName: string, toolName: string): boolean {
+    const classifications = this.toolClassifications.get(serverName);
+    if (!classifications) return false;
+
+    const classification = classifications[toolName];
+    return classification?.category === "search";
+  }
+
+  /**
+   * Check if a tool is a read operation
+   */
+  isReadTool(serverName: string, toolName: string): boolean {
+    const classifications = this.toolClassifications.get(serverName);
+    if (!classifications) return true; // Default to read if not classified
+
+    const classification = classifications[toolName];
+    return classification?.category === "read";
+  }
+
+  /**
+   * Call tool with classification-aware routing
+   * Write tools are always passed through to upstream
+   * Read tools can potentially use cached/indexed data (future enhancement)
+   */
+  async callToolWithRouting(
+    serverName: string,
+    toolName: string,
+    args: Record<string, unknown>,
+    options?: { forceUpstream?: boolean }
+  ): Promise<any> {
+    // Check classification
+    const isWrite = this.isWriteTool(serverName, toolName);
+    const isSearch = this.isSearchTool(serverName, toolName);
+
+    if (isWrite) {
+      logger.debug(
+        { serverName, toolName },
+        "Routing WRITE tool to upstream MCP server"
+      );
+    }
+
+    // Always pass through for write operations or when forced
+    if (isWrite || isSearch || options?.forceUpstream) {
+      return this.callTool(serverName, toolName, args);
+    }
+
+    // For read operations, currently just call upstream
+    // Future: Could check cache/indexed data first
+    return this.callTool(serverName, toolName, args);
   }
 }
 

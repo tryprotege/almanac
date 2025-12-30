@@ -8,7 +8,7 @@ import { generateConfigPrompt } from "./prompts/config-generation.js";
 import { createLLMClient, chat } from "../../../services/llm/index.js";
 import { ModelConfigModel } from "../../../models/model-config.model.js";
 import logger from "../../../utils/logger.js";
-import yaml from "yaml";
+import { classifyTools, filterReadTools } from "./tool-classifier.service.js";
 
 export interface ConfigGeneratorOptions {
   serverName: string;
@@ -33,32 +33,56 @@ export async function generateConfig(
     throw new Error(`No tools found for MCP server: ${serverName}`);
   }
 
-  // Step 2: Fetch sample data for each tool
-  const samples = await fetchSampleData(
+  // Step 2: Classify tools using LLM (NEW)
+  logger.info(`Classifying ${toolDefinitions.length} tools for indexing...`);
+  const classificationResult = await classifyTools({
     serverName,
+    tools: toolDefinitions,
+  });
+
+  // Step 3: Filter to read-only tools (NEW)
+  const readOnlyTools = filterReadTools(
     toolDefinitions,
-    sampleLimit
+    classificationResult.classifications,
+    { skipSearch: true } // Skip search tools by default
   );
 
-  // Step 3: Build LLM prompt
+  logger.info(
+    `Filtered to ${readOnlyTools.length} read-only tools (${classificationResult.readTools.length} read, skipped ${classificationResult.searchTools.length} search, ${classificationResult.writeTools.length} write)`
+  );
+
+  if (readOnlyTools.length === 0) {
+    throw new Error(
+      `No read-only tools found for MCP server: ${serverName}. All tools are either write or search operations.`
+    );
+  }
+
+  // Step 4: Fetch sample data ONLY for read tools
+  const samples = await fetchSampleData(serverName, readOnlyTools, sampleLimit);
+
+  // Step 5: Build LLM prompt (updated to include classifications)
   const prompt = generateConfigPrompt({
     serverName,
     displayName: displayName || serverName,
-    tools: toolDefinitions,
+    tools: readOnlyTools, // Only read tools
     samples,
+    classifications: classificationResult.classifications,
   });
 
-  // Step 4: Call LLM to generate config
+  // Step 6: Call LLM to generate config
   const config = await callLLMForConfig(prompt);
 
-  // Step 5: Validate generated config
+  // Step 7: Attach tool classifications to config
+  config.toolClassifications = classificationResult.classifications;
+
+  // Step 8: Validate generated config
   const validation = validateConfig(config);
 
   return {
     config,
     validation,
     samples,
-    toolsUsed: toolDefinitions.map((t) => t.name),
+    toolsUsed: readOnlyTools.map((t) => t.name),
   };
 }
 
@@ -82,7 +106,10 @@ async function fetchSampleData(
   toolDefinitions: any[],
   limit: number
 ): Promise<Record<string, any>> {
+  logger.info(`Fetching sample data from ${toolDefinitions.length} tools...`);
   const samples: Record<string, any> = {};
+  let successCount = 0;
+  let failCount = 0;
 
   for (const tool of toolDefinitions) {
     try {
@@ -97,11 +124,13 @@ async function fetchSampleData(
 
       // Limit response size
       samples[tool.name] = limitSampleSize(response, limit);
+      successCount++;
 
       logger.debug(
         `Fetched sample data for tool: ${tool.name} (${serverName})`
       );
     } catch (error) {
+      failCount++;
       logger.warn(
         { error, toolName: tool.name },
         `Failed to fetch sample data for tool`
@@ -109,6 +138,10 @@ async function fetchSampleData(
       samples[tool.name] = { error: "Failed to fetch sample" };
     }
   }
+
+  logger.info(
+    `Sample data collection complete: ${successCount} succeeded, ${failCount} failed`
+  );
 
   return samples;
 }
@@ -183,8 +216,13 @@ function limitSampleSize(data: any, limit: number): any {
 async function callLLMForConfig(prompt: string): Promise<IndexingConfig> {
   const response = await callLLM(prompt);
 
+  logger.info(`LLM response received: ${response.length} characters`);
+  logger.debug(`LLM response preview: ${response.substring(0, 200)}...`);
+
   // Parse YAML response to IndexingConfig
   const config = parseConfigFromLLM(response);
+
+  logger.info("Successfully parsed config from LLM response");
 
   return config;
 }
@@ -212,43 +250,72 @@ async function callLLM(prompt: string): Promise<string> {
   logger.info(
     `Calling LLM: ${modelConfig.llmProvider} / ${modelConfig.llmChatModel}`
   );
+  logger.debug(`Prompt length: ${prompt.length} characters`);
 
-  // Call LLM with the prompt
-  const response = await chat(client, [{ role: "user", content: prompt }], {
-    model: modelConfig.llmChatModel,
-    temperature: 0.3, // Lower temperature for structured output
-    maxTokens: 4000, // Allow large configs
-  });
+  try {
+    // Call LLM with the prompt
+    const response = await chat(client, [{ role: "user", content: prompt }], {
+      model: modelConfig.llmChatModel,
+      temperature: 0.3, // Lower temperature for structured output
+      maxTokens: 16000, // Allow large configs (increased for complex servers)
+    });
 
-  return response;
+    logger.info("LLM call completed successfully");
+    return response;
+  } catch (error) {
+    logger.error({ error }, "LLM call failed");
+    throw new Error(
+      `LLM API call failed: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
 }
 
 /**
  * Parse LLM response into IndexingConfig
  */
 function parseConfigFromLLM(response: string): IndexingConfig {
-  // Extract YAML from markdown code blocks if present
-  let yamlContent = response.trim();
+  // Extract JSON from markdown code blocks if present
+  let jsonContent = response.trim();
+
+  logger.debug("Extracting JSON from LLM response...");
 
   // Remove markdown code fences if present
-  const yamlMatch = yamlContent.match(/```yaml\n([\s\S]*?)\n```/);
-  if (yamlMatch) {
-    yamlContent = yamlMatch[1];
+  const jsonMatch = jsonContent.match(/```json\n([\s\S]*?)\n```/);
+  if (jsonMatch) {
+    jsonContent = jsonMatch[1];
+    logger.debug("Found JSON code block");
   } else {
     // Try generic code block
-    const codeMatch = yamlContent.match(/```\n([\s\S]*?)\n```/);
+    const codeMatch = jsonContent.match(/```\n([\s\S]*?)\n```/);
     if (codeMatch) {
-      yamlContent = codeMatch[1];
+      jsonContent = codeMatch[1];
+      logger.debug("Found generic code block");
+    } else {
+      logger.debug("No code blocks found, using raw response");
     }
   }
 
-  // Parse YAML
+  logger.debug(`JSON content length: ${jsonContent.length} characters`);
+  logger.debug(`JSON content preview:\n${jsonContent.substring(0, 500)}...`);
+
+  // Parse JSON
   try {
-    const config = yaml.parse(yamlContent) as IndexingConfig;
+    const config = JSON.parse(jsonContent) as IndexingConfig;
+    logger.info("Successfully parsed JSON into IndexingConfig");
+    logger.debug(
+      `Config has ${Object.keys(config.fetchers || {}).length} fetchers and ${
+        Object.keys(config.recordTypes || {}).length
+      } record types`
+    );
     return config;
   } catch (error) {
-    logger.error({ error, response: yamlContent }, "Failed to parse YAML");
-    throw new Error(`Failed to parse LLM response as YAML: ${error}`);
+    logger.error(
+      { error, jsonContent },
+      "Failed to parse JSON from LLM response"
+    );
+    throw new Error(`Failed to parse LLM response as JSON: ${error}`);
   }
 }
 
@@ -256,6 +323,8 @@ function parseConfigFromLLM(response: string): IndexingConfig {
  * Validate generated config
  */
 function validateConfig(config: IndexingConfig): ValidationResult {
+  logger.info("Validating generated config...");
+
   const errors = [];
   const warnings = [];
 
@@ -311,8 +380,18 @@ function validateConfig(config: IndexingConfig): ValidationResult {
     }
   }
 
+  const isValid = errors.length === 0;
+
+  logger.info(`Validation complete: ${isValid ? "PASSED" : "FAILED"}`);
+  if (errors.length > 0) {
+    logger.error({ errors }, "Config validation errors");
+  }
+  if (warnings.length > 0) {
+    logger.warn({ warnings }, "Config validation warnings");
+  }
+
   return {
-    valid: errors.length === 0,
+    valid: isValid,
     errors,
     warnings,
   };

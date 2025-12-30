@@ -1,5 +1,8 @@
 import { Router } from "express";
-import { generateConfig } from "../../services/indexing/config/config-generator.service.js";
+import {
+  generateConfig,
+  generateConfigIterative,
+} from "../../services/indexing/config/config-generator.service.js";
 import {
   indexAll,
   runIncrementalSync,
@@ -27,22 +30,55 @@ const router: Router = Router();
 /**
  * POST /api/indexing-config/generate
  * Generate an IndexingConfig for an MCP server using LLM
+ *
+ * Options:
+ * - iterative: boolean (default: true) - Enable self-healing with dry run testing
+ * - maxIterations: number (default: 3) - Max debug iterations
  */
 router.post("/generate", async (req, res) => {
   try {
-    const { serverName, displayName, sampleLimit } = req.body;
+    const {
+      serverName,
+      displayName,
+      sampleLimit,
+      iterative = true,
+      maxIterations = 3,
+      userGuidance,
+    } = req.body;
 
     if (!serverName) {
       return res.status(400).json({ error: "serverName is required" });
     }
 
-    const result = await generateConfig({
-      serverName,
-      displayName,
-      sampleLimit,
-    });
+    let result;
 
-    logger.info(`Successfully generated config for ${serverName}`);
+    if (iterative) {
+      logger.info(
+        `Starting iterative config generation for ${serverName} (max ${maxIterations} attempts)${
+          userGuidance ? " with user guidance" : ""
+        }`
+      );
+      result = await generateConfigIterative({
+        serverName,
+        displayName,
+        sampleLimit,
+        maxIterations,
+        userGuidance,
+      });
+
+      logger.info(
+        `Config generation completed for ${serverName}: ${
+          result.totalAttempts
+        } attempts, success: ${result.finalTestResult?.success ?? "unknown"}`
+      );
+    } else {
+      result = await generateConfig({
+        serverName,
+        displayName,
+        sampleLimit,
+      });
+      logger.info(`Successfully generated config for ${serverName}`);
+    }
 
     res.json({ data: result });
   } catch (err) {

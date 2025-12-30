@@ -401,6 +401,7 @@ export const indexingConfigApi = {
     serverName: string;
     displayName?: string;
     sampleLimit?: number;
+    userGuidance?: string;
   }) =>
     api.post<ApiResponse<GeneratedConfigResult>>(
       "/indexing-config/generate",

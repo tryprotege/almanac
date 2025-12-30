@@ -42,7 +42,10 @@ export async function* indexAll(
     );
   }
 
-  for (const [fetcherName, fetcherConfig] of Object.entries(config.fetchers)) {
+  // Get fetchers in the correct order
+  const orderedFetchers = getOrderedFetchers(config);
+
+  for (const [fetcherName, fetcherConfig] of orderedFetchers) {
     // Skip if this fetcher uses a write or search tool
     if (config.toolClassifications) {
       const classification = config.toolClassifications[fetcherConfig.tool];
@@ -74,11 +77,11 @@ export async function* indexAll(
     );
 
     // Fetch pages
-    for await (const rawRecords of fetchPaginated(serverName, fetcherConfig)) {
+    for await (const pageResult of fetchPaginated(serverName, fetcherConfig)) {
       const transformedBatch: TransformedRecord[] = [];
 
       // Process each record
-      for (const rawRecord of rawRecords) {
+      for (const rawRecord of pageResult.records) {
         // Match record to type
         const recordType = matchRecordType(rawRecord, recordTypes);
 
@@ -175,7 +178,10 @@ export async function* runIncrementalSync(
     serverName,
   });
 
-  for (const [fetcherName, fetcherConfig] of Object.entries(config.fetchers)) {
+  // Get fetchers in the correct order
+  const orderedFetchers = getOrderedFetchers(config);
+
+  for (const [fetcherName, fetcherConfig] of orderedFetchers) {
     // Skip if this fetcher uses a write or search tool
     if (config.toolClassifications) {
       const classification = config.toolClassifications[fetcherConfig.tool];
@@ -216,14 +222,14 @@ export async function* runIncrementalSync(
       (rt) => rt.fetcher === fetcherName
     );
 
-    for await (const rawRecords of fetchPaginated(
+    for await (const pageResult of fetchPaginated(
       serverName,
       fetcherConfig,
       params
     )) {
       const transformedBatch: TransformedRecord[] = [];
 
-      for (const rawRecord of rawRecords) {
+      for (const rawRecord of pageResult.records) {
         const recordType = matchRecordType(rawRecord, recordTypes);
         if (!recordType) continue;
 
@@ -242,6 +248,23 @@ export async function* runIncrementalSync(
             record: rawRecord,
             enrichments,
           });
+
+          // Extract entities and relationships
+          if (recordType.entities && recordType.entities.length > 0) {
+            transformed.extractedEntities = extractEntities(
+              rawRecord,
+              recordType.entities
+            );
+          }
+
+          if (recordType.relationships && recordType.relationships.length > 0) {
+            transformed.extractedRelationships = extractRelationships(
+              rawRecord,
+              transformed._id,
+              recordType.name,
+              recordType.relationships
+            );
+          }
 
           transformedBatch.push(transformed);
           recordsProcessed++;
@@ -327,4 +350,50 @@ function formatSinceValue(
     default:
       return date.toISOString();
   }
+}
+
+/**
+ * Get fetchers in the correct execution order based on syncOrder
+ * Falls back to Object.entries() order if syncOrder is not specified
+ */
+function getOrderedFetchers(config: IndexingConfig): Array<[string, any]> {
+  if (config.syncOrder && config.syncOrder.length > 0) {
+    logger.info(
+      { syncOrder: config.syncOrder },
+      "Using explicit sync order for fetchers"
+    );
+
+    const ordered: Array<[string, any]> = [];
+    const fetcherEntries = Object.entries(config.fetchers);
+
+    // Add fetchers in syncOrder sequence
+    for (const fetcherName of config.syncOrder) {
+      const entry = fetcherEntries.find(([name]) => name === fetcherName);
+      if (entry) {
+        ordered.push(entry);
+      } else {
+        logger.warn(
+          { fetcherName },
+          "syncOrder references fetcher that doesn't exist"
+        );
+      }
+    }
+
+    // Add any fetchers not in syncOrder at the end
+    for (const [name, fetcherConfig] of fetcherEntries) {
+      if (!config.syncOrder!.includes(name)) {
+        logger.warn(
+          { fetcherName: name },
+          "Fetcher not in syncOrder, adding at end"
+        );
+        ordered.push([name, fetcherConfig]);
+      }
+    }
+
+    return ordered;
+  }
+
+  // No syncOrder specified, use default Object.entries() order
+  logger.debug("No syncOrder specified, using default fetcher order");
+  return Object.entries(config.fetchers);
 }

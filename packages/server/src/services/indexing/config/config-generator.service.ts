@@ -5,15 +5,153 @@ import type {
 } from "@ebee-oss/indexing-engine";
 import { mcpClientManager } from "../../../mcp/client.js";
 import { generateConfigPrompt } from "./prompts/config-generation.js";
+import {
+  generateDebugPrompt,
+  parseDebugResponse,
+} from "./prompts/config-debug.js";
 import { createLLMClient, chat } from "../../../services/llm/index.js";
 import { ModelConfigModel } from "../../../models/model-config.model.js";
 import logger from "../../../utils/logger.js";
 import { classifyTools, filterReadTools } from "./tool-classifier.service.js";
+import {
+  testConfigDryRun,
+  formatErrorsForLLM,
+  type TestRunResult,
+} from "./config-validator.service.js";
 
 export interface ConfigGeneratorOptions {
   serverName: string;
   displayName?: string;
   sampleLimit?: number; // Limit sample records per tool
+  maxIterations?: number; // Max debug iterations (default: 3)
+  userGuidance?: string; // Optional user-provided guidance for config generation
+}
+
+/**
+ * Iteration result for tracking debug attempts
+ */
+export interface IterationResult {
+  attempt: number;
+  config: IndexingConfig;
+  testResult: TestRunResult;
+  fixed: boolean;
+}
+
+/**
+ * Result of iterative config generation
+ */
+export interface IterativeGenerationResult extends GeneratedConfigResult {
+  iterations: IterationResult[];
+  totalAttempts: number;
+  finalTestResult?: TestRunResult;
+}
+
+/**
+ * Generate an IndexingConfig with iterative debugging
+ * Runs a dry test and automatically fixes errors up to maxIterations times
+ */
+export async function generateConfigIterative(
+  options: ConfigGeneratorOptions
+): Promise<IterativeGenerationResult> {
+  const {
+    serverName,
+    displayName,
+    sampleLimit = 3,
+    maxIterations = 3,
+  } = options;
+
+  logger.info(
+    `Starting iterative config generation for: ${serverName} (max ${maxIterations} attempts)`
+  );
+
+  const iterations: IterationResult[] = [];
+  let currentConfig: IndexingConfig | null = null;
+  let samples: Record<string, any> = {};
+  let toolsUsed: string[] = [];
+  let classificationResult: any = null;
+
+  // Step 1: Generate initial config
+  const initialResult = await generateConfig(options);
+  currentConfig = initialResult.config;
+  samples = initialResult.samples || {};
+  toolsUsed = initialResult.toolsUsed || [];
+
+  // Step 2: Test and iterate
+  for (let attempt = 1; attempt <= maxIterations; attempt++) {
+    logger.info(`Testing config: attempt ${attempt}/${maxIterations}`);
+
+    // Run dry test
+    const testResult = await testConfigDryRun(currentConfig, serverName);
+
+    iterations.push({
+      attempt,
+      config: { ...currentConfig },
+      testResult,
+      fixed: testResult.success,
+    });
+
+    if (testResult.success) {
+      logger.info(`Config passed validation on attempt ${attempt}`);
+      return {
+        config: currentConfig,
+        validation: validateConfig(currentConfig),
+        samples,
+        toolsUsed,
+        iterations,
+        totalAttempts: attempt,
+        finalTestResult: testResult,
+      };
+    }
+
+    // If this is the last attempt, return what we have
+    if (attempt === maxIterations) {
+      logger.warn(
+        `Config still has errors after ${maxIterations} attempts. Returning best effort.`
+      );
+      break;
+    }
+
+    // Generate debug prompt and fix config
+    logger.info(
+      `Config has ${testResult.errors.length} errors, attempting fix...`
+    );
+
+    try {
+      const debugPrompt = generateDebugPrompt({
+        originalConfig: currentConfig,
+        testResult,
+        samples,
+        attemptNumber: attempt + 1,
+        maxAttempts: maxIterations,
+      });
+
+      logger.info(`Sending debug prompt to LLM (attempt ${attempt + 1})...`);
+      const fixedResponse = await callLLM(debugPrompt);
+      const fixedConfig = parseDebugResponse(fixedResponse);
+
+      // Preserve tool classifications
+      fixedConfig.toolClassifications = currentConfig.toolClassifications;
+
+      currentConfig = fixedConfig;
+      logger.info(`Received fixed config from LLM, testing again...`);
+    } catch (err) {
+      logger.error({ err }, `Failed to parse fixed config, continuing...`);
+      // Continue with current config for next iteration
+    }
+  }
+
+  // Return the last config we have (may still have errors)
+  const finalTestResult = iterations[iterations.length - 1]?.testResult;
+
+  return {
+    config: currentConfig,
+    validation: validateConfig(currentConfig),
+    samples,
+    toolsUsed,
+    iterations,
+    totalAttempts: iterations.length,
+    finalTestResult,
+  };
 }
 
 /**
@@ -60,13 +198,14 @@ export async function generateConfig(
   // Step 4: Fetch sample data ONLY for read tools
   const samples = await fetchSampleData(serverName, readOnlyTools, sampleLimit);
 
-  // Step 5: Build LLM prompt (updated to include classifications)
+  // Step 5: Build LLM prompt (updated to include classifications and user guidance)
   const prompt = generateConfigPrompt({
     serverName,
     displayName: displayName || serverName,
     tools: readOnlyTools, // Only read tools
     samples,
     classifications: classificationResult.classifications,
+    userGuidance: options.userGuidance,
   });
 
   // Step 6: Call LLM to generate config
@@ -262,6 +401,11 @@ async function callLLM(prompt: string): Promise<string> {
     }`
   );
   logger.debug(`Prompt length: ${prompt.length} characters`);
+
+  // LOG PROMPT IMMEDIATELY at INFO level
+  logger.info("=== LLM PROMPT START ===");
+  logger.info(prompt);
+  logger.info("=== LLM PROMPT END ===");
 
   try {
     // Call LLM with the prompt

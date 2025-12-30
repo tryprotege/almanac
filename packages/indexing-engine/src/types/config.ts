@@ -31,6 +31,13 @@ export interface IndexingConfig {
    * Maps tool name -> classification
    */
   toolClassifications?: Record<string, ToolClassification>;
+
+  /**
+   * Sync order - defines the order in which fetchers should be executed
+   * This is critical for handling data dependencies (e.g., sync users/teams before issues)
+   * If not specified, fetchers will be executed in Object.entries() order
+   */
+  syncOrder?: string[];
 }
 
 /**

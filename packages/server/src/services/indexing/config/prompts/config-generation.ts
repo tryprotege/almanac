@@ -8,18 +8,35 @@ export interface ConfigPromptInput {
   }>;
   samples: Record<string, any>;
   classifications?: Record<string, any>; // Optional tool classifications
+  userGuidance?: string; // Optional user-provided guidance
 }
 
 /**
  * Generate prompt for LLM to create an IndexingConfig
  */
 export function generateConfigPrompt(input: ConfigPromptInput): string {
-  const { serverName, displayName, tools, samples } = input;
+  const { serverName, displayName, tools, samples, userGuidance } = input;
+
+  // Build user guidance section if provided
+  const guidanceSection = userGuidance
+    ? `
+## ⚠️ USER-PROVIDED GUIDANCE (CRITICAL - FOLLOW THESE INSTRUCTIONS)
+
+The user has provided specific guidance for generating this configuration. Please carefully follow these instructions and incorporate them into the generated config:
+
+---
+${userGuidance}
+---
+
+Make sure to incorporate these requirements into the generated config.
+
+`
+    : "";
 
   return `# Generate IndexingConfig for "${displayName}"
 
 You are an expert at creating IndexingConfig files for MCP servers. Your task is to generate a valid IndexingConfig in JSON format that will enable automated data indexing from the "${displayName}" MCP server.
-
+${guidanceSection}
 ## Important: Read-Only Indexing
 
 The tools listed below have been pre-filtered to include ONLY READ operations.
@@ -151,6 +168,15 @@ Use these built-in processors for rich content (all support options for customiz
 
 ## Field Mapping Types
 
+**⚠️ CRITICAL: Records are Individual Objects, NOT Arrays!**
+
+When you receive a record from a fetcher, it is passed as an INDIVIDUAL OBJECT:
+- ✅ **Correct:** \`$.name\` - extracts from the individual record
+- ✅ **Correct:** \`$.assignee.email\` - nested field access  
+- ✅ **Correct:** \`$.labels[*].name\` - array inside the record
+- ❌ **WRONG:** \`$[0].name\` - assumes record is an array (IT'S NOT!)
+- ❌ **WRONG:** \`$[0].assignee.email\` - DO NOT use array index on root
+
 1. **path**: Simple JSONPath extraction
    \`\`\`json
    {
@@ -233,6 +259,21 @@ Define additional fetches per record:
 5. **Add enrichments** if additional data is needed per record
 6. **Use format processors** for rich content (Notion blocks, Slack messages, etc.)
 
+## Sync Order (Critical for Data Dependencies)
+
+Analyze the data relationships and define a \`syncOrder\` array that specifies the order in which fetchers should execute. This is critical to avoid dependency errors.
+
+**Ordering Principles:**
+1. **Reference/lookup data first**: Users, Teams, Statuses, Labels, Priorities (entities that other records reference)
+2. **Parent containers second**: Projects, Workspaces, Repositories, Folders (grouping structures)
+3. **Main content last**: Issues, Tasks, Documents, Comments (records that depend on the above)
+
+**Example:**
+- ✅ Correct: ["list_users", "list_teams", "list_statuses", "list_projects", "list_issues"]
+- ❌ Wrong: ["list_issues", "list_projects", "list_users"] (issues need users/projects to exist first)
+
+If a fetcher retrieves data that references entities from another fetcher, the referenced fetcher must come first in the sync order.
+
 ## Output Format
 
 Return ONLY valid JSON with this structure:
@@ -242,6 +283,13 @@ Return ONLY valid JSON with this structure:
   "version": "1.0",
   "source": "${serverName}",
   "displayName": "${displayName}",
+  "syncOrder": [
+    "list_users",
+    "list_teams",
+    "list_statuses",
+    "list_projects",
+    "list_issues"
+  ],
   "fetchers": {
     "list_pages": {
       "tool": "search_pages",
@@ -276,6 +324,41 @@ Return ONLY valid JSON with this structure:
             "page_id": "$.id"
           },
           "resultPath": "$.results"
+        }
+      ],
+      "entities": [
+        {
+          "name": "status",
+          "type": "Status",
+          "idPath": "$.properties.Status.status.id",
+          "titlePath": "$.properties.Status.status.name",
+          "condition": "record.properties?.Status?.status?.id",
+          "properties": {
+            "color": "$.properties.Status.status.color"
+          }
+        },
+        {
+          "name": "assignee",
+          "type": "User",
+          "idPath": "$.properties.Assignee.people[0].id",
+          "titlePath": "$.properties.Assignee.people[0].name",
+          "condition": "record.properties?.Assignee?.people?.[0]?.id"
+        }
+      ],
+      "relationships": [
+        {
+          "name": "page_status",
+          "type": "HAS_STATUS",
+          "targetType": "Status",
+          "targetIdPath": "$.properties.Status.status.id",
+          "condition": "record.properties?.Status?.status?.id"
+        },
+        {
+          "name": "page_assignee",
+          "type": "ASSIGNED_TO",
+          "targetType": "User",
+          "targetIdPath": "$.properties.Assignee.people[0].id",
+          "condition": "record.properties?.Assignee?.people?.[0]?.id"
         }
       ],
       "fields": {

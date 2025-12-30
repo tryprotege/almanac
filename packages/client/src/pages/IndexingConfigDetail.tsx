@@ -5,6 +5,9 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  Edit,
+  Save,
+  X,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -21,6 +24,15 @@ export default function IndexingConfigDetail() {
   const navigate = useNavigate();
   const [generationStep, setGenerationStep] = useState<GenerationStep>("idle");
   const [generatedResult, setGeneratedResult] = useState<any>(null);
+
+  // JSON editor state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedJson, setEditedJson] = useState("");
+  const [parseError, setParseError] = useState<string | null>(null);
+
+  // Guidance modal state
+  const [showGuidanceModal, setShowGuidanceModal] = useState(false);
+  const [userGuidance, setUserGuidance] = useState("");
 
   // Disable refetching while generating to prevent state reset
   const { data: config, isLoading } = useIndexingConfig(serverName || null);
@@ -654,6 +666,13 @@ export default function IndexingConfigDetail() {
                 <RefreshCw className="w-4 h-4" />
                 Regenerate Config
               </button>
+              <button
+                onClick={() => setShowGuidanceModal(true)}
+                className="btn btn-primary inline-flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Regenerate with Guidance
+              </button>
               {(() => {
                 const statusText =
                   config.status.charAt(0).toUpperCase() +
@@ -734,21 +753,201 @@ export default function IndexingConfigDetail() {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Configuration JSON
             </h2>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(
-                  JSON.stringify(config.config, null, 2)
-                );
-              }}
-              className="btn btn-secondary text-sm"
-            >
-              Copy to Clipboard
-            </button>
+            <div className="flex items-center gap-2">
+              {!isEditing && (
+                <>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(
+                        JSON.stringify(config.config, null, 2)
+                      );
+                    }}
+                    className="btn btn-secondary text-sm"
+                  >
+                    Copy to Clipboard
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsEditing(true);
+                      setEditedJson(JSON.stringify(config.config, null, 2));
+                      setParseError(null);
+                    }}
+                    className="btn btn-primary text-sm inline-flex items-center gap-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Edit Config
+                  </button>
+                </>
+              )}
+              {isEditing && (
+                <>
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditedJson("");
+                      setParseError(null);
+                    }}
+                    className="btn btn-secondary text-sm inline-flex items-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const parsed = JSON.parse(editedJson);
+                        await saveConfig.mutateAsync({
+                          config: parsed,
+                          status: config.status,
+                        });
+                        setIsEditing(false);
+                        window.location.reload();
+                      } catch (error) {
+                        if (error instanceof SyntaxError) {
+                          setParseError(error.message);
+                        } else {
+                          console.error("Failed to save config:", error);
+                          alert(
+                            "Failed to save config. Check console for details."
+                          );
+                        }
+                      }
+                    }}
+                    disabled={saveConfig.isPending || !!parseError}
+                    className="btn btn-primary text-sm inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {saveConfig.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Save Changes
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-          <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
-            {JSON.stringify(config.config, null, 2)}
-          </pre>
+
+          {parseError && (
+            <div className="mb-4 p-3 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-error-600 dark:text-error-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-sm font-medium text-error-900 dark:text-error-200">
+                    JSON Syntax Error
+                  </h3>
+                  <p className="mt-1 text-sm text-error-700 dark:text-error-300">
+                    {parseError}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isEditing ? (
+            <textarea
+              value={editedJson}
+              onChange={(e) => {
+                setEditedJson(e.target.value);
+                try {
+                  JSON.parse(e.target.value);
+                  setParseError(null);
+                } catch (error) {
+                  if (error instanceof SyntaxError) {
+                    setParseError(error.message);
+                  }
+                }
+              }}
+              className="w-full bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm resize-y min-h-96 max-h-[600px] focus:outline-none focus:ring-2 focus:ring-primary-500"
+              spellCheck={false}
+            />
+          ) : (
+            <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
+              {JSON.stringify(config.config, null, 2)}
+            </pre>
+          )}
         </div>
+
+        {/* Guidance Modal */}
+        {showGuidanceModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Regenerate Config with Guidance
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setShowGuidanceModal(false);
+                      setUserGuidance("");
+                    }}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                  Provide specific instructions to guide the LLM in generating
+                  the config. For example, you can request specific entity
+                  extractions, field mappings, or data transformations.
+                </p>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Your Guidance
+                  </label>
+                  <textarea
+                    value={userGuidance}
+                    onChange={(e) => setUserGuidance(e.target.value)}
+                    placeholder="Example: Please add entity extraction for project statuses. Projects have a status field that can be: Planned, In Progress, Paused, Completed, or Canceled."
+                    className="w-full h-48 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      setShowGuidanceModal(false);
+                      setUserGuidance("");
+                    }}
+                    className="btn btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setShowGuidanceModal(false);
+                      setGenerationStep("generating");
+                      try {
+                        const result = await generateConfig.mutateAsync({
+                          serverName: config.serverName,
+                          userGuidance: userGuidance || undefined,
+                        });
+                        setGeneratedResult(result);
+                        setGenerationStep("result");
+                        setUserGuidance("");
+                      } catch (error) {
+                        console.error("Failed to regenerate config:", error);
+                        setGenerationStep("idle");
+                      }
+                    }}
+                    disabled={!userGuidance.trim()}
+                    className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Generate Config
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -5,16 +5,19 @@ export interface PageResult {
   records: any[];
   nextCursor?: string;
   hasMore: boolean;
+  mcpError?: string; // MCP error message if tool call failed
+  rawResponse?: any; // Raw MCP response for debugging
 }
 
 /**
  * Fetch all records with pagination
+ * Yields PageResult objects containing records and raw MCP response
  */
 export async function* fetchAll(
   serverName: string,
   config: FetcherConfig,
   initialParams: Record<string, any> = {}
-): AsyncGenerator<any[]> {
+): AsyncGenerator<PageResult> {
   let cursor: string | undefined;
   let hasMore = true;
 
@@ -29,9 +32,8 @@ export async function* fetchAll(
     // Fetch page
     const result = await fetchPage(serverName, config.tool, params);
 
-    if (result.records.length > 0) {
-      yield result.records;
-    }
+    // Always yield result (even if 0 records) so we can access raw response
+    yield result;
 
     // Update cursor and hasMore
     cursor = result.nextCursor;
@@ -47,9 +49,26 @@ export async function* fetchAll(
 /**
  * Extract records from MCP response format
  * MCP responses come in format: {content: [{type: "text", text: "...JSON..."}]}
- * OR direct data arrays: {content: [{id: "...", ...}]}
+ * OR direct data arrays: {content: [{id: "...", ...}], pageInfo: {...}}
+ * OR pagination wrappers: {content: [...], pageInfo: {...}}
  */
-function extractRecordsFromMCPResponse(response: any): any[] {
+function extractRecordsFromMCPResponse(response: any): {
+  records: any[];
+  error?: string;
+} {
+  // Check for pagination wrapper format first (e.g., Linear)
+  // {content: [{id: "...", ...}], pageInfo: {...}}
+  if (
+    response?.content &&
+    Array.isArray(response.content) &&
+    response.pageInfo &&
+    response.content.length > 0 &&
+    response.content[0]?.id
+  ) {
+    // This is a pagination wrapper - content is the array of records
+    return { records: response.content };
+  }
+
   // If response has content array (MCP format), extract the text and parse it
   if (response?.content && Array.isArray(response.content)) {
     const textContent = response.content.find((c: any) => c.type === "text");
@@ -62,13 +81,14 @@ function extractRecordsFromMCPResponse(response: any): any[] {
         text.startsWith("Entity not") ||
         text.startsWith("Error") ||
         text.startsWith("Failed") ||
+        text.startsWith("MCP error") ||
         (!text.startsWith("[") && !text.startsWith("{"))
       ) {
         console.warn(
           "MCP response contains error message:",
           text.substring(0, 100)
         );
-        return []; // Return empty for errors
+        return { records: [], error: text }; // Return error info
       }
 
       try {
@@ -76,46 +96,52 @@ function extractRecordsFromMCPResponse(response: any): any[] {
 
         // Could be an array or an object
         if (Array.isArray(parsed)) {
-          return parsed;
+          return { records: parsed };
         }
 
         // Check for common nested array patterns
+        if (parsed.content && Array.isArray(parsed.content)) {
+          // Linear MCP format: {content: [...], pageInfo: {...}}
+          return { records: parsed.content };
+        }
         if (parsed.results && Array.isArray(parsed.results)) {
-          return parsed.results;
+          return { records: parsed.results };
         }
         if (parsed.records && Array.isArray(parsed.records)) {
-          return parsed.records;
+          return { records: parsed.records };
         }
         if (parsed.data) {
-          return Array.isArray(parsed.data) ? parsed.data : [parsed.data];
+          return {
+            records: Array.isArray(parsed.data) ? parsed.data : [parsed.data],
+          };
         }
 
         // Single object - return as array
-        return [parsed];
+        return { records: [parsed] };
       } catch (err) {
         // If parsing fails, return empty array
         console.warn("Failed to parse MCP response text as JSON:", err);
-        return [];
+        return { records: [] };
       }
     }
 
-    // NEW: Handle direct content arrays (not text wrappers)
+    // Handle direct content arrays (not text wrappers)
     // If content[0] has an 'id' field, it's likely a direct data array
     if (response.content.length > 0 && response.content[0]?.id) {
-      return response.content;
+      return { records: response.content };
     }
   }
 
   // Fallback to existing logic for non-MCP responses
   if (response.records && Array.isArray(response.records)) {
-    return response.records;
+    return { records: response.records };
   }
   if (response.results && Array.isArray(response.results)) {
-    return response.results;
+    return { records: response.results };
   }
 
   // Single response object
-  return [response];
+  return { records: [response] };
 }
 
 /**
@@ -133,25 +159,38 @@ async function fetchPage(
   );
 
   // Extract records from MCP response format
-  const records = extractRecordsFromMCPResponse(response);
+  const parseResult = extractRecordsFromMCPResponse(response);
+
+  // Check if MCP returned an error
+  if (parseResult.error) {
+    return {
+      records: [],
+      nextCursor: undefined,
+      hasMore: false,
+      mcpError: parseResult.error,
+      rawResponse: response, // Include raw response for debugging
+    };
+  }
 
   // Validate that we have actual records
-  if (!Array.isArray(records)) {
+  if (!Array.isArray(parseResult.records)) {
     console.warn(
       "fetchPage: extracted records is not an array",
-      typeof records
+      typeof parseResult.records
     );
     return {
       records: [],
       nextCursor: undefined,
       hasMore: false,
+      rawResponse: response,
     };
   }
 
   return {
-    records,
+    records: parseResult.records,
     nextCursor: response.next_cursor || response.nextCursor,
     hasMore: response.has_more ?? response.hasMore ?? false,
+    rawResponse: response, // Include raw response for debugging
   };
 }
 

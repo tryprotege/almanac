@@ -39,6 +39,7 @@ export function useGenerateConfig() {
       serverName: string;
       displayName?: string;
       sampleLimit?: number;
+      userGuidance?: string;
     }) => {
       const response = await indexingConfigApi.generate(params);
       return response.data.data;

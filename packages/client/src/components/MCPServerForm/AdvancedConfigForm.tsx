@@ -213,10 +213,7 @@ export function AdvancedConfigForm({
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="p-6 overflow-y-auto max-h-[calc(90vh-140px)] text-left space-y-4"
-    >
+    <form onSubmit={handleSubmit} className="p-6 text-left space-y-4">
       {/* Name */}
       <div>
         <label className="block text-sm font-medium text-text-secondary mb-1">
@@ -470,16 +467,20 @@ export function AdvancedConfigForm({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-between pt-4 border-t border-border-secondary">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-border-secondary">
         <button
           type="button"
           onClick={onBack}
           disabled={isLoading}
-          className="btn btn-secondary"
+          className="btn btn-secondary w-full sm:flex-1 sm:max-w-[200px]"
         >
           Back
         </button>
-        <button type="submit" disabled={isLoading} className="btn btn-primary">
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="btn btn-primary w-full sm:flex-1 sm:max-w-[200px]"
+        >
           {isLoading ? "Saving..." : server ? "Update Server" : "Create Server"}
         </button>
       </div>

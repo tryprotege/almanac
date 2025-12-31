@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Database, Network, RefreshCw } from "lucide-react";
+import { Database, Network, RefreshCw, GitBranch } from "lucide-react";
 import { SchemaVisualization } from "../components/SchemaVisualization";
 import { GraphDataVisualization } from "../components/GraphDataVisualization";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -68,17 +68,22 @@ export default function Schema() {
             </div>
           </div>
           <div className="card">
-            <div>
-              <p className="text-sm text-text-tertiary">Schema Version</p>
-              <p className="text-2xl font-bold text-text-primary">
-                {schema.version}
-              </p>
-              {schema.lastLearnedAt && (
-                <p className="text-xs text-text-quaternary mt-1">
-                  Last learned:{" "}
-                  {new Date(schema.lastLearnedAt).toLocaleDateString()}
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-brand-indigo/10 rounded-lg">
+                <GitBranch className="w-6 h-6 text-brand-indigo" />
+              </div>
+              <div>
+                <p className="text-sm text-text-tertiary">Schema Version</p>
+                <p className="text-2xl font-bold text-text-primary">
+                  {schema.version}
                 </p>
-              )}
+                {schema.lastLearnedAt && (
+                  <p className="text-xs text-text-quaternary mt-1">
+                    Last learned:{" "}
+                    {new Date(schema.lastLearnedAt).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>

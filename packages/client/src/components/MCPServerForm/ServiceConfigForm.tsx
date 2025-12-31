@@ -459,16 +459,20 @@ export function ServiceConfigForm({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-between pt-4 border-t border-border-secondary">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-border-secondary">
         <button
           type="button"
           onClick={onBack}
           disabled={isLoading}
-          className="btn btn-secondary"
+          className="btn btn-secondary w-full sm:flex-1 sm:max-w-[200px]"
         >
           Back
         </button>
-        <button type="submit" disabled={isLoading} className="btn btn-primary">
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="btn btn-primary w-full sm:flex-1 sm:max-w-[200px]"
+        >
           {isLoading
             ? "Saving..."
             : existingSource

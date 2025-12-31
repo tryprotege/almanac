@@ -1,5 +1,5 @@
-import { X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Modal } from "../ui/Modal";
 import { ServiceSelector } from "../MCPServerForm/ServiceSelector";
 import { ServiceConfigForm } from "../MCPServerForm/ServiceConfigForm";
 import { AdvancedConfigForm } from "../MCPServerForm/AdvancedConfigForm";
@@ -252,93 +252,75 @@ export function DataSourceWizard({
     saveConfig.isPending ||
     syncConfig.isPending;
 
+  // Build subtitle
+  let subtitle = "";
+  if (selectedPreset && step !== "select") {
+    subtitle = selectedPreset.displayName;
+    if (step === "indexing") {
+      subtitle += " • Generating Indexing Config";
+    } else if (step === "review") {
+      subtitle += " • Review & Save";
+    }
+  }
+
   return (
-    <div
-      className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      onClick={() => !isLoading && onClose()}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={existingSource ? "Edit Data Source" : "Add Data Source"}
+      subtitle={subtitle || undefined}
+      size="full"
+      disableClose={isLoading}
     >
-      <div
-        className="bg-bg-primary rounded-lg shadow-xl max-w-3xl w-full min-w-[500px] max-h-[90vh] overflow-hidden flex flex-col border border-border-secondary"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border-secondary">
-          <div>
-            <h2 className="text-xl font-semibold text-text-primary">
-              {existingSource ? "Edit Data Source" : "Add Data Source"}
-            </h2>
-            {selectedPreset && step !== "select" && (
-              <p className="text-sm text-text-tertiary mt-1">
-                {selectedPreset.displayName}
-                {step === "indexing" && " • Generating Indexing Config"}
-                {step === "review" && " • Review & Save"}
-              </p>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            disabled={isLoading}
-            className="text-text-quaternary hover:text-text-secondary"
-          >
-            <X className="w-5 h-5" />
-          </button>
+      {step === "select" && <ServiceSelector onSelect={handleSelectService} />}
+
+      {step === "configure" &&
+        selectedPreset &&
+        selectedPreset.id !== "custom" && (
+          <ServiceConfigForm
+            preset={selectedPreset}
+            existingSource={existingSource}
+            onBack={handleBack}
+            onSubmit={handleConfigureSubmit}
+            isLoading={isLoading}
+          />
+        )}
+
+      {step === "configure" && selectedPreset?.id === "custom" && (
+        <AdvancedConfigForm
+          server={existingSource}
+          onBack={handleBack}
+          onSubmit={handleConfigureSubmit}
+          isLoading={isLoading}
+        />
+      )}
+
+      {/* Fallback for edge cases where no form is rendered */}
+      {step === "configure" && !selectedPreset && (
+        <div className="p-6 text-center text-text-tertiary">
+          <p>Loading configuration...</p>
         </div>
+      )}
 
-        {/* Content */}
-        <div className="overflow-y-auto flex-1 min-h-0 w-full">
-          {step === "select" && (
-            <ServiceSelector onSelect={handleSelectService} />
-          )}
+      {step === "indexing" && generateConfig.data && (
+        <IndexingStep
+          generatedConfig={generateConfig.data}
+          onBack={handleBack}
+          onNext={handleIndexingNext}
+          isLoading={isLoading}
+        />
+      )}
 
-          {step === "configure" &&
-            selectedPreset &&
-            selectedPreset.id !== "custom" && (
-              <ServiceConfigForm
-                preset={selectedPreset}
-                existingSource={existingSource}
-                onBack={handleBack}
-                onSubmit={handleConfigureSubmit}
-                isLoading={isLoading}
-              />
-            )}
-
-          {step === "configure" && selectedPreset?.id === "custom" && (
-            <AdvancedConfigForm
-              server={existingSource}
-              onBack={handleBack}
-              onSubmit={handleConfigureSubmit}
-              isLoading={isLoading}
-            />
-          )}
-
-          {/* Fallback for edge cases where no form is rendered */}
-          {step === "configure" && !selectedPreset && (
-            <div className="p-6 text-center text-text-tertiary">
-              <p>Loading configuration...</p>
-            </div>
-          )}
-
-          {step === "indexing" && generateConfig.data && (
-            <IndexingStep
-              generatedConfig={generateConfig.data}
-              onBack={handleBack}
-              onNext={handleIndexingNext}
-              isLoading={isLoading}
-            />
-          )}
-
-          {step === "review" && serverConfig && (
-            <ReviewStep
-              serverConfig={serverConfig}
-              preset={selectedPreset}
-              generatedConfig={generateConfig.data}
-              onBack={handleBack}
-              onSubmit={handleFinalSubmit}
-              isLoading={isLoading}
-            />
-          )}
-        </div>
-      </div>
-    </div>
+      {step === "review" && serverConfig && (
+        <ReviewStep
+          serverConfig={serverConfig}
+          preset={selectedPreset}
+          generatedConfig={generateConfig.data}
+          onBack={handleBack}
+          onSubmit={handleFinalSubmit}
+          isLoading={isLoading}
+        />
+      )}
+    </Modal>
   );
 }

@@ -1,32 +1,32 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
-import { ServiceSelector } from "../MCPServerForm/ServiceSelector";
-import { ServiceConfigForm } from "../MCPServerForm/ServiceConfigForm";
-import { AdvancedConfigForm } from "../MCPServerForm/AdvancedConfigForm";
+import { ServiceSelector } from "../DataSourceForm/ServiceSelector";
+import { ServiceConfigForm } from "../DataSourceForm/ServiceConfigForm";
+import { AdvancedConfigForm } from "../DataSourceForm/AdvancedConfigForm";
 import {
   ServicePreset,
   getPresetById,
   CUSTOM_PRESET,
-} from "../MCPServerForm/presets";
+} from "../DataSourceForm/presets";
 import { IndexingStep } from "./IndexingStep";
 import { ReviewStep } from "./ReviewStep";
-import { MCPServerConfig } from "../../lib/api";
+import { DataSourceConfig } from "../../lib/api";
 import {
-  useCreateMCPServer,
-  useUpdateMCPServer,
-  useConnectMCPServer,
-} from "../../hooks/useMCPServers";
+  useCreateDataSource,
+  useUpdateDataSource,
+  useConnectDataSource,
+} from "../../hooks/useDataSources";
 import {
-  useGenerateConfig,
-  useSaveConfig,
-  useSyncConfig,
-} from "../../hooks/useIndexingConfigs";
+  useGenerateSyncConfig,
+  useSaveSyncConfig,
+  useSyncWithConfig,
+} from "../../hooks/useSyncConfigs";
 import toast from "react-hot-toast";
 
 interface DataSourceWizardProps {
   isOpen: boolean;
   onClose: () => void;
-  existingSource?: MCPServerConfig | null;
+  existingSource?: DataSourceConfig | null;
 }
 
 type WizardStep = "select" | "configure" | "indexing" | "review";
@@ -36,19 +36,19 @@ export function DataSourceWizard({
   onClose,
   existingSource,
 }: DataSourceWizardProps) {
-  const createMutation = useCreateMCPServer();
-  const updateMutation = useUpdateMCPServer();
-  const connectMutation = useConnectMCPServer();
-  const generateConfig = useGenerateConfig();
-  const saveConfig = useSaveConfig();
-  const syncConfig = useSyncConfig();
+  const createMutation = useCreateDataSource();
+  const updateMutation = useUpdateDataSource();
+  const connectMutation = useConnectDataSource();
+  const generateConfig = useGenerateSyncConfig();
+  const saveConfig = useSaveSyncConfig();
+  const syncConfig = useSyncWithConfig();
 
   const [step, setStep] = useState<WizardStep>("select");
   const [selectedPreset, setSelectedPreset] = useState<ServicePreset | null>(
     null
   );
   const [serverConfig, setServerConfig] = useState<Omit<
-    MCPServerConfig,
+    DataSourceConfig,
     "_id" | "createdAt" | "updatedAt"
   > | null>(null);
   const [isCustomServerCreated, setIsCustomServerCreated] = useState(false);
@@ -105,7 +105,7 @@ export function DataSourceWizard({
   };
 
   const handleConfigureSubmit = async (
-    config: Omit<MCPServerConfig, "_id" | "createdAt" | "updatedAt">
+    config: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt">
   ) => {
     setServerConfig(config);
 
@@ -115,19 +115,19 @@ export function DataSourceWizard({
         // Check if we're editing an existing server
         if (existingSource) {
           // Update existing server
-          toast.loading("Updating MCP server...", { id: "update-server" });
+          toast.loading("Updating data source...", { id: "update-server" });
           await updateMutation.mutateAsync({
             name: existingSource.name,
             config,
           });
-          toast.success("MCP server updated", { id: "update-server" });
+          toast.success("Data source updated", { id: "update-server" });
 
           // Reconnect to refresh tools
-          toast.loading("Reconnecting to MCP server...", {
+          toast.loading("Reconnecting to data source...", {
             id: "reconnect-server",
           });
           await connectMutation.mutateAsync(config.name);
-          toast.success("Reconnected to MCP server", {
+          toast.success("Reconnected to data source", {
             id: "reconnect-server",
           });
 
@@ -147,17 +147,17 @@ export function DataSourceWizard({
           setStep("indexing");
         } else {
           // Create new server
-          toast.loading("Creating MCP server...", { id: "create-server" });
+          toast.loading("Creating data source...", { id: "create-server" });
           await createMutation.mutateAsync(config);
-          toast.success("MCP server created", { id: "create-server" });
+          toast.success("Data source created", { id: "create-server" });
           setIsCustomServerCreated(true);
 
           // Connect to the server to cache tools
-          toast.loading("Connecting to MCP server...", {
+          toast.loading("Connecting to data source...", {
             id: "connect-server",
           });
           await connectMutation.mutateAsync(config.name);
-          toast.success("Connected to MCP server", { id: "connect-server" });
+          toast.success("Connected to data source", { id: "connect-server" });
 
           // Wait a moment for tool caching to complete
           await new Promise((resolve) => setTimeout(resolve, 1000));

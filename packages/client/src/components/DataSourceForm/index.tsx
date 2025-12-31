@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import {
-  useCreateMCPServer,
-  useUpdateMCPServer,
-} from "../../hooks/useMCPServers";
-import { MCPServerConfig } from "../../lib/api";
+  useCreateDataSource,
+  useUpdateDataSource,
+} from "../../hooks/useDataSources";
+import { DataSourceConfig } from "../../lib/api";
 import { AdvancedConfigForm } from "./AdvancedConfigForm";
 import { ServiceSelector } from "./ServiceSelector";
 import { ServiceConfigForm } from "./ServiceConfigForm";
@@ -13,14 +13,14 @@ import { ServicePreset, getPresetById, CUSTOM_PRESET } from "./presets";
 interface MCPServerFormProps {
   isOpen: boolean;
   onClose: () => void;
-  server?: MCPServerConfig | null;
+  server?: DataSourceConfig | null;
 }
 
 type FormStep = "select" | "configure" | "advanced";
 
 export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
-  const createMutation = useCreateMCPServer();
-  const updateMutation = useUpdateMCPServer();
+  const createMutation = useCreateDataSource();
+  const updateMutation = useUpdateDataSource();
 
   const [step, setStep] = useState<FormStep>("select");
   const [selectedPreset, setSelectedPreset] = useState<ServicePreset | null>(
@@ -68,7 +68,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
   };
 
   const handleSubmit = async (
-    config: Omit<MCPServerConfig, "_id" | "createdAt" | "updatedAt">
+    config: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt">
   ) => {
     try {
       if (server) {
@@ -81,7 +81,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
       }
       onClose();
     } catch (error) {
-      console.error("Failed to save MCP server:", error);
+      console.error("Failed to save data source:", error);
     }
   };
 
@@ -96,7 +96,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
         <div className="flex items-center justify-between p-6 border-b border-border-secondary">
           <div>
             <h2 className="text-xl font-semibold text-text-primary">
-              {server ? "Edit MCP Server" : "Add MCP Server"}
+              {server ? "Edit Data Source" : "Add Data Source"}
             </h2>
             {step === "configure" && selectedPreset && (
               <p className="text-sm text-text-tertiary mt-1">

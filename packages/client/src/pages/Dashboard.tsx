@@ -94,22 +94,22 @@ export default function Dashboard() {
           {/* Second Row of Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <MetricCard
-              title="MCP Servers"
-              value={stats?.mcpServers?.total || 0}
+              title="Data Sources"
+              value={stats?.dataSources?.total || 0}
               icon={Server}
               iconColor="indigo"
               loading={isLoading}
             />
             <MetricCard
               title="Connected"
-              value={stats?.mcpServers?.connected || 0}
+              value={stats?.dataSources?.connected || 0}
               icon={CheckSquare}
               iconColor="green"
               loading={isLoading}
             />
             <MetricCard
               title="Disconnected"
-              value={stats?.mcpServers?.disconnected || 0}
+              value={stats?.dataSources?.disconnected || 0}
               icon={X}
               iconColor="gray"
               loading={isLoading}

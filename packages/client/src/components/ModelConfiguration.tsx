@@ -22,7 +22,7 @@ export function ModelConfiguration() {
     llmBaseURL: "",
     llmChatModel: "",
     llmEmbeddingModel: "",
-    llmIndexingConfigModel: "",
+    llmSyncConfigModel: "",
     rerankerEnabled: false,
     rerankerApiKey: "",
     rerankerBaseURL: "",
@@ -40,7 +40,7 @@ export function ModelConfiguration() {
         llmBaseURL: config.llmBaseURL || "",
         llmChatModel: config.llmChatModel,
         llmEmbeddingModel: config.llmEmbeddingModel,
-        llmIndexingConfigModel: config.llmIndexingConfigModel || "",
+        llmSyncConfigModel: config.llmSyncConfigModel || "",
         rerankerEnabled: config.rerankerEnabled,
         rerankerApiKey: config.rerankerApiKey || "",
         rerankerBaseURL: config.rerankerBaseURL || "",
@@ -203,11 +203,11 @@ export function ModelConfiguration() {
             </label>
             <input
               type="text"
-              value={formData.llmIndexingConfigModel}
+              value={formData.llmSyncConfigModel}
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  llmIndexingConfigModel: e.target.value,
+                  llmSyncConfigModel: e.target.value,
                 })
               }
               className="input"

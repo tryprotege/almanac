@@ -1,11 +1,11 @@
 import { ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
-import { MCPServerConfig, GeneratedConfigResult } from "../../lib/api";
-import { ServicePreset } from "../MCPServerForm/presets";
+import { DataSourceConfig, GeneratedSyncConfigResult } from "../../lib/api";
+import { ServicePreset } from "../DataSourceForm/presets";
 
 interface ReviewStepProps {
-  serverConfig: Omit<MCPServerConfig, "_id" | "createdAt" | "updatedAt">;
+  serverConfig: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt">;
   preset: ServicePreset | null;
-  generatedConfig?: GeneratedConfigResult;
+  generatedConfig?: GeneratedSyncConfigResult;
   onBack: () => void;
   onSubmit: () => void;
   isLoading: boolean;

@@ -9,11 +9,11 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { ServicePreset, EnvVariable, HeaderVariable } from "./presets";
-import { MCPServerConfig } from "../../lib/api";
+import { DataSourceConfig } from "../../lib/api";
 
 interface ServiceConfigFormProps {
   preset: ServicePreset;
-  existingSource?: MCPServerConfig | null;
+  existingSource?: DataSourceConfig | null;
   onBack: () => void;
   onSubmit: (config: {
     name: string;

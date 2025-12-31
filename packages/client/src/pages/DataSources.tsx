@@ -10,16 +10,16 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMCPServers, useDeleteMCPServer } from "../hooks/useMCPServers";
+import { useDataSources, useDeleteDataSource } from "../hooks/useDataSources";
 import {
-  useIndexingConfigs,
-  useDeleteConfig,
-  useSyncConfig,
-} from "../hooks/useIndexingConfigs";
+  useSyncConfigs,
+  useDeleteSyncConfig,
+  useSyncWithConfig,
+} from "../hooks/useSyncConfigs";
 import { DataSourceWizard } from "../components/DataSourceWizard";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Badge } from "../components/ui/Badge";
-import type { MCPServerConfig } from "../lib/api";
+import type { DataSourceConfig } from "../lib/api";
 
 export default function DataSources() {
   const navigate = useNavigate();
@@ -27,18 +27,18 @@ export default function DataSources() {
     servers,
     isLoading: serversLoading,
     error: serversError,
-  } = useMCPServers();
+  } = useDataSources();
   const {
     data: configs,
     isLoading: configsLoading,
     error: configsError,
-  } = useIndexingConfigs();
-  const deleteConfig = useDeleteConfig();
-  const deleteMCPServer = useDeleteMCPServer();
-  const syncConfig = useSyncConfig();
+  } = useSyncConfigs();
+  const deleteConfig = useDeleteSyncConfig();
+  const deleteDataSource = useDeleteDataSource();
+  const syncConfig = useSyncWithConfig();
 
   const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [editingSource, setEditingSource] = useState<MCPServerConfig | null>(
+  const [editingSource, setEditingSource] = useState<DataSourceConfig | null>(
     null
   );
   const [syncingSource, setSyncingSource] = useState<string | null>(null);
@@ -77,7 +77,7 @@ export default function DataSources() {
     }
   };
 
-  const handleEdit = (server: MCPServerConfig) => {
+  const handleEdit = (server: DataSourceConfig) => {
     setEditingSource(server);
     setIsWizardOpen(true);
   };
@@ -90,18 +90,18 @@ export default function DataSources() {
   const handleDelete = async (serverName: string) => {
     if (confirm(`Delete ${serverName} and all its indexed data?`)) {
       try {
-        // Delete indexing config if it exists
+        // Delete sync config if it exists
         await deleteConfig.mutateAsync(serverName);
       } catch (error) {
-        console.error("Error deleting indexing config:", error);
+        console.error("Error deleting sync config:", error);
         // Continue to delete server even if config deletion fails
       }
 
       try {
-        // Delete the MCP server itself
-        await deleteMCPServer.mutateAsync(serverName);
+        // Delete the data source itself
+        await deleteDataSource.mutateAsync(serverName);
       } catch (error) {
-        console.error("Error deleting MCP server:", error);
+        console.error("Error deleting data source:", error);
       }
     }
   };

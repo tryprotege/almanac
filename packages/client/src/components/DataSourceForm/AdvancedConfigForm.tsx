@@ -1,12 +1,12 @@
 import { Eye, EyeOff, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { MCPServerConfig } from "../../lib/api";
+import { DataSourceConfig } from "../../lib/api";
 
 interface AdvancedConfigFormProps {
-  server?: MCPServerConfig | null;
+  server?: DataSourceConfig | null;
   onBack: () => void;
   onSubmit: (
-    config: Omit<MCPServerConfig, "_id" | "createdAt" | "updatedAt">
+    config: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt">
   ) => void;
   isLoading: boolean;
 }
@@ -117,7 +117,7 @@ export function AdvancedConfigForm({
       return;
     }
 
-    const config: Omit<MCPServerConfig, "_id" | "createdAt" | "updatedAt"> = {
+    const config: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt"> = {
       name: formData.name.trim(),
       type: formData.type,
       isDisabled: formData.isDisabled,

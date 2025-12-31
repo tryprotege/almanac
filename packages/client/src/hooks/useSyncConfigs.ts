@@ -1,30 +1,30 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { indexingConfigApi } from "../lib/api";
+import { syncConfigApi } from "../lib/api";
 
-// Hook to list all indexing configs
-export function useIndexingConfigs() {
+// Hook to list all sync configs
+export function useSyncConfigs() {
   return useQuery({
-    queryKey: ["indexing-configs"],
+    queryKey: ["sync-configs"],
     queryFn: async () => {
-      const response = await indexingConfigApi.list();
+      const response = await syncConfigApi.list();
       return response.data.data?.configs || [];
     },
   });
 }
 
-// Hook to get a single indexing config
-export function useIndexingConfig(serverName: string | null) {
+// Hook to get a single sync config
+export function useSyncConfig(serverName: string | null) {
   return useQuery({
-    queryKey: ["indexing-config", serverName],
+    queryKey: ["sync-config", serverName],
     queryFn: async () => {
       if (!serverName) return null;
       try {
-        const response = await indexingConfigApi.get(serverName);
+        const response = await syncConfigApi.get(serverName);
         // Ensure we return null instead of undefined
         return response.data.data || null;
       } catch (error) {
         // Return null if config doesn't exist (404) or other errors
-        console.log(`No indexing config found for ${serverName}`);
+        console.log(`No sync config found for ${serverName}`);
         return null;
       }
     },
@@ -33,7 +33,7 @@ export function useIndexingConfig(serverName: string | null) {
 }
 
 // Hook to generate a config
-export function useGenerateConfig() {
+export function useGenerateSyncConfig() {
   return useMutation({
     mutationFn: async (params: {
       serverName: string;
@@ -41,16 +41,16 @@ export function useGenerateConfig() {
       sampleLimit?: number;
       userGuidance?: string;
     }) => {
-      const response = await indexingConfigApi.generate(params);
+      const response = await syncConfigApi.generate(params);
       return response.data.data;
     },
     // Don't invalidate queries - generation doesn't save anything to DB
-    // Invalidation should only happen when saving via useSaveConfig
+    // Invalidation should only happen when saving via useSaveSyncConfig
   });
 }
 
 // Hook to save a config
-export function useSaveConfig() {
+export function useSaveSyncConfig() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -58,39 +58,39 @@ export function useSaveConfig() {
       config: any;
       status?: "draft" | "active" | "disabled";
     }) => {
-      const response = await indexingConfigApi.save(params);
+      const response = await syncConfigApi.save(params);
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["indexing-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["sync-configs"] });
     },
   });
 }
 
 // Hook to sync with a config
-export function useSyncConfig() {
+export function useSyncWithConfig() {
   return useMutation({
     mutationFn: async (params: {
       serverName: string;
       incremental?: boolean;
     }) => {
-      const response = await indexingConfigApi.sync(params);
+      const response = await syncConfigApi.sync(params);
       return response.data.data;
     },
   });
 }
 
 // Hook to delete a config
-export function useDeleteConfig() {
+export function useDeleteSyncConfig() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (serverName: string) => {
-      const response = await indexingConfigApi.delete(serverName);
+      const response = await syncConfigApi.delete(serverName);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["indexing-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["sync-configs"] });
     },
   });
 }
@@ -103,7 +103,7 @@ export function usePreviewTransform() {
       sampleRecords: any[];
       recordTypeName: string;
     }) => {
-      const response = await indexingConfigApi.preview(params);
+      const response = await syncConfigApi.preview(params);
       return response.data.data;
     },
   });

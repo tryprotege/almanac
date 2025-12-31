@@ -191,8 +191,8 @@ export const graphApi = {
     }),
 };
 
-// MCP Servers API
-export interface MCPServerConfig {
+// Data Sources API
+export interface DataSourceConfig {
   _id: string;
   name: string;
   type: "stdio" | "sse" | "streamable-http";
@@ -206,32 +206,32 @@ export interface MCPServerConfig {
   updatedAt?: string;
 }
 
-export const mcpServersApi = {
-  list: () => api.get<ApiResponse<MCPServerConfig[]>>("/mcp-servers"),
+export const dataSourcesApi = {
+  list: () => api.get<ApiResponse<DataSourceConfig[]>>("/data-sources"),
   get: (name: string) =>
-    api.get<ApiResponse<MCPServerConfig>>(
-      `/mcp-servers/${encodeURIComponent(name)}`
+    api.get<ApiResponse<DataSourceConfig>>(
+      `/data-sources/${encodeURIComponent(name)}`
     ),
-  create: (config: Omit<MCPServerConfig, "_id" | "createdAt" | "updatedAt">) =>
-    api.post<ApiResponse<MCPServerConfig>>("/mcp-servers", config),
-  update: (name: string, config: Partial<MCPServerConfig>) =>
-    api.put<ApiResponse<MCPServerConfig>>(
-      `/mcp-servers/${encodeURIComponent(name)}`,
+  create: (config: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt">) =>
+    api.post<ApiResponse<DataSourceConfig>>("/data-sources", config),
+  update: (name: string, config: Partial<DataSourceConfig>) =>
+    api.put<ApiResponse<DataSourceConfig>>(
+      `/data-sources/${encodeURIComponent(name)}`,
       config
     ),
   delete: (name: string) =>
-    api.delete<ApiResponse<void>>(`/mcp-servers/${encodeURIComponent(name)}`),
+    api.delete<ApiResponse<void>>(`/data-sources/${encodeURIComponent(name)}`),
   connect: (name: string) =>
     api.post<ApiResponse<void>>(
-      `/mcp-servers/${encodeURIComponent(name)}/connect`
+      `/data-sources/${encodeURIComponent(name)}/connect`
     ),
   disconnect: (name: string) =>
     api.post<ApiResponse<void>>(
-      `/mcp-servers/${encodeURIComponent(name)}/disconnect`
+      `/data-sources/${encodeURIComponent(name)}/disconnect`
     ),
   status: (name: string) =>
     api.get<ApiResponse<{ name: string; connected: boolean }>>(
-      `/mcp-servers/${encodeURIComponent(name)}/status`
+      `/data-sources/${encodeURIComponent(name)}/status`
     ),
   sync: (configId: string) =>
     api.post<ApiResponse<{ jobId: string }>>(`/sync`, { configId }),
@@ -243,7 +243,7 @@ export interface OverviewStats {
   totalVectors: number;
   totalGraphNodes: number;
   totalGraphRelationships: number;
-  mcpServers: {
+  dataSources: {
     total: number;
     connected: number;
     disconnected: number;
@@ -294,7 +294,7 @@ export interface ModelConfigData {
   llmBaseURL?: string;
   llmChatModel: string;
   llmEmbeddingModel: string;
-  llmIndexingConfigModel?: string;
+  llmSyncConfigModel?: string;
   rerankerEnabled: boolean;
   rerankerApiKey?: string;
   rerankerBaseURL?: string;
@@ -327,7 +327,7 @@ export const modelConfigApi = {
     ),
 };
 
-// Indexing Config API Types
+// Sync Config API Types
 export interface ToolClassification {
   toolName: string;
   category: "read" | "search" | "write";
@@ -335,7 +335,7 @@ export interface ToolClassification {
   reasoning: string;
 }
 
-export interface IndexingConfigData {
+export interface SyncConfigData {
   _id: string;
   serverName: string;
   displayName?: string;
@@ -352,7 +352,7 @@ export interface IndexingConfigData {
   updatedAt: string;
 }
 
-export interface IndexingConfigSummary {
+export interface SyncConfigSummary {
   id: string;
   serverName: string;
   displayName: string;
@@ -362,8 +362,8 @@ export interface IndexingConfigSummary {
   recordTypeCount: number;
 }
 
-export interface GeneratedConfigResult {
-  config: IndexingConfigData["config"];
+export interface GeneratedSyncConfigResult {
+  config: SyncConfigData["config"];
   validation: {
     valid: boolean;
     errors: Array<{ path: string; message: string; code: string }>;
@@ -385,16 +385,14 @@ export interface SyncResult {
   syncType: "full" | "incremental";
 }
 
-// Indexing Config API
-export const indexingConfigApi = {
+// Sync Config API
+export const syncConfigApi = {
   list: () =>
-    api.get<ApiResponse<{ configs: IndexingConfigSummary[] }>>(
-      "/indexing-config"
-    ),
+    api.get<ApiResponse<{ configs: SyncConfigSummary[] }>>("/sync-config"),
 
   get: (serverName: string) =>
-    api.get<ApiResponse<IndexingConfigData>>(
-      `/indexing-config/${encodeURIComponent(serverName)}`
+    api.get<ApiResponse<SyncConfigData>>(
+      `/sync-config/${encodeURIComponent(serverName)}`
     ),
 
   generate: (params: {
@@ -403,15 +401,15 @@ export const indexingConfigApi = {
     sampleLimit?: number;
     userGuidance?: string;
   }) =>
-    api.post<ApiResponse<GeneratedConfigResult>>(
-      "/indexing-config/generate",
+    api.post<ApiResponse<GeneratedSyncConfigResult>>(
+      "/sync-config/generate",
       params,
       { timeout: 300000 } // 5 minutes for complex config generation
     ),
 
-  validate: (config: IndexingConfigData["config"]) =>
+  validate: (config: SyncConfigData["config"]) =>
     api.post<ApiResponse<{ valid: boolean; errors: any[]; warnings: any[] }>>(
-      "/indexing-config/validate",
+      "/sync-config/validate",
       config
     ),
 
@@ -419,19 +417,18 @@ export const indexingConfigApi = {
     config: any;
     sampleRecords: any[];
     recordTypeName: string;
-  }) =>
-    api.post<ApiResponse<PreviewResult>>("/indexing-config/preview", params),
+  }) => api.post<ApiResponse<PreviewResult>>("/sync-config/preview", params),
 
   save: (params: { config: any; status?: "draft" | "active" | "disabled" }) =>
     api.post<
       ApiResponse<{ success: boolean; configId: string; serverName: string }>
-    >("/indexing-config/save", params),
+    >("/sync-config/save", params),
 
   sync: (params: { serverName: string; incremental?: boolean }) =>
-    api.post<ApiResponse<SyncResult>>("/indexing-config/sync", params),
+    api.post<ApiResponse<SyncResult>>("/sync-config/sync", params),
 
   delete: (serverName: string) =>
     api.delete<ApiResponse<{ success: boolean }>>(
-      `/indexing-config/${encodeURIComponent(serverName)}`
+      `/sync-config/${encodeURIComponent(serverName)}`
     ),
 };

@@ -12,7 +12,7 @@ import {
   mcpServer,
   shutdownServices,
 } from "./mcp/initialization.js";
-import { MCPServerConfigModel } from "./models/mcp-config.model.js";
+import { DataSourceModel } from "./models/data-source.model.js";
 import { syncMcpServerQueue } from "./services/queue/sync.queue.js";
 import logger from "./utils/logger.js";
 
@@ -55,16 +55,16 @@ const runServer = async () => {
     res.json({ status: "ok", version: "0.1.0" });
   });
 
-  // MCP Server Config REST API endpoints
-  // GET /api/mcp-servers - List all MCP server configs
-  app.get("/api/mcp-servers", async (_req: Request, res: Response) => {
+  // Data Source REST API endpoints
+  // GET /api/data-sources - List all data source configs
+  app.get("/api/data-sources", async (_req: Request, res: Response) => {
     try {
-      const configs = await MCPServerConfigModel.find().sort({
+      const configs = await DataSourceModel.find().sort({
         createdAt: -1,
       });
       res.json({ success: true, data: configs });
     } catch (err) {
-      logger.error({ err }, "Error fetching MCP server configs");
+      logger.error({ err }, "Error fetching data source configs");
       res.status(500).json({
         success: false,
         error: err instanceof Error ? err.message : String(err),
@@ -72,8 +72,8 @@ const runServer = async () => {
     }
   });
 
-  // POST /api/mcp-servers - Create a new MCP server config
-  app.post("/api/mcp-servers", async (req: Request, res: Response) => {
+  // POST /api/data-sources - Create a new data source config
+  app.post("/api/data-sources", async (req: Request, res: Response) => {
     try {
       const configData: MCPServerConfig = req.body;
 
@@ -85,7 +85,7 @@ const runServer = async () => {
       }
 
       // Create and save the config
-      const config = new MCPServerConfigModel(configData);
+      const config = new DataSourceModel(configData);
       await config.save();
 
       // Optionally connect to the server immediately
@@ -102,7 +102,7 @@ const runServer = async () => {
 
       res.status(201).json({ success: true, data: config });
     } catch (err) {
-      logger.error({ err }, "Error creating MCP server config");
+      logger.error({ err }, "Error creating data source config");
       const statusCode = (err as any).code === 11000 ? 409 : 500;
       res.status(statusCode).json({
         success: false,
@@ -111,16 +111,16 @@ const runServer = async () => {
     }
   });
 
-  // GET /api/mcp-servers/:name - Get a specific MCP server config
-  app.get("/api/mcp-servers/:name", async (req: Request, res: Response) => {
+  // GET /api/data-sources/:name - Get a specific data source config
+  app.get("/api/data-sources/:name", async (req: Request, res: Response) => {
     try {
       const name = decodeURIComponent(req.params.name);
-      const config = await MCPServerConfigModel.findOne({ name });
+      const config = await DataSourceModel.findOne({ name });
 
       if (!config) {
         res.status(404).json({
           success: false,
-          error: "MCP server config not found",
+          error: "Data source config not found",
         });
         return;
       }
@@ -129,7 +129,7 @@ const runServer = async () => {
     } catch (err) {
       logger.error(
         { err, serverName: req.params.name },
-        "Error fetching MCP server config"
+        "Error fetching data source config"
       );
       res.status(500).json({
         success: false,
@@ -138,8 +138,8 @@ const runServer = async () => {
     }
   });
 
-  // PUT /api/mcp-servers/:name - Update an MCP server config
-  app.put("/api/mcp-servers/:name", async (req: Request, res: Response) => {
+  // PUT /api/data-sources/:name - Update a data source config
+  app.put("/api/data-sources/:name", async (req: Request, res: Response) => {
     try {
       const name = decodeURIComponent(req.params.name);
       const updateData: Partial<MCPServerConfig> = req.body;
@@ -157,7 +157,7 @@ const runServer = async () => {
         }
       }
 
-      const config = await MCPServerConfigModel.findOneAndUpdate(
+      const config = await DataSourceModel.findOneAndUpdate(
         { name },
         updateData,
         { new: true, runValidators: true }
@@ -166,7 +166,7 @@ const runServer = async () => {
       if (!config) {
         res.status(404).json({
           success: false,
-          error: "MCP server config not found",
+          error: "Data source config not found",
         });
         return;
       }
@@ -192,7 +192,7 @@ const runServer = async () => {
     } catch (err) {
       logger.error(
         { err, serverName: req.params.name },
-        "Error updating MCP server config"
+        "Error updating data source config"
       );
       res.status(500).json({
         success: false,
@@ -201,8 +201,8 @@ const runServer = async () => {
     }
   });
 
-  // DELETE /api/mcp-servers/:name - Delete an MCP server config
-  app.delete("/api/mcp-servers/:name", async (req: Request, res: Response) => {
+  // DELETE /api/data-sources/:name - Delete a data source config
+  app.delete("/api/data-sources/:name", async (req: Request, res: Response) => {
     try {
       const name = decodeURIComponent(req.params.name);
 
@@ -211,24 +211,24 @@ const runServer = async () => {
         await mcpClientManager.disconnect(name);
       }
 
-      const config = await MCPServerConfigModel.findOneAndDelete({ name });
+      const config = await DataSourceModel.findOneAndDelete({ name });
 
       if (!config) {
         res.status(404).json({
           success: false,
-          error: "MCP server config not found",
+          error: "Data source config not found",
         });
         return;
       }
 
       res.json({
         success: true,
-        message: "MCP server config deleted",
+        message: "Data source config deleted",
       });
     } catch (err) {
       logger.error(
         { err, serverName: req.params.name },
-        "Error deleting MCP server config"
+        "Error deleting data source config"
       );
       res.status(500).json({
         success: false,
@@ -237,18 +237,18 @@ const runServer = async () => {
     }
   });
 
-  // POST /api/mcp-servers/:name/connect - Connect to an MCP server
+  // POST /api/data-sources/:name/connect - Connect to a data source
   app.post(
-    "/api/mcp-servers/:name/connect",
+    "/api/data-sources/:name/connect",
     async (req: Request, res: Response) => {
       try {
         const name = decodeURIComponent(req.params.name);
-        const config = await MCPServerConfigModel.findOne({ name });
+        const config = await DataSourceModel.findOne({ name });
 
         if (!config) {
           res.status(404).json({
             success: false,
-            error: "MCP server config not found",
+            error: "Data source config not found",
           });
           return;
         }
@@ -267,7 +267,7 @@ const runServer = async () => {
       } catch (err) {
         logger.error(
           { err, serverName: req.params.name },
-          "Error connecting to MCP server"
+          "Error connecting to data source"
         );
         res.status(500).json({
           success: false,
@@ -277,9 +277,9 @@ const runServer = async () => {
     }
   );
 
-  // POST /api/mcp-servers/:name/disconnect - Disconnect from an MCP server
+  // POST /api/data-sources/:name/disconnect - Disconnect from a data source
   app.post(
-    "/api/mcp-servers/:name/disconnect",
+    "/api/data-sources/:name/disconnect",
     async (req: Request, res: Response) => {
       try {
         const name = decodeURIComponent(req.params.name);
@@ -300,7 +300,7 @@ const runServer = async () => {
       } catch (err) {
         logger.error(
           { err, serverName: req.params.name },
-          "Error disconnecting from MCP server"
+          "Error disconnecting from data source"
         );
         res.status(500).json({
           success: false,
@@ -310,9 +310,9 @@ const runServer = async () => {
     }
   );
 
-  // GET /api/mcp-servers/:name/status - Get connection status
+  // GET /api/data-sources/:name/status - Get connection status
   app.get(
-    "/api/mcp-servers/:name/status",
+    "/api/data-sources/:name/status",
     async (req: Request, res: Response) => {
       try {
         const name = decodeURIComponent(req.params.name);
@@ -326,7 +326,7 @@ const runServer = async () => {
       } catch (err) {
         logger.error(
           { err, serverName: req.params.name },
-          "Error getting MCP server status"
+          "Error getting data source status"
         );
         res.status(500).json({
           success: false,
@@ -357,12 +357,12 @@ const runServer = async () => {
   app.post("/api/sync", async (req: Request, res: Response) => {
     try {
       const configId = req.body.configId;
-      const config = await MCPServerConfigModel.findById(configId);
+      const config = await DataSourceModel.findById(configId);
 
       if (!config) {
         res.status(404).json({
           success: false,
-          error: "MCP server config not found",
+          error: "Data source config not found",
         });
         return;
       }

@@ -15,14 +15,14 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  useIndexingConfig,
-  useGenerateConfig,
-  useSaveConfig,
-} from "../hooks/useIndexingConfigs";
+  useSyncConfig,
+  useGenerateSyncConfig,
+  useSaveSyncConfig,
+} from "../hooks/useSyncConfigs";
 import { useState, useEffect } from "react";
-import ConfigTabs from "../components/IndexingConfig/ConfigTabs";
-import DataMappingTab from "../components/IndexingConfig/DataMappingTab";
-import EntitiesTab from "../components/IndexingConfig/EntitiesTab";
+import ConfigTabs from "../components/SyncConfig/ConfigTabs";
+import DataMappingTab from "../components/SyncConfig/DataMappingTab";
+import EntitiesTab from "../components/SyncConfig/EntitiesTab";
 
 type GenerationStep = "idle" | "generating" | "result";
 
@@ -42,9 +42,9 @@ export default function IndexingConfigDetail() {
   const [userGuidance, setUserGuidance] = useState("");
 
   // Disable refetching while generating to prevent state reset
-  const { data: config, isLoading } = useIndexingConfig(serverName || null);
-  const generateConfig = useGenerateConfig();
-  const saveConfig = useSaveConfig();
+  const { data: config, isLoading } = useSyncConfig(serverName || null);
+  const generateConfig = useGenerateSyncConfig();
+  const saveConfig = useSaveSyncConfig();
 
   // Debug logging
   useEffect(() => {

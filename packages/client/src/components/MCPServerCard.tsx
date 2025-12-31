@@ -17,17 +17,17 @@ import {
 import { useState } from "react";
 import { capitalCase } from "change-case";
 import {
-  useConnectMCPServer,
-  useDeleteMCPServer,
-  useDisconnectMCPServer,
-  useMCPServerStatus,
-  useSyncMCPServer,
-} from "../hooks/useMCPServers";
-import { MCPServerConfig } from "../lib/api";
+  useConnectDataSource,
+  useDeleteDataSource,
+  useDisconnectDataSource,
+  useDataSourceStatus,
+  useSyncDataSource,
+} from "../hooks/useDataSources";
+import { DataSourceConfig } from "../lib/api";
 
 interface MCPServerCardProps {
-  server: MCPServerConfig;
-  onEdit: (server: MCPServerConfig) => void;
+  server: DataSourceConfig;
+  onEdit: (server: DataSourceConfig) => void;
 }
 
 // Helper function to get service icon based on server name
@@ -53,11 +53,11 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [_syncJobId, setSyncJobId] = useState<string | null>(null);
 
-  const connectMutation = useConnectMCPServer();
-  const disconnectMutation = useDisconnectMCPServer();
-  const deleteMutation = useDeleteMCPServer();
-  const syncMutation = useSyncMCPServer();
-  const { data: statusData, isLoading: statusLoading } = useMCPServerStatus(
+  const connectMutation = useConnectDataSource();
+  const disconnectMutation = useDisconnectDataSource();
+  const deleteMutation = useDeleteDataSource();
+  const syncMutation = useSyncDataSource();
+  const { data: statusData, isLoading: statusLoading } = useDataSourceStatus(
     server.name,
     !server.isDisabled
   );
@@ -270,7 +270,7 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
       ) : (
         <div className="mt-4 bg-brand-error/10 border border-brand-error/30 rounded-lg p-3">
           <p className="text-sm text-brand-error mb-3">
-            Are you sure you want to delete this MCP server? This action cannot
+            Are you sure you want to delete this data source? This action cannot
             be undone.
           </p>
           <div className="flex items-center gap-2 justify-center">

@@ -12,11 +12,11 @@ export interface ToolClassification {
 }
 
 /**
- * IndexingConfig - Configuration for MCP server data indexing
+ * SyncConfig - Configuration for MCP server data synchronization
  * This defines how to fetch, transform, and index data from MCP servers
  */
 
-export interface IndexingConfig {
+export interface SyncConfig {
   version: "1.0";
   source: string; // MCP server name
   displayName: string; // Human-readable name
@@ -228,8 +228,8 @@ export interface RelationshipConfig {
 /**
  * Generated config result from LLM
  */
-export interface GeneratedConfigResult {
-  config: IndexingConfig;
+export interface GeneratedSyncConfigResult {
+  config: SyncConfig;
   validation: ValidationResult;
   samples: Record<string, any>; // Sample data used for generation
   toolsUsed: string[]; // MCP tools analyzed

@@ -1,8 +1,8 @@
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle } from "lucide-react";
-import { GeneratedConfigResult } from "../../lib/api";
+import { GeneratedSyncConfigResult } from "../../lib/api";
 
 interface IndexingStepProps {
-  generatedConfig: GeneratedConfigResult;
+  generatedConfig: GeneratedSyncConfigResult;
   onBack: () => void;
   onNext: () => void;
   isLoading: boolean;

@@ -88,7 +88,20 @@ export interface ForEachConfig {
   /** Map source record fields to tool parameters */
   paramMapping: Record<string, string>; // e.g., { "team": "$.name" }
 
-  /** Max concurrent tool calls (default: 3) */
+  /**
+   * Batch mode - call tool with array of values instead of one-by-one
+   * Use when the tool accepts an array parameter (e.g., teams: string[])
+   */
+  batchMode?: {
+    /** The parameter name that accepts an array */
+    batchParam: string; // e.g., "teams"
+    /** JSONPath to extract the value from each item, e.g., "$.name" */
+    valueMapping: string;
+    /** Max items per batch (default: 100). Split into multiple batches if exceeded */
+    batchSize?: number;
+  };
+
+  /** Max concurrent tool calls (default: 3) - applies to individual or batch calls */
   concurrency?: number;
 
   /** Continue with partial results if some calls fail (default: true) */

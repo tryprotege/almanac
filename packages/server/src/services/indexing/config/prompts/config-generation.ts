@@ -336,10 +336,40 @@ For deep hierarchies like teams → projects → issues:
 - Can't pass all values at once (API requires one call per entity)
 - Source data comes from an earlier fetcher in syncOrder
 
-**When NOT to use forEach:**
-- Tool accepts array/batch parameters
-- Tool doesn't require dynamic params
-- Data is static/hardcoded
+**Batch Mode (Efficiency Optimization):**
+
+When a tool accepts an **array parameter** (e.g., teams: string[]), use **batchMode** instead of making one call per item:
+
+\`\`\`json
+{
+  "forEach": {
+    "source": "list_teams",
+    "path": "$[*]",
+    "batchMode": {
+      "batchParam": "teams",
+      "valueMapping": "$.name",
+      "batchSize": 100
+    }
+  }
+}
+\`\`\`
+
+This makes **1 call** with {teams: ["Team1", "Team2", ...]} instead of N individual calls.
+
+**How to detect batch mode support:**
+1. Check the tool's input schema for array-type parameters
+2. Look for descriptions mentioning "list of", "multiple", "array"
+3. If the param type is "array", use batchMode instead of paramMapping
+
+**When to use batch mode:**
+- Tool schema shows array parameter (e.g., teams: { type: "array", items: { type: "string" } })
+- Large datasets where individual calls would be too slow
+- The tool explicitly supports batch operations
+
+**When NOT to use batch mode:**
+- Tool doesn't accept array parameters (use regular forEach with paramMapping)
+- Very small datasets (< 10 items) where individual calls are fine
+- Tool documentation indicates batch limits that are too small
 
 ## Instructions
 

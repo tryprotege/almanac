@@ -17,6 +17,7 @@ export interface ForEachContext {
 /**
  * Fetch records by iterating over results from a previous fetcher
  * Calls the tool once per item from the source, with mapped params
+ * OR uses batch mode to call with array of values (more efficient)
  */
 export async function* fetchWithForEach(
   serverName: string,
@@ -27,6 +28,12 @@ export async function* fetchWithForEach(
 
   if (!forEach) {
     throw new Error(`fetchWithForEach called but forEach config is missing`);
+  }
+
+  // Check if batch mode is enabled
+  if (forEach.batchMode) {
+    yield* fetchWithBatchMode(serverName, config, fetcherResults);
+    return;
   }
 
   // Get source records from previous fetcher
@@ -108,6 +115,126 @@ export async function* fetchWithForEach(
   if (errors.length > 0) {
     console.warn(
       `forEach completed with ${errors.length} errors:`,
+      errors.map((e) => e.error.message)
+    );
+  }
+
+  yield {
+    records: allResults,
+    hasMore: false,
+  };
+}
+
+/**
+ * Fetch using batch mode - call tool with array of values instead of one-by-one
+ * More efficient when the tool accepts array parameters
+ */
+async function* fetchWithBatchMode(
+  serverName: string,
+  config: FetcherConfig,
+  fetcherResults: ForEachContext
+): AsyncGenerator<PageResult> {
+  const { forEach } = config;
+
+  if (!forEach || !forEach.batchMode) {
+    throw new Error(
+      `fetchWithBatchMode called but batchMode config is missing`
+    );
+  }
+
+  // Get source records from previous fetcher
+  const sourceRecords = fetcherResults[forEach.source];
+  if (!sourceRecords || sourceRecords.length === 0) {
+    console.warn(`forEach source "${forEach.source}" has no records`);
+    yield { records: [], hasMore: false };
+    return;
+  }
+
+  // Extract iteration items using JSONPath
+  const iterationItems = JSONPath({
+    path: forEach.path,
+    json: sourceRecords,
+  });
+
+  if (!iterationItems || iterationItems.length === 0) {
+    console.warn(`forEach path "${forEach.path}" matched no items`);
+    yield { records: [], hasMore: false };
+    return;
+  }
+
+  // Extract values from each item using valueMapping
+  const values: any[] = [];
+  for (const item of iterationItems) {
+    const value = JSONPath({
+      path: forEach.batchMode.valueMapping,
+      json: item,
+      wrap: false,
+    });
+    if (value !== undefined) {
+      values.push(value);
+    }
+  }
+
+  if (values.length === 0) {
+    console.warn(`forEach batchMode: no values extracted from items`);
+    yield { records: [], hasMore: false };
+    return;
+  }
+
+  const batchSize = forEach.batchMode.batchSize ?? 100;
+  const continueOnError = forEach.continueOnError ?? true;
+  const maxRetries = forEach.retries ?? 2;
+
+  const allResults: any[] = [];
+  const errors: Array<{ batch: any[]; error: Error }> = [];
+
+  // Split into batches
+  for (let i = 0; i < values.length; i += batchSize) {
+    const batch = values.slice(i, i + batchSize);
+
+    console.log(
+      `Calling ${config.tool} with batch of ${batch.length} items (${i}-${
+        i + batch.length
+      }/${values.length})`
+    );
+
+    // Build params with batch array
+    const params = {
+      ...config.params,
+      [forEach.batchMode.batchParam]: batch,
+    };
+
+    // Call with retries
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await fetchPage(serverName, config.tool, params);
+        allResults.push(...result.records);
+        break; // Success
+      } catch (err) {
+        lastError = err as Error;
+        if (attempt < maxRetries) {
+          console.warn(
+            `Batch call failed (attempt ${attempt + 1}/${
+              maxRetries + 1
+            }), retrying...`
+          );
+          await sleep(1000 * (attempt + 1)); // Exponential backoff
+        }
+      }
+    }
+
+    if (lastError) {
+      errors.push({ batch, error: lastError });
+      if (!continueOnError) {
+        throw lastError;
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    console.warn(
+      `forEach batch mode completed with ${errors.length} batch errors:`,
       errors.map((e) => e.error.message)
     );
   }

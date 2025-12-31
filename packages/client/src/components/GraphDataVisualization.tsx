@@ -16,7 +16,7 @@ import {
   useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Maximize2, Filter, RefreshCw, Info } from "lucide-react";
+import { Filter, RefreshCw, Info } from "lucide-react";
 import { GraphDataResponse } from "../lib/api";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -372,19 +372,28 @@ function GraphDataVisualizationInner({
                 </h4>
                 <div className="flex flex-col gap-2 text-xs">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-brand-success"></div>
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: "#10b981" }}
+                    ></div>
                     <span className="text-text-secondary">
                       High confidence ({">"}80%)
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-brand-warning"></div>
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: "#f59e0b" }}
+                    ></div>
                     <span className="text-text-secondary">
                       Medium confidence (50-80%)
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-brand-error"></div>
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: "#ef4444" }}
+                    ></div>
                     <span className="text-text-secondary">
                       Low confidence ({"<"}50%)
                     </span>
@@ -397,15 +406,6 @@ function GraphDataVisualizationInner({
               </div>
             )}
           </div>
-
-          <button
-            onClick={() => fitView({ padding: 0.2, duration: 400 })}
-            className="btn btn-ghost btn-sm flex items-center gap-1.5"
-            title="Fit view to all nodes"
-          >
-            <Maximize2 className="w-4 h-4" />
-            Fit
-          </button>
 
           {onRefresh && (
             <button
@@ -448,7 +448,7 @@ function GraphDataVisualizationInner({
           proOptions={{ hideAttribution: true }}
         >
           <Background />
-          <Controls />
+          <Controls showInteractive={false} />
           <MiniMap
             nodeColor={(node: Node) => {
               const type =

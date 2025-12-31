@@ -1,11 +1,4 @@
-import {
-  Github,
-  MessageSquare,
-  Video,
-  HardDrive,
-  Settings,
-  FileText,
-} from "lucide-react";
+import { Github, MessageSquare, Video, Settings, FileText } from "lucide-react";
 
 export interface EnvVariable {
   key: string;

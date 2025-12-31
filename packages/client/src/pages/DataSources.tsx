@@ -42,7 +42,6 @@ export default function DataSources() {
     null
   );
   const [syncingSource, setSyncingSource] = useState<string | null>(null);
-  const [configServerName, setConfigServerName] = useState<string | null>(null);
 
   const isLoading = serversLoading || configsLoading;
   const error = serversError || configsError;
@@ -187,20 +186,20 @@ export default function DataSources() {
       {/* Loading State */}
       {isLoading && (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 text-primary-600 dark:text-primary-400 animate-spin" />
+          <Loader2 className="w-8 h-8 text-brand-purple animate-spin" />
         </div>
       )}
 
       {/* Error State */}
       {error && (
-        <div className="card bg-error-50 dark:bg-error-900/20 border-error-200 dark:border-error-800">
+        <div className="card bg-error-bg border-error-border">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-error-600 dark:text-error-400 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-error-text flex-shrink-0 mt-0.5" />
             <div>
-              <h3 className="text-sm font-medium text-error-900 dark:text-error-200">
+              <h3 className="text-sm font-medium text-error-text">
                 Error loading data sources
               </h3>
-              <p className="mt-1 text-sm text-error-700 dark:text-error-300">
+              <p className="mt-1 text-sm text-error-text/80">
                 {error instanceof Error ? error.message : "Unknown error"}
               </p>
             </div>
@@ -242,8 +241,8 @@ export default function DataSources() {
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
-                      <Database className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                    <div className="p-2 bg-brand-purple/10 rounded-lg">
+                      <Database className="w-5 h-5 text-brand-purple" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-text-primary">
@@ -320,7 +319,7 @@ export default function DataSources() {
                   </button>
                   <button
                     onClick={() => handleDelete(source.name)}
-                    className="btn btn-secondary text-sm p-2 text-error-600 hover:text-error-700"
+                    className="btn btn-secondary text-sm p-2 text-error-text hover:text-error-text/80"
                     title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />

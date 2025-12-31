@@ -1,7 +1,6 @@
 import {
   Database,
   FileJson,
-  Settings,
   ArrowRight,
   ChevronDown,
   ChevronRight,

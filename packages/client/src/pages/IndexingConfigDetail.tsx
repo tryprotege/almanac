@@ -8,7 +8,6 @@ import {
   Edit,
   Save,
   X,
-  LayoutGrid,
   Database,
   GitBranch,
   Code,
@@ -24,7 +23,6 @@ import { useState, useEffect } from "react";
 import ConfigTabs from "../components/IndexingConfig/ConfigTabs";
 import DataMappingTab from "../components/IndexingConfig/DataMappingTab";
 import EntitiesTab from "../components/IndexingConfig/EntitiesTab";
-import { PageHeader } from "../components/ui/PageHeader";
 
 type GenerationStep = "idle" | "generating" | "result";
 

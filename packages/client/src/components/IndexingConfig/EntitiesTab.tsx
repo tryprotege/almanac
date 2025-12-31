@@ -163,7 +163,7 @@ export default function EntitiesTab({ config }: EntitiesTabProps) {
           <div className="space-y-3">
             {allEntities
               .filter(({ entity }) => entity.properties)
-              .map(({ recordType, entity }, index) => (
+              .map(({ entity }, index) => (
                 <div key={index} className="card">
                   <h4 className="text-sm font-medium text-text-primary mb-2">
                     {entity.type} ({entity.name})

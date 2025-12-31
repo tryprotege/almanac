@@ -79,7 +79,7 @@ export function PersonaEditor() {
           </p>
         </div>
         {(isUpdating || isDeleting) && (
-          <Loader2 className="w-5 h-5 animate-spin text-primary-600 dark:text-primary-400" />
+          <Loader2 className="w-5 h-5 animate-spin text-brand-purple" />
         )}
       </div>
 

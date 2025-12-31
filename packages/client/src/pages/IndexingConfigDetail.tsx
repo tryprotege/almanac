@@ -296,18 +296,93 @@ export default function IndexingConfigDetail() {
                 </div>
               )}
 
-              {/* Config Preview */}
+              {/* Sync Pipeline */}
+              {generatedResult.config.syncOrder &&
+                generatedResult.config.syncOrder.length > 0 && (
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 border border-blue-200 dark:border-blue-900 rounded-lg p-4">
+                    <h3 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase mb-3">
+                      Sync Pipeline
+                    </h3>
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                      {generatedResult.config.syncOrder.map(
+                        (fetcherName: string, index: number) => (
+                          <div
+                            key={fetcherName}
+                            className="flex items-center gap-2 flex-shrink-0"
+                          >
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded-lg shadow-sm">
+                              <span className="flex items-center justify-center w-5 h-5 bg-blue-600 dark:bg-blue-500 text-white text-xs font-bold rounded-full">
+                                {index + 1}
+                              </span>
+                              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                {fetcherName}
+                              </span>
+                            </div>
+                            {index <
+                              generatedResult.config.syncOrder.length - 1 && (
+                              <svg
+                                className="w-4 h-4 text-blue-400 dark:text-blue-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 5l7 7-7 7"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              {/* Tabbed Config Preview */}
               <div className="card">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  Configuration Preview
-                </h3>
-                <div className="bg-gray-900 rounded-lg overflow-hidden">
-                  <pre className="p-4 overflow-x-auto text-sm max-h-96 text-gray-100 leading-relaxed">
-                    <code className="language-json">
-                      {JSON.stringify(generatedResult.config, null, 2)}
-                    </code>
-                  </pre>
-                </div>
+                <ConfigTabs
+                  tabs={[
+                    {
+                      id: "dataMapping",
+                      label: "Data Mapping",
+                      icon: <Database className="w-4 h-4" />,
+                    },
+                    {
+                      id: "entities",
+                      label: "Graph Entities",
+                      icon: <GitBranch className="w-4 h-4" />,
+                    },
+                    {
+                      id: "json",
+                      label: "Raw JSON",
+                      icon: <Code className="w-4 h-4" />,
+                    },
+                  ]}
+                >
+                  {(activeTab) => {
+                    if (activeTab === "dataMapping") {
+                      return <DataMappingTab config={generatedResult.config} />;
+                    }
+                    if (activeTab === "entities") {
+                      return <EntitiesTab config={generatedResult.config} />;
+                    }
+                    if (activeTab === "json") {
+                      return (
+                        <div className="bg-gray-900 rounded-lg overflow-hidden">
+                          <pre className="p-4 overflow-x-auto text-sm max-h-96 text-gray-100 leading-relaxed">
+                            <code className="language-json">
+                              {JSON.stringify(generatedResult.config, null, 2)}
+                            </code>
+                          </pre>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                </ConfigTabs>
               </div>
 
               {/* Action Buttons */}
@@ -553,18 +628,93 @@ export default function IndexingConfigDetail() {
               </div>
             )}
 
-            {/* Config Preview */}
+            {/* Sync Pipeline */}
+            {generatedResult.config.syncOrder &&
+              generatedResult.config.syncOrder.length > 0 && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 border border-blue-200 dark:border-blue-900 rounded-lg p-4">
+                  <h3 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase mb-3">
+                    Sync Pipeline
+                  </h3>
+                  <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                    {generatedResult.config.syncOrder.map(
+                      (fetcherName: string, index: number) => (
+                        <div
+                          key={fetcherName}
+                          className="flex items-center gap-2 flex-shrink-0"
+                        >
+                          <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded-lg shadow-sm">
+                            <span className="flex items-center justify-center w-5 h-5 bg-blue-600 dark:bg-blue-500 text-white text-xs font-bold rounded-full">
+                              {index + 1}
+                            </span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">
+                              {fetcherName}
+                            </span>
+                          </div>
+                          {index <
+                            generatedResult.config.syncOrder.length - 1 && (
+                            <svg
+                              className="w-4 h-4 text-blue-400 dark:text-blue-600"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {/* Tabbed Config Preview */}
             <div className="card">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Configuration Preview
-              </h3>
-              <div className="bg-gray-900 rounded-lg overflow-hidden">
-                <pre className="p-4 overflow-x-auto text-sm max-h-96 text-gray-100 leading-relaxed">
-                  <code className="language-json">
-                    {JSON.stringify(generatedResult.config, null, 2)}
-                  </code>
-                </pre>
-              </div>
+              <ConfigTabs
+                tabs={[
+                  {
+                    id: "dataMapping",
+                    label: "Data Mapping",
+                    icon: <Database className="w-4 h-4" />,
+                  },
+                  {
+                    id: "entities",
+                    label: "Graph Entities",
+                    icon: <GitBranch className="w-4 h-4" />,
+                  },
+                  {
+                    id: "json",
+                    label: "Raw JSON",
+                    icon: <Code className="w-4 h-4" />,
+                  },
+                ]}
+              >
+                {(activeTab) => {
+                  if (activeTab === "dataMapping") {
+                    return <DataMappingTab config={generatedResult.config} />;
+                  }
+                  if (activeTab === "entities") {
+                    return <EntitiesTab config={generatedResult.config} />;
+                  }
+                  if (activeTab === "json") {
+                    return (
+                      <div className="bg-gray-900 rounded-lg overflow-hidden">
+                        <pre className="p-4 overflow-x-auto text-sm max-h-96 text-gray-100 leading-relaxed">
+                          <code className="language-json">
+                            {JSON.stringify(generatedResult.config, null, 2)}
+                          </code>
+                        </pre>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              </ConfigTabs>
             </div>
 
             {/* Action Buttons */}

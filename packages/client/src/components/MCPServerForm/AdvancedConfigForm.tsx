@@ -219,7 +219,7 @@ export function AdvancedConfigForm({
     >
       {/* Name */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label className="block text-sm font-medium text-text-secondary mb-1">
           Server Name *
         </label>
         <input
@@ -231,12 +231,10 @@ export function AdvancedConfigForm({
           placeholder="my-mcp-server"
         />
         {errors.name && (
-          <p className="mt-1 text-sm text-error-600 dark:text-error-400">
-            {errors.name}
-          </p>
+          <p className="mt-1 text-sm text-brand-error">{errors.name}</p>
         )}
         {server && (
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-xs text-text-quaternary">
             Server name cannot be changed
           </p>
         )}
@@ -244,7 +242,7 @@ export function AdvancedConfigForm({
 
       {/* Type */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label className="block text-sm font-medium text-text-secondary mb-1">
           Server Type *
         </label>
         <select
@@ -268,7 +266,7 @@ export function AdvancedConfigForm({
       {formData.type === "stdio" && (
         <>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-text-secondary mb-1">
               Command *
             </label>
             <input
@@ -282,14 +280,12 @@ export function AdvancedConfigForm({
               placeholder="node"
             />
             {errors.command && (
-              <p className="mt-1 text-sm text-error-600 dark:text-error-400">
-                {errors.command}
-              </p>
+              <p className="mt-1 text-sm text-brand-error">{errors.command}</p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-text-secondary mb-1">
               Arguments
             </label>
             <input
@@ -302,7 +298,7 @@ export function AdvancedConfigForm({
               className="input"
               placeholder="path/to/server.js --option value"
             />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs text-text-quaternary">
               Space-separated arguments
             </p>
           </div>
@@ -310,14 +306,14 @@ export function AdvancedConfigForm({
           {/* Environment Variables */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-text-secondary">
                 Environment Variables
               </label>
               <button
                 type="button"
                 onClick={addEnvVar}
                 disabled={isLoading}
-                className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center gap-1"
+                className="text-sm text-brand-purple hover:text-brand-purple/80 flex items-center gap-1"
               >
                 <Plus className="w-4 h-4" />
                 Add Variable
@@ -347,7 +343,7 @@ export function AdvancedConfigForm({
                   <button
                     type="button"
                     onClick={() => toggleEnvVisibility(index)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-quaternary hover:text-text-secondary"
                   >
                     {env.showValue ? (
                       <EyeOff className="w-4 h-4" />
@@ -360,7 +356,7 @@ export function AdvancedConfigForm({
                   type="button"
                   onClick={() => removeEnvVar(index)}
                   disabled={isLoading}
-                  className="text-error-600 dark:text-error-400 hover:text-error-700 dark:hover:text-error-300"
+                  className="text-brand-error hover:text-brand-error/80"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -374,7 +370,7 @@ export function AdvancedConfigForm({
       {(formData.type === "sse" || formData.type === "streamable-http") && (
         <>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-text-secondary mb-1">
               URL *
             </label>
             <input
@@ -388,23 +384,21 @@ export function AdvancedConfigForm({
               placeholder="https://example.com/mcp"
             />
             {errors.url && (
-              <p className="mt-1 text-sm text-error-600 dark:text-error-400">
-                {errors.url}
-              </p>
+              <p className="mt-1 text-sm text-brand-error">{errors.url}</p>
             )}
           </div>
 
           {/* Headers */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-text-secondary">
                 Headers
               </label>
               <button
                 type="button"
                 onClick={addHeader}
                 disabled={isLoading}
-                className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center gap-1"
+                className="text-sm text-brand-purple hover:text-brand-purple/80 flex items-center gap-1"
               >
                 <Plus className="w-4 h-4" />
                 Add Header
@@ -434,7 +428,7 @@ export function AdvancedConfigForm({
                   <button
                     type="button"
                     onClick={() => toggleHeaderVisibility(index)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-quaternary hover:text-text-secondary"
                   >
                     {header.showValue ? (
                       <EyeOff className="w-4 h-4" />
@@ -447,7 +441,7 @@ export function AdvancedConfigForm({
                   type="button"
                   onClick={() => removeHeader(index)}
                   disabled={isLoading}
-                  className="text-error-600 dark:text-error-400 hover:text-error-700 dark:hover:text-error-300"
+                  className="text-brand-error hover:text-brand-error/80"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -467,16 +461,16 @@ export function AdvancedConfigForm({
               setFormData({ ...formData, isDisabled: e.target.checked })
             }
             disabled={isLoading}
-            className="w-4 h-4 text-primary-600 dark:text-primary-500 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500 dark:focus:ring-primary-400"
+            className="w-4 h-4 text-brand-purple border-border-primary rounded focus:ring-brand-purple"
           />
-          <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+          <span className="ml-2 text-sm text-text-secondary">
             Disable this server (prevent automatic connection)
           </span>
         </label>
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between pt-4 border-t border-border-secondary">
         <button
           type="button"
           onClick={onBack}

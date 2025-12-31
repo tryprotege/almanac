@@ -263,7 +263,18 @@ export const CUSTOM_PRESET: ServicePreset = {
 };
 
 export function getPresetById(id: string): ServicePreset | undefined {
-  return SERVICE_PRESETS[id] || (id === "custom" ? CUSTOM_PRESET : undefined);
+  const lowerId = id.toLowerCase();
+  // Try exact match first
+  if (SERVICE_PRESETS[lowerId]) {
+    return SERVICE_PRESETS[lowerId];
+  }
+  // Check if any preset name matches (case-insensitive)
+  const preset = Object.values(SERVICE_PRESETS).find(
+    (p) => p.name.toLowerCase() === lowerId || p.id.toLowerCase() === lowerId
+  );
+  if (preset) return preset;
+  if (lowerId === "custom") return CUSTOM_PRESET;
+  return undefined;
 }
 
 export function getAllPresets(): ServicePreset[] {

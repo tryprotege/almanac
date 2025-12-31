@@ -106,44 +106,42 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
       {/* Connection Status Badge */}
       <div className="absolute top-4 right-4">
         {isLoading ? (
-          <Loader2 className="w-5 h-5 text-gray-400 dark:text-gray-500 animate-spin" />
+          <Loader2 className="w-5 h-5 text-text-quaternary animate-spin" />
         ) : isConnected ? (
-          <CheckCircle className="w-5 h-5 text-success-500 dark:text-success-400" />
+          <CheckCircle className="w-5 h-5 text-brand-success" />
         ) : (
-          <XCircle className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+          <XCircle className="w-5 h-5 text-text-quaternary" />
         )}
       </div>
 
       {/* Server Info */}
       <div>
         <div className="flex items-center gap-3 mb-3">
-          <div
-            className={`p-2.5 rounded-lg text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30`}
-          >
+          <div className="p-2.5 rounded-lg text-brand-purple bg-brand-purple/10">
             <ServiceIcon className="w-6 h-6" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h3 className="text-lg font-semibold text-text-primary">
             {capitalCase(server.name)}
           </h3>
         </div>
         <div className="mt-2 space-y-1 grid grid-cols-[15%_85%] gap-2 text-left">
           <div className="flex items-left text-sm col-start-auto">
-            <span className="text-gray-500 dark:text-gray-400 w-16">Type:</span>
+            <span className="text-text-tertiary w-16">Type:</span>
           </div>
           <div>
-            <span className="text-gray-700 dark:text-gray-300 font-medium">
+            <span className="text-text-secondary font-medium">
               {server.type}
             </span>
           </div>
           {server.type === "stdio" && server.command && (
             <>
               <div className="flex items-start text-sm">
-                <span className="text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">
+                <span className="text-text-tertiary w-16 flex-shrink-0">
                   Command:
                 </span>
               </div>
               <div>
-                <span className="text-gray-700 dark:text-gray-300 font-mono text-xs break-all">
+                <span className="text-text-secondary font-mono text-xs break-all">
                   {server.command}
                   {server.args && server.args.length > 0
                     ? ` ${server.args.join(" ")}`
@@ -156,12 +154,12 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
             <>
               {" "}
               <div className="flex items-start text-sm">
-                <span className="text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">
+                <span className="text-text-tertiary w-16 flex-shrink-0">
                   URL:
                 </span>
               </div>
               <div>
-                <span className="text-gray-700 dark:text-gray-300 font-mono text-xs break-all">
+                <span className="text-text-secondary font-mono text-xs break-all">
                   {server.url}
                 </span>
               </div>
@@ -170,12 +168,12 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
           {server.env && Object.keys(server.env).length > 0 && (
             <>
               <div className="flex items-start text-sm">
-                <span className="text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">
+                <span className="text-text-tertiary w-16 flex-shrink-0">
                   Env:
                 </span>
               </div>
               <div>
-                <span className="text-gray-700 dark:text-gray-300 text-xs">
+                <span className="text-text-secondary text-xs">
                   {Object.keys(server.env).length} variable(s)
                 </span>
               </div>
@@ -210,17 +208,11 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
           {/* Status Badge */}
           <div className="mt-3">
             {server.isDisabled ? (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-                Disabled
-              </span>
+              <span className="badge badge-neutral">Disabled</span>
             ) : isConnected ? (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-100 dark:bg-success-900 text-success-800 dark:text-success-200">
-                Connected
-              </span>
+              <span className="badge badge-success">Connected</span>
             ) : (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-                Disconnected
-              </span>
+              <span className="badge badge-neutral">Disconnected</span>
             )}
           </div>
           <div className="pt-4 flex items-center justify-center gap-2 flex-wrap">
@@ -228,9 +220,7 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
               onClick={handleConnect}
               disabled={isLoading || server.isDisabled}
               className={`btn flex items-center gap-2 ${
-                isConnected
-                  ? "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600"
-                  : "btn-primary"
+                isConnected ? "btn-secondary" : "btn-primary"
               } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {isConnected ? (
@@ -270,7 +260,7 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
             <button
               onClick={() => setShowDeleteConfirm(true)}
               disabled={isLoading}
-              className="btn bg-error-600 dark:bg-error-500 text-white hover:bg-error-700 dark:hover:bg-error-600 flex items-center gap-2"
+              className="btn bg-brand-error text-white hover:bg-brand-error/90 flex items-center gap-2"
             >
               <Trash2 className="w-4 h-4" />
               Delete
@@ -278,8 +268,8 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
           </div>
         </div>
       ) : (
-        <div className="mt-4 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg p-3">
-          <p className="text-sm text-error-800 dark:text-error-200 mb-3">
+        <div className="mt-4 bg-brand-error/10 border border-brand-error/30 rounded-lg p-3">
+          <p className="text-sm text-brand-error mb-3">
             Are you sure you want to delete this MCP server? This action cannot
             be undone.
           </p>
@@ -287,7 +277,7 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
             <button
               onClick={handleDelete}
               disabled={isLoading}
-              className="btn bg-error-600 dark:bg-error-500 text-white hover:bg-error-700 dark:hover:bg-error-600 text-sm"
+              className="btn bg-brand-error text-white hover:bg-brand-error/90 text-sm"
             >
               Yes, Delete
             </button>
@@ -303,12 +293,12 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
 
       {/* Timestamps */}
       {server.createdAt && (
-        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+        <div className="mt-4 pt-4 border-t border-border-secondary">
+          <p className="text-xs text-text-quaternary">
             Created: {new Date(server.createdAt).toLocaleString()}
           </p>
           {server.updatedAt && (
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-text-quaternary">
               Updated: {new Date(server.updatedAt).toLocaleString()}
             </p>
           )}

@@ -1,6 +1,16 @@
-import { ConnectedServices } from "../components/ConnectedServices";
-import { RecentActivity } from "../components/RecentActivity";
-import { StatsCard } from "../components/StatsCard";
+import {
+  CheckSquare,
+  FileText,
+  Search,
+  Server,
+  Workflow,
+  X,
+} from "lucide-react";
+import { ActivityFeed, ActivityItem } from "../components/ui/ActivityFeed";
+import { Badge } from "../components/ui/Badge";
+import { DataTable } from "../components/ui/DataTable";
+import { MetricCard } from "../components/ui/MetricCard";
+import { PageHeader } from "../components/ui/PageHeader";
 import { useStats } from "../hooks/useStats";
 
 export default function Dashboard() {
@@ -8,93 +18,137 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div className=" bg-gray-50 dark:bg-gray-900">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-            <p className="text-red-800 dark:text-red-200">
-              Failed to load statistics: {error.message}
-            </p>
-          </div>
+      <div className="py-8">
+        <div className="bg-error-bg border border-error-border rounded-lg p-4">
+          <p className="text-error-text">
+            Failed to load statistics: {error.message}
+          </p>
         </div>
       </div>
     );
   }
 
+  // Mock recent activity data (replace with real data from API)
+  const recentActivity: ActivityItem[] = [
+    {
+      service: "GitHub",
+      time: "2 minutes ago",
+      description: "Indexed 15 new repositories",
+      isNew: true,
+    },
+    {
+      service: "Notion",
+      time: "10 minutes ago",
+      description: "Synced 24 pages and 8 databases",
+    },
+    {
+      service: "Fathom",
+      time: "1 hour ago",
+      description: "Updated analytics data",
+    },
+  ];
+
+  // Mock newly connected servers (replace with real data)
+  const newlyConnected = [
+    { name: "GitHub", status: "Online", lastSync: "2 minutes ago" },
+    { name: "Notion", status: "Online", lastSync: "10 minutes ago" },
+    { name: "Fathom", status: "Online", lastSync: "1 hour ago" },
+  ];
+
   return (
-    <div className=" bg-gray-50 dark:bg-gray-900">
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Dashboard
-          </h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-300">
-            Overview of your eBee system statistics and connected services
-          </p>
-        </div>
+    <div className="pb-8">
+      <PageHeader
+        title="Dashboard"
+        subtitle="Overview of your eBee system statistics and connected services"
+      />
 
-        {/* Statistics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <StatsCard
-            title="Total Records"
-            value={stats?.totalRecords || 0}
-            subtitle="documents"
-            icon="📄"
-            loading={isLoading}
-          />
-          <StatsCard
-            title="Vector Embeddings"
-            value={stats?.totalVectors || 0}
-            subtitle="embeddings"
-            icon="🔍"
-            loading={isLoading}
-          />
-          <StatsCard
-            title="Graph Database"
-            value={stats?.totalGraphNodes || 0}
-            subtitle={`nodes • ${
-              stats?.totalGraphRelationships || 0
-            } relationships`}
-            icon="🕸️"
-            loading={isLoading}
-          />
-        </div>
-
-        {/* MCP Servers Status */}
-        {stats?.mcpServers && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <StatsCard
-              title="MCP Servers"
-              value={stats.mcpServers.total}
-              subtitle="configured"
-              icon="🔌"
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column: Metrics & Table */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* First Row of Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <MetricCard
+              title="Total Records"
+              value={stats?.totalRecords || 0}
+              icon={FileText}
+              iconColor="purple"
               loading={isLoading}
             />
-            <StatsCard
-              title="Connected"
-              value={stats.mcpServers.connected}
-              subtitle="active connections"
-              icon="✅"
+            <MetricCard
+              title="Vector Embeddings"
+              value={stats?.totalVectors || 0}
+              icon={Search}
+              iconColor="blue"
               loading={isLoading}
             />
-            <StatsCard
-              title="Disconnected"
-              value={stats.mcpServers.disconnected}
-              subtitle="inactive"
-              icon="⚠️"
+            <MetricCard
+              title="Graph Nodes"
+              value={stats?.totalGraphNodes || 0}
+              icon={Workflow}
+              iconColor="orange"
               loading={isLoading}
             />
           </div>
-        )}
 
-        {/* Connected Services */}
-        <div className="mb-8">
-          <ConnectedServices />
+          {/* Second Row of Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <MetricCard
+              title="MCP Servers"
+              value={stats?.mcpServers?.total || 0}
+              icon={Server}
+              iconColor="indigo"
+              loading={isLoading}
+            />
+            <MetricCard
+              title="Connected"
+              value={stats?.mcpServers?.connected || 0}
+              icon={CheckSquare}
+              iconColor="green"
+              loading={isLoading}
+            />
+            <MetricCard
+              title="Disconnected"
+              value={stats?.mcpServers?.disconnected || 0}
+              icon={X}
+              iconColor="gray"
+              loading={isLoading}
+            />
+          </div>
+
+          {/* Newly Connected Table */}
+          <DataTable
+            title="Newly Connected"
+            columns={[
+              { key: "name", header: "Server Name" },
+              {
+                key: "status",
+                header: "Status",
+                render: (item) => (
+                  <Badge variant="success" dot>
+                    {item.status}
+                  </Badge>
+                ),
+              },
+              { key: "lastSync", header: "Last Sync" },
+            ]}
+            data={newlyConnected}
+            loading={isLoading}
+            showAll={() => {
+              // Navigate to data sources page
+              window.location.href = "/data-sources";
+            }}
+          />
         </div>
 
-        {/* Recent Activity */}
-        <div>
-          <RecentActivity stats={stats} />
+        {/* Right Column: Recent Activity */}
+        <div className="lg:col-span-1">
+          <div className="card">
+            <h3 className="text-base font-semibold text-text-primary mb-6">
+              Recent Activity
+            </h3>
+            <ActivityFeed items={recentActivity} loading={isLoading} />
+          </div>
         </div>
       </div>
     </div>

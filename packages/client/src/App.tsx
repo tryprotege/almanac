@@ -1,8 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import "./App.css";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { Navigation } from "./components/Navigation";
+import { MainLayout } from "./components/layout/MainLayout";
 import { Skeleton } from "./components/Skeleton";
 
 // Lazy load pages for better performance
@@ -31,8 +30,7 @@ function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <div className=" bg-gray-50 dark:bg-gray-900">
-          <Navigation />
+        <MainLayout>
           <ErrorBoundary>
             <Suspense fallback={<PageLoader />}>
               <Routes>
@@ -43,7 +41,7 @@ function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/data-sources" element={<DataSources />} />
                 <Route
-                  path="/indexing/:serverName"
+                  path="/data-sources/:serverName/config"
                   element={<IndexingConfigDetail />}
                 />
                 <Route path="/schema" element={<Schema />} />
@@ -54,13 +52,19 @@ function App() {
                   element={<Navigate to="/data-sources" replace />}
                 />
                 <Route
+                  path="/indexing/:serverName"
+                  element={
+                    <Navigate to="/data-sources/:serverName/config" replace />
+                  }
+                />
+                <Route
                   path="/indexing"
                   element={<Navigate to="/data-sources" replace />}
                 />
               </Routes>
             </Suspense>
           </ErrorBoundary>
-        </div>
+        </MainLayout>
       </BrowserRouter>
     </ErrorBoundary>
   );

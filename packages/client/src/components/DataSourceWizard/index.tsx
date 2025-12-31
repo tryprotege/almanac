@@ -54,14 +54,29 @@ export function DataSourceWizard({
   const [isCustomServerCreated, setIsCustomServerCreated] = useState(false);
 
   useEffect(() => {
-    if (existingSource) {
+    if (isOpen && existingSource) {
       const preset = getPresetById(existingSource.name);
-      setSelectedPreset(preset || CUSTOM_PRESET);
+      // If no preset found, this is a custom server - use CUSTOM_PRESET
+      const resolvedPreset = preset || CUSTOM_PRESET;
+      console.log(
+        "DataSourceWizard: Editing source",
+        existingSource.name,
+        "preset:",
+        resolvedPreset.id
+      );
+      setSelectedPreset(resolvedPreset);
       setStep("configure");
-    } else {
+    } else if (isOpen && !existingSource) {
+      // New source - start at selection
       setStep("select");
       setSelectedPreset(null);
       setServerConfig(null);
+    } else if (!isOpen) {
+      // Reset when closing
+      setStep("select");
+      setSelectedPreset(null);
+      setServerConfig(null);
+      setIsCustomServerCreated(false);
     }
   }, [existingSource, isOpen]);
 
@@ -243,17 +258,17 @@ export function DataSourceWizard({
       onClick={() => !isLoading && onClose()}
     >
       <div
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-bg-primary rounded-lg shadow-xl max-w-3xl w-full min-w-[500px] max-h-[90vh] overflow-hidden flex flex-col border border-border-secondary"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-border-secondary">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-xl font-semibold text-text-primary">
               {existingSource ? "Edit Data Source" : "Add Data Source"}
             </h2>
             {selectedPreset && step !== "select" && (
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              <p className="text-sm text-text-tertiary mt-1">
                 {selectedPreset.displayName}
                 {step === "indexing" && " • Generating Indexing Config"}
                 {step === "review" && " • Review & Save"}
@@ -263,14 +278,14 @@ export function DataSourceWizard({
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+            className="text-text-quaternary hover:text-text-secondary"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto flex-1">
+        <div className="overflow-y-auto flex-1 min-h-0 w-full">
           {step === "select" && (
             <ServiceSelector onSelect={handleSelectService} />
           )}
@@ -280,6 +295,7 @@ export function DataSourceWizard({
             selectedPreset.id !== "custom" && (
               <ServiceConfigForm
                 preset={selectedPreset}
+                existingSource={existingSource}
                 onBack={handleBack}
                 onSubmit={handleConfigureSubmit}
                 isLoading={isLoading}
@@ -293,6 +309,13 @@ export function DataSourceWizard({
               onSubmit={handleConfigureSubmit}
               isLoading={isLoading}
             />
+          )}
+
+          {/* Fallback for edge cases where no form is rendered */}
+          {step === "configure" && !selectedPreset && (
+            <div className="p-6 text-center text-text-tertiary">
+              <p>Loading configuration...</p>
+            </div>
           )}
 
           {step === "indexing" && generateConfig.data && (

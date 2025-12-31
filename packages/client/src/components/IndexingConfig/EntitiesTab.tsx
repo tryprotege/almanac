@@ -26,57 +26,55 @@ export default function EntitiesTab({ config }: EntitiesTabProps) {
     <div className="space-y-6">
       {/* Entities */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <h3 className="text-lg font-semibold text-text-primary mb-4">
           Entity Extractions
         </h3>
 
         {allEntities.length === 0 ? (
           <div className="card text-center py-12">
-            <GitBranch className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-300">
-              No entities configured
-            </p>
+            <GitBranch className="w-12 h-12 text-text-quaternary mx-auto mb-4" />
+            <p className="text-text-tertiary">No entities configured</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+            <table className="min-w-full divide-y divide-border-secondary">
+              <thead className="bg-bg-secondary">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
                     Entity Name
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
                     Type
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
                     ID Path
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
                     Title Path
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
                     Record Type
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-bg-primary divide-y divide-border-secondary">
                 {allEntities.map(({ recordType, entity }, index) => (
                   <tr key={index}>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-text-primary">
                       {entity.name}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700 rounded text-xs text-purple-700 dark:text-purple-300">
+                      <span className="px-2 py-1 bg-brand-purple/10 border border-brand-purple/30 rounded text-xs text-brand-purple">
                         {entity.type}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 text-sm text-text-secondary">
                       <code className="text-xs">{entity.idPath}</code>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 text-sm text-text-secondary">
                       <code className="text-xs">{entity.titlePath}</code>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-text-secondary">
                       {recordType}
                     </td>
                   </tr>
@@ -89,65 +87,63 @@ export default function EntitiesTab({ config }: EntitiesTabProps) {
 
       {/* Relationships */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <h3 className="text-lg font-semibold text-text-primary mb-4">
           Relationship Extractions
         </h3>
 
         {allRelationships.length === 0 ? (
           <div className="card text-center py-12">
-            <Link2 className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-300">
-              No relationships configured
-            </p>
+            <Link2 className="w-12 h-12 text-text-quaternary mx-auto mb-4" />
+            <p className="text-text-tertiary">No relationships configured</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+            <table className="min-w-full divide-y divide-border-secondary">
+              <thead className="bg-bg-secondary">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
                     Name
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
                     Type
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
                     Source Type
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
                     Target Type
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
                     Target ID Path
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
                     Record Type
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-bg-primary divide-y divide-border-secondary">
                 {allRelationships.map(({ recordType, relationship }, index) => (
                   <tr key={index}>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-text-primary">
                       {relationship.name}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 rounded text-xs text-blue-700 dark:text-blue-300">
+                      <span className="px-2 py-1 bg-brand-blue/10 border border-brand-blue/30 rounded text-xs text-brand-blue">
                         {relationship.type}
                       </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-text-secondary">
                       {relationship.sourceType || recordType}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-text-secondary">
                       {relationship.targetType}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 text-sm text-text-secondary">
                       <code className="text-xs">
                         {relationship.targetIdPath}
                       </code>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-text-secondary">
                       {recordType}
                     </td>
                   </tr>
@@ -161,7 +157,7 @@ export default function EntitiesTab({ config }: EntitiesTabProps) {
       {/* Entity Properties */}
       {allEntities.some(({ entity }) => entity.properties) && (
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          <h3 className="text-lg font-semibold text-text-primary mb-4">
             Entity Properties
           </h3>
           <div className="space-y-3">
@@ -169,7 +165,7 @@ export default function EntitiesTab({ config }: EntitiesTabProps) {
               .filter(({ entity }) => entity.properties)
               .map(({ recordType, entity }, index) => (
                 <div key={index} className="card">
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                  <h4 className="text-sm font-medium text-text-primary mb-2">
                     {entity.type} ({entity.name})
                   </h4>
                   <div className="grid grid-cols-2 gap-2 text-sm">
@@ -177,12 +173,12 @@ export default function EntitiesTab({ config }: EntitiesTabProps) {
                       ([propName, propPath]: [string, any]) => (
                         <div
                           key={propName}
-                          className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg"
+                          className="px-3 py-2 bg-bg-secondary border border-border-secondary rounded-lg"
                         >
-                          <span className="text-gray-600 dark:text-gray-400">
+                          <span className="text-text-secondary">
                             {propName}:
                           </span>{" "}
-                          <code className="text-xs text-gray-900 dark:text-white">
+                          <code className="text-xs text-text-primary">
                             {propPath}
                           </code>
                         </div>

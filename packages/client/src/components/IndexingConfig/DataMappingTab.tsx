@@ -40,10 +40,8 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
   if (fetcherNames.length === 0) {
     return (
       <div className="text-center py-12">
-        <Database className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-        <p className="text-gray-600 dark:text-gray-300">
-          No data mapping configured
-        </p>
+        <Database className="w-12 h-12 text-text-quaternary mx-auto mb-4" />
+        <p className="text-text-tertiary">No data mapping configured</p>
       </div>
     );
   }
@@ -58,64 +56,62 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
         return (
           <div
             key={fetcherName}
-            className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+            className="border border-border-secondary rounded-lg bg-bg-primary"
           >
             {/* Fetcher Header */}
             <button
               onClick={() => toggleFetcher(fetcherName)}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+              className="w-full flex items-center justify-between p-4 hover:bg-bg-secondary rounded-lg transition-colors"
             >
               <div className="flex items-center gap-3">
-                <Database className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <Database className="w-5 h-5 text-brand-blue" />
                 <div className="text-left">
-                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                  <h3 className="font-semibold text-text-primary">
                     {fetcherName}
                   </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {fetcher.tool}
-                  </p>
+                  <p className="text-sm text-text-tertiary">{fetcher.tool}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 {fetcher.forEach && (
-                  <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700 rounded text-xs text-purple-700 dark:text-purple-300 flex items-center gap-1">
+                  <span className="px-2 py-1 bg-brand-purple/10 border border-brand-purple/30 rounded text-xs text-brand-purple flex items-center gap-1">
                     <RefreshCw className="w-3 h-3" />
                     forEach
                   </span>
                 )}
-                <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-300">
+                <span className="px-2 py-1 bg-bg-secondary rounded text-xs text-text-secondary">
                   {recordTypesForFetcher.length} record type
                   {recordTypesForFetcher.length !== 1 ? "s" : ""}
                 </span>
                 {isExpanded ? (
-                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                  <ChevronDown className="w-5 h-5 text-text-quaternary" />
                 ) : (
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                  <ChevronRight className="w-5 h-5 text-text-quaternary" />
                 )}
               </div>
             </button>
 
             {/* Expanded Content */}
             {isExpanded && (
-              <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-4">
+              <div className="border-t border-border-secondary p-4 space-y-4">
                 {/* forEach Configuration */}
                 {fetcher.forEach && (
                   <div>
-                    <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-2 flex items-center gap-1">
+                    <h4 className="text-xs font-medium text-text-tertiary uppercase mb-2 flex items-center gap-1">
                       <RefreshCw className="w-3 h-3" />
                       Dynamic Iteration
                     </h4>
-                    <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3 space-y-3">
+                    <div className="bg-brand-purple/5 border border-brand-purple/20 rounded-lg p-3 space-y-3">
                       {/* Data flow visualization */}
                       <div className="flex items-center gap-2 text-xs">
-                        <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 rounded text-blue-700 dark:text-blue-300">
+                        <span className="px-2 py-1 bg-brand-blue/10 border border-brand-blue/30 rounded text-brand-blue">
                           {fetcher.forEach.source}
                         </span>
-                        <ArrowRight className="w-4 h-4 text-gray-400" />
-                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded text-green-700 dark:text-green-300">
+                        <ArrowRight className="w-4 h-4 text-text-quaternary" />
+                        <span className="px-2 py-1 bg-brand-success/10 border border-brand-success/30 rounded text-brand-success">
                           {fetcherName}
                         </span>
-                        <span className="text-gray-500 dark:text-gray-400">
+                        <span className="text-text-tertiary">
                           (1 call per{" "}
                           {fetcher.forEach.path === "$[*]"
                             ? "item"
@@ -126,11 +122,11 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
 
                       {/* Parameter Mapping */}
                       <div>
-                        <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                        <span className="text-xs text-text-secondary font-medium">
                           Param Mapping:
                         </span>
-                        <div className="mt-1 bg-gray-900 rounded p-2">
-                          <pre className="text-xs text-gray-100">
+                        <div className="mt-1 bg-bg-tertiary rounded p-2">
+                          <pre className="text-xs text-text-primary">
                             {JSON.stringify(
                               fetcher.forEach.paramMapping,
                               null,
@@ -141,13 +137,13 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
                       </div>
 
                       {/* Settings */}
-                      <div className="flex gap-4 text-xs text-gray-600 dark:text-gray-400">
+                      <div className="flex gap-4 text-xs text-text-secondary">
                         <span>
                           Concurrency: {fetcher.forEach.concurrency || 3}
                         </span>
                         <span>Retries: {fetcher.forEach.retries || 2}</span>
                         {fetcher.forEach.continueOnError !== false && (
-                          <span className="text-green-600 dark:text-green-400">
+                          <span className="text-brand-success">
                             ✓ Continue on error
                           </span>
                         )}
@@ -159,11 +155,11 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
                 {/* Fetcher Details */}
                 {fetcher.params && Object.keys(fetcher.params).length > 0 && (
                   <div>
-                    <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-2">
+                    <h4 className="text-xs font-medium text-text-tertiary uppercase mb-2">
                       Parameters
                     </h4>
-                    <div className="bg-gray-900 rounded-lg overflow-hidden">
-                      <pre className="p-3 overflow-x-auto text-xs text-gray-100">
+                    <div className="bg-bg-tertiary rounded-lg overflow-hidden">
+                      <pre className="p-3 overflow-x-auto text-xs text-text-primary">
                         {JSON.stringify(fetcher.params, null, 2)}
                       </pre>
                     </div>
@@ -172,7 +168,7 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
 
                 {/* Record Types */}
                 <div>
-                  <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-2">
+                  <h4 className="text-xs font-medium text-text-tertiary uppercase mb-2">
                     Record Types
                   </h4>
                   <div className="space-y-3">
@@ -183,14 +179,14 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
                       return (
                         <div
                           key={recordType.name}
-                          className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3"
+                          className="bg-bg-secondary rounded-lg p-3"
                         >
                           <div className="flex items-center gap-2 mb-3">
-                            <FileJson className="w-4 h-4 text-green-600 dark:text-green-400" />
-                            <span className="font-medium text-gray-900 dark:text-white">
+                            <FileJson className="w-4 h-4 text-brand-success" />
+                            <span className="font-medium text-text-primary">
                               {recordType.name}
                             </span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                            <span className="text-xs text-text-tertiary">
                               {fieldNames.length} fields
                             </span>
                           </div>
@@ -198,20 +194,20 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
                           {/* Field Table */}
                           <div className="overflow-x-auto">
                             <table className="min-w-full text-sm">
-                              <thead className="border-b border-gray-200 dark:border-gray-700">
+                              <thead className="border-b border-border-secondary">
                                 <tr>
-                                  <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                  <th className="text-left py-2 pr-4 text-xs font-medium text-text-tertiary">
                                     Field
                                   </th>
-                                  <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                  <th className="text-left py-2 pr-4 text-xs font-medium text-text-tertiary">
                                     Type
                                   </th>
-                                  <th className="text-left py-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                  <th className="text-left py-2 text-xs font-medium text-text-tertiary">
                                     Source
                                   </th>
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                              <tbody className="divide-y divide-border-primary">
                                 {fieldNames.map((fieldName) => {
                                   const field = fields[fieldName];
                                   const fieldType = field.type || "unknown";
@@ -231,15 +227,15 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
 
                                   return (
                                     <tr key={fieldName}>
-                                      <td className="py-2 pr-4 text-gray-900 dark:text-white font-medium">
+                                      <td className="py-2 pr-4 text-text-primary font-medium">
                                         {fieldName}
                                       </td>
                                       <td className="py-2 pr-4">
-                                        <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 rounded text-xs text-blue-700 dark:text-blue-300">
+                                        <span className="px-2 py-0.5 bg-brand-blue/10 border border-brand-blue/30 rounded text-xs text-brand-blue">
                                           {fieldType}
                                         </span>
                                       </td>
-                                      <td className="py-2 text-gray-600 dark:text-gray-400">
+                                      <td className="py-2 text-text-secondary">
                                         <code className="text-xs">
                                           {source}
                                         </code>

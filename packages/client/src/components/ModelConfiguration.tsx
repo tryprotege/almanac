@@ -66,7 +66,7 @@ export function ModelConfiguration() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <RefreshCw className="w-6 h-6 animate-spin text-primary-600 dark:text-primary-400" />
+        <RefreshCw className="w-6 h-6 animate-spin text-brand-purple" />
       </div>
     );
   }
@@ -75,14 +75,14 @@ export function ModelConfiguration() {
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* LLM Configuration */}
       <div className="card">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <h3 className="text-lg font-semibold text-text-primary mb-4">
           LLM Configuration
         </h3>
 
         {/* Provider Selection */}
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-text-secondary mb-1">
               Provider
             </label>
             <select
@@ -100,14 +100,14 @@ export function ModelConfiguration() {
               <option value="anthropic">Anthropic</option>
               <option value="azure">Azure OpenAI</option>
             </select>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-xs text-text-quaternary mt-1">
               Select your LLM provider
             </p>
           </div>
 
           {/* API Key */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-text-secondary mb-1">
               API Key
             </label>
             <div className="relative">
@@ -123,7 +123,7 @@ export function ModelConfiguration() {
               <button
                 type="button"
                 onClick={() => setShowApiKey(!showApiKey)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-text-quaternary hover:text-text-secondary"
               >
                 {showApiKey ? (
                   <EyeOff className="w-4 h-4" />
@@ -132,14 +132,14 @@ export function ModelConfiguration() {
                 )}
               </button>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-xs text-text-quaternary mt-1">
               Your API key is encrypted and stored securely
             </p>
           </div>
 
           {/* Base URL */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-text-secondary mb-1">
               Base URL (Optional)
             </label>
             <input
@@ -151,14 +151,14 @@ export function ModelConfiguration() {
               className="input"
               placeholder="https://api.openrouter.ai/api/v1"
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-xs text-text-quaternary mt-1">
               Custom API endpoint (leave empty for provider default)
             </p>
           </div>
 
           {/* Chat Model */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-text-secondary mb-1">
               Chat Model
             </label>
             <input
@@ -171,14 +171,14 @@ export function ModelConfiguration() {
               placeholder="openai/gpt-4o-mini"
               required
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-xs text-text-quaternary mt-1">
               Model for chat completions and text generation
             </p>
           </div>
 
           {/* Embedding Model */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-text-secondary mb-1">
               Embedding Model
             </label>
             <input
@@ -191,14 +191,14 @@ export function ModelConfiguration() {
               placeholder="text-embedding-3-small"
               required
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-xs text-text-quaternary mt-1">
               Model for generating vector embeddings
             </p>
           </div>
 
           {/* Indexing Config Model */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-text-secondary mb-1">
               Indexing Config Model (Optional)
             </label>
             <input
@@ -213,7 +213,7 @@ export function ModelConfiguration() {
               className="input"
               placeholder="Leave empty to use Chat Model"
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-xs text-text-quaternary mt-1">
               Model for indexing config generation and tool classification
               (defaults to Chat Model if empty)
             </p>
@@ -224,7 +224,7 @@ export function ModelConfiguration() {
       {/* Reranker Configuration */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h3 className="text-lg font-semibold text-text-primary">
             Reranker Configuration
           </h3>
           <label className="flex items-center gap-2 cursor-pointer">
@@ -234,11 +234,9 @@ export function ModelConfiguration() {
               onChange={(e) =>
                 setFormData({ ...formData, rerankerEnabled: e.target.checked })
               }
-              className="rounded border-gray-300 dark:border-gray-600 text-primary-600 dark:text-primary-500 focus:ring-primary-500 dark:focus:ring-primary-400"
+              className="rounded border-border-primary text-brand-purple focus:ring-brand-purple"
             />
-            <span className="text-sm text-gray-700 dark:text-gray-300">
-              Enable Reranker
-            </span>
+            <span className="text-sm text-text-secondary">Enable Reranker</span>
           </label>
         </div>
 
@@ -246,7 +244,7 @@ export function ModelConfiguration() {
           <div className="space-y-4">
             {/* Reranker API Key */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-text-secondary mb-1">
                 Reranker API Key
               </label>
               <div className="relative">
@@ -262,7 +260,7 @@ export function ModelConfiguration() {
                 <button
                   type="button"
                   onClick={() => setShowRerankerKey(!showRerankerKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-quaternary hover:text-text-secondary"
                 >
                   {showRerankerKey ? (
                     <EyeOff className="w-4 h-4" />
@@ -275,7 +273,7 @@ export function ModelConfiguration() {
 
             {/* Reranker Base URL */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-text-secondary mb-1">
                 Reranker Base URL
               </label>
               <input
@@ -291,7 +289,7 @@ export function ModelConfiguration() {
 
             {/* Reranker Model */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-text-secondary mb-1">
                 Reranker Model
               </label>
               <input
@@ -303,7 +301,7 @@ export function ModelConfiguration() {
                 className="input"
                 placeholder="Qwen/Qwen3-Reranker-8B"
               />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <p className="text-xs text-text-quaternary mt-1">
                 Model for reranking search results
               </p>
             </div>
@@ -352,7 +350,7 @@ export function ModelConfiguration() {
       </div>
 
       {config?.updatedAt && (
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-sm text-text-quaternary">
           Last updated: {new Date(config.updatedAt).toLocaleString()}
         </p>
       )}

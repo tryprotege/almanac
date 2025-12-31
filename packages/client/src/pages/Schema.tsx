@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Database, Network, RefreshCw } from "lucide-react";
 import { SchemaVisualization } from "../components/SchemaVisualization";
 import { GraphDataVisualization } from "../components/GraphDataVisualization";
+import { PageHeader } from "../components/ui/PageHeader";
 import { useSchema } from "../hooks/useSchema";
 import { useGraphData } from "../hooks/useGraphData";
 
@@ -26,16 +27,12 @@ export default function Schema() {
   };
 
   return (
-    <div className=" bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="pb-8 space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Graph Schema
-        </h1>
-        <p className="text-gray-600 dark:text-gray-300 mt-1">
-          Visualize and explore your knowledge graph structure
-        </p>
-      </div>
+      <PageHeader
+        title="Graph Schema"
+        subtitle="Visualize and explore your knowledge graph structure"
+      />
       {/* <button
           onClick={() => refetch()}
           className="btn btn-secondary flex items-center gap-2"
@@ -49,14 +46,12 @@ export default function Schema() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="card">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
-                <Database className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+              <div className="p-3 bg-[#9e77ed]/10 rounded-lg">
+                <Database className="w-6 h-6 text-[#9e77ed]" />
               </div>
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Entity Types
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm text-text-tertiary">Entity Types</p>
+                <p className="text-2xl font-bold text-text-primary">
                   {schema.entityTypes.length}
                 </p>
               </div>
@@ -64,14 +59,12 @@ export default function Schema() {
           </div>
           <div className="card">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                <Network className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+              <div className="p-3 bg-[#2e90fa]/10 rounded-lg">
+                <Network className="w-6 h-6 text-[#2e90fa]" />
               </div>
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Relationship Types
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm text-text-tertiary">Relationship Types</p>
+                <p className="text-2xl font-bold text-text-primary">
                   {schema.relationshipTypes.length}
                 </p>
               </div>
@@ -79,14 +72,12 @@ export default function Schema() {
           </div>
           <div className="card">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Schema Version
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-sm text-text-tertiary">Schema Version</p>
+              <p className="text-2xl font-bold text-text-primary">
                 {schema.version}
               </p>
               {schema.lastLearnedAt && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-xs text-text-quaternary mt-1">
                   Last learned:{" "}
                   {new Date(schema.lastLearnedAt).toLocaleDateString()}
                 </p>

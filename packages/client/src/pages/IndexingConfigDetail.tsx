@@ -24,6 +24,7 @@ import { useState, useEffect } from "react";
 import ConfigTabs from "../components/IndexingConfig/ConfigTabs";
 import DataMappingTab from "../components/IndexingConfig/DataMappingTab";
 import EntitiesTab from "../components/IndexingConfig/EntitiesTab";
+import { PageHeader } from "../components/ui/PageHeader";
 
 type GenerationStep = "idle" | "generating" | "result";
 
@@ -59,10 +60,10 @@ export default function IndexingConfigDetail() {
 
   if (isLoading) {
     return (
-      <div className="bg-gray-50 dark:bg-gray-900">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+      <div className="pb-8">
+        <div className="w-full py-8">
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-primary-600 dark:text-primary-400 animate-spin" />
+            <Loader2 className="w-8 h-8 text-brand-purple animate-spin" />
           </div>
         </div>
       </div>
@@ -71,23 +72,23 @@ export default function IndexingConfigDetail() {
 
   if (!config) {
     return (
-      <div className="bg-gray-50 dark:bg-gray-900">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+      <div className="pb-8">
+        <div className="w-full py-8">
           {/* Header */}
           <div className="mb-8">
             <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
+              onClick={() => navigate("/data-sources")}
+              className="flex items-center gap-2 text-text-tertiary hover:text-text-primary mb-4"
             >
               <ArrowLeft className="w-5 h-5" />
-              Back
+              Back to Data Sources
             </button>
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                <h1 className="text-3xl font-bold text-text-primary">
                   Indexing Config: {serverName}
                 </h1>
-                <p className="mt-2 text-gray-600 dark:text-gray-300">
+                <p className="mt-2 text-text-tertiary">
                   {generationStep === "result"
                     ? "Configuration generated - review and save below"
                     : generationStep === "generating"
@@ -101,11 +102,11 @@ export default function IndexingConfigDetail() {
           {/* No Config - Idle State */}
           {generationStep === "idle" && (
             <div className="card text-center py-12">
-              <FileJson className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              <FileJson className="w-12 h-12 text-text-quaternary mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-text-primary mb-2">
                 No Indexing Config
               </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-6">
+              <p className="text-text-tertiary mb-6">
                 This data source doesn't have an indexing configuration yet.
                 Generate one to start indexing data.
               </p>
@@ -136,11 +137,11 @@ export default function IndexingConfigDetail() {
                 Generate Config
               </button>
 
-              <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 max-w-2xl mx-auto text-left">
-                <h3 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">
+              <div className="mt-6 bg-brand-blue/10 border border-brand-blue/30 rounded-lg p-4 max-w-2xl mx-auto text-left">
+                <h3 className="text-sm font-medium text-brand-blue mb-2">
                   What happens next?
                 </h3>
-                <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1 list-disc list-inside">
+                <ul className="text-sm text-text-secondary space-y-1 list-disc list-inside">
                   <li>
                     Tools will be classified using LLM (READ/SEARCH/WRITE)
                   </li>
@@ -155,11 +156,11 @@ export default function IndexingConfigDetail() {
           {/* Generating State */}
           {generationStep === "generating" && (
             <div className="card text-center py-12">
-              <Loader2 className="w-12 h-12 text-primary-600 dark:text-primary-400 animate-spin mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              <Loader2 className="w-12 h-12 text-brand-purple animate-spin mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-text-primary mb-2">
                 Generating Config...
               </h3>
-              <p className="text-gray-600 dark:text-gray-300">
+              <p className="text-text-tertiary">
                 Analyzing MCP server and generating indexing configuration
               </p>
             </div>
@@ -172,14 +173,12 @@ export default function IndexingConfigDetail() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="card">
                   <div className="flex items-center gap-3">
-                    <div className="p-3 bg-success-100 dark:bg-success-900/30 rounded-lg">
-                      <FileJson className="w-6 h-6 text-success-600 dark:text-success-400" />
+                    <div className="p-3 bg-brand-success/10 rounded-lg">
+                      <FileJson className="w-6 h-6 text-brand-success" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">
-                        READ Tools
-                      </p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      <p className="text-sm text-text-tertiary">READ Tools</p>
+                      <p className="text-2xl font-bold text-text-primary">
                         {generatedResult.toolsUsed.length}
                       </p>
                     </div>
@@ -188,14 +187,12 @@ export default function IndexingConfigDetail() {
 
                 <div className="card">
                   <div className="flex items-center gap-3">
-                    <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
-                      <FileJson className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                    <div className="p-3 bg-brand-purple/10 rounded-lg">
+                      <FileJson className="w-6 h-6 text-brand-purple" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">
-                        Fetchers
-                      </p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      <p className="text-sm text-text-tertiary">Fetchers</p>
+                      <p className="text-2xl font-bold text-text-primary">
                         {Object.keys(generatedResult.config.fetchers).length}
                       </p>
                     </div>
@@ -204,14 +201,12 @@ export default function IndexingConfigDetail() {
 
                 <div className="card">
                   <div className="flex items-center gap-3">
-                    <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                      <FileJson className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                    <div className="p-3 bg-brand-blue/10 rounded-lg">
+                      <FileJson className="w-6 h-6 text-brand-blue" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">
-                        Record Types
-                      </p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      <p className="text-sm text-text-tertiary">Record Types</p>
+                      <p className="text-2xl font-bold text-text-primary">
                         {Object.keys(generatedResult.config.recordTypes).length}
                       </p>
                     </div>
@@ -221,14 +216,14 @@ export default function IndexingConfigDetail() {
 
               {/* Validation Results */}
               {generatedResult.validation.errors.length > 0 && (
-                <div className="card bg-error-50 dark:bg-error-900/20 border-error-200 dark:border-error-800">
+                <div className="card bg-brand-error/10 border-brand-error/30">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-error-600 dark:text-error-400 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-brand-error flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="text-sm font-medium text-error-900 dark:text-error-200">
+                      <h3 className="text-sm font-medium text-brand-error">
                         Validation Errors
                       </h3>
-                      <ul className="mt-2 text-sm text-error-700 dark:text-error-300 space-y-1">
+                      <ul className="mt-2 text-sm text-brand-error/80 space-y-1">
                         {generatedResult.validation.errors.map(
                           (error: any, i: number) => (
                             <li key={i}>
@@ -243,14 +238,14 @@ export default function IndexingConfigDetail() {
               )}
 
               {generatedResult.validation.warnings.length > 0 && (
-                <div className="card bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+                <div className="card bg-brand-warning/10 border-brand-warning/30">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-brand-warning flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="text-sm font-medium text-yellow-900 dark:text-yellow-200">
+                      <h3 className="text-sm font-medium text-brand-warning">
                         Warnings
                       </h3>
-                      <ul className="mt-2 text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                      <ul className="mt-2 text-sm text-brand-warning/80 space-y-1">
                         {generatedResult.validation.warnings.map(
                           (warning: any, i: number) => (
                             <li key={i}>
@@ -266,9 +261,9 @@ export default function IndexingConfigDetail() {
 
               {/* Success Message */}
               {generatedResult.validation.valid && (
-                <div className="card bg-success-50 dark:bg-success-900/20 border-success-200 dark:border-success-800">
+                <div className="card bg-brand-success/10 border-brand-success/30">
                   <div className="flex items-start gap-3">
-                    <div className="w-5 h-5 rounded-full bg-success-600 dark:bg-success-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div className="w-5 h-5 rounded-full bg-brand-success flex items-center justify-center flex-shrink-0 mt-0.5">
                       <svg
                         className="w-3 h-3 text-white"
                         fill="none"
@@ -284,10 +279,10 @@ export default function IndexingConfigDetail() {
                       </svg>
                     </div>
                     <div>
-                      <h3 className="text-sm font-medium text-success-900 dark:text-success-200">
+                      <h3 className="text-sm font-medium text-brand-success">
                         Config generated successfully!
                       </h3>
-                      <p className="mt-1 text-sm text-success-700 dark:text-success-300">
+                      <p className="mt-1 text-sm text-brand-success/80">
                         The configuration passed all validation checks and is
                         ready to use.
                       </p>
@@ -299,8 +294,8 @@ export default function IndexingConfigDetail() {
               {/* Sync Pipeline */}
               {generatedResult.config.syncOrder &&
                 generatedResult.config.syncOrder.length > 0 && (
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 border border-blue-200 dark:border-blue-900 rounded-lg p-4">
-                    <h3 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase mb-3">
+                  <div className="bg-gradient-to-r from-brand-blue/5 to-brand-purple/5 border border-brand-blue/30 rounded-lg p-4">
+                    <h3 className="text-xs font-medium text-text-tertiary uppercase mb-3">
                       Sync Pipeline
                     </h3>
                     <div className="flex items-center gap-2 overflow-x-auto pb-2">
@@ -310,18 +305,18 @@ export default function IndexingConfigDetail() {
                             key={fetcherName}
                             className="flex items-center gap-2 flex-shrink-0"
                           >
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded-lg shadow-sm">
-                              <span className="flex items-center justify-center w-5 h-5 bg-blue-600 dark:bg-blue-500 text-white text-xs font-bold rounded-full">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-primary border border-brand-blue/40 rounded-lg shadow-sm">
+                              <span className="flex items-center justify-center w-5 h-5 bg-brand-blue text-white text-xs font-bold rounded-full">
                                 {index + 1}
                               </span>
-                              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                              <span className="text-sm font-medium text-text-primary">
                                 {fetcherName}
                               </span>
                             </div>
                             {index <
                               generatedResult.config.syncOrder.length - 1 && (
                               <svg
-                                className="w-4 h-4 text-blue-400 dark:text-blue-600"
+                                className="w-4 h-4 text-brand-blue"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -371,8 +366,8 @@ export default function IndexingConfigDetail() {
                     }
                     if (activeTab === "json") {
                       return (
-                        <div className="bg-gray-900 rounded-lg overflow-hidden">
-                          <pre className="p-4 overflow-x-auto text-sm max-h-96 text-gray-100 leading-relaxed">
+                        <div className="bg-bg-tertiary rounded-lg overflow-hidden">
+                          <pre className="p-4 overflow-x-auto text-sm max-h-96 text-text-primary leading-relaxed">
                             <code className="language-json">
                               {JSON.stringify(generatedResult.config, null, 2)}
                             </code>
@@ -459,14 +454,14 @@ export default function IndexingConfigDetail() {
   // Handle regeneration states even when config exists
   if (generationStep === "generating") {
     return (
-      <div className="bg-gray-50 dark:bg-gray-900">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+      <div className="pb-8">
+        <div className="w-full py-8">
           <div className="card text-center py-12">
-            <Loader2 className="w-12 h-12 text-primary-600 dark:text-primary-400 animate-spin mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+            <Loader2 className="w-12 h-12 text-brand-purple animate-spin mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-text-primary mb-2">
               Regenerating Config...
             </h3>
-            <p className="text-gray-600 dark:text-gray-300">
+            <p className="text-text-tertiary">
               Analyzing MCP server and generating new indexing configuration
             </p>
           </div>
@@ -477,8 +472,8 @@ export default function IndexingConfigDetail() {
 
   if (generationStep === "result" && generatedResult) {
     return (
-      <div className="bg-gray-50 dark:bg-gray-900">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+      <div className="pb-8">
+        <div className="w-full py-8">
           {/* Same result UI as in !config block */}
           <div className="mb-8">
             <button
@@ -486,15 +481,15 @@ export default function IndexingConfigDetail() {
                 setGenerationStep("idle");
                 setGeneratedResult(null);
               }}
-              className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
+              className="flex items-center gap-2 text-text-tertiary hover:text-text-primary mb-4"
             >
               <ArrowLeft className="w-5 h-5" />
               Back to Config
             </button>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold text-text-primary">
               Regenerated Configuration
             </h1>
-            <p className="mt-2 text-gray-600 dark:text-gray-300">
+            <p className="mt-2 text-text-tertiary">
               Review and save the new configuration for {config.serverName}
             </p>
           </div>
@@ -504,14 +499,12 @@ export default function IndexingConfigDetail() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="card">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-success-100 dark:bg-success-900/30 rounded-lg">
-                    <FileJson className="w-6 h-6 text-success-600 dark:text-success-400" />
+                  <div className="p-3 bg-brand-success/10 rounded-lg">
+                    <FileJson className="w-6 h-6 text-brand-success" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">
-                      READ Tools
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <p className="text-sm text-text-tertiary">READ Tools</p>
+                    <p className="text-2xl font-bold text-text-primary">
                       {generatedResult.toolsUsed.length}
                     </p>
                   </div>
@@ -520,14 +513,12 @@ export default function IndexingConfigDetail() {
 
               <div className="card">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
-                    <FileJson className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                  <div className="p-3 bg-brand-purple/10 rounded-lg">
+                    <FileJson className="w-6 h-6 text-brand-purple" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">
-                      Fetchers
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <p className="text-sm text-text-tertiary">Fetchers</p>
+                    <p className="text-2xl font-bold text-text-primary">
                       {Object.keys(generatedResult.config.fetchers).length}
                     </p>
                   </div>
@@ -536,14 +527,12 @@ export default function IndexingConfigDetail() {
 
               <div className="card">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                    <FileJson className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  <div className="p-3 bg-brand-blue/10 rounded-lg">
+                    <FileJson className="w-6 h-6 text-brand-blue" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">
-                      Record Types
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <p className="text-sm text-text-tertiary">Record Types</p>
+                    <p className="text-2xl font-bold text-text-primary">
                       {Object.keys(generatedResult.config.recordTypes).length}
                     </p>
                   </div>
@@ -553,14 +542,14 @@ export default function IndexingConfigDetail() {
 
             {/* Validation Results */}
             {generatedResult.validation.errors.length > 0 && (
-              <div className="card bg-error-50 dark:bg-error-900/20 border-error-200 dark:border-error-800">
+              <div className="card bg-brand-error/10 border-brand-error/30">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-error-600 dark:text-error-400 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="w-5 h-5 text-brand-error flex-shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="text-sm font-medium text-error-900 dark:text-error-200">
+                    <h3 className="text-sm font-medium text-brand-error">
                       Validation Errors
                     </h3>
-                    <ul className="mt-2 text-sm text-error-700 dark:text-error-300 space-y-1">
+                    <ul className="mt-2 text-sm text-brand-error/80 space-y-1">
                       {generatedResult.validation.errors.map(
                         (error: any, i: number) => (
                           <li key={i}>
@@ -575,14 +564,14 @@ export default function IndexingConfigDetail() {
             )}
 
             {generatedResult.validation.warnings.length > 0 && (
-              <div className="card bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+              <div className="card bg-brand-warning/10 border-brand-warning/30">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="w-5 h-5 text-brand-warning flex-shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="text-sm font-medium text-yellow-900 dark:text-yellow-200">
+                    <h3 className="text-sm font-medium text-brand-warning">
                       Warnings
                     </h3>
-                    <ul className="mt-2 text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                    <ul className="mt-2 text-sm text-brand-warning/80 space-y-1">
                       {generatedResult.validation.warnings.map(
                         (warning: any, i: number) => (
                           <li key={i}>
@@ -598,9 +587,9 @@ export default function IndexingConfigDetail() {
 
             {/* Success Message */}
             {generatedResult.validation.valid && (
-              <div className="card bg-success-50 dark:bg-success-900/20 border-success-200 dark:border-success-800">
+              <div className="card bg-brand-success/10 border-brand-success/30">
                 <div className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-success-600 dark:bg-success-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="w-5 h-5 rounded-full bg-brand-success flex items-center justify-center flex-shrink-0 mt-0.5">
                     <svg
                       className="w-3 h-3 text-white"
                       fill="none"
@@ -616,10 +605,10 @@ export default function IndexingConfigDetail() {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-success-900 dark:text-success-200">
+                    <h3 className="text-sm font-medium text-brand-success">
                       Config generated successfully!
                     </h3>
-                    <p className="mt-1 text-sm text-success-700 dark:text-success-300">
+                    <p className="mt-1 text-sm text-brand-success/80">
                       The configuration passed all validation checks and is
                       ready to use.
                     </p>
@@ -631,8 +620,8 @@ export default function IndexingConfigDetail() {
             {/* Sync Pipeline */}
             {generatedResult.config.syncOrder &&
               generatedResult.config.syncOrder.length > 0 && (
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 border border-blue-200 dark:border-blue-900 rounded-lg p-4">
-                  <h3 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase mb-3">
+                <div className="bg-gradient-to-r from-brand-blue/5 to-brand-purple/5 border border-brand-blue/30 rounded-lg p-4">
+                  <h3 className="text-xs font-medium text-text-tertiary uppercase mb-3">
                     Sync Pipeline
                   </h3>
                   <div className="flex items-center gap-2 overflow-x-auto pb-2">
@@ -642,18 +631,18 @@ export default function IndexingConfigDetail() {
                           key={fetcherName}
                           className="flex items-center gap-2 flex-shrink-0"
                         >
-                          <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded-lg shadow-sm">
-                            <span className="flex items-center justify-center w-5 h-5 bg-blue-600 dark:bg-blue-500 text-white text-xs font-bold rounded-full">
+                          <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-primary border border-brand-blue/40 rounded-lg shadow-sm">
+                            <span className="flex items-center justify-center w-5 h-5 bg-brand-blue text-white text-xs font-bold rounded-full">
                               {index + 1}
                             </span>
-                            <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            <span className="text-sm font-medium text-text-primary">
                               {fetcherName}
                             </span>
                           </div>
                           {index <
                             generatedResult.config.syncOrder.length - 1 && (
                             <svg
-                              className="w-4 h-4 text-blue-400 dark:text-blue-600"
+                              className="w-4 h-4 text-brand-blue"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -703,8 +692,8 @@ export default function IndexingConfigDetail() {
                   }
                   if (activeTab === "json") {
                     return (
-                      <div className="bg-gray-900 rounded-lg overflow-hidden">
-                        <pre className="p-4 overflow-x-auto text-sm max-h-96 text-gray-100 leading-relaxed">
+                      <div className="bg-bg-tertiary rounded-lg overflow-hidden">
+                        <pre className="p-4 overflow-x-auto text-sm max-h-96 text-text-primary leading-relaxed">
                           <code className="language-json">
                             {JSON.stringify(generatedResult.config, null, 2)}
                           </code>
@@ -782,23 +771,23 @@ export default function IndexingConfigDetail() {
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900">
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+    <div className="pb-8">
+      <div className="w-full py-8">
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
+            onClick={() => navigate("/data-sources")}
+            className="flex items-center gap-2 text-text-tertiary hover:text-text-primary mb-4"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back
+            Back to Data Sources
           </button>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-3xl font-bold text-text-primary">
                 Indexing Config: {config.displayName}
               </h1>
-              <p className="mt-2 text-gray-600 dark:text-gray-300">
+              <p className="mt-2 text-text-tertiary">
                 Auto-generated configuration for {config.serverName}
               </p>
             </div>
@@ -837,10 +826,10 @@ export default function IndexingConfigDetail() {
                   config.status.slice(1);
                 const statusClass =
                   config.status === "active"
-                    ? "bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400"
+                    ? "bg-brand-success/10 text-brand-success"
                     : config.status === "draft"
-                    ? "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-                    : "bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-400";
+                    ? "bg-bg-secondary text-text-secondary"
+                    : "bg-brand-error/10 text-brand-error";
 
                 return (
                   <span
@@ -856,42 +845,36 @@ export default function IndexingConfigDetail() {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <div className="bg-bg-primary border border-border-secondary rounded-lg p-4">
             <div className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <Database className="w-5 h-5 text-brand-purple" />
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Fetchers
-                </p>
-                <p className="text-xl font-bold text-gray-900 dark:text-white">
+                <p className="text-xs text-text-quaternary">Fetchers</p>
+                <p className="text-xl font-bold text-text-primary">
                   {Object.keys(config.config.fetchers || {}).length}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <div className="bg-bg-primary border border-border-secondary rounded-lg p-4">
             <div className="flex items-center gap-2">
-              <FileJson className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <FileJson className="w-5 h-5 text-brand-success" />
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Record Types
-                </p>
-                <p className="text-xl font-bold text-gray-900 dark:text-white">
+                <p className="text-xs text-text-quaternary">Record Types</p>
+                <p className="text-xl font-bold text-text-primary">
                   {Object.keys(config.config.recordTypes || {}).length}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <div className="bg-bg-primary border border-border-secondary rounded-lg p-4">
             <div className="flex items-center gap-2">
-              <GitBranch className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <GitBranch className="w-5 h-5 text-brand-purple" />
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Entities
-                </p>
-                <p className="text-xl font-bold text-gray-900 dark:text-white">
+                <p className="text-xs text-text-quaternary">Entities</p>
+                <p className="text-xl font-bold text-text-primary">
                   {(() => {
                     let total = 0;
                     Object.values(config.config.recordTypes || {}).forEach(
@@ -906,14 +889,12 @@ export default function IndexingConfigDetail() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <div className="bg-bg-primary border border-border-secondary rounded-lg p-4">
             <div className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <BarChart3 className="w-5 h-5 text-text-tertiary" />
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Updated
-                </p>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                <p className="text-xs text-text-quaternary">Updated</p>
+                <p className="text-sm font-medium text-text-primary">
                   {new Date(config.updatedAt).toLocaleDateString()}
                 </p>
               </div>
@@ -924,8 +905,8 @@ export default function IndexingConfigDetail() {
         {/* Sync Pipeline */}
         {(config.config as any).syncOrder &&
           (config.config as any).syncOrder.length > 0 && (
-            <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 border border-blue-200 dark:border-blue-900 rounded-lg p-4">
-              <h3 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase mb-3">
+            <div className="mb-6 bg-gradient-to-r from-brand-blue/5 to-brand-purple/5 border border-brand-blue/30 rounded-lg p-4">
+              <h3 className="text-xs font-medium text-text-tertiary uppercase mb-3">
                 Sync Pipeline
               </h3>
               <div className="flex items-center gap-2 overflow-x-auto pb-2">
@@ -935,17 +916,17 @@ export default function IndexingConfigDetail() {
                       key={fetcherName}
                       className="flex items-center gap-2 flex-shrink-0"
                     >
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded-lg shadow-sm">
-                        <span className="flex items-center justify-center w-5 h-5 bg-blue-600 dark:bg-blue-500 text-white text-xs font-bold rounded-full">
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-primary border border-brand-blue/40 rounded-lg shadow-sm">
+                        <span className="flex items-center justify-center w-5 h-5 bg-brand-blue text-white text-xs font-bold rounded-full">
                           {index + 1}
                         </span>
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        <span className="text-sm font-medium text-text-primary">
                           {fetcherName}
                         </span>
                       </div>
                       {index < (config.config as any).syncOrder.length - 1 && (
                         <svg
-                          className="w-4 h-4 text-blue-400 dark:text-blue-600"
+                          className="w-4 h-4 text-brand-blue"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -997,7 +978,7 @@ export default function IndexingConfigDetail() {
                 return (
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      <h2 className="text-lg font-semibold text-text-primary">
                         Configuration JSON
                       </h2>
                       <div className="flex items-center gap-2">
@@ -1086,14 +1067,14 @@ export default function IndexingConfigDetail() {
                     </div>
 
                     {parseError && (
-                      <div className="mb-4 p-3 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg">
+                      <div className="mb-4 p-3 bg-brand-error/10 border border-brand-error/30 rounded-lg">
                         <div className="flex items-start gap-2">
-                          <AlertCircle className="w-5 h-5 text-error-600 dark:text-error-400 flex-shrink-0 mt-0.5" />
+                          <AlertCircle className="w-5 h-5 text-brand-error flex-shrink-0 mt-0.5" />
                           <div>
-                            <h3 className="text-sm font-medium text-error-900 dark:text-error-200">
+                            <h3 className="text-sm font-medium text-brand-error">
                               JSON Syntax Error
                             </h3>
-                            <p className="mt-1 text-sm text-error-700 dark:text-error-300">
+                            <p className="mt-1 text-sm text-brand-error/80">
                               {parseError}
                             </p>
                           </div>
@@ -1115,11 +1096,11 @@ export default function IndexingConfigDetail() {
                             }
                           }
                         }}
-                        className="w-full bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm resize-y min-h-96 max-h-[600px] focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        className="w-full bg-bg-tertiary text-text-primary p-4 rounded-lg font-mono text-sm resize-y min-h-96 max-h-[600px] focus:outline-none focus:ring-2 focus:ring-brand-purple"
                         spellCheck={false}
                       />
                     ) : (
-                      <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
+                      <pre className="bg-bg-tertiary text-text-primary p-4 rounded-lg overflow-x-auto text-sm">
                         {JSON.stringify(config.config, null, 2)}
                       </pre>
                     )}
@@ -1133,11 +1114,11 @@ export default function IndexingConfigDetail() {
 
         {/* Guidance Modal */}
         {showGuidanceModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-bg-primary rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-border-secondary">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  <h2 className="text-xl font-bold text-text-primary">
                     Regenerate Config with Guidance
                   </h2>
                   <button
@@ -1145,27 +1126,27 @@ export default function IndexingConfigDetail() {
                       setShowGuidanceModal(false);
                       setUserGuidance("");
                     }}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    className="text-text-quaternary hover:text-text-secondary"
                   >
                     <X className="w-6 h-6" />
                   </button>
                 </div>
 
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                <p className="text-sm text-text-tertiary mb-4">
                   Provide specific instructions to guide the LLM in generating
                   the config. For example, you can request specific entity
                   extractions, field mappings, or data transformations.
                 </p>
 
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-text-secondary mb-2">
                     Your Guidance
                   </label>
                   <textarea
                     value={userGuidance}
                     onChange={(e) => setUserGuidance(e.target.value)}
                     placeholder="Example: Please add entity extraction for project statuses. Projects have a status field that can be: Planned, In Progress, Paused, Completed, or Canceled."
-                    className="w-full h-48 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                    className="textarea h-48"
                   />
                 </div>
 

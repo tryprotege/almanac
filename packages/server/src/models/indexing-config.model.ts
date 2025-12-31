@@ -39,6 +39,7 @@ const IndexingConfigSchema = new Schema<IIndexingConfig>(
     },
   },
   {
+    collection: "indexing_configs",
     timestamps: true,
   }
 );

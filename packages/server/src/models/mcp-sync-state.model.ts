@@ -82,6 +82,7 @@ const MCPSyncStateSchema = new Schema<IMCPSyncState>(
     consecutiveErrors: { type: Number, default: 0 },
   },
   {
+    collection: "mcp_sync_states",
     timestamps: true,
   }
 );

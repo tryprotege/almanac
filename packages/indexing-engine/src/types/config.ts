@@ -252,3 +252,9 @@ export interface ValidationWarning {
   message: string;
   suggestion?: string;
 }
+
+/**
+ * IndexingConfig - Type alias for SyncConfig
+ * This provides naming consistency with the server models
+ */
+export type IndexingConfig = SyncConfig;

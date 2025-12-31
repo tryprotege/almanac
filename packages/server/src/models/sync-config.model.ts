@@ -39,6 +39,7 @@ const SyncConfigSchema = new Schema<ISyncConfig>(
     },
   },
   {
+    collection: "sync_configs",
     timestamps: true,
   }
 );

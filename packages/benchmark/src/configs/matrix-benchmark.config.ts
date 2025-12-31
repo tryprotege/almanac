@@ -99,27 +99,27 @@ export const matrixBenchmarkConfig: MatrixBenchmarkConfig = {
     // TODO: uncomment for testing clone MCP server
     // ── Clone MCP Server (stdio) ──────────────────────────────────────────
     // Mock data server with Fathom, Slack, Notion, GitHub tools
-    // {
-    //   name: "clone-mcp",
-    //   servers: ["clone-mcp"],
-    //   packages: ["github", "fathom", "notion", "slack"].reduce<
-    //     Record<string, McpStdioServerConfig>
-    //   >((acc, curr) => {
-    //     acc[curr] = {
-    //       command: "npx",
-    //       args: [
-    //         "-y",
-    //         "tsx",
-    //         path.join(__dirname, "../../../clone-mcp-server/src/index.ts"),
-    //       ],
-    //       env: {
-    //         SOURCE_TYPE: curr,
-    //         STDIO: "true",
-    //       },
-    //     };
-    //     return acc;
-    //   }, {}),
-    // },
+    {
+      name: "clone-mcp",
+      servers: ["clone-mcp"],
+      packages: ["github", "fathom", "notion", "slack"].reduce<
+        Record<string, McpStdioServerConfig>
+      >((acc, curr) => {
+        acc[curr] = {
+          command: "npx",
+          args: [
+            "-y",
+            "tsx",
+            path.join(__dirname, "../../../clone-mcp-server/src/index.ts"),
+          ],
+          env: {
+            SOURCE_TYPE: curr,
+            STDIO: "true",
+          },
+        };
+        return acc;
+      }, {}),
+    },
 
     // ── Clone MCP Server (HTTP) ───────────────────────────────────────────
     // Mock data server via HTTP (must be running: pnpm --filter @ebee-oss/clone-mcp-server dev)

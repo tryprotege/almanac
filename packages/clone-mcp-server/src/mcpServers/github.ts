@@ -1663,10 +1663,7 @@ githubMcpServer.registerTool(
   },
   async (args) => {
     const pr = mockData.github.pullRequests.find(
-      (pr) =>
-        pr.base?.repo?.owner?.login === args.owner &&
-        pr.base?.repo?.name === args.repo &&
-        pr.number === args.pullNumber
+      (pr) => pr.base?.repo?.name === args.repo && pr.number === args.pullNumber
     );
 
     if (args.method === "get_reviews") {
@@ -1681,7 +1678,7 @@ githubMcpServer.registerTool(
     }
 
     return {
-      content: [{ type: "text", text: JSON.stringify(pr, null, 2) }],
+      content: [{ type: "text", text: JSON.stringify(pr || {}, null, 2) }],
     };
   }
 );
@@ -2071,7 +2068,106 @@ githubMcpServer.registerTool(
     }),
   },
   async (args) => {
-    const result = { items: [], total_count: 0 };
+    let prs = mockData.github.pullRequests || [];
+
+    // Filter by owner/repo if provided
+    if (args.owner && args.repo) {
+      prs = prs.filter(
+        (pr) =>
+          pr.base?.repo?.owner?.login === args.owner &&
+          pr.base?.repo?.name === args.repo
+      );
+    } else if (args.owner) {
+      prs = prs.filter((pr) => pr.base?.repo?.owner?.login === args.owner);
+    } else if (args.repo) {
+      prs = prs.filter((pr) => pr.base?.repo?.name === args.repo);
+    }
+
+    // Parse and apply query filters
+    const query = args.query.toLowerCase();
+    prs = prs.filter((pr) => {
+      // Search in title and body
+      const titleMatch = pr.title?.toLowerCase().includes(query);
+      const bodyMatch = pr.body?.toLowerCase().includes(query);
+
+      // Parse common query patterns
+      if (query.includes("author:")) {
+        const authorMatch = query.match(/author:(\S+)/);
+        if (authorMatch) {
+          const author = authorMatch[1];
+          return pr.user?.login?.toLowerCase() === author.toLowerCase();
+        }
+      }
+
+      if (query.includes("state:")) {
+        const stateMatch = query.match(/state:(\S+)/);
+        if (stateMatch) {
+          const state = stateMatch[1];
+          return pr.state?.toLowerCase() === state.toLowerCase();
+        }
+      }
+
+      if (query.includes("label:")) {
+        const labelMatch = query.match(/label:(\S+)/);
+        if (labelMatch) {
+          const label = labelMatch[1];
+          return pr.labels?.some((l: any) =>
+            l.name?.toLowerCase().includes(label.toLowerCase())
+          );
+        }
+      }
+
+      return titleMatch || bodyMatch;
+    });
+
+    // Apply sorting
+    if (args.sort) {
+      prs.sort((a, b) => {
+        let aVal: any, bVal: any;
+
+        switch (args.sort) {
+          case "created":
+            aVal = new Date(a.created_at || 0).getTime();
+            bVal = new Date(b.created_at || 0).getTime();
+            break;
+          case "updated":
+            aVal = new Date(a.updated_at || 0).getTime();
+            bVal = new Date(b.updated_at || 0).getTime();
+            break;
+          case "comments":
+          case "reactions":
+          case "reactions-+1":
+          case "reactions--1":
+          case "reactions-smile":
+          case "reactions-thinking_face":
+          case "reactions-heart":
+          case "reactions-tada":
+          case "interactions":
+            // For mock data, we don't have these metrics, so just use created_at as fallback
+            aVal = new Date(a.created_at || 0).getTime();
+            bVal = new Date(b.created_at || 0).getTime();
+            break;
+          default:
+            return 0;
+        }
+
+        const order = args.order === "desc" ? -1 : 1;
+        return (aVal - bVal) * order;
+      });
+    }
+
+    // Apply pagination
+    const page = args.page || 1;
+    const perPage = args.perPage || 30;
+    const startIndex = (page - 1) * perPage;
+    const endIndex = startIndex + perPage;
+    const paginatedPrs = prs.slice(startIndex, endIndex);
+
+    const result = {
+      items: paginatedPrs,
+      total_count: prs.length,
+      incomplete_results: false,
+    };
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };

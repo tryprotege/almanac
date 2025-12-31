@@ -5,12 +5,194 @@
     },
     "testCases": [
       {
-        "query": "What is PR #16327 about?",
+        "query": "Who created GitHub issue #32130 in the gragger-infra repository about the hard-coded AWS secret in the S3 module, and what was its closure date?",
         "evaluationCriteria": {
           "mustInclude": [
-            "Health.cs",
-            "game",
-            "player"
+            "Maya Patel",
+            "13",
+            "16",
+            "security vulnerability"
+          ]
+        }
+      },
+      {
+        "query": "What specific changes were implemented in PR #55657 by Maya Patel in gragger-server to address the hard-coded AWS secret from issue #32130?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "src/services/s3.ts",
+            "environment variables",
+            "zod",
+            "unit tests"
+          ]
+        }
+      },
+      {
+        "query": "How does the fix in PR #55657 relate to the recommendations in gragger-infra issue #32130 for the AWS S3 secret issue reported by Maya Patel?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "PR #55657",
+            "environment variables",
+            "Issue #32130",
+            "Maya Patel"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "workflow": {
+      "groupId": "workflow-issue-59744"
+    },
+    "testCases": [
+      {
+        "query": "Who raised GitHub issue #59744 about the S3 bucket missing server-side encryption in gragger-infra, and what was the recommended fix including the SSE algorithm?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "Alex Kim",
+            "server_side_encryption_configuration",
+            "AES256"
+          ]
+        }
+      },
+      {
+        "query": "When was PR #9730 merged in gragger-matchmaking to add SSE configuration for matchmaking assets fixing issue #59744, who authored it, and who merged it?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "Priya Patel",
+            "Maya Patel",
+            "26",
+            "2025"
+          ]
+        }
+      },
+      {
+        "query": "What documentation updates were made in PR #28232 addressing issue #59744 in gragger-infra, including the files changed and merge details?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "PR #28232",
+            "issue #59744",
+            "documentation"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "workflow": {
+      "groupId": "workflow-issue-89145"
+    },
+    "testCases": [
+      {
+        "query": "Who created GitHub issue #89145 titled 'Add integration tests for user authentication flow' in the gragger-server repository, and what is the required minimum line coverage for auth.controller.ts and auth.service.ts?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "Emily Thompson",
+            "emilyt",
+            "80%",
+            "auth.controller.ts",
+            "auth.service.ts"
+          ]
+        }
+      },
+      {
+        "query": "In the gragger-game repository, what PR #38852 adds integration tests for user authentication flow fixing issue #89145, who merged it and when, and what key components like test file and mock server were introduced?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "Taylor Morgan",
+            "Marcus Rodriguez",
+            "Tests/Integration/AuthTests.cs",
+            "MockAuthServer",
+            "November 29, 2025"
+          ]
+        }
+      },
+      {
+        "query": "What edge cases are tested in PR #38852 in gragger-game that relates to GitHub issue #89145, and what testing framework is used?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "#89145",
+            "PR #38852",
+            "Unity Test Framework",
+            "Marcus Rodriguez"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "workflow": {
+      "groupId": "workflow-issue-9050"
+    },
+    "testCases": [
+      {
+        "query": "In GitHub issue #9050, what FPS drop and peak CPU usage for ParticleSystem.Update are reported in the Forest_Level scene?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "60 FPS",
+            "20 FPS",
+            "12 ms",
+            "ParticleSystem"
+          ]
+        }
+      },
+      {
+        "query": "What next steps and suggested fixes are outlined in GitHub issue #9050 for the FPS drop problem?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "GPU simulation",
+            "particle",
+            "performance"
+          ]
+        }
+      },
+      {
+        "query": "What suggested fixes are listed in GitHub issue #9050 by Alex Kim for particle systems in Forest_Level?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "GPU simulation",
+            "Shader Graph",
+            "culling",
+            "Alex Kim"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "workflow": {
+      "groupId": "workflow-issue-96687"
+    },
+    "testCases": [
+      {
+        "query": "What is the state_reason and closed_at timestamp for GitHub issue #96687 authored by Priya Patel in gragger-infra?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "completed",
+            "2025-12-03T06:41:39.826Z",
+            "Priya Patel",
+            "#96687",
+            "gragger-infra"
+          ]
+        }
+      },
+      {
+        "query": "What is GitHub issue #96687 about in gragger-infra, and what are the key concerns or action items mentioned?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "#96687",
+            "VPC",
+            "refactor"
+          ]
+        }
+      },
+      {
+        "query": "What variable rename example and CPU performance metric are mentioned by Chris Anderson in gragger-game PR #17372 that fixes issue #96687?",
+        "evaluationCriteria": {
+          "mustInclude": [
+            "currentMovementSpeed",
+            "4%",
+            "CPU",
+            "Chris Anderson"
           ]
         }
       }

@@ -20,6 +20,7 @@ import {
   evaluateResponse,
   formatEvaluationResult,
 } from "../utils/evaluation.js";
+import plimit from "p-limit";
 
 /**
  * Convert SDK result to matrix cell
@@ -72,6 +73,7 @@ export async function runMatrixBenchmark(
 
   const matrix: Record<string, MatrixAgentResult> = {};
   const detailedResults: DetailedQueryResult[] = [];
+  const limit = plimit(5);
 
   // Test each agent
   await Promise.all(
@@ -81,107 +83,114 @@ export async function runMatrixBenchmark(
       const ebeeResults: MatrixCellResult[] = [];
       const directResults: MatrixCellResult[] = [];
 
-      // Run each scenario
-      for (const scenario of scenarios) {
-        console.log(`📋 Scenario: ${scenario.id}`);
-        console.log(`   Query: "${scenario.query}"`);
-        if (scenario.evaluationCriteria) {
-          console.log(
-            `   Evaluation: ${scenario.evaluationCriteria.mustInclude.length} required items`
-          );
-        }
-        console.log(
-          `   Target Servers: ${scenario.targetServers.join(", ")}\n`
-        );
-
-        // Run iterations
-        for (let i = 0; i < config.iterations; i++) {
-          console.log(`   Iteration ${i + 1}/${config.iterations}:`);
-
-          // Test with each MCP setup
-          for (const setup of config.mcpSetups) {
-            // Stdio-based setup (direct or clone-mcp)
-            console.log(`     🔗 Running with ${setup.name}...`);
-
-            let result: SDKQueryResult;
-            let error: string | undefined;
-
-            try {
-              result = await executeSDKQuery(
-                {
-                  ...agent,
-                  mcpConfig: setup.packages,
-                },
-                scenario.query,
-                { verbose: config.verbose }
+      await Promise.all(
+        scenarios.map(
+          async (scenario) =>
+            // Run each scenario
+            await limit(async () => {
+              console.log(`📋 Scenario: ${scenario.id}`);
+              console.log(`   Query: "${scenario.query}"`);
+              if (scenario.evaluationCriteria) {
+                console.log(
+                  `   Evaluation: ${scenario.evaluationCriteria.mustInclude.length} required items`
+                );
+              }
+              console.log(
+                `   Target Servers: ${scenario.targetServers.join(", ")}\n`
               );
-            } catch (err) {
-              // Capture error but continue with other tests
-              error = err instanceof Error ? err.message : String(err);
-              console.error(`        ✗ Error: ${error}`);
 
-              // Create a minimal result for failed queries
-              result = {
-                response: "",
-                mcpCalls: [],
-                inputTokens: 0,
-                outputTokens: 0,
-                thinkingTokens: 0,
-                cacheCreationTokens: 0,
-                cacheReadTokens: 0,
-                totalTokens: 0,
-                executionTime: 0,
-                rawOutput: "",
-                cost: 0,
-                steps: [], // Empty steps for failed queries
-              };
-            }
+              // Run iterations
+              for (let i = 0; i < config.iterations; i++) {
+                console.log(`   Iteration ${i + 1}/${config.iterations}:`);
 
-            const cell = toMatrixCell(result, scenario);
-            if (setup.name === "ebee") {
-              ebeeResults.push(cell);
-            } else {
-              directResults.push(cell);
-            }
+                // Test with each MCP setup
+                for (const setup of config.mcpSetups) {
+                  // Stdio-based setup (direct or clone-mcp)
+                  console.log(`     🔗 Running with ${setup.name}...`);
 
-            // Capture detailed result for CSV export
-            const detailedResult: DetailedQueryResult = {
-              queryId: scenario.id,
-              query: scenario.query,
-              category: scenario.category,
-              agentName: agent.name,
-              setupName: setup.name,
-              iteration: i + 1,
-              response: result.response,
-              evaluation: cell.evaluation,
-              executionTime: result.executionTime,
-              totalTokens: result.totalTokens,
-              inputTokens: result.inputTokens,
-              outputTokens: result.outputTokens,
-              thinkingTokens: result.thinkingTokens,
-              cacheCreationTokens: result.cacheCreationTokens,
-              cacheReadTokens: result.cacheReadTokens,
-              cost: result.cost || 0,
-              timestamp: new Date().toISOString(),
-              targetServers: scenario.targetServers,
-              error,
-              steps: result.steps, // Include captured agent steps for debugging
-            };
-            detailedResults.push(detailedResult);
+                  let result: SDKQueryResult;
+                  let error: string | undefined;
 
-            console.log(
-              `        ✓ Completed in ${result.executionTime}ms, ${result.totalTokens} tokens`
-            );
+                  try {
+                    result = await executeSDKQuery(
+                      {
+                        ...agent,
+                        mcpConfig: setup.packages,
+                      },
+                      scenario.query,
+                      { verbose: config.verbose }
+                    );
+                  } catch (err) {
+                    // Capture error but continue with other tests
+                    error = err instanceof Error ? err.message : String(err);
+                    console.error(`        ✗ Error: ${error}`);
 
-            // Show evaluation results if available
-            if (cell.evaluation) {
-              console.log(`        ${formatEvaluationResult(cell.evaluation)}`);
-            }
-          }
+                    // Create a minimal result for failed queries
+                    result = {
+                      response: "",
+                      mcpCalls: [],
+                      inputTokens: 0,
+                      outputTokens: 0,
+                      thinkingTokens: 0,
+                      cacheCreationTokens: 0,
+                      cacheReadTokens: 0,
+                      totalTokens: 0,
+                      executionTime: 0,
+                      rawOutput: "",
+                      cost: 0,
+                      steps: [], // Empty steps for failed queries
+                    };
+                  }
 
-          console.log(""); // Blank line between iterations
-        }
-      }
+                  const cell = toMatrixCell(result, scenario);
+                  if (setup.name === "ebee") {
+                    ebeeResults.push(cell);
+                  } else {
+                    directResults.push(cell);
+                  }
+
+                  // Capture detailed result for CSV export
+                  const detailedResult: DetailedQueryResult = {
+                    queryId: scenario.id,
+                    query: scenario.query,
+                    category: scenario.category,
+                    agentName: agent.name,
+                    setupName: setup.name,
+                    iteration: i + 1,
+                    response: result.response,
+                    evaluation: cell.evaluation,
+                    executionTime: result.executionTime,
+                    totalTokens: result.totalTokens,
+                    inputTokens: result.inputTokens,
+                    outputTokens: result.outputTokens,
+                    thinkingTokens: result.thinkingTokens,
+                    cacheCreationTokens: result.cacheCreationTokens,
+                    cacheReadTokens: result.cacheReadTokens,
+                    cost: result.cost || 0,
+                    timestamp: new Date().toISOString(),
+                    targetServers: scenario.targetServers,
+                    error,
+                    steps: result.steps, // Include captured agent steps for debugging
+                  };
+                  detailedResults.push(detailedResult);
+
+                  console.log(
+                    `        ✓ Completed in ${result.executionTime}ms, ${result.totalTokens} tokens`
+                  );
+
+                  // Show evaluation results if available
+                  if (cell.evaluation) {
+                    console.log(
+                      `        ${formatEvaluationResult(cell.evaluation)}`
+                    );
+                  }
+                }
+
+                console.log(""); // Blank line between iterations
+              }
+            })
+        )
+      );
 
       // Average results across iterations
       const avgEbee = average(ebeeResults);

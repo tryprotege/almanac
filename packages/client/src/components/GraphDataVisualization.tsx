@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import {
   ReactFlow,
   Background,
@@ -10,10 +10,13 @@ import {
   Node,
   NodeTypes,
   Position,
+  ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { Maximize2, Filter, RefreshCw, Info } from "lucide-react";
 import { GraphDataResponse } from "../lib/api";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -21,18 +24,20 @@ interface GraphDataVisualizationProps {
   graphData: GraphDataResponse;
   onLoadMore?: () => void;
   hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onRefresh?: () => void;
 }
 
 // Custom node component for actual graph nodes
 function DataNode({ data }: { data: any }) {
   const getNodeColor = (type: string) => {
     const colors: Record<string, string> = {
-      page: "bg-blue-500 dark:bg-blue-600",
-      task: "bg-green-500 dark:bg-green-600",
-      person: "bg-purple-500 dark:bg-purple-600",
-      project: "bg-orange-500 dark:bg-orange-600",
-      database: "bg-red-500 dark:bg-red-600",
-      default: "bg-gray-500 dark:bg-gray-600",
+      page: "bg-brand-blue",
+      task: "bg-brand-success",
+      person: "bg-brand-purple",
+      project: "bg-brand-warning",
+      database: "bg-brand-error",
+      default: "bg-text-tertiary",
     };
     return colors[type.toLowerCase()] || colors.default;
   };
@@ -46,7 +51,7 @@ function DataNode({ data }: { data: any }) {
       <div
         className={`px-4 py-3 ${getNodeColor(
           data.type
-        )} text-white rounded-lg shadow-lg min-w-[120px] border-2 border-white dark:border-gray-700`}
+        )} text-white rounded-lg shadow-lg min-w-[120px] border-2 border-bg-primary`}
       >
         <div className="font-semibold text-center text-sm mb-1">
           {data.title || data.id}
@@ -66,13 +71,52 @@ const nodeTypes: NodeTypes = {
   dataNode: DataNode,
 };
 
-export function GraphDataVisualization({
+function GraphDataVisualizationInner({
   graphData,
   onLoadMore,
   hasMore = false,
+  isLoadingMore = false,
+  onRefresh,
 }: GraphDataVisualizationProps) {
   const { theme } = useTheme();
-  const [showAllNodes, setShowAllNodes] = useState(false);
+  const { fitView } = useReactFlow();
+  const [showAllNodes, setShowAllNodes] = useState(true); // Show all nodes by default
+  const [selectedNodeTypes, setSelectedNodeTypes] = useState<string[]>([]);
+  const [showTypeFilter, setShowTypeFilter] = useState(false);
+  const [showLegend, setShowLegend] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+  const legendRef = useRef<HTMLDivElement>(null);
+
+  // Get unique node types for filter
+  const availableNodeTypes = useMemo(() => {
+    if (!graphData || !graphData.nodes) return [];
+    const types = new Set(graphData.nodes.map((n) => n.type));
+    return Array.from(types).sort();
+  }, [graphData]);
+
+  // Click outside handler for filter dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        filterRef.current &&
+        !filterRef.current.contains(event.target as HTMLElement)
+      ) {
+        setShowTypeFilter(false);
+      }
+      if (
+        legendRef.current &&
+        !legendRef.current.contains(event.target as HTMLElement)
+      ) {
+        setShowLegend(false);
+      }
+    };
+
+    if (showTypeFilter || showLegend) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showTypeFilter, showLegend]);
 
   // Convert graph data to React Flow nodes and edges
   const { initialNodes, initialEdges, connectedNodeCount, totalNodeCount } =
@@ -96,10 +140,17 @@ export function GraphDataVisualization({
         connectedNodeIds.add(rel.targetId);
       });
 
-      // Filter to only show nodes that have relationships (unless showAllNodes is true)
-      const nodesToShow = showAllNodes
+      // Filter by visibility (show all or only connected)
+      let nodesToShow = showAllNodes
         ? graphData.nodes
         : graphData.nodes.filter((node) => connectedNodeIds.has(node.id));
+
+      // Filter by selected node types
+      if (selectedNodeTypes.length > 0) {
+        nodesToShow = nodesToShow.filter((node) =>
+          selectedNodeTypes.includes(node.type)
+        );
+      }
 
       // Create nodes with force-directed layout positions
       const nodeCount = nodesToShow.length;
@@ -183,7 +234,7 @@ export function GraphDataVisualization({
         ).length,
         totalNodeCount: graphData.nodes.length,
       };
-    }, [graphData, theme, showAllNodes]);
+    }, [graphData, theme, showAllNodes, selectedNodeTypes]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -200,12 +251,10 @@ export function GraphDataVisualization({
 
   if (!graphData || graphData.nodes.length === 0) {
     return (
-      <div className="flex items-center justify-center h-96 bg-gray-50 dark:bg-gray-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+      <div className="flex items-center justify-center h-96 bg-bg-secondary rounded-lg border-2 border-dashed border-border-secondary">
         <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-300 mb-2">
-            No graph data available
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-text-secondary mb-2">No graph data available</p>
+          <p className="text-sm text-text-tertiary">
             Index some data to see nodes and relationships
           </p>
         </div>
@@ -214,65 +263,172 @@ export function GraphDataVisualization({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Controls */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showAllNodes}
-              onChange={(e) => setShowAllNodes(e.target.checked)}
-              className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-            />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Show all nodes ({totalNodeCount})
+    <div className="space-y-3">
+      {/* Controls Toolbar */}
+      <div className="flex items-center justify-between gap-4 flex-wrap p-3 bg-bg-secondary rounded-lg border border-border-secondary">
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* Preview Badge */}
+          <div className="px-2.5 py-1 bg-brand-blue/10 text-brand-blue rounded-md border border-brand-blue/20">
+            <span className="text-sm font-medium">
+              Preview (First 100 nodes)
             </span>
-          </label>
+          </div>
+
+          {/* Node Type Filter */}
+          <div className="relative" ref={filterRef}>
+            <button
+              onClick={() => setShowTypeFilter(!showTypeFilter)}
+              className="btn btn-ghost btn-sm flex items-center gap-2"
+            >
+              <Filter className="w-4 h-4" />
+              Filter
+              {selectedNodeTypes.length > 0 && (
+                <span className="px-1.5 py-0.5 bg-brand-purple text-white rounded-full text-xs">
+                  {selectedNodeTypes.length}
+                </span>
+              )}
+            </button>
+
+            {showTypeFilter && (
+              <div
+                className="absolute top-full left-0 mt-1 bg-bg-primary border border-border-primary rounded-lg shadow-lg p-2 z-10 min-w-[160px]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-xs font-semibold text-text-secondary mb-2 px-2">
+                  Node Types
+                </div>
+                {availableNodeTypes.map((type) => (
+                  <label
+                    key={type}
+                    className="flex items-center gap-2 px-2 py-1.5 hover:bg-bg-hover rounded cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedNodeTypes.includes(type)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedNodeTypes([...selectedNodeTypes, type]);
+                        } else {
+                          setSelectedNodeTypes(
+                            selectedNodeTypes.filter((t) => t !== type)
+                          );
+                        }
+                      }}
+                      className="w-3 h-3 text-brand-purple bg-bg-secondary border-border-secondary rounded"
+                    />
+                    <span className="text-xs text-text-secondary">{type}</span>
+                  </label>
+                ))}
+                {selectedNodeTypes.length > 0 && (
+                  <button
+                    onClick={() => setSelectedNodeTypes([])}
+                    className="w-full mt-2 text-xs text-brand-purple hover:underline"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Stats Badges */}
+          <div className="flex gap-2 text-xs">
+            <div className="px-2 py-1 bg-brand-blue/10 text-brand-blue rounded">
+              <span className="font-semibold">
+                {showAllNodes ? totalNodeCount : connectedNodeCount}
+              </span>{" "}
+              nodes
+            </div>
+            {!showAllNodes && connectedNodeCount < totalNodeCount && (
+              <div className="px-2 py-1 bg-bg-primary text-text-tertiary rounded">
+                {totalNodeCount - connectedNodeCount} hidden
+              </div>
+            )}
+            <div className="px-2 py-1 bg-brand-purple/10 text-brand-purple rounded">
+              <span className="font-semibold">
+                {graphData.relationships.length}
+              </span>{" "}
+              edges
+            </div>
+          </div>
         </div>
 
-        {hasMore && onLoadMore && (
-          <button onClick={onLoadMore} className="btn btn-secondary text-sm">
-            Load More Data
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          {/* Legend Tooltip */}
+          <div className="relative" ref={legendRef}>
+            <button
+              onClick={() => setShowLegend(!showLegend)}
+              className="btn btn-ghost btn-sm"
+              title="Show legend"
+            >
+              <Info className="w-4 h-4" />
+            </button>
+
+            {showLegend && (
+              <div className="absolute top-full right-0 mt-1 bg-bg-primary border border-border-primary rounded-lg shadow-lg p-3 z-10 min-w-[240px]">
+                <h4 className="text-xs font-semibold text-text-primary mb-2">
+                  Legend
+                </h4>
+                <div className="flex flex-col gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-brand-success"></div>
+                    <span className="text-text-secondary">
+                      High confidence ({">"}80%)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-brand-warning"></div>
+                    <span className="text-text-secondary">
+                      Medium confidence (50-80%)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-brand-error"></div>
+                    <span className="text-text-secondary">
+                      Low confidence ({"<"}50%)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-text-secondary">~~~~~</div>
+                    <span className="text-text-secondary">LLM-extracted</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => fitView({ padding: 0.2, duration: 400 })}
+            className="btn btn-ghost btn-sm flex items-center gap-1.5"
+            title="Fit view to all nodes"
+          >
+            <Maximize2 className="w-4 h-4" />
+            Fit
           </button>
-        )}
-      </div>
 
-      {/* Info Banner */}
-      {!showAllNodes && connectedNodeCount < totalNodeCount && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-          <p className="text-blue-800 dark:text-blue-200 text-sm">
-            <span className="font-semibold">Filtered View:</span> Showing only{" "}
-            {connectedNodeCount} nodes with relationships. Toggle "Show all
-            nodes" to see all {totalNodeCount} nodes.
-          </p>
-        </div>
-      )}
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              className="btn btn-ghost btn-sm"
+              title="Refresh graph data"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          )}
 
-      {/* Stats */}
-      <div className="flex gap-4 text-sm flex-wrap">
-        <div className="px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
-          <span className="font-semibold">
-            {showAllNodes ? totalNodeCount : connectedNodeCount}
-          </span>{" "}
-          nodes displayed
+          {hasMore && onLoadMore && (
+            <button
+              onClick={onLoadMore}
+              disabled={isLoadingMore}
+              className={`btn btn-secondary btn-sm ${
+                isLoadingMore ? "btn-loading" : ""
+              }`}
+            >
+              {isLoadingMore ? "Loading..." : "Load More"}
+            </button>
+          )}
         </div>
-        {!showAllNodes && connectedNodeCount < totalNodeCount && (
-          <div className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs">
-            {totalNodeCount - connectedNodeCount} isolated nodes hidden
-          </div>
-        )}
-        <div className="px-3 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded">
-          <span className="font-semibold">
-            {graphData.relationships.length}
-          </span>{" "}
-          relationships
-        </div>
-        {hasMore && (
-          <div className="px-3 py-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded">
-            More data available
-          </div>
-        )}
       </div>
 
       {/* Graph Visualization */}
@@ -289,6 +445,7 @@ export function GraphDataVisualization({
           minZoom={0.1}
           maxZoom={2}
           colorMode={theme}
+          proOptions={{ hideAttribution: true }}
         >
           <Background />
           <Controls />
@@ -310,39 +467,15 @@ export function GraphDataVisualization({
           />
         </ReactFlow>
       </div>
-
-      {/* Legend */}
-      <div className="card">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-          Legend
-        </h3>
-        <div className="flex flex-wrap gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            <span className="text-gray-600 dark:text-gray-300">
-              High confidence (&gt;80%)
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-            <span className="text-gray-600 dark:text-gray-300">
-              Medium confidence (50-80%)
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-red-500"></div>
-            <span className="text-gray-600 dark:text-gray-300">
-              Low confidence (&lt;50%)
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-gray-600 dark:text-gray-300">~~~~~</div>
-            <span className="text-gray-600 dark:text-gray-300">
-              LLM-extracted
-            </span>
-          </div>
-        </div>
-      </div>
     </div>
+  );
+}
+
+// Wrapper component to provide ReactFlow context
+export function GraphDataVisualization(props: GraphDataVisualizationProps) {
+  return (
+    <ReactFlowProvider>
+      <GraphDataVisualizationInner {...props} />
+    </ReactFlowProvider>
   );
 }

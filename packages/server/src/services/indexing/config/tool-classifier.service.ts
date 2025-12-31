@@ -238,8 +238,6 @@ function parseClassificationFromLLM(response: string): ToolClassification[] {
       return {
         toolName: item.toolName,
         category: item.category as ToolCategory,
-        confidence: item.confidence ?? 1.0,
-        reasoning: item.reasoning ?? "",
       };
     });
 

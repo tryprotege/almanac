@@ -250,6 +250,97 @@ Define additional fetches per record:
 }
 \`\`\`
 
+## Dynamic Parameters with forEach
+
+**Use forEach when a tool requires parameters that come from a previous fetcher's results.**
+
+When a tool needs data from earlier in the sync pipeline (e.g., team names from list_teams), use the forEach config to iterate over source records and call the tool once per item.
+
+**Example: Fetching status per team**
+
+If \`list_issue_statuses\` requires a team name parameter, and teams come from \`list_teams\`:
+
+\`\`\`json
+{
+  "fetchers": {
+    "list_teams": {
+      "tool": "list_teams",
+      "resultPath": "$.content[0].text"
+    },
+    "list_issue_statuses": {
+      "tool": "list_issue_statuses",
+      "forEach": {
+        "source": "list_teams",
+        "path": "$[*]",
+        "paramMapping": {
+          "team": "$.name"
+        },
+        "concurrency": 3,
+        "continueOnError": true,
+        "retries": 2
+      },
+      "resultPath": "$.content[0].text"
+    }
+  }
+}
+\`\`\`
+
+**forEach Config Fields:**
+- \`source\`: Name of fetcher that runs earlier (per syncOrder)
+- \`path\`: JSONPath to iterate over source records (usually "$[*]" for all)
+- \`paramMapping\`: Map source record fields to tool params using JSONPath
+- \`concurrency\`: Max parallel calls (default: 3)
+- \`continueOnError\`: Continue with partial results on errors (default: true)
+- \`retries\`: Retry count per failed call (default: 2)
+
+**Multi-level chaining example:**
+
+For deep hierarchies like teams → projects → issues:
+
+\`\`\`json
+{
+  "syncOrder": ["list_teams", "list_team_projects", "list_project_issues"],
+  "fetchers": {
+    "list_teams": {
+      "tool": "list_teams",
+      "resultPath": "$.content[0].text"
+    },
+    "list_team_projects": {
+      "tool": "list_projects",
+      "forEach": {
+        "source": "list_teams",
+        "path": "$[*]",
+        "paramMapping": {
+          "teamId": "$.id"
+        }
+      },
+      "resultPath": "$.content[0].text"
+    },
+    "list_project_issues": {
+      "tool": "list_issues",
+      "forEach": {
+        "source": "list_team_projects",
+        "path": "$[*]",
+        "paramMapping": {
+          "projectId": "$.id"
+        }
+      },
+      "resultPath": "$.content[0].text"
+    }
+  }
+}
+\`\`\`
+
+**When to use forEach:**
+- Tool requires params that vary per entity (team, project, workspace, etc.)
+- Can't pass all values at once (API requires one call per entity)
+- Source data comes from an earlier fetcher in syncOrder
+
+**When NOT to use forEach:**
+- Tool accepts array/batch parameters
+- Tool doesn't require dynamic params
+- Data is static/hardcoded
+
 ## Instructions
 
 1. **Analyze the tools** and sample data to understand the data structure

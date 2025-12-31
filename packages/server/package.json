@@ -37,6 +37,7 @@
     "express": "^5.1.0",
     "ioredis": "^5.8.2",
     "json-schema-to-zod": "^2.7.0",
+    "jsonpath-plus": "^8.0.0",
     "mongodb": "^7.0.0",
     "mongoose": "^9.0.0",
     "neo4j-driver": "^6.0.1",

@@ -272,6 +272,9 @@ importers:
       json-schema-to-zod:
         specifier: ^2.7.0
         version: 2.7.0
+      jsonpath-plus:
+        specifier: ^8.0.0
+        version: 8.1.0
       mongodb:
         specifier: ^7.0.0
         version: 7.0.0
@@ -1356,8 +1359,8 @@ packages:
     resolution: {integrity: sha512-058GAcqHd3I7oYLnLIMhcZMdg8i6hCvD4K3s5PY8RuSXp7QAl9/+usOIxrDSfNMGK4cfya94LqHj+txwIe3wUQ==}
     engines: {node: '>=18'}
 
-  '@sourcegraph/amp@0.0.1766433683-gb6e525':
-    resolution: {integrity: sha512-uI1aMG+2hdaFzcJXa8MOVq6ptujRXZpmwY9YeTFNcc4J73e2pFfV7M+aSs86NJrObvjg6AMLtlkwIt9KSeWSxg==}
+  '@sourcegraph/amp@0.0.1767139310-g936195':
+    resolution: {integrity: sha512-sV0Y80MbaNl6e/dZnIt0rnLuGY54ukF6F8U+s5c5Ur0HBtufmqGE/EwUfIkPH1HEI/fXRj3575Bjk5QQd7hwAw==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -2669,6 +2672,11 @@ packages:
   jsonpath-plus@10.3.0:
     resolution: {integrity: sha512-8TNmfeTCk2Le33A3vRRwtuworG/L5RrgMvdjhKZxvyShO+mBu2fP50OWUjRLNtvw344DdDarFh9buFAZs5ujeA==}
     engines: {node: '>=18.0.0'}
+    hasBin: true
+
+  jsonpath-plus@8.1.0:
+    resolution: {integrity: sha512-qVTiuKztFGw0dGhYi3WNqvddx3/SHtyDT0xJaeyz4uP0d1tkpG+0y5uYQ4OcIo1TLAz3PE/qDOW9F0uDt3+CTw==}
+    engines: {node: '>=14.0.0'}
     hasBin: true
 
   kareem@3.0.0:
@@ -4663,10 +4671,10 @@ snapshots:
 
   '@sourcegraph/amp-sdk@0.1.0-20251217003600-gcd4203a':
     dependencies:
-      '@sourcegraph/amp': 0.0.1766433683-gb6e525
+      '@sourcegraph/amp': 0.0.1767139310-g936195
       zod: 3.25.76
 
-  '@sourcegraph/amp@0.0.1766433683-gb6e525':
+  '@sourcegraph/amp@0.0.1767139310-g936195':
     dependencies:
       '@napi-rs/keyring': 1.1.9
 
@@ -6268,6 +6276,8 @@ snapshots:
       '@jsep-plugin/assignment': 1.3.0(jsep@1.4.0)
       '@jsep-plugin/regex': 1.0.4(jsep@1.4.0)
       jsep: 1.4.0
+
+  jsonpath-plus@8.1.0: {}
 
   kareem@3.0.0: {}
 

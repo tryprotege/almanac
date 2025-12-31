@@ -4,7 +4,11 @@ import type {
   TransformedRecord,
 } from "@ebee-oss/indexing-engine";
 import { RecordTransformer } from "@ebee-oss/indexing-engine";
-import { fetchAll as fetchPaginated } from "./paginated-fetcher.js";
+import {
+  fetchAll as fetchPaginated,
+  fetchWithForEach,
+  type ForEachContext,
+} from "./paginated-fetcher.js";
 import { enrich as enrichRecord } from "./enrichment-executor.js";
 import { extractEntities, extractRelationships } from "./entity-extractor.js";
 import { MCPSyncStateModel } from "../../../models/mcp-sync-state.model.js";
@@ -42,6 +46,9 @@ export async function* indexAll(
     );
   }
 
+  // Track fetcher results for forEach references
+  const fetcherResults: ForEachContext = {};
+
   // Get fetchers in the correct order
   const orderedFetchers = getOrderedFetchers(config);
 
@@ -76,8 +83,18 @@ export async function* indexAll(
       (rt) => rt.fetcher === fetcherName
     );
 
+    // Store all records from this fetcher for forEach references
+    const allFetcherRecords: any[] = [];
+
+    // Determine which fetch method to use
+    const pageGenerator = fetcherConfig.forEach
+      ? fetchWithForEach(serverName, fetcherConfig, fetcherResults)
+      : fetchPaginated(serverName, fetcherConfig);
+
     // Fetch pages
-    for await (const pageResult of fetchPaginated(serverName, fetcherConfig)) {
+    for await (const pageResult of pageGenerator) {
+      // Store raw records for forEach references
+      allFetcherRecords.push(...pageResult.records);
       const transformedBatch: TransformedRecord[] = [];
 
       // Process each record
@@ -150,6 +167,9 @@ export async function* indexAll(
         },
       };
     }
+
+    // Save results for future fetchers to reference
+    fetcherResults[fetcherName] = allFetcherRecords;
 
     logger.info(`Completed fetch: ${fetcherName}`);
   }

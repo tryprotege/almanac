@@ -104,23 +104,17 @@ Return a valid JSON array with one classification per tool:
 [
   {
     "toolName": "exact_tool_name",
-    "category": "read",
-    "confidence": 0.95,
-    "reasoning": "This is a list operation that retrieves pages without modification"
+    "category": "read"
   },
   {
     "toolName": "exact_tool_name_2",
-    "category": "write",
-    "confidence": 0.98,
-    "reasoning": "This creates a new page, modifying system state"
+    "category": "write"
   }
 ]
 \`\`\`
 
 **Important:**
 - Use exact tool names from the input
-- Confidence should be 0-1 (1.0 = certain)
-- Provide brief, clear reasoning
 - Return ONLY the JSON array, no other text
 - Classify ALL ${tools.length} tools
 

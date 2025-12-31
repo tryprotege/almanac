@@ -8,6 +8,11 @@ import {
   Edit,
   Save,
   X,
+  LayoutGrid,
+  Database,
+  GitBranch,
+  Code,
+  BarChart3,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -16,6 +21,9 @@ import {
   useSaveConfig,
 } from "../hooks/useIndexingConfigs";
 import { useState, useEffect } from "react";
+import ConfigTabs from "../components/IndexingConfig/ConfigTabs";
+import DataMappingTab from "../components/IndexingConfig/DataMappingTab";
+import EntitiesTab from "../components/IndexingConfig/EntitiesTab";
 
 type GenerationStep = "idle" | "generating" | "result";
 
@@ -696,48 +704,64 @@ export default function IndexingConfigDetail() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="card">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
-                <FileJson className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-              </div>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <Database className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   Fetchers
                 </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {config.config.fetchers?.length || 0}
+                <p className="text-xl font-bold text-gray-900 dark:text-white">
+                  {Object.keys(config.config.fetchers || {}).length}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="card">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-success-100 dark:bg-success-900/30 rounded-lg">
-                <FileJson className="w-6 h-6 text-success-600 dark:text-success-400" />
-              </div>
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <FileJson className="w-5 h-5 text-green-600 dark:text-green-400" />
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   Record Types
                 </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {config.config.recordTypes?.length || 0}
+                <p className="text-xl font-bold text-gray-900 dark:text-white">
+                  {Object.keys(config.config.recordTypes || {}).length}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="card">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <FileJson className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              </div>
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <GitBranch className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Last Updated
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Entities
+                </p>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">
+                  {(() => {
+                    let total = 0;
+                    Object.values(config.config.recordTypes || {}).forEach(
+                      (rt: any) => {
+                        total += (rt.entities || []).length;
+                      }
+                    );
+                    return total;
+                  })()}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Updated
                 </p>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">
                   {new Date(config.updatedAt).toLocaleDateString()}
@@ -747,130 +771,214 @@ export default function IndexingConfigDetail() {
           </div>
         </div>
 
-        {/* Config JSON */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Configuration JSON
-            </h2>
-            <div className="flex items-center gap-2">
-              {!isEditing && (
-                <>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        JSON.stringify(config.config, null, 2)
-                      );
-                    }}
-                    className="btn btn-secondary text-sm"
-                  >
-                    Copy to Clipboard
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsEditing(true);
-                      setEditedJson(JSON.stringify(config.config, null, 2));
-                      setParseError(null);
-                    }}
-                    className="btn btn-primary text-sm inline-flex items-center gap-2"
-                  >
-                    <Edit className="w-4 h-4" />
-                    Edit Config
-                  </button>
-                </>
-              )}
-              {isEditing && (
-                <>
-                  <button
-                    onClick={() => {
-                      setIsEditing(false);
-                      setEditedJson("");
-                      setParseError(null);
-                    }}
-                    className="btn btn-secondary text-sm inline-flex items-center gap-2"
-                  >
-                    <X className="w-4 h-4" />
-                    Cancel
-                  </button>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const parsed = JSON.parse(editedJson);
-                        await saveConfig.mutateAsync({
-                          config: parsed,
-                          status: config.status,
-                        });
-                        setIsEditing(false);
-                        window.location.reload();
-                      } catch (error) {
-                        if (error instanceof SyntaxError) {
-                          setParseError(error.message);
-                        } else {
-                          console.error("Failed to save config:", error);
-                          alert(
-                            "Failed to save config. Check console for details."
-                          );
-                        }
-                      }
-                    }}
-                    disabled={saveConfig.isPending || !!parseError}
-                    className="btn btn-primary text-sm inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {saveConfig.isPending ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        Save Changes
-                      </>
-                    )}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {parseError && (
-            <div className="mb-4 p-3 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-error-600 dark:text-error-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="text-sm font-medium text-error-900 dark:text-error-200">
-                    JSON Syntax Error
-                  </h3>
-                  <p className="mt-1 text-sm text-error-700 dark:text-error-300">
-                    {parseError}
-                  </p>
-                </div>
+        {/* Sync Pipeline */}
+        {(config.config as any).syncOrder &&
+          (config.config as any).syncOrder.length > 0 && (
+            <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 border border-blue-200 dark:border-blue-900 rounded-lg p-4">
+              <h3 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase mb-3">
+                Sync Pipeline
+              </h3>
+              <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                {(config.config as any).syncOrder.map(
+                  (fetcherName: string, index: number) => (
+                    <div
+                      key={fetcherName}
+                      className="flex items-center gap-2 flex-shrink-0"
+                    >
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded-lg shadow-sm">
+                        <span className="flex items-center justify-center w-5 h-5 bg-blue-600 dark:bg-blue-500 text-white text-xs font-bold rounded-full">
+                          {index + 1}
+                        </span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          {fetcherName}
+                        </span>
+                      </div>
+                      {index < (config.config as any).syncOrder.length - 1 && (
+                        <svg
+                          className="w-4 h-4 text-blue-400 dark:text-blue-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                  )
+                )}
               </div>
             </div>
           )}
 
-          {isEditing ? (
-            <textarea
-              value={editedJson}
-              onChange={(e) => {
-                setEditedJson(e.target.value);
-                try {
-                  JSON.parse(e.target.value);
-                  setParseError(null);
-                } catch (error) {
-                  if (error instanceof SyntaxError) {
-                    setParseError(error.message);
-                  }
-                }
-              }}
-              className="w-full bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm resize-y min-h-96 max-h-[600px] focus:outline-none focus:ring-2 focus:ring-primary-500"
-              spellCheck={false}
-            />
-          ) : (
-            <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
-              {JSON.stringify(config.config, null, 2)}
-            </pre>
-          )}
+        {/* Tabbed Config View */}
+        <div className="card">
+          <ConfigTabs
+            tabs={[
+              {
+                id: "dataMapping",
+                label: "Data Mapping",
+                icon: <Database className="w-4 h-4" />,
+              },
+              {
+                id: "entities",
+                label: "Graph Entities",
+                icon: <GitBranch className="w-4 h-4" />,
+              },
+              {
+                id: "json",
+                label: "Raw JSON",
+                icon: <Code className="w-4 h-4" />,
+              },
+            ]}
+          >
+            {(activeTab) => {
+              if (activeTab === "dataMapping") {
+                return <DataMappingTab config={config.config} />;
+              }
+              if (activeTab === "entities") {
+                return <EntitiesTab config={config.config} />;
+              }
+              if (activeTab === "json") {
+                return (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        Configuration JSON
+                      </h2>
+                      <div className="flex items-center gap-2">
+                        {!isEditing && (
+                          <>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(
+                                  JSON.stringify(config.config, null, 2)
+                                );
+                              }}
+                              className="btn btn-secondary text-sm"
+                            >
+                              Copy to Clipboard
+                            </button>
+                            <button
+                              onClick={() => {
+                                setIsEditing(true);
+                                setEditedJson(
+                                  JSON.stringify(config.config, null, 2)
+                                );
+                                setParseError(null);
+                              }}
+                              className="btn btn-primary text-sm inline-flex items-center gap-2"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Edit Config
+                            </button>
+                          </>
+                        )}
+                        {isEditing && (
+                          <>
+                            <button
+                              onClick={() => {
+                                setIsEditing(false);
+                                setEditedJson("");
+                                setParseError(null);
+                              }}
+                              className="btn btn-secondary text-sm inline-flex items-center gap-2"
+                            >
+                              <X className="w-4 h-4" />
+                              Cancel
+                            </button>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const parsed = JSON.parse(editedJson);
+                                  await saveConfig.mutateAsync({
+                                    config: parsed,
+                                    status: config.status,
+                                  });
+                                  setIsEditing(false);
+                                  window.location.reload();
+                                } catch (error) {
+                                  if (error instanceof SyntaxError) {
+                                    setParseError(error.message);
+                                  } else {
+                                    console.error(
+                                      "Failed to save config:",
+                                      error
+                                    );
+                                    alert(
+                                      "Failed to save config. Check console for details."
+                                    );
+                                  }
+                                }
+                              }}
+                              disabled={saveConfig.isPending || !!parseError}
+                              className="btn btn-primary text-sm inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {saveConfig.isPending ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Saving...
+                                </>
+                              ) : (
+                                <>
+                                  <Save className="w-4 h-4" />
+                                  Save Changes
+                                </>
+                              )}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {parseError && (
+                      <div className="mb-4 p-3 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="w-5 h-5 text-error-600 dark:text-error-400 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <h3 className="text-sm font-medium text-error-900 dark:text-error-200">
+                              JSON Syntax Error
+                            </h3>
+                            <p className="mt-1 text-sm text-error-700 dark:text-error-300">
+                              {parseError}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {isEditing ? (
+                      <textarea
+                        value={editedJson}
+                        onChange={(e) => {
+                          setEditedJson(e.target.value);
+                          try {
+                            JSON.parse(e.target.value);
+                            setParseError(null);
+                          } catch (error) {
+                            if (error instanceof SyntaxError) {
+                              setParseError(error.message);
+                            }
+                          }
+                        }}
+                        className="w-full bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm resize-y min-h-96 max-h-[600px] focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        spellCheck={false}
+                      />
+                    ) : (
+                      <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
+                        {JSON.stringify(config.config, null, 2)}
+                      </pre>
+                    )}
+                  </div>
+                );
+              }
+              return null;
+            }}
+          </ConfigTabs>
         </div>
 
         {/* Guidance Modal */}

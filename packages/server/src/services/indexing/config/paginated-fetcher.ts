@@ -1,5 +1,6 @@
 import type { FetcherConfig } from "@ebee-oss/indexing-engine";
 import { mcpClientManager } from "../../../mcp/client.js";
+import { JSONPath } from "jsonpath-plus";
 
 export interface PageResult {
   records: any[];
@@ -7,6 +8,114 @@ export interface PageResult {
   hasMore: boolean;
   mcpError?: string; // MCP error message if tool call failed
   rawResponse?: any; // Raw MCP response for debugging
+}
+
+export interface ForEachContext {
+  [fetcherName: string]: any[];
+}
+
+/**
+ * Fetch records by iterating over results from a previous fetcher
+ * Calls the tool once per item from the source, with mapped params
+ */
+export async function* fetchWithForEach(
+  serverName: string,
+  config: FetcherConfig,
+  fetcherResults: ForEachContext
+): AsyncGenerator<PageResult> {
+  const { forEach } = config;
+
+  if (!forEach) {
+    throw new Error(`fetchWithForEach called but forEach config is missing`);
+  }
+
+  // Get source records from previous fetcher
+  const sourceRecords = fetcherResults[forEach.source];
+  if (!sourceRecords || sourceRecords.length === 0) {
+    console.warn(`forEach source "${forEach.source}" has no records`);
+    yield { records: [], hasMore: false };
+    return;
+  }
+
+  // Extract iteration items using JSONPath
+  const iterationItems = JSONPath({
+    path: forEach.path,
+    json: sourceRecords,
+  });
+
+  if (!iterationItems || iterationItems.length === 0) {
+    console.warn(`forEach path "${forEach.path}" matched no items`);
+    yield { records: [], hasMore: false };
+    return;
+  }
+
+  const concurrency = forEach.concurrency ?? 3;
+  const continueOnError = forEach.continueOnError ?? true;
+  const maxRetries = forEach.retries ?? 2;
+
+  // Process in batches for concurrency control
+  const allResults: any[] = [];
+  const errors: Array<{ item: any; error: Error }> = [];
+
+  for (let i = 0; i < iterationItems.length; i += concurrency) {
+    const batch = iterationItems.slice(i, i + concurrency);
+
+    const batchPromises = batch.map(async (item: any) => {
+      // Build params from static params + mapped params
+      const params = { ...config.params };
+
+      for (const [paramName, jsonPath] of Object.entries(
+        forEach.paramMapping
+      )) {
+        const value = JSONPath({ path: jsonPath, json: item, wrap: false });
+        if (value !== undefined) {
+          params[paramName] = value;
+        }
+      }
+
+      // Call with retries
+      let lastError: Error | null = null;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const result = await fetchPage(serverName, config.tool, params);
+          return result.records;
+        } catch (err) {
+          lastError = err as Error;
+          if (attempt < maxRetries) {
+            await sleep(1000 * (attempt + 1)); // Exponential backoff
+          }
+        }
+      }
+
+      throw lastError;
+    });
+
+    const results = await Promise.allSettled(batchPromises);
+
+    for (let j = 0; j < results.length; j++) {
+      const result = results[j];
+      if (result.status === "fulfilled") {
+        allResults.push(...(result.value || []));
+      } else {
+        errors.push({ item: batch[j], error: result.reason });
+        if (!continueOnError) {
+          throw result.reason;
+        }
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    console.warn(
+      `forEach completed with ${errors.length} errors:`,
+      errors.map((e) => e.error.message)
+    );
+  }
+
+  yield {
+    records: allResults,
+    hasMore: false,
+  };
 }
 
 /**
@@ -228,4 +337,11 @@ function addPaginationParams(
     default:
       break;
   }
+}
+
+/**
+ * Helper function for delays
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

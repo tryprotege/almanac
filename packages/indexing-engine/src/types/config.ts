@@ -9,8 +9,6 @@ export type ToolCategory = "read" | "search" | "write";
 export interface ToolClassification {
   toolName: string;
   category: ToolCategory;
-  confidence: number; // 0-1 scale
-  reasoning: string;
 }
 
 /**
@@ -48,6 +46,13 @@ export interface FetcherConfig {
   description?: string; // For GUI display
   params?: Record<string, any>; // Static params
 
+  /**
+   * Dynamic iteration over previous fetcher results
+   * When specified, this fetcher will be called once per item from the source fetcher
+   * Results from all calls are aggregated
+   */
+  forEach?: ForEachConfig;
+
   pagination?: PaginationConfig;
   incrementalSync?: IncrementalSyncConfig;
 
@@ -66,6 +71,31 @@ export interface PaginationConfig {
 export interface IncrementalSyncConfig {
   sinceParam?: string; // e.g., "last_edited_time"
   sinceFormat?: "iso8601" | "unix" | "unix_ms";
+}
+
+/**
+ * ForEachConfig - Iterate over previous fetcher results
+ * Allows calling a tool once per record from a source fetcher
+ * This enables dynamic parameter generation based on earlier fetcher results
+ */
+export interface ForEachConfig {
+  /** Reference to a fetcher that runs earlier (per syncOrder) */
+  source: string;
+
+  /** JSONPath to iterate over source records, e.g., "$[*]" for all */
+  path: string;
+
+  /** Map source record fields to tool parameters */
+  paramMapping: Record<string, string>; // e.g., { "team": "$.name" }
+
+  /** Max concurrent tool calls (default: 3) */
+  concurrency?: number;
+
+  /** Continue with partial results if some calls fail (default: true) */
+  continueOnError?: boolean;
+
+  /** Number of retries per failed call (default: 2) */
+  retries?: number;
 }
 
 /**

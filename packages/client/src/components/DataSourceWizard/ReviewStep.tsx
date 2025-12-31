@@ -6,6 +6,7 @@ interface ReviewStepProps {
   serverConfig: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt">;
   preset: ServicePreset | null;
   generatedConfig?: GeneratedSyncConfigResult;
+  importedConfig?: any;
   onBack: () => void;
   onSubmit: () => void;
   isLoading: boolean;
@@ -15,10 +16,14 @@ export function ReviewStep({
   serverConfig,
   preset,
   generatedConfig,
+  importedConfig,
   onBack,
   onSubmit,
   isLoading,
 }: ReviewStepProps) {
+  // Determine which config to display
+  const displayConfig = importedConfig || generatedConfig?.config;
+  const isImported = !!importedConfig;
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -57,29 +62,39 @@ export function ReviewStep({
         </div>
       </div>
 
-      {/* Indexing Configuration (for custom servers) */}
-      {generatedConfig && (
+      {/* Sync Configuration (for custom servers) */}
+      {displayConfig && (
         <div className="border border-border-secondary rounded-lg p-4">
           <h4 className="text-sm font-medium text-text-primary mb-3">
-            Indexing Configuration
+            Sync Configuration
+            {isImported && (
+              <span className="ml-2 text-xs text-brand-blue">(Imported)</span>
+            )}
+            {!isImported && (
+              <span className="ml-2 text-xs text-brand-purple">
+                (Auto-Generated)
+              </span>
+            )}
           </h4>
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-text-tertiary">READ Tools</span>
-              <span className="font-medium text-text-primary">
-                {generatedConfig.toolsUsed.length}
-              </span>
-            </div>
+            {!isImported && generatedConfig && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-text-tertiary">READ Tools Used</span>
+                <span className="font-medium text-text-primary">
+                  {generatedConfig.toolsUsed.length}
+                </span>
+              </div>
+            )}
             <div className="flex items-center justify-between text-sm">
               <span className="text-text-tertiary">Fetchers</span>
               <span className="font-medium text-text-primary">
-                {Object.keys(generatedConfig.config.fetchers).length}
+                {Object.keys(displayConfig.fetchers || {}).length}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-text-tertiary">Record Types</span>
               <span className="font-medium text-text-primary">
-                {Object.keys(generatedConfig.config.recordTypes).length}
+                {Object.keys(displayConfig.recordTypes || {}).length}
               </span>
             </div>
           </div>
@@ -95,7 +110,9 @@ export function ReviewStep({
           <li>MCP server connection will be saved</li>
           <li>
             {preset?.id === "custom"
-              ? "Auto-generated indexing config will be activated"
+              ? isImported
+                ? "Imported sync config will be activated"
+                : "Auto-generated sync config will be activated"
               : "Preset indexing adapter will be configured"}
           </li>
           <li>Initial data sync will start automatically</li>

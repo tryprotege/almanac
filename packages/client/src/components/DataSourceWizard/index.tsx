@@ -10,6 +10,8 @@ import {
 } from "../DataSourceForm/presets";
 import { IndexingStep } from "./IndexingStep";
 import { ReviewStep } from "./ReviewStep";
+import { ConfigChoiceStep } from "./ConfigChoiceStep";
+import { ConfigImportStep } from "./ConfigImportStep";
 import { DataSourceConfig } from "../../lib/api";
 import {
   useCreateDataSource,
@@ -29,7 +31,13 @@ interface DataSourceWizardProps {
   existingSource?: DataSourceConfig | null;
 }
 
-type WizardStep = "select" | "configure" | "indexing" | "review";
+type WizardStep =
+  | "select"
+  | "configure"
+  | "config-choice"
+  | "auto-generate"
+  | "import"
+  | "review";
 
 export function DataSourceWizard({
   isOpen,
@@ -52,6 +60,7 @@ export function DataSourceWizard({
     "_id" | "createdAt" | "updatedAt"
   > | null>(null);
   const [isCustomServerCreated, setIsCustomServerCreated] = useState(false);
+  const [importedConfig, setImportedConfig] = useState<any>(null);
 
   useEffect(() => {
     if (isOpen && existingSource) {
@@ -77,6 +86,7 @@ export function DataSourceWizard({
       setSelectedPreset(null);
       setServerConfig(null);
       setIsCustomServerCreated(false);
+      setImportedConfig(null);
     }
   }, [existingSource, isOpen]);
 
@@ -97,10 +107,18 @@ export function DataSourceWizard({
         setStep("select");
         setSelectedPreset(null);
       }
-    } else if (step === "indexing") {
+    } else if (step === "config-choice") {
       setStep("configure");
+    } else if (step === "auto-generate") {
+      setStep("config-choice");
+    } else if (step === "import") {
+      setStep("config-choice");
     } else if (step === "review") {
-      setStep(selectedPreset?.id === "custom" ? "indexing" : "configure");
+      if (selectedPreset?.id === "custom") {
+        setStep(importedConfig ? "import" : "auto-generate");
+      } else {
+        setStep("configure");
+      }
     }
   };
 
@@ -109,7 +127,7 @@ export function DataSourceWizard({
   ) => {
     setServerConfig(config);
 
-    // For custom servers, create and connect server first, then generate indexing config
+    // For custom servers, create and connect server first, then show config choice
     if (selectedPreset?.id === "custom") {
       try {
         // Check if we're editing an existing server
@@ -131,20 +149,8 @@ export function DataSourceWizard({
             id: "reconnect-server",
           });
 
-          // Regenerate indexing config with updated tools
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          toast.loading("Regenerating indexing config...", {
-            id: "generate-config",
-          });
-          await generateConfig.mutateAsync({
-            serverName: config.name,
-            displayName: config.name,
-          });
-          toast.success("Indexing config regenerated", {
-            id: "generate-config",
-          });
-
-          setStep("indexing");
+          // Show config choice
+          setStep("config-choice");
         } else {
           // Create new server
           toast.loading("Creating data source...", { id: "create-server" });
@@ -162,17 +168,8 @@ export function DataSourceWizard({
           // Wait a moment for tool caching to complete
           await new Promise((resolve) => setTimeout(resolve, 1000));
 
-          // Generate indexing config using connected server's tools
-          toast.loading("Generating indexing config...", {
-            id: "generate-config",
-          });
-          await generateConfig.mutateAsync({
-            serverName: config.name,
-            displayName: config.name,
-          });
-          toast.success("Indexing config generated", { id: "generate-config" });
-
-          setStep("indexing");
+          // Show config choice
+          setStep("config-choice");
         }
       } catch (error) {
         console.error("Failed to setup custom server:", error);
@@ -193,7 +190,38 @@ export function DataSourceWizard({
     }
   };
 
-  const handleIndexingNext = () => {
+  const handleChooseAutoGenerate = async () => {
+    if (!serverConfig) return;
+
+    try {
+      // Generate indexing config using connected server's tools
+      toast.loading("Generating sync config...", { id: "generate-config" });
+      await generateConfig.mutateAsync({
+        serverName: serverConfig.name,
+        displayName: serverConfig.name,
+      });
+      toast.success("Sync config generated", { id: "generate-config" });
+
+      setStep("auto-generate");
+    } catch (error) {
+      console.error("Failed to generate config:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to generate config",
+        { id: "generate-error" }
+      );
+    }
+  };
+
+  const handleChooseImport = () => {
+    setStep("import");
+  };
+
+  const handleImportConfig = (config: any) => {
+    setImportedConfig(config);
+    setStep("review");
+  };
+
+  const handleAutoGenerateNext = () => {
     setStep("review");
   };
 
@@ -212,10 +240,11 @@ export function DataSourceWizard({
         await createMutation.mutateAsync(serverConfig);
       }
 
-      // 2. Save indexing config if custom
-      if (selectedPreset?.id === "custom" && generateConfig.data?.config) {
+      // 2. Save sync config if custom
+      const configToSave = importedConfig || generateConfig.data?.config;
+      if (selectedPreset?.id === "custom" && configToSave) {
         await saveConfig.mutateAsync({
-          config: generateConfig.data.config,
+          config: configToSave,
           status: "active",
         });
       }
@@ -239,6 +268,7 @@ export function DataSourceWizard({
     setSelectedPreset(null);
     setServerConfig(null);
     setIsCustomServerCreated(false);
+    setImportedConfig(null);
     generateConfig.reset();
   };
 
@@ -256,8 +286,12 @@ export function DataSourceWizard({
   let subtitle = "";
   if (selectedPreset && step !== "select") {
     subtitle = selectedPreset.displayName;
-    if (step === "indexing") {
-      subtitle += " • Generating Indexing Config";
+    if (step === "config-choice") {
+      subtitle += " • Choose Config Method";
+    } else if (step === "auto-generate") {
+      subtitle += " • Auto-Generate Config";
+    } else if (step === "import") {
+      subtitle += " • Import Config";
     } else if (step === "review") {
       subtitle += " • Review & Save";
     }
@@ -302,11 +336,28 @@ export function DataSourceWizard({
         </div>
       )}
 
-      {step === "indexing" && generateConfig.data && (
+      {step === "config-choice" && (
+        <ConfigChoiceStep
+          onBack={handleBack}
+          onChooseAutoGenerate={handleChooseAutoGenerate}
+          onChooseImport={handleChooseImport}
+          isLoading={isLoading}
+        />
+      )}
+
+      {step === "auto-generate" && generateConfig.data && (
         <IndexingStep
           generatedConfig={generateConfig.data}
           onBack={handleBack}
-          onNext={handleIndexingNext}
+          onNext={handleAutoGenerateNext}
+          isLoading={isLoading}
+        />
+      )}
+
+      {step === "import" && (
+        <ConfigImportStep
+          onBack={handleBack}
+          onSubmit={handleImportConfig}
           isLoading={isLoading}
         />
       )}
@@ -316,6 +367,7 @@ export function DataSourceWizard({
           serverConfig={serverConfig}
           preset={selectedPreset}
           generatedConfig={generateConfig.data}
+          importedConfig={importedConfig}
           onBack={handleBack}
           onSubmit={handleFinalSubmit}
           isLoading={isLoading}

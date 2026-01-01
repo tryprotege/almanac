@@ -6,6 +6,7 @@
 import fs from "fs";
 import path from "path";
 import type { MatrixBenchmarkResults } from "../types/index.js";
+import { exportDebugReportJSON } from "./debug-export.js";
 
 /**
  * Export matrix results to CSV files
@@ -39,10 +40,14 @@ export async function exportMatrixResults(
     path.join(outputDir, `detailed-test-results-${timestamp}.csv`)
   );
 
+  // Export debug reports
+  await exportDebugReportJSON(results, outputDir);
+
   console.log(`\n📁 Results exported to: ${outputDir}`);
   console.log(`   - matrix-${timestamp}.csv`);
   console.log(`   - analysis-${timestamp}.csv`);
-  console.log(`   - detailed-test-results-${timestamp}.csv\n`);
+  console.log(`   - detailed-test-results-${timestamp}.csv`);
+  console.log(`   - debug-report-${timestamp}.json\n`);
 }
 
 /**

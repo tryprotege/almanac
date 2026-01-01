@@ -84,7 +84,7 @@ function extractFileName(filePath: string): string {
  * Sanitize and validate an entity name for LightRAG
  * Returns null if the entity should be skipped
  */
-export function sanitizeEntityName(name: string, type?: string): string | null {
+export function sanitizeEntityName(name: string): string | null {
   // 1. Trim whitespace
   let cleaned = name.trim();
 

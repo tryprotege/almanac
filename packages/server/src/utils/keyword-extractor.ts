@@ -118,8 +118,7 @@ export function extractKeywordsNER(query: string): ExtractedKeywords {
     return Array.from(keywords)
       .map((k) => k.trim().toLowerCase())
       .filter((k) => k.length > 2)
-      .filter((k) => !stopwords.has(k))
-      .filter((k) => !/^\d+$/.test(k)); // Remove pure numbers
+      .filter((k) => !stopwords.has(k));
   };
 
   const highLevelArray = cleanKeywords(highLevel);
@@ -131,7 +130,7 @@ export function extractKeywordsNER(query: string): ExtractedKeywords {
   );
 
   return {
-    high_level: uniqueHighLevel.slice(0, 5), // Top 5 conceptual keywords
-    low_level: lowLevelArray.slice(0, 7), // Top 7 entity keywords
+    high_level: uniqueHighLevel.length ? uniqueHighLevel.slice(0, 5) : [], // Top 5 conceptual keywords
+    low_level: lowLevelArray.length ? lowLevelArray.slice(0, 7) : [], // Top 7 entity keywords
   };
 }

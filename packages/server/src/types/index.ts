@@ -26,7 +26,7 @@ export type VectorPayloadType = "chunk" | "entity" | "relationship";
 
 export interface ChunkVectorPayload extends Record<string, unknown> {
   type: "chunk";
-  mongoId: string;
+  recordId: string;
   checksum: string;
   chunkIndex: number;
   chunkStart: number;
@@ -35,12 +35,9 @@ export interface ChunkVectorPayload extends Record<string, unknown> {
 
 export interface EntityVectorPayload extends Record<string, unknown> {
   type: "entity";
-  // Global entity from Memgraph
-  entityId: string; // Global entity ID from Memgraph (required)
-  entityType: string; // Entity type from Memgraph (required)
+  graphEmbeddingMetadataId: string; // ID from GraphEmbeddingMetadata
   // Shared fields
   source: SourceType;
-  degree: number; // Graph centrality (cached)
   checksum: string;
 }
 

@@ -1,7 +1,6 @@
 import { mcpClientManager } from "../../../mcp/client.js";
 import { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse.js";
 import { Channel } from "@slack/web-api/dist/types/response/ConversationsListResponse.js";
-import { Member } from "@slack/web-api/dist/types/response/UsersListResponse.js";
 import logger from "../../../utils/logger.js";
 import { env } from "../../../env.js";
 import pThrottle from "p-throttle";

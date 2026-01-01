@@ -59,13 +59,11 @@ export interface LightRAGEntity {
   name: string;
   type: string;
   description?: string;
-  degree: number;
-  rank: number;
   source?: SourceType;
   sourceId?: string;
   url?: string;
   date?: string;
-  relevance_score: number;
+  relevanceScore: number;
 }
 
 export interface LightRAGRelationship {
@@ -77,17 +75,16 @@ export interface LightRAGRelationship {
   confidence: number;
   weight: number;
   rank: number;
-  relevance_score?: number;
+  relevanceScore?: number;
 }
 
 // ============================================
 // Chunk Result (Agent-Friendly Response)
 // ============================================
 
-export interface LightRAGChunk {
+export interface LightRAGRecord {
   // Chunk identity
   id: string;
-  chunk_index?: number; // Which chunk of the document (0, 1, 2...)
 
   // Document reference
   document_id: string; // Parent document ID
@@ -110,7 +107,7 @@ export interface LightRAGChunk {
   people?: string[]; // People mentioned
 }
 
-export interface LightRAGChunkFull extends LightRAGChunk {
+export interface LightRAGChunkFull extends LightRAGRecord {
   // Full mode additions
   full_content: string; // Complete document text
   position?: {
@@ -132,35 +129,12 @@ export interface LightRAGChunkFull extends LightRAGChunk {
 // Response Structure (Chunk-Based)
 // ============================================
 
-export interface LightRAGResponse {
-  // Query metadata
-  query: string;
-  mode: LightRAGMode;
-  processing_time_ms: number;
-
-  // Retrieved chunks
-  chunks: LightRAGChunk[] | LightRAGChunkFull[];
-
-  // Statistics
-  stats: {
-    total_chunks: number;
-    unique_documents: number; // How many distinct docs represented
-    processing_time_ms: number;
-
-    // Breakdown by retrieval method
-    retrieval_breakdown?: {
-      vector_matches: number;
-      graph_expanded: number;
-      reranked: boolean;
-    };
-  };
-
-  // Metadata for debugging
-  metadata?: {
-    keywords_extracted?: ExtractedKeywords;
-    filters_applied?: boolean;
-  };
-}
+export type LightRAGResponse = {
+  source: string;
+  recordType: string;
+  rawData: any;
+  score: number;
+}[];
 
 // ============================================
 // MCP Tool Definition
@@ -171,11 +145,22 @@ export const lightragQueryTool = async () => {
 
   return {
     name: "ebee_search",
-    description: `🐝 eBee Fast Search - Advanced knowledge retrieval using LightRAG architecture. Returns structured document chunks without LLM generation.
+    description: `🐝 eBee Fast Search - YOUR PRIMARY TOOL FOR INTERNAL KNOWLEDGE
 
-⚡ FASTEST SEARCH METHOD: Combines vector similarity + knowledge graph expansion + LLM reranking for optimal speed and accuracy.
+⚠️ ALWAYS USE THIS FIRST for questions about:
+- Internal documentation, wikis, and knowledge bases
+- Team communications (Slack, emails)
+- Project data (GitHub issues, PRs, code)
+- Analytics and metrics (Fathom, dashboards)
+- Calendars, meetings, and schedules
+- Any indexed company/project data
 
-Use this tool to find information from:
+❌ DO NOT use web search or direct MCP tools (github, fathom, notion, slack) for indexed data.
+Only use those for EXTERNAL information not in eBee or for WRITE operations (creating issues, sending messages).
+
+⚡ PERFORMANCE: 10-100x faster than individual MCP calls due to unified graph+vector architecture.
+
+📚 INDEXED SOURCES:
 ${validConfigs.map((config) => `- ${config.name}`).join("\n")}
 
 Query Modes:
@@ -236,7 +221,7 @@ Returns structured JSON with relevant document chunks, each containing title, sn
               type: "array",
               items: {
                 type: "string",
-                enum: ["notion", "slack", "calendar", "jira"],
+                enum: ["notion", "slack", "calendar", "jira", "github"],
               },
               description:
                 "Filter results to specific data sources. Example: ['notion', 'slack']. Available sources: notion, slack, calendar, jira",

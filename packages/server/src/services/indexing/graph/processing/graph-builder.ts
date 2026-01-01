@@ -5,10 +5,8 @@
 
 import {
   Entity,
-  Relationship,
   ExtractionResult,
   GraphNode,
-  GraphRelationship,
   DocumentRelationship,
   ProcessedGraph,
 } from "../types.js";

@@ -61,7 +61,15 @@ export async function registerLightRAGTool(
     async (args) => {
       try {
         const query = args as unknown as LightRAGQuery;
-        query.score_threshold = query.score_threshold ?? 0.1;
+
+        // Apply defaults for optional parameters
+        query.mode = "mix";
+        // query.response_format = query.response_format ?? "compact";
+        // query.top_k = query.top_k ?? 60;
+        // query.chunk_top_k = query.chunk_top_k ?? 20;
+        query.enable_rerank = true;
+        query.score_threshold = 0.5;
+        query.filters = {};
 
         const response = await lightragQuery(query, deps);
 

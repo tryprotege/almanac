@@ -19,6 +19,7 @@ interface FormData {
   env: Array<{ key: string; value: string; showValue: boolean }>;
   url: string;
   headers: Array<{ key: string; value: string; showValue: boolean }>;
+  authType: "none" | "api-key" | "oauth";
   isDisabled: boolean;
 }
 
@@ -36,6 +37,7 @@ export function AdvancedConfigForm({
     env: [],
     url: "",
     headers: [],
+    authType: "none",
     isDisabled: false,
   });
 
@@ -64,6 +66,7 @@ export function AdvancedConfigForm({
               showValue: false,
             }))
           : [],
+        authType: server.authType || "none",
         isDisabled: server.isDisabled || false,
       });
     } else {
@@ -75,6 +78,7 @@ export function AdvancedConfigForm({
         env: [],
         url: "",
         headers: [],
+        authType: "none",
         isDisabled: false,
       });
     }
@@ -104,6 +108,8 @@ export function AdvancedConfigForm({
           newErrors.url = "Invalid URL format";
         }
       }
+
+      // OAuth validation removed - handled automatically by SDK
     }
 
     setErrors(newErrors);
@@ -140,7 +146,13 @@ export function AdvancedConfigForm({
       }
     } else if (formData.type === "sse" || formData.type === "streamable-http") {
       config.url = formData.url.trim();
-      if (formData.headers.length > 0) {
+
+      // Add authType
+      config.authType = formData.authType;
+
+      // Add headers if not using OAuth
+      if (formData.authType !== "oauth" && formData.headers.length > 0) {
+        // Only add headers if not using OAuth
         config.headers = Object.fromEntries(
           formData.headers
             .filter((h) => h.key && h.value)
@@ -363,6 +375,37 @@ export function AdvancedConfigForm({
         </>
       )}
 
+      {/* Authentication (only for network-based servers) */}
+      {(formData.type === "sse" || formData.type === "streamable-http") && (
+        <div>
+          <label className="block text-sm font-medium text-text-secondary mb-1">
+            Authentication
+          </label>
+          <select
+            value={formData.authType}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                authType: e.target.value as "none" | "api-key" | "oauth",
+              })
+            }
+            disabled={isLoading}
+            className="input"
+          >
+            <option value="none">None</option>
+            <option value="api-key">API Key (via headers)</option>
+            <option value="oauth">OAuth 2.1</option>
+          </select>
+          <p className="mt-1 text-xs text-text-quaternary">
+            {formData.authType === "none" && "No authentication required"}
+            {formData.authType === "api-key" &&
+              "Add API key as a custom header below"}
+            {formData.authType === "oauth" &&
+              "OAuth flow will be triggered after server creation"}
+          </p>
+        </div>
+      )}
+
       {/* SSE and Streamable HTTP Fields */}
       {(formData.type === "sse" || formData.type === "streamable-http") && (
         <>
@@ -385,66 +428,91 @@ export function AdvancedConfigForm({
             )}
           </div>
 
-          {/* Headers */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-text-secondary">
-                Headers
-              </label>
-              <button
-                type="button"
-                onClick={addHeader}
-                disabled={isLoading}
-                className="text-sm text-brand-purple hover:text-brand-purple/80 flex items-center gap-1"
-              >
-                <Plus className="w-4 h-4" />
-                Add Header
-              </button>
-            </div>
-            {formData.headers.map((header, index) => (
-              <div key={index} className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  value={header.key}
-                  onChange={(e) => updateHeader(index, "key", e.target.value)}
-                  disabled={isLoading}
-                  className="input flex-1"
-                  placeholder="Header-Name"
-                />
-                <div className="flex-1 relative">
-                  <input
-                    type={header.showValue ? "text" : "password"}
-                    value={header.value}
-                    onChange={(e) =>
-                      updateHeader(index, "value", e.target.value)
-                    }
-                    disabled={isLoading}
-                    className="input w-full pr-10"
-                    placeholder="value"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => toggleHeaderVisibility(index)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-quaternary hover:text-text-secondary"
-                  >
-                    {header.showValue ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
+          {/* Headers (only show if not using OAuth, since OAuth uses Bearer token) */}
+          {formData.authType !== "oauth" && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-text-secondary">
+                  Headers
+                </label>
                 <button
                   type="button"
-                  onClick={() => removeHeader(index)}
+                  onClick={addHeader}
                   disabled={isLoading}
-                  className="text-brand-error hover:text-brand-error/80"
+                  className="text-sm text-brand-purple hover:text-brand-purple/80 flex items-center gap-1"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Plus className="w-4 h-4" />
+                  Add Header
                 </button>
               </div>
-            ))}
-          </div>
+              {formData.headers.map((header, index) => (
+                <div key={index} className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={header.key}
+                    onChange={(e) => updateHeader(index, "key", e.target.value)}
+                    disabled={isLoading}
+                    className="input flex-1"
+                    placeholder="Header-Name"
+                  />
+                  <div className="flex-1 relative">
+                    <input
+                      type={header.showValue ? "text" : "password"}
+                      value={header.value}
+                      onChange={(e) =>
+                        updateHeader(index, "value", e.target.value)
+                      }
+                      disabled={isLoading}
+                      className="input w-full pr-10"
+                      placeholder="value"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => toggleHeaderVisibility(index)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-text-quaternary hover:text-text-secondary"
+                    >
+                      {header.showValue ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeHeader(index)}
+                    disabled={isLoading}
+                    className="text-brand-error hover:text-brand-error/80"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* OAuth Configuration - Simplified */}
+          {formData.authType === "oauth" && (
+            <div className="border border-brand-purple/30 rounded-lg p-4 bg-brand-purple/10">
+              <div className="flex items-start gap-3">
+                <div className="text-brand-purple text-xl">🔐</div>
+                <div>
+                  <h4 className="text-sm font-semibold text-text-primary mb-1">
+                    OAuth 2.1 Authentication
+                  </h4>
+                  <p className="text-sm text-text-secondary mb-2">
+                    OAuth will be configured automatically when you connect. The
+                    server will discover OAuth endpoints and handle
+                    authentication for you.
+                  </p>
+                  <p className="text-xs text-text-quaternary">
+                    After creating this server, click "Connect" to start the
+                    OAuth flow. You'll be redirected to authorize access.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 

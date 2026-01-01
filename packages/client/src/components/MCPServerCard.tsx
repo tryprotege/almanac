@@ -13,8 +13,9 @@ import {
   HardDrive,
   FileText,
   Server,
+  Shield,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { capitalCase } from "change-case";
 import {
   useConnectDataSource,
@@ -24,6 +25,7 @@ import {
   useSyncDataSource,
 } from "../hooks/useDataSources";
 import { DataSourceConfig } from "../lib/api";
+import { OAuthConnectButton } from "./OAuthConnectButton";
 
 interface MCPServerCardProps {
   server: DataSourceConfig;
@@ -52,6 +54,10 @@ function getServiceIcon(serverName: string) {
 export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [_syncJobId, setSyncJobId] = useState<string | null>(null);
+  const [oauthStatus, setOauthStatus] = useState<{
+    connected: boolean;
+    expiresAt?: string;
+  } | null>(null);
 
   const connectMutation = useConnectDataSource();
   const disconnectMutation = useDisconnectDataSource();
@@ -69,6 +75,20 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
     disconnectMutation.isPending ||
     deleteMutation.isPending;
 
+  // Check OAuth status if server uses OAuth
+  useEffect(() => {
+    if (server.authType === "oauth" && server._id) {
+      fetch(`/api/oauth/status/${server._id}`)
+        .then((res) => res.json())
+        .then((data) => setOauthStatus(data))
+        .catch(() => setOauthStatus(null));
+    }
+  }, [server._id, server.authType]);
+
+  const requiresOAuth = server.authType === "oauth";
+  const oauthConnected = oauthStatus?.connected || false;
+  const oauthExpired = requiresOAuth && !oauthConnected;
+
   const handleConnect = () => {
     if (isConnected) {
       disconnectMutation.mutate(server.name);
@@ -83,6 +103,8 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
   };
 
   const handleSync = async () => {
+    if (!server._id) return;
+
     try {
       const result = await syncMutation.mutateAsync({
         configId: server._id,
@@ -103,17 +125,6 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
 
   return (
     <div className="card relative flex flex-col">
-      {/* Connection Status Badge */}
-      <div className="absolute top-4 right-4">
-        {isLoading ? (
-          <Loader2 className="w-5 h-5 text-text-quaternary animate-spin" />
-        ) : isConnected ? (
-          <CheckCircle className="w-5 h-5 text-brand-success" />
-        ) : (
-          <XCircle className="w-5 h-5 text-text-quaternary" />
-        )}
-      </div>
-
       {/* Server Info */}
       <div>
         <div className="flex items-center gap-3 mb-3">
@@ -206,36 +217,40 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
       {!showDeleteConfirm ? (
         <div className="mt-auto ">
           {/* Status Badge */}
-          <div className="mt-3">
+          <div className="mt-3 flex gap-2">
             {server.isDisabled ? (
               <span className="badge badge-neutral">Disabled</span>
             ) : isConnected ? (
-              <span className="badge badge-success">Connected</span>
+              <span className="badge badge-success">Ready</span>
             ) : (
-              <span className="badge badge-neutral">Disconnected</span>
+              <span className="badge badge-neutral">Not Ready</span>
+            )}
+            {requiresOAuth && oauthExpired && (
+              <span className="badge badge-error flex items-center gap-1">
+                <Shield className="w-3 h-3" />
+                OAuth Expired
+              </span>
             )}
           </div>
           <div className="pt-4 flex items-center justify-center gap-2 flex-wrap">
-            <button
-              onClick={handleConnect}
-              disabled={isLoading || server.isDisabled}
-              className={`btn flex items-center gap-2 ${
-                isConnected ? "btn-secondary" : "btn-primary"
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              {isConnected ? (
-                <>
-                  <PowerOff className="w-4 h-4" />
-                  Disconnect
-                </>
-              ) : (
-                <>
-                  <Power className="w-4 h-4" />
-                  Connect
-                </>
-              )}
-            </button>
-            {isConnected && (
+            {/* Reconnect OAuth Button (only if OAuth expired) */}
+            {oauthExpired && server._id && (
+              <OAuthConnectButton
+                mcpServerId={server._id}
+                mcpServerName={server.name}
+                serverType={server.type}
+                authConfig={server.oauth}
+                onSuccess={() => {
+                  // Refresh OAuth status
+                  fetch(`/api/oauth/status/${server._id}`)
+                    .then((res) => res.json())
+                    .then((data) => setOauthStatus(data))
+                    .catch(() => setOauthStatus(null));
+                }}
+              />
+            )}
+            {/* Sync Button - only show when connected (not for OAuth expired) */}
+            {isConnected && !oauthExpired && (
               <button
                 onClick={handleSync}
                 disabled={syncMutation.isPending || isLoading}

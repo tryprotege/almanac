@@ -135,11 +135,11 @@ export default function IndexingConfigDetail() {
                 Generate Config
               </button>
 
-              <div className="mt-6 bg-brand-blue/10 border border-brand-blue/30 rounded-lg p-4 max-w-2xl mx-auto text-left">
-                <h3 className="text-sm font-medium text-brand-blue mb-2">
+              <div className="mt-8 bg-brand-blue/10 border border-brand-blue/30 rounded-lg p-6 text-left">
+                <h3 className="text-sm font-medium text-brand-blue mb-3">
                   What happens next?
                 </h3>
-                <ul className="text-sm text-text-secondary space-y-1 list-disc list-inside">
+                <ul className="text-sm text-text-secondary space-y-2 list-disc list-inside ml-4">
                   <li>
                     Tools will be classified using LLM (READ/SEARCH/WRITE)
                   </li>

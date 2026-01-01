@@ -88,6 +88,12 @@ const envSchema = z.object({
     .length(64, "Encryption key must be 64 hex characters (32 bytes)")
     .regex(/^[0-9a-f]{64}$/i, "Encryption key must be valid hexadecimal")
     .optional(),
+
+  // OAuth Configuration
+  OAUTH_REDIRECT_URI: z
+    .string()
+    .url()
+    .default("http://localhost:3001/api/oauth/callback"),
 });
 
 const parsedEnv = envSchema.parse({

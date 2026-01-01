@@ -10,6 +10,7 @@ const DataSources = lazy(() => import("./pages/DataSources"));
 const IndexingConfigDetail = lazy(() => import("./pages/IndexingConfigDetail"));
 const Schema = lazy(() => import("./pages/Schema"));
 const Settings = lazy(() => import("./pages/Settings"));
+const OAuthCallback = lazy(() => import("./pages/OAuthCallback"));
 
 function PageLoader() {
   return (
@@ -46,6 +47,8 @@ function App() {
                 />
                 <Route path="/schema" element={<Schema />} />
                 <Route path="/settings" element={<Settings />} />
+                {/* OAuth callback */}
+                <Route path="/oauth/callback" element={<OAuthCallback />} />
                 {/* Legacy redirects */}
                 <Route
                   path="/connections"

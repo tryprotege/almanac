@@ -1,28 +1,14 @@
-import {
-  AlertCircle,
-  Database,
-  FileJson,
-  Loader2,
-  Play,
-  Plus,
-  Settings,
-  Trash2,
-} from "lucide-react";
+import { AlertCircle, Database, Loader2, Plus } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useDataSources, useDeleteDataSource } from "../hooks/useDataSources";
-import {
-  useSyncConfigs,
-  useDeleteSyncConfig,
-  useSyncWithConfig,
-} from "../hooks/useSyncConfigs";
+import { useDataSources } from "../hooks/useDataSources";
+import { useSyncConfigs } from "../hooks/useSyncConfigs";
 import { DataSourceWizard } from "../components/DataSourceWizard";
+import { MCPServerCard } from "../components/MCPServerCard";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Badge } from "../components/ui/Badge";
 import type { DataSourceConfig } from "../lib/api";
 
 export default function DataSources() {
-  const navigate = useNavigate();
   const {
     servers,
     isLoading: serversLoading,
@@ -33,15 +19,11 @@ export default function DataSources() {
     isLoading: configsLoading,
     error: configsError,
   } = useSyncConfigs();
-  const deleteConfig = useDeleteSyncConfig();
-  const deleteDataSource = useDeleteDataSource();
-  const syncConfig = useSyncWithConfig();
 
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<DataSourceConfig | null>(
     null
   );
-  const [syncingSource, setSyncingSource] = useState<string | null>(null);
 
   const isLoading = serversLoading || configsLoading;
   const error = serversError || configsError;
@@ -68,15 +50,6 @@ export default function DataSources() {
       };
     }) || [];
 
-  const handleSync = async (serverName: string) => {
-    setSyncingSource(serverName);
-    try {
-      await syncConfig.mutateAsync({ serverName, incremental: false });
-    } finally {
-      setSyncingSource(null);
-    }
-  };
-
   const handleEdit = (server: DataSourceConfig) => {
     setEditingSource(server);
     setIsWizardOpen(true);
@@ -85,25 +58,6 @@ export default function DataSources() {
   const handleCloseWizard = () => {
     setIsWizardOpen(false);
     setEditingSource(null);
-  };
-
-  const handleDelete = async (serverName: string) => {
-    if (confirm(`Delete ${serverName} and all its indexed data?`)) {
-      try {
-        // Delete sync config if it exists
-        await deleteConfig.mutateAsync(serverName);
-      } catch (error) {
-        console.error("Error deleting sync config:", error);
-        // Continue to delete server even if config deletion fails
-      }
-
-      try {
-        // Delete the data source itself
-        await deleteDataSource.mutateAsync(serverName);
-      } catch (error) {
-        console.error("Error deleting data source:", error);
-      }
-    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -235,97 +189,11 @@ export default function DataSources() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {dataSources.map((source) => (
-              <div
+              <MCPServerCard
                 key={source.id}
-                className="card hover:shadow-lg transition-shadow"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-brand-purple/10 rounded-lg">
-                      <Database className="w-5 h-5 text-brand-purple" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-text-primary">
-                        {source.name}
-                      </h3>
-                      <p className="text-xs text-text-quaternary">
-                        {source.type === "preset"
-                          ? "Preset Service"
-                          : "Custom MCP"}
-                      </p>
-                    </div>
-                  </div>
-                  {getStatusBadge(source.status)}
-                </div>
-
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-text-tertiary">Records</span>
-                    <span className="font-medium text-text-primary">
-                      {source.recordCount.toLocaleString()}
-                    </span>
-                  </div>
-                  {source.config && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-text-tertiary">Fetchers</span>
-                      <span className="font-medium text-text-primary">
-                        {source.config.fetcherCount}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {source.hasIndexing && source.status === "active" && (
-                    <button
-                      onClick={() => handleSync(source.name)}
-                      disabled={syncingSource === source.name}
-                      className="flex-1 btn btn-secondary text-sm flex items-center justify-center gap-1"
-                    >
-                      {syncingSource === source.name ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Syncing...
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-4 h-4" />
-                          Sync
-                        </>
-                      )}
-                    </button>
-                  )}
-                  {source.type === "custom" && (
-                    <button
-                      onClick={() =>
-                        navigate(
-                          `/data-sources/${encodeURIComponent(
-                            source.name
-                          )}/config`
-                        )
-                      }
-                      className="btn btn-secondary text-sm p-2"
-                      title="View Indexing Config"
-                    >
-                      <FileJson className="w-4 h-4" />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleEdit(source.server)}
-                    className="btn btn-secondary text-sm p-2"
-                    title="Settings"
-                  >
-                    <Settings className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(source.name)}
-                    className="btn btn-secondary text-sm p-2 text-error-text hover:text-error-text/80"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+                server={source.server}
+                onEdit={handleEdit}
+              />
             ))}
           </div>
         </div>

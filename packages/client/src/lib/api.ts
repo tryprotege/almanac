@@ -193,7 +193,7 @@ export const graphApi = {
 
 // Data Sources API
 export interface DataSourceConfig {
-  _id: string;
+  _id?: string;
   name: string;
   type: "stdio" | "sse" | "streamable-http";
   command?: string;
@@ -201,9 +201,39 @@ export interface DataSourceConfig {
   env?: Record<string, string>;
   url?: string;
   headers?: Record<string, string>;
+  authType?: "none" | "api-key" | "oauth";
+  oauth?: {
+    issuerUrl?: string;
+    discoverySource?: "rfc8414" | "oidc" | "manual";
+    authorizationUrl?: string;
+    tokenUrl?: string;
+    clientId?: string;
+    clientSecret?: string;
+    redirectUri?: string;
+    scopes?: string[];
+  };
   isDisabled?: boolean;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface OAuthMetadata {
+  issuer: string;
+  authorizationEndpoint: string;
+  tokenEndpoint: string;
+  scopesSupported?: string[];
+  responseTypesSupported?: string[];
+  grantTypesSupported?: string[];
+  revocationEndpoint?: string;
+  tokenEndpointAuthMethodsSupported?: string[];
+  codeChallengeMethodsSupported?: string[];
+}
+
+export interface OAuthDiscoveryResult {
+  success: boolean;
+  metadata?: OAuthMetadata;
+  source?: "rfc8414" | "oidc";
+  error?: string;
 }
 
 export const dataSourcesApi = {
@@ -235,6 +265,56 @@ export const dataSourcesApi = {
     ),
   sync: (configId: string) =>
     api.post<ApiResponse<{ jobId: string }>>(`/sync`, { configId }),
+};
+
+// OAuth API
+export const oauthApi = {
+  discover: (issuerUrl: string) =>
+    api.post<OAuthDiscoveryResult>("/oauth/discover", { issuerUrl }),
+  discoverSse: (sseUrl: string) =>
+    api.post<{
+      success: boolean;
+      requiresAuth: boolean;
+      metadata?: OAuthMetadata;
+      error?: string;
+    }>("/oauth/discover-sse", { sseUrl }),
+  start: (mcpServerId: string) =>
+    api.get<ApiResponse<{ authorizationUrl: string; state: string }>>(
+      `/oauth/start/${mcpServerId}`
+    ),
+  startSse: (mcpServerId: string) =>
+    api.post<
+      ApiResponse<{
+        requiresAuth: boolean;
+        authorizationUrl?: string;
+        state?: string;
+        metadata?: OAuthMetadata;
+        message?: string;
+      }>
+    >(`/oauth/start-sse/${mcpServerId}`),
+  postCode: (serverId: string, code: string, state?: string) =>
+    api.post<ApiResponse<{ success: boolean }>>("/oauth/code", {
+      serverId,
+      code,
+      state,
+    }),
+  status: (mcpServerId: string) =>
+    api.get<
+      ApiResponse<{
+        connected: boolean;
+        expiresAt?: string;
+        hasRefreshToken: boolean;
+        scope?: string[];
+      }>
+    >(`/oauth/status/${mcpServerId}`),
+  refresh: (mcpServerId: string) =>
+    api.post<ApiResponse<{ success: boolean; expiresIn?: number }>>(
+      `/oauth/refresh/${mcpServerId}`
+    ),
+  revoke: (mcpServerId: string) =>
+    api.delete<ApiResponse<{ success: boolean }>>(
+      `/oauth/revoke/${mcpServerId}`
+    ),
 };
 
 // Statistics API Types

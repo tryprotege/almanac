@@ -4,6 +4,9 @@ import {
   encryptMapValues,
   decryptMapValues,
   hexToBuffer,
+  encrypt,
+  decrypt,
+  isEncrypted,
 } from "@ebee-oss/shared-util";
 import logger from "../utils/logger.js";
 import { env } from "../env.js";
@@ -33,11 +36,54 @@ const DataSourceSchema = new mongoose.Schema(
       enum: ["stdio", "sse", "streamable-http"],
     },
     command: { type: String },
-    args: [{ type: String }],
+    args: { type: [String], required: false },
     env: { type: Map, of: String },
     url: { type: String },
     headers: { type: Map, of: String },
     isDisabled: { type: Boolean, default: false },
+
+    // OAuth configuration for delegated authentication
+    authType: {
+      type: String,
+      enum: ["none", "api-key", "oauth"],
+      default: "none",
+    },
+    oauth: {
+      // Discovery fields
+      issuerUrl: { type: String },
+      discoverySource: { type: String, enum: ["rfc8414", "oidc", "manual"] },
+
+      // OAuth endpoints
+      authorizationUrl: { type: String },
+      tokenUrl: { type: String },
+
+      // Dynamic client registration
+      clientMetadataUrl: { type: String },
+      clientMetadata: {
+        clientId: { type: String },
+        clientSecret: { type: String }, // Encrypted
+        clientIdIssuedAt: { type: Number },
+        clientSecretExpiresAt: { type: Number },
+        registrationAccessToken: { type: String }, // Encrypted
+      },
+      registrationStatus: {
+        type: String,
+        enum: ["pending", "registered", "manual"],
+        default: "manual",
+      },
+
+      // Static client credentials
+      clientId: { type: String },
+      clientSecret: { type: String }, // Encrypted
+
+      // Configuration
+      redirectUri: { type: String },
+      scopes: [{ type: String }],
+      usePKCE: { type: Boolean, default: true },
+
+      // Legacy field
+      metadataUrl: { type: String },
+    },
   },
   {
     collection: "data_sources",
@@ -74,6 +120,56 @@ DataSourceSchema.pre("save", function () {
       "Encrypted headers values for config"
     );
   }
+
+  // Encrypt OAuth clientSecret if modified
+  if (
+    this.isModified("oauth.clientSecret") &&
+    this.oauth?.clientSecret &&
+    encryptionKey
+  ) {
+    if (!isEncrypted(this.oauth.clientSecret)) {
+      this.oauth.clientSecret = encrypt(this.oauth.clientSecret, encryptionKey);
+      logger.debug(
+        { configName: this.name },
+        "Encrypted OAuth clientSecret for config"
+      );
+    }
+  }
+
+  // Encrypt dynamic client registration secrets
+  if (
+    this.isModified("oauth.clientMetadata.clientSecret") &&
+    this.oauth?.clientMetadata?.clientSecret &&
+    encryptionKey
+  ) {
+    if (!isEncrypted(this.oauth.clientMetadata.clientSecret)) {
+      this.oauth.clientMetadata.clientSecret = encrypt(
+        this.oauth.clientMetadata.clientSecret,
+        encryptionKey
+      );
+      logger.debug(
+        { configName: this.name },
+        "Encrypted OAuth clientMetadata.clientSecret for config"
+      );
+    }
+  }
+
+  if (
+    this.isModified("oauth.clientMetadata.registrationAccessToken") &&
+    this.oauth?.clientMetadata?.registrationAccessToken &&
+    encryptionKey
+  ) {
+    if (!isEncrypted(this.oauth.clientMetadata.registrationAccessToken)) {
+      this.oauth.clientMetadata.registrationAccessToken = encrypt(
+        this.oauth.clientMetadata.registrationAccessToken,
+        encryptionKey
+      );
+      logger.debug(
+        { configName: this.name },
+        "Encrypted OAuth registrationAccessToken for config"
+      );
+    }
+  }
 });
 
 // Decrypt after finding multiple documents
@@ -85,6 +181,51 @@ DataSourceSchema.post("find", function (docs: any[]) {
       }
       if (doc.headers) {
         doc.headers = decryptMapValues(doc.headers, encryptionKey);
+      }
+      if (doc.oauth?.clientSecret && isEncrypted(doc.oauth.clientSecret)) {
+        try {
+          doc.oauth.clientSecret = decrypt(
+            doc.oauth.clientSecret,
+            encryptionKey
+          );
+        } catch (err) {
+          logger.error(
+            { err, configName: doc.name },
+            "Failed to decrypt OAuth clientSecret"
+          );
+        }
+      }
+      if (
+        doc.oauth?.clientMetadata?.clientSecret &&
+        isEncrypted(doc.oauth.clientMetadata.clientSecret)
+      ) {
+        try {
+          doc.oauth.clientMetadata.clientSecret = decrypt(
+            doc.oauth.clientMetadata.clientSecret,
+            encryptionKey
+          );
+        } catch (err) {
+          logger.error(
+            { err, configName: doc.name },
+            "Failed to decrypt OAuth clientMetadata.clientSecret"
+          );
+        }
+      }
+      if (
+        doc.oauth?.clientMetadata?.registrationAccessToken &&
+        isEncrypted(doc.oauth.clientMetadata.registrationAccessToken)
+      ) {
+        try {
+          doc.oauth.clientMetadata.registrationAccessToken = decrypt(
+            doc.oauth.clientMetadata.registrationAccessToken,
+            encryptionKey
+          );
+        } catch (err) {
+          logger.error(
+            { err, configName: doc.name },
+            "Failed to decrypt OAuth registrationAccessToken"
+          );
+        }
       }
     });
   }
@@ -99,6 +240,48 @@ DataSourceSchema.post("findOne", function (doc: any) {
     if (doc.headers) {
       doc.headers = decryptMapValues(doc.headers, encryptionKey);
     }
+    if (doc.oauth?.clientSecret && isEncrypted(doc.oauth.clientSecret)) {
+      try {
+        doc.oauth.clientSecret = decrypt(doc.oauth.clientSecret, encryptionKey);
+      } catch (err) {
+        logger.error(
+          { err, configName: doc.name },
+          "Failed to decrypt OAuth clientSecret"
+        );
+      }
+    }
+    if (
+      doc.oauth?.clientMetadata?.clientSecret &&
+      isEncrypted(doc.oauth.clientMetadata.clientSecret)
+    ) {
+      try {
+        doc.oauth.clientMetadata.clientSecret = decrypt(
+          doc.oauth.clientMetadata.clientSecret,
+          encryptionKey
+        );
+      } catch (err) {
+        logger.error(
+          { err, configName: doc.name },
+          "Failed to decrypt OAuth clientMetadata.clientSecret"
+        );
+      }
+    }
+    if (
+      doc.oauth?.clientMetadata?.registrationAccessToken &&
+      isEncrypted(doc.oauth.clientMetadata.registrationAccessToken)
+    ) {
+      try {
+        doc.oauth.clientMetadata.registrationAccessToken = decrypt(
+          doc.oauth.clientMetadata.registrationAccessToken,
+          encryptionKey
+        );
+      } catch (err) {
+        logger.error(
+          { err, configName: doc.name },
+          "Failed to decrypt OAuth registrationAccessToken"
+        );
+      }
+    }
   }
 });
 
@@ -110,6 +293,48 @@ DataSourceSchema.post("findOneAndUpdate", function (doc: any) {
     }
     if (doc.headers) {
       doc.headers = decryptMapValues(doc.headers, encryptionKey);
+    }
+    if (doc.oauth?.clientSecret && isEncrypted(doc.oauth.clientSecret)) {
+      try {
+        doc.oauth.clientSecret = decrypt(doc.oauth.clientSecret, encryptionKey);
+      } catch (err) {
+        logger.error(
+          { err, configName: doc.name },
+          "Failed to decrypt OAuth clientSecret"
+        );
+      }
+    }
+    if (
+      doc.oauth?.clientMetadata?.clientSecret &&
+      isEncrypted(doc.oauth.clientMetadata.clientSecret)
+    ) {
+      try {
+        doc.oauth.clientMetadata.clientSecret = decrypt(
+          doc.oauth.clientMetadata.clientSecret,
+          encryptionKey
+        );
+      } catch (err) {
+        logger.error(
+          { err, configName: doc.name },
+          "Failed to decrypt OAuth clientMetadata.clientSecret"
+        );
+      }
+    }
+    if (
+      doc.oauth?.clientMetadata?.registrationAccessToken &&
+      isEncrypted(doc.oauth.clientMetadata.registrationAccessToken)
+    ) {
+      try {
+        doc.oauth.clientMetadata.registrationAccessToken = decrypt(
+          doc.oauth.clientMetadata.registrationAccessToken,
+          encryptionKey
+        );
+      } catch (err) {
+        logger.error(
+          { err, configName: doc.name },
+          "Failed to decrypt OAuth registrationAccessToken"
+        );
+      }
     }
   }
 });

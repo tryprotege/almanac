@@ -12,6 +12,7 @@ import { IndexingStep } from "./IndexingStep";
 import { ReviewStep } from "./ReviewStep";
 import { ConfigChoiceStep } from "./ConfigChoiceStep";
 import { ConfigImportStep } from "./ConfigImportStep";
+import { OAuthStep } from "./OAuthStep";
 import { DataSourceConfig } from "../../lib/api";
 import {
   useCreateDataSource,
@@ -34,6 +35,7 @@ interface DataSourceWizardProps {
 type WizardStep =
   | "select"
   | "configure"
+  | "oauth-auth"
   | "config-choice"
   | "auto-generate"
   | "import"
@@ -61,6 +63,7 @@ export function DataSourceWizard({
   > | null>(null);
   const [isCustomServerCreated, setIsCustomServerCreated] = useState(false);
   const [importedConfig, setImportedConfig] = useState<any>(null);
+  const [oauthCompleted, setOauthCompleted] = useState(false);
 
   useEffect(() => {
     if (isOpen && existingSource) {
@@ -107,6 +110,8 @@ export function DataSourceWizard({
         setStep("select");
         setSelectedPreset(null);
       }
+    } else if (step === "oauth-auth") {
+      setStep("configure");
     } else if (step === "config-choice") {
       setStep("configure");
     } else if (step === "auto-generate") {
@@ -127,6 +132,27 @@ export function DataSourceWizard({
   ) => {
     setServerConfig(config);
 
+    // If OAuth is required, create server first, then go to OAuth step
+    if (config.authType === ("oauth" as const)) {
+      try {
+        // Create the server first
+        toast.loading("Creating data source...", { id: "create-server" });
+        const response = await createMutation.mutateAsync(config);
+        toast.success("Data source created", { id: "create-server" });
+        setIsCustomServerCreated(true);
+
+        // Now go to OAuth step
+        setStep("oauth-auth");
+      } catch (error) {
+        console.error("Failed to create server:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to create server",
+          { id: "create-error" }
+        );
+      }
+      return;
+    }
+
     // For custom servers, create and connect server first, then show config choice
     if (selectedPreset?.id === "custom") {
       try {
@@ -140,17 +166,33 @@ export function DataSourceWizard({
           });
           toast.success("Data source updated", { id: "update-server" });
 
-          // Reconnect to refresh tools
-          toast.loading("Reconnecting to data source...", {
-            id: "reconnect-server",
-          });
-          await connectMutation.mutateAsync(config.name);
-          toast.success("Reconnected to data source", {
-            id: "reconnect-server",
-          });
+          // Only reconnect for non-OAuth servers
+          // OAuth servers need to complete OAuth flow first
+          if (config.authType !== ("oauth" as const)) {
+            // Reconnect to refresh tools
+            toast.loading("Reconnecting to data source...", {
+              id: "reconnect-server",
+            });
+            await connectMutation.mutateAsync(config.name);
+            toast.success("Reconnected to data source", {
+              id: "reconnect-server",
+            });
 
-          // Show config choice
-          setStep("config-choice");
+            // Show config choice
+            setStep("config-choice");
+          } else {
+            // OAuth server - close wizard, user needs to complete OAuth first
+            toast.success(
+              "Data source updated. Complete OAuth authorization, then configure sync.",
+              {
+                id: "oauth-notice",
+                duration: 5000,
+              }
+            );
+            onClose();
+            resetWizard();
+            return; // Don't proceed to config-choice
+          }
         } else {
           // Create new server
           toast.loading("Creating data source...", { id: "create-server" });
@@ -158,18 +200,34 @@ export function DataSourceWizard({
           toast.success("Data source created", { id: "create-server" });
           setIsCustomServerCreated(true);
 
-          // Connect to the server to cache tools
-          toast.loading("Connecting to data source...", {
-            id: "connect-server",
-          });
-          await connectMutation.mutateAsync(config.name);
-          toast.success("Connected to data source", { id: "connect-server" });
+          // Only auto-connect for non-OAuth servers
+          // OAuth servers need to complete OAuth flow first
+          if (config.authType !== ("oauth" as const)) {
+            // Connect to the server to cache tools
+            toast.loading("Connecting to data source...", {
+              id: "connect-server",
+            });
+            await connectMutation.mutateAsync(config.name);
+            toast.success("Connected to data source", { id: "connect-server" });
 
-          // Wait a moment for tool caching to complete
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+            // Wait a moment for tool caching to complete
+            await new Promise((resolve) => setTimeout(resolve, 1000));
 
-          // Show config choice
-          setStep("config-choice");
+            // Show config choice
+            setStep("config-choice");
+          } else {
+            // OAuth server - close wizard, user needs to complete OAuth first
+            toast.success(
+              "Data source created. Complete OAuth authorization, then configure sync.",
+              {
+                id: "oauth-notice",
+                duration: 5000,
+              }
+            );
+            onClose();
+            resetWizard();
+            return; // Don't proceed to config-choice
+          }
         }
       } catch (error) {
         console.error("Failed to setup custom server:", error);
@@ -263,12 +321,36 @@ export function DataSourceWizard({
     }
   };
 
+  const handleOAuthComplete = async (serverId: string) => {
+    if (!serverConfig) return;
+
+    try {
+      // Connect to the server to cache tools
+      toast.loading("Connecting to data source...", { id: "connect-server" });
+      await connectMutation.mutateAsync(serverConfig.name);
+      toast.success("Connected to data source", { id: "connect-server" });
+
+      // Wait a moment for tool caching
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Proceed to config choice
+      setStep("config-choice");
+    } catch (error) {
+      console.error("Failed to connect after OAuth:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to connect",
+        { id: "connect-error" }
+      );
+    }
+  };
+
   const resetWizard = () => {
     setStep("select");
     setSelectedPreset(null);
     setServerConfig(null);
     setIsCustomServerCreated(false);
     setImportedConfig(null);
+    setOauthCompleted(false);
     generateConfig.reset();
   };
 
@@ -325,6 +407,15 @@ export function DataSourceWizard({
           server={existingSource}
           onBack={handleBack}
           onSubmit={handleConfigureSubmit}
+          isLoading={isLoading}
+        />
+      )}
+
+      {step === "oauth-auth" && serverConfig && (
+        <OAuthStep
+          serverConfig={serverConfig}
+          onBack={handleBack}
+          onComplete={handleOAuthComplete}
           isLoading={isLoading}
         />
       )}

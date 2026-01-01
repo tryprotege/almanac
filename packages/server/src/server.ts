@@ -16,6 +16,27 @@ import { DataSourceModel } from "./models/data-source.model.js";
 import { syncMcpServerQueue } from "./services/queue/sync.queue.js";
 import logger from "./utils/logger.js";
 
+/**
+ * Convert MongoDB document to MCPServerConfig
+ * Handles Map to Record conversion and ensures all required fields
+ */
+function toMCPServerConfig(doc: any): MCPServerConfig {
+  const json = doc.toJSON();
+  return {
+    _id: doc._id?.toString(),
+    name: json.name,
+    type: json.type,
+    command: json.command,
+    args: json.args || undefined,
+    env: json.env ? Object.fromEntries(json.env) : undefined,
+    url: json.url,
+    headers: json.headers ? Object.fromEntries(json.headers) : undefined,
+    authType: json.authType || "none",
+    oauth: json.oauth,
+    isDisabled: json.isDisabled || false,
+  };
+}
+
 // Start server
 const runServer = async () => {
   await initializeServices();
@@ -89,15 +110,21 @@ const runServer = async () => {
       await config.save();
 
       // Optionally connect to the server immediately
-      if (configData.name) {
+      // Skip for OAuth servers - they need OAuth flow first
+      if (configData.name && configData.authType !== "oauth") {
         try {
-          await mcpClientManager.connect(configData);
+          await mcpClientManager.connect(toMCPServerConfig(config));
         } catch (connectError) {
           logger.error(
             { err: connectError, serverName: configData.name },
             `Failed to auto-connect to ${configData.name}`
           );
         }
+      } else if (configData.authType === "oauth") {
+        logger.info(
+          { serverName: configData.name },
+          "Skipping auto-connect for OAuth server - OAuth flow required first"
+        );
       }
 
       res.status(201).json({ success: true, data: config });
@@ -175,7 +202,7 @@ const runServer = async () => {
       if (mcpClientManager.isConnected(name)) {
         try {
           await mcpClientManager.disconnect(name);
-          await mcpClientManager.connect(config.toJSON() as MCPServerConfig);
+          await mcpClientManager.connect(toMCPServerConfig(config));
           logger.info(
             { serverName: name },
             `Reconnected to updated MCP server: ${name}`
@@ -261,7 +288,28 @@ const runServer = async () => {
           return;
         }
 
-        await mcpClientManager.connect(config.toJSON() as MCPServerConfig);
+        // For OAuth servers, check if OAuth is completed before connecting
+        const configJson = config.toJSON() as any;
+        if (configJson.authType === "oauth") {
+          // Import oauthFlowManager here to check status
+          const { oauthFlowManager } = await import("./oauth/oauth-flow.js");
+          const oauthStatus = await oauthFlowManager.getStatus(
+            config._id.toString()
+          );
+
+          if (!oauthStatus.connected) {
+            res.status(400).json({
+              success: false,
+              error: "OAuth authorization required",
+              code: "OAUTH_REQUIRED",
+              message:
+                "Please complete OAuth authorization before connecting. Click the 'Connect' button to start the OAuth flow.",
+            });
+            return;
+          }
+        }
+
+        await mcpClientManager.connect(toMCPServerConfig(config));
 
         res.json({ success: true, message: `Connected to ${name}` });
       } catch (err) {
@@ -374,7 +422,7 @@ const runServer = async () => {
 
       // Queue sync job
       const job = await syncMcpServerQueue.add(config._id.toString(), {
-        mcpConfig: config.toJSON(), // use toJSON instead of toObject as `Map` won't be preserved when passing to redis
+        mcpConfig: toMCPServerConfig(config) as any, // use toJSON instead of toObject as `Map` won't be preserved when passing to redis
       });
 
       // Return jobId for progress tracking

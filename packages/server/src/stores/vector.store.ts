@@ -1,7 +1,6 @@
 import { randomUUID } from "crypto";
 import {
   VectorPoint,
-  VectorPayloadType,
   EntityVectorPayload,
   RelationshipVectorPayload,
   SourceType,
@@ -9,6 +8,9 @@ import {
 import { QdrantConnection } from "../connections/qdrant.js";
 import { env } from "../env.js";
 import logger from "../utils/logger.js";
+import { QdrantClient } from "@qdrant/js-client-rest";
+
+export type QdrantSearchParams = Parameters<QdrantClient["search"]>[1];
 
 /**
  * Vector Store - Single-tenant Qdrant operations
@@ -89,13 +91,13 @@ export class VectorStore {
     vector: number[],
     options?: {
       limit?: number;
-      filter?: Record<string, any>;
+      filter?: QdrantSearchParams["filter"];
       scoreThreshold?: number;
     }
   ): Promise<
     Array<{ id: string; score: number; payload: VectorPoint["payload"] }>
   > {
-    const searchParams: any = {
+    const searchParams: QdrantSearchParams = {
       vector,
       limit: options?.limit || 20,
     };
@@ -188,9 +190,9 @@ export class VectorStore {
   ): Promise<
     Array<{ id: string; score: number; payload: EntityVectorPayload }>
   > {
-    const filter: any = {
+    const filter = {
       must: [{ key: "type", match: { value: "entity" } }],
-    };
+    } satisfies QdrantSearchParams["filter"];
 
     if (options?.source) {
       filter.must.push({ key: "source", match: { value: options.source } });
@@ -222,9 +224,9 @@ export class VectorStore {
   ): Promise<
     Array<{ id: string; score: number; payload: RelationshipVectorPayload }>
   > {
-    const filter: any = {
+    const filter = {
       must: [{ key: "type", match: { value: "relationship" } }],
-    };
+    } satisfies QdrantSearchParams["filter"];
 
     if (options?.relType) {
       filter.must.push({ key: "relType", match: { value: options.relType } });

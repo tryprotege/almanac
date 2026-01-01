@@ -59,7 +59,7 @@ export async function lightragQuery(
   // Extract keywords for dual-level retrieval (skip for naive mode)
   const keywords =
     mode !== "naive"
-      ? await extractKeywords(query.query, deps.llm)
+      ? extractKeywords(query.query)
       : { high_level: [], low_level: [] };
 
   if (mode !== "naive") {
@@ -360,10 +360,7 @@ async function mixMode(
  * Extract keywords using local NER (compromise)
  * 10x faster than LLM, zero cost, ~85% accuracy
  */
-async function extractKeywords(
-  query: string,
-  _llm: LLMService
-): Promise<ExtractedKeywords> {
+function extractKeywords(query: string): ExtractedKeywords {
   // Use local NER for fast, zero-cost keyword extraction
   const keywords = extractKeywordsNER(query);
 
@@ -398,7 +395,7 @@ async function searchEntitiesByKeywords(
 
   // Fetch full records from MongoDB using entityId (which is now the MongoDB document ID)
   const recordIds = Array.from(
-    new Set(graphEmbeddingMetadata.map((i) => i.sourceDocumentIds).flat())
+    new Set(graphEmbeddingMetadata.map((i) => i.sourceRecordIds).flat())
   );
 
   const records = await RecordModel.find({ _id: { $in: recordIds } }).lean();
@@ -407,9 +404,9 @@ async function searchEntitiesByKeywords(
     let relevanceScore = 0;
     results.forEach((r) => {
       const metadata = graphEmbeddingMetadata.find(
-        (i) => i._id === r.payload.graphEmbeddingMetadataId
+        (i) => i._id.toString() === r.payload.graphEmbeddingMetadataId
       );
-      if (metadata?.sourceDocumentIds.includes(record._id)) {
+      if (metadata?.sourceRecordIds.includes(record._id)) {
         if (r.score > relevanceScore) {
           relevanceScore = r.score;
         }

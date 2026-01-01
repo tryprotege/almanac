@@ -535,10 +535,6 @@ export class GitHubAdapter extends BaseRecordAdapter<Record> {
     const title = `#${issue.number}: ${issue.title}`;
     const content = [title, issue.body || ""].filter(Boolean).join("\n\n");
 
-    if (_id === "github_issue_392858") {
-      console.log("content....", issue, content);
-    }
-
     const people = [issue.user.login];
     issue.assignees?.forEach((a) => people.push(a.login));
 

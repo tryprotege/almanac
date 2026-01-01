@@ -109,6 +109,8 @@ const processor: Processor<
       relationshipEmbeddingsSkipped: relStats.skipped,
     });
   }
+
+  console.log("✅✅✅✅✅ done", source);
 };
 
 type IndexGraphJobData = {

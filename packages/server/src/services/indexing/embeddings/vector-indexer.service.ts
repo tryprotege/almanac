@@ -161,6 +161,7 @@ export async function insertRecordToVectorDB(
       id: vectorId,
       vector: embeddings[index],
       payload: {
+        type: "chunk",
         // Link to MongoDB (required)
         recordId: record._id,
         // Change detection (for re-indexing)

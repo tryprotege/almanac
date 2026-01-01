@@ -99,25 +99,25 @@ export const cleanupDeletedRecords = async (
  * Called when a document is re-indexed or deleted
  */
 export const cleanupDocumentGraph = async (
-  documentId: string,
+  recordId: string,
   graphStore: GraphStore
 ): Promise<{
   removedMentions: number;
   orphanedRelationships: number;
   deletedMetadata: number;
 }> => {
-  logger.info({ msg: "🧹 Cleaning up document graph", documentId });
+  logger.info({ msg: "🧹 Cleaning up document graph", recordId });
 
   const relationshipMentionStore = new RelationshipMentionStore();
 
   // 1. Remove relationship mentions from MongoDB
   const removedMentions = await relationshipMentionStore.removeDocumentMentions(
-    documentId
+    recordId
   );
 
   logger.info({
     msg: "Removed relationship mentions",
-    documentId,
+    recordId,
     removedMentions,
   });
 
@@ -155,7 +155,7 @@ export const cleanupDocumentGraph = async (
 
   logger.info({
     msg: "✅ Graph cleanup complete",
-    documentId,
+    recordId,
     orphanedRelationships: orphanedRels.length,
     deletedMetadata,
   });

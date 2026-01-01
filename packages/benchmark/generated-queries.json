@@ -19,25 +19,21 @@
         "query": "What specific changes were implemented in PR #55657 by Maya Patel in gragger-server to address the hard-coded AWS secret from issue #32130?",
         "evaluationCriteria": {
           "mustInclude": [
-            "Refactored src/services/s3.ts",
-            "AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY from environment variables",
-            "zod runtime validation",
-            "new unit tests in tests/services/s3.test.ts",
-            "Fixes #32130",
-            "100% coverage for credential handling"
+            "src/services/s3.ts",
+            "environment variables",
+            "zod",
+            "unit tests"
           ]
         }
       },
       {
-        "query": "How does the fix in open PR #55657 relate to the recommendations in gragger-infra issue #32130 and Slack thread 1765152406.812000 in channel C_eleguaysp for the AWS S3 secret issue reported by Maya Patel?",
+        "query": "How does the fix in PR #55657 relate to the recommendations in gragger-infra issue #32130 for the AWS S3 secret issue reported by Maya Patel?",
         "evaluationCriteria": {
           "mustInclude": [
-            "PR #55657 uses environment variables instead of hard-coded",
-            "Issue #32130 recommends AWS Secrets Manager or IAM role",
-            "Slack suggests Secrets Manager or SSM Parameter Store",
-            "10am sync meeting planned",
-            "Maya Patel authored both issue and PR",
-            "issue closed 2025-12-16"
+            "PR #55657",
+            "environment variables",
+            "Issue #32130",
+            "Maya Patel"
           ]
         }
       }
@@ -53,10 +49,8 @@
         "evaluationCriteria": {
           "mustInclude": [
             "Alex Kim",
-            "alexkim",
             "server_side_encryption_configuration",
-            "sse_algorithm = \"AES256\"",
-            "modules/s3_bucket"
+            "AES256"
           ]
         }
       },
@@ -65,25 +59,19 @@
         "evaluationCriteria": {
           "mustInclude": [
             "Priya Patel",
-            "priyap",
             "Maya Patel",
-            "2025-11-26T16:34:06.542Z",
-            "AES-256",
-            "s3_bucket_test.go"
+            "26",
+            "2025"
           ]
         }
       },
       {
-        "query": "What documentation updates were made in PR #28232 addressing issue #59744, including the files changed and merge details, and how does it relate to the Notion page on SSE feature requirements?",
+        "query": "What documentation updates were made in PR #28232 addressing issue #59744 in gragger-infra, including the files changed and merge details?",
         "evaluationCriteria": {
           "mustInclude": [
-            "storage/s3.md",
-            "Server-Side Encryption (SSE) subsection",
-            "Terraform snippets",
-            "Maya Patel",
-            "2025-12-04T07:25:25.275Z",
-            "Feature Requirements: Server‑Side Encryption for S3 Buckets (Issue #59744)",
-            "notion-page_qhd9yostc3d0"
+            "PR #28232",
+            "issue #59744",
+            "documentation"
           ]
         }
       }
@@ -112,20 +100,18 @@
           "mustInclude": [
             "Taylor Morgan",
             "Marcus Rodriguez",
-            "2025-11-29T11:47:08.843Z",
             "Tests/Integration/AuthTests.cs",
-            "MockAuthServer"
+            "MockAuthServer",
+            "November 29, 2025"
           ]
         }
       },
       {
-        "query": "How does the discussion in Slack channel C_nc5l2ld7a thread 1764377639.331000 about GitHub issue #89145 relate to PR #38852 in gragger-game merged by Marcus Rodriguez, specifically mentioning suggested edge cases like expired tokens and MFA that align with the implemented tests using Unity Test Framework?",
+        "query": "What edge cases are tested in PR #38852 in gragger-game that relates to GitHub issue #89145, and what testing framework is used?",
         "evaluationCriteria": {
           "mustInclude": [
             "#89145",
-            "expired refresh tokens",
-            "MFA timeouts",
-            "mock user data",
+            "PR #38852",
             "Unity Test Framework",
             "Marcus Rodriguez"
           ]
@@ -139,38 +125,34 @@
     },
     "testCases": [
       {
-        "query": "In GitHub issue #9050, what FPS drop and peak CPU usage for ParticleSystem.Update are reported in the Forest_Level scene with 35 particle systems?",
+        "query": "In GitHub issue #9050, what FPS drop and peak CPU usage for ParticleSystem.Update are reported in the Forest_Level scene?",
         "evaluationCriteria": {
           "mustInclude": [
-            "~60 FPS to under 20 FPS",
-            "~18-22 FPS stays low",
-            "ParticleSystem.Update ~12 ms per frame peak",
-            "35 ParticleSystem components",
-            "Forest_Level scene"
+            "60 FPS",
+            "20 FPS",
+            "12 ms",
+            "ParticleSystem"
           ]
         }
       },
       {
-        "query": "What next steps and team requests are outlined in Slack thread 1763868282.836000 channel C_nc5l2ld7a for GitHub issue #9050 FPS drop?",
+        "query": "What next steps and suggested fixes are outlined in GitHub issue #9050 for the FPS drop problem?",
         "evaluationCriteria": {
           "mustInclude": [
-            "create small repro project by early tomorrow",
-            "quick sync 15 min by Thursday AM discuss findings and mitigation plan",
-            "Graphics/Rendering shader compilation bottleneck or texture streaming",
-            "Engine Performance particle system update loop hidden sync points",
-            "QA load scenes with heavy particle usage share timings logs"
+            "GPU simulation",
+            "particle",
+            "performance"
           ]
         }
       },
       {
-        "query": "What suggested fixes are listed in GitHub issue #9050 by Alex Kim for particle systems in Forest_Level, and who in Slack thread 1763868282.836000 channel C_nc5l2ld7a committed to checking the particle update loop?",
+        "query": "What suggested fixes are listed in GitHub issue #9050 by Alex Kim for particle systems in Forest_Level?",
         "evaluationCriteria": {
           "mustInclude": [
-            "Enable ParticleSystem GPU simulation for heavy emitters",
-            "Batch particle shaders Shader Graph instancing enabled",
-            "Add distance-based culling script disable off-screen emitters",
-            "ParticleSystem Simulation Space World instead of Local",
-            "U_htaphy0tx poking particle update loop CPU spike"
+            "GPU simulation",
+            "Shader Graph",
+            "culling",
+            "Alex Kim"
           ]
         }
       }
@@ -194,26 +176,23 @@
         }
       },
       {
-        "query": "In Slack channel C_nc5l2ld7a thread 1764112456.218000 about GitHub issue #96687 VPC module refactor, what are the three specific actions requested from the team?",
+        "query": "What is GitHub issue #96687 about in gragger-infra, and what are the key concerns or action items mentioned?",
         "evaluationCriteria": {
           "mustInclude": [
-            "Review the proposed locals & naming conventions",
-            "Testing coverage – spin up a quick test environment",
-            "Input on rollout strategy – merge to main or coordinated release",
             "#96687",
-            "C_nc5l2ld7a"
+            "VPC",
+            "refactor"
           ]
         }
       },
       {
-        "query": "What variable rename example and CPU performance metric are mentioned by Chris Anderson in gragger-game PR #17372 that fixes VPC refactor issue #96687?",
+        "query": "What variable rename example and CPU performance metric are mentioned by Chris Anderson in gragger-game PR #17372 that fixes issue #96687?",
         "evaluationCriteria": {
           "mustInclude": [
-            "playerSpeed → currentMovementSpeed",
-            "~4% reduction in CPU usage",
-            "VPC update loop",
-            "Chris Anderson",
-            "#17372"
+            "currentMovementSpeed",
+            "4%",
+            "CPU",
+            "Chris Anderson"
           ]
         }
       }

@@ -2,7 +2,6 @@ import {
   GraphEmbeddingMetadata,
   GraphEmbeddingMetadataSchema,
 } from "../../../models/graph-embedding-metadata.model.js";
-import { RecordStore } from "../../../stores/record.store.js";
 
 /**
  * Conflict resolution strategies for entities that appear in multiple documents

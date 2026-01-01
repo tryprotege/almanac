@@ -1,7 +1,5 @@
-import "dotenv/config.js";
-
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { initializeServices, mcpServer } from "./initialization.js";
+import { initializeServices } from "./initialization.js";
 
 const run = async () => {
   // skip mcp proxy
@@ -9,10 +7,12 @@ const run = async () => {
 
   const transport = new StdioServerTransport();
 
+  const { mcpServer } = await import("./initialization.js");
+
   await mcpServer.connect(transport);
 };
 
 run().catch((err) => {
-  console.error("sss", err);
+  console.error(err);
   process.exit(1);
 });

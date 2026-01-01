@@ -17,6 +17,29 @@ import { getApiKeyForAgent } from "../env.js";
 // Types
 // ============================================
 
+export interface AgentStep {
+  readonly stepNumber: number;
+  readonly type:
+    | "user"
+    | "assistant"
+    | "tool_use"
+    | "tool_result"
+    | "thinking"
+    | "result";
+  readonly timestamp: string;
+  readonly content: string;
+  readonly toolName?: string;
+  readonly toolInput?: unknown;
+  readonly toolOutput?: unknown;
+  readonly tokens?: {
+    readonly input?: number;
+    readonly output?: number;
+    readonly thinking?: number;
+    readonly cacheCreation?: number;
+    readonly cacheRead?: number;
+  };
+}
+
 export interface SDKOptions {
   verbose?: boolean;
   enableThinking?: boolean;
@@ -36,6 +59,7 @@ export interface SDKQueryResult {
   executionTime: number;
   rawOutput: string;
   cost: number;
+  steps: AgentStep[]; // Captured agent interaction steps
 }
 
 // ============================================
@@ -86,6 +110,8 @@ export const executeClaudeSDK = async (
   const mcpCalls: MCPCall[] = [];
   const processedUUIDs = new Set<string>();
   const stepUsages: any[] = [];
+  const steps: AgentStep[] = [];
+  let stepNumber = 0;
 
   try {
     if (verbose) {
@@ -127,10 +153,24 @@ export const executeClaudeSDK = async (
       let totalCacheCreationTokens = 0;
       let totalCacheReadTokens = 0;
 
+      // Capture initial user message
+      stepNumber++;
+      steps.push({
+        stepNumber,
+        type: "user",
+        timestamp: new Date().toISOString(),
+        content: queryPrompt,
+      });
+
       // Iterate through messages
       for await (const message of queryGenerator) {
         if (verbose) {
           console.log(`\n📨 Message: ${message.type}`);
+        }
+
+        // Debug log for message content
+        if (verbose && (message as any).message?.content) {
+          console.log("📝 Content blocks:", (message as any).message.content);
         }
 
         // Track usage from assistant messages with UUID deduplication
@@ -170,15 +210,97 @@ export const executeClaudeSDK = async (
                 }
               }
             }
-          }
 
-          // Track tool calls
-          if (assistantMsg.message?.content) {
-            const content = assistantMsg.message.content;
-            if (Array.isArray(content)) {
-              for (const block of content) {
-                if (block.type === "tool_use" && verbose) {
-                  console.log(`  Tool: ${block.name}`);
+            // Capture content blocks from assistant message
+            const assistantContent = assistantMsg.message?.content;
+            if (Array.isArray(assistantContent)) {
+              for (const block of assistantContent) {
+                stepNumber++;
+
+                if (block.type === "text") {
+                  // Regular text response
+                  steps.push({
+                    stepNumber,
+                    type: "assistant",
+                    timestamp: new Date().toISOString(),
+                    content: block.text,
+                    tokens: assistantMsg.message?.usage
+                      ? {
+                          input: assistantMsg.message.usage.input_tokens,
+                          output: assistantMsg.message.usage.output_tokens,
+                          cacheCreation:
+                            assistantMsg.message.usage
+                              .cache_creation_input_tokens,
+                          cacheRead:
+                            assistantMsg.message.usage.cache_read_input_tokens,
+                        }
+                      : undefined,
+                  });
+                } else if (block.type === "thinking") {
+                  // Extended thinking block
+                  steps.push({
+                    stepNumber,
+                    type: "thinking",
+                    timestamp: new Date().toISOString(),
+                    content: block.thinking || "",
+                    tokens: assistantMsg.message?.usage
+                      ? {
+                          thinking: assistantMsg.message.usage.output_tokens,
+                        }
+                      : undefined,
+                  });
+
+                  if (verbose) {
+                    console.log(
+                      `  Thinking: ${block.thinking?.substring(0, 100)}...`
+                    );
+                  }
+                } else if (block.type === "tool_use") {
+                  // Tool use block
+                  steps.push({
+                    stepNumber,
+                    type: "tool_use",
+                    timestamp: new Date().toISOString(),
+                    content: `Tool call: ${block.name}`,
+                    toolName: block.name,
+                    toolInput: block.input,
+                  });
+
+                  if (verbose) {
+                    console.log(`  Tool: ${block.name}`);
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Capture tool results from user messages (tool results come back as user messages with tool_result content)
+        if (message.type === "user") {
+          const userMsg = message as any;
+          if (
+            userMsg.message?.content &&
+            Array.isArray(userMsg.message.content)
+          ) {
+            for (const block of userMsg.message.content) {
+              if (block.type === "tool_result") {
+                stepNumber++;
+
+                steps.push({
+                  stepNumber,
+                  type: "tool_result",
+                  timestamp: new Date().toISOString(),
+                  content: `Tool result for ${block.tool_use_id || "unknown"}`,
+                  toolOutput: block.content,
+                });
+
+                if (verbose) {
+                  console.log(
+                    `  Tool result: ${JSON.stringify(block.content).substring(
+                      0,
+                      100
+                    )}...`
+                  );
                 }
               }
             }
@@ -239,6 +361,21 @@ export const executeClaudeSDK = async (
             console.log(`   Cost: $${cost.toFixed(4)}\n`);
           }
 
+          // Capture final result step
+          stepNumber++;
+          steps.push({
+            stepNumber,
+            type: "result",
+            timestamp: new Date().toISOString(),
+            content: resultMsg.result || "",
+            tokens: {
+              input: combinedInputTokens,
+              output: totalOutputTokens,
+              cacheCreation: totalCacheCreationTokens,
+              cacheRead: totalCacheReadTokens,
+            },
+          });
+
           return {
             response: resultMsg.result || "",
             mcpCalls, // Agent SDK handles tools automatically
@@ -251,6 +388,7 @@ export const executeClaudeSDK = async (
             executionTime,
             rawOutput: JSON.stringify(resultMsg, null, 2),
             cost,
+            steps,
           };
         }
       }
@@ -296,6 +434,8 @@ export const executeAmpSDK = async (
   const verbose = options.verbose ?? true;
   const startTime = Date.now();
   const mcpCalls: MCPCall[] = [];
+  const steps: AgentStep[] = [];
+  let stepNumber = 0;
 
   try {
     if (verbose) {
@@ -313,6 +453,15 @@ export const executeAmpSDK = async (
     process.env.AMP_API_KEY = apiKey;
 
     try {
+      // Capture initial user message
+      stepNumber++;
+      steps.push({
+        stepNumber,
+        type: "user",
+        timestamp: new Date().toISOString(),
+        content: query,
+      });
+
       // Execute with Amp SDK
       let finalResult = "";
       let totalInputTokens = 0;
@@ -333,7 +482,8 @@ export const executeAmpSDK = async (
 
         // Accumulate usage from assistant messages (per-turn usage)
         if (message.type === "assistant" && (message as any).message?.usage) {
-          const usage = (message as any).message.usage;
+          const assistantMsg = message as any;
+          const usage = assistantMsg.message.usage;
 
           // Accumulate tokens from each assistant message
           totalInputTokens += usage.input_tokens || 0;
@@ -352,6 +502,93 @@ export const executeAmpSDK = async (
             }
             if (usage.cache_read_input_tokens) {
               console.log(`  Cache read: ${usage.cache_read_input_tokens}`);
+            }
+          }
+
+          // Capture content blocks from assistant message
+          const content = assistantMsg.message?.content;
+          if (Array.isArray(content)) {
+            for (const block of content) {
+              stepNumber++;
+
+              if (block.type === "text") {
+                // Regular text response
+                steps.push({
+                  stepNumber,
+                  type: "assistant",
+                  timestamp: new Date().toISOString(),
+                  content: block.text,
+                  tokens: {
+                    input: usage.input_tokens,
+                    output: usage.output_tokens,
+                    cacheCreation: usage.cache_creation_input_tokens,
+                    cacheRead: usage.cache_read_input_tokens,
+                  },
+                });
+              } else if (block.type === "thinking") {
+                // Extended thinking block
+                steps.push({
+                  stepNumber,
+                  type: "thinking",
+                  timestamp: new Date().toISOString(),
+                  content: block.thinking || "",
+                  tokens: {
+                    thinking: usage.output_tokens,
+                  },
+                });
+
+                if (verbose) {
+                  console.log(
+                    `  Thinking: ${block.thinking?.substring(0, 100)}...`
+                  );
+                }
+              } else if (block.type === "tool_use") {
+                // Tool use block
+                steps.push({
+                  stepNumber,
+                  type: "tool_use",
+                  timestamp: new Date().toISOString(),
+                  content: `Tool call: ${block.name}`,
+                  toolName: block.name,
+                  toolInput: block.input,
+                });
+
+                if (verbose) {
+                  console.log(`  Tool: ${block.name}`);
+                }
+              }
+            }
+          }
+        }
+
+        // Capture tool results from user messages
+        if (message.type === "user") {
+          const userMsg = message as any;
+          if (
+            userMsg.message?.content &&
+            Array.isArray(userMsg.message.content)
+          ) {
+            for (const block of userMsg.message.content) {
+              if (block.type === "tool_result") {
+                stepNumber++;
+
+                steps.push({
+                  stepNumber,
+                  type: "tool_result",
+                  timestamp: new Date().toISOString(),
+                  content: `Tool result for ${block.tool_use_id || "unknown"}`,
+                  toolOutput: block.content,
+                });
+
+                if (verbose) {
+                  console.log(
+                    `  Tool result: ${JSON.stringify(block.content).substring(
+                      0,
+                      100
+                    )}...`
+                  );
+                }
+              }
             }
           }
         }
@@ -408,6 +645,21 @@ export const executeAmpSDK = async (
         console.log(`   Cost: $${cost.toFixed(4)}\n`);
       }
 
+      // Capture final result step
+      stepNumber++;
+      steps.push({
+        stepNumber,
+        type: "result",
+        timestamp: new Date().toISOString(),
+        content: finalResult,
+        tokens: {
+          input: combinedInputTokens,
+          output: totalOutputTokens,
+          cacheCreation: totalCacheCreationTokens,
+          cacheRead: totalCacheReadTokens,
+        },
+      });
+
       return {
         response: finalResult,
         mcpCalls,
@@ -420,6 +672,7 @@ export const executeAmpSDK = async (
         executionTime,
         rawOutput: finalResult,
         cost,
+        steps,
       };
     } finally {
       // Restore original API key

@@ -13,7 +13,6 @@ import { computeChecksum } from "../../../utils/checksum.js";
 import {
   getEntityEmbeddingText,
   getRelationshipEmbeddingText,
-  shouldReembedRelationship,
 } from "./entity-conflict-resolution.js";
 import { env } from "../../../env.js";
 import logger from "../../../utils/logger.js";
@@ -99,7 +98,7 @@ export async function indexEntityEmbeddings(
           vector: embeddings[index],
           payload: {
             type: "entity" as const,
-            graphEmbeddingMetadataId: entity._id,
+            graphEmbeddingMetadataId: entity._id.toString(),
             source: source,
             checksum: computeChecksum(entityTexts[index]),
           } satisfies EntityVectorPayload,
@@ -198,8 +197,8 @@ export async function indexRelationshipEmbeddings(
   // Create mapping from Memgraph entity ID to MongoDB document ID
   const entityIdToMongoId = new Map<string, string>();
   entityMetadata.forEach((meta) => {
-    if (meta.memgraphId && meta.sourceDocumentIds.length > 0) {
-      entityIdToMongoId.set(meta.memgraphId, meta.sourceDocumentIds[0]);
+    if (meta.memgraphId && meta.sourceRecordIds.length > 0) {
+      entityIdToMongoId.set(meta.memgraphId, meta.sourceRecordIds[0]);
     }
   });
 
@@ -376,7 +375,7 @@ export async function cleanupDeletedEntityEmbeddings(
   // Find all entity embeddings for this source
   const entityMetadata = await GraphEmbeddingMetadata.find({
     itemType: "entity",
-    sourceDocumentIds: source,
+    sourceRecordIds: source,
   });
 
   for (const metadata of entityMetadata) {
@@ -386,9 +385,7 @@ export async function cleanupDeletedEntityEmbeddings(
     }
 
     // Check if all source documents are deleted
-    const records = await deps.recordStore.findByIds(
-      metadata.sourceDocumentIds
-    );
+    const records = await deps.recordStore.findByIds(metadata.sourceRecordIds);
     const allDeleted = records.every((r) => r.deletedAt);
 
     if (allDeleted) {
@@ -430,7 +427,7 @@ export async function cleanupDeletedRelationshipEmbeddings(
   // Find all relationship embeddings for this source
   const relMetadata = await GraphEmbeddingMetadata.find({
     itemType: "relationship",
-    sourceDocumentIds: source,
+    sourceRecordIds: source,
   });
 
   for (const metadata of relMetadata) {

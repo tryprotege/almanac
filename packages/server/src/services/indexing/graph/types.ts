@@ -117,7 +117,7 @@ export interface EntityMetadata {
   description: string;
   source: SourceType;
   contentChecksum: string;
-  sourceDocumentIds: string[];
+  sourceRecordIds: string[];
 }
 
 export interface RelationshipMetadata {
@@ -128,7 +128,7 @@ export interface RelationshipMetadata {
   description?: string;
   source: SourceType;
   contentChecksum: string;
-  sourceDocumentIds: string[];
+  sourceRecordIds: string[];
 }
 
 export interface DocumentNode {
@@ -139,11 +139,11 @@ export interface DocumentNode {
 
 export interface EntityLink {
   entityId: string;
-  documentId: string;
+  recordId: string;
 }
 
 export interface RelationshipLink {
-  documentId: string;
+  recordId: string;
   relationshipType: string;
   sourceEntityId: string;
   targetEntityId: string;

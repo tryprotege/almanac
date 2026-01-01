@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Modal } from "../ui/Modal";
 import { ServiceSelector } from "../DataSourceForm/ServiceSelector";
 import { ServiceConfigForm } from "../DataSourceForm/ServiceConfigForm";
@@ -13,6 +14,8 @@ import { ReviewStep } from "./ReviewStep";
 import { ConfigChoiceStep } from "./ConfigChoiceStep";
 import { ConfigImportStep } from "./ConfigImportStep";
 import { OAuthStep } from "./OAuthStep";
+import { GeneratingStep } from "./GeneratingStep";
+import { SavingStep } from "./SavingStep";
 import { DataSourceConfig } from "../../lib/api";
 import {
   useCreateDataSource,
@@ -37,9 +40,19 @@ type WizardStep =
   | "configure"
   | "oauth-auth"
   | "config-choice"
+  | "generating"
   | "auto-generate"
   | "import"
-  | "review";
+  | "review"
+  | "saving";
+
+type SavingStepStatus =
+  | "saving"
+  | "activating"
+  | "syncing"
+  | "complete"
+  | "error"
+  | null;
 
 export function DataSourceWizard({
   isOpen,
@@ -64,6 +77,8 @@ export function DataSourceWizard({
   const [isCustomServerCreated, setIsCustomServerCreated] = useState(false);
   const [importedConfig, setImportedConfig] = useState<any>(null);
   const [oauthCompleted, setOauthCompleted] = useState(false);
+  const [savingStatus, setSavingStatus] = useState<SavingStepStatus>(null);
+  const [savingError, setSavingError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && existingSource) {
@@ -114,8 +129,10 @@ export function DataSourceWizard({
       setStep("configure");
     } else if (step === "config-choice") {
       setStep("configure");
-    } else if (step === "auto-generate") {
+    } else if (step === "generating") {
       setStep("config-choice");
+    } else if (step === "auto-generate") {
+      setStep("generating");
     } else if (step === "import") {
       setStep("config-choice");
     } else if (step === "review") {
@@ -251,15 +268,17 @@ export function DataSourceWizard({
   const handleChooseAutoGenerate = async () => {
     if (!serverConfig) return;
 
+    // Immediately transition to generating step
+    setStep("generating");
+
     try {
       // Generate indexing config using connected server's tools
-      toast.loading("Generating sync config...", { id: "generate-config" });
       await generateConfig.mutateAsync({
         serverName: serverConfig.name,
         displayName: serverConfig.name,
       });
-      toast.success("Sync config generated", { id: "generate-config" });
 
+      // Move to results step
       setStep("auto-generate");
     } catch (error) {
       console.error("Failed to generate config:", error);
@@ -267,6 +286,7 @@ export function DataSourceWizard({
         error instanceof Error ? error.message : "Failed to generate config",
         { id: "generate-error" }
       );
+      // Stay on generating step to show error
     }
   };
 
@@ -286,6 +306,11 @@ export function DataSourceWizard({
   const handleFinalSubmit = async () => {
     if (!serverConfig) return;
 
+    // Immediately transition to saving step
+    setStep("saving");
+    setSavingStatus("saving");
+    setSavingError(null);
+
     try {
       // 1. Create/update MCP server (skip for custom if already created)
       if (existingSource) {
@@ -301,6 +326,7 @@ export function DataSourceWizard({
       // 2. Save sync config if custom
       const configToSave = importedConfig || generateConfig.data?.config;
       if (selectedPreset?.id === "custom" && configToSave) {
+        setSavingStatus("activating");
         await saveConfig.mutateAsync({
           config: configToSave,
           status: "active",
@@ -308,16 +334,27 @@ export function DataSourceWizard({
       }
 
       // 3. Trigger initial sync
+      setSavingStatus("syncing");
       await syncConfig.mutateAsync({
         serverName: serverConfig.name,
         incremental: false,
       });
 
-      // 4. Close wizard
-      onClose();
-      resetWizard();
+      // 4. Mark complete and close after a brief delay
+      setSavingStatus("complete");
+      setTimeout(() => {
+        onClose();
+        resetWizard();
+      }, 2000);
     } catch (error) {
       console.error("Failed to save data source:", error);
+      setSavingStatus("error");
+      setSavingError(
+        error instanceof Error ? error.message : "Failed to save data source"
+      );
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save data source"
+      );
     }
   };
 
@@ -351,6 +388,8 @@ export function DataSourceWizard({
     setIsCustomServerCreated(false);
     setImportedConfig(null);
     setOauthCompleted(false);
+    setSavingStatus(null);
+    setSavingError(null);
     generateConfig.reset();
   };
 
@@ -370,6 +409,8 @@ export function DataSourceWizard({
     subtitle = selectedPreset.displayName;
     if (step === "config-choice") {
       subtitle += " • Choose Config Method";
+    } else if (step === "generating") {
+      subtitle += " • Generating Config";
     } else if (step === "auto-generate") {
       subtitle += " • Auto-Generate Config";
     } else if (step === "import") {
@@ -436,6 +477,20 @@ export function DataSourceWizard({
         />
       )}
 
+      {step === "generating" && (
+        <GeneratingStep
+          isGenerating={generateConfig.isPending}
+          error={
+            generateConfig.isError
+              ? generateConfig.error instanceof Error
+                ? generateConfig.error.message
+                : "Failed to generate config"
+              : undefined
+          }
+          onBack={handleBack}
+        />
+      )}
+
       {step === "auto-generate" && generateConfig.data && (
         <IndexingStep
           generatedConfig={generateConfig.data}
@@ -462,6 +517,15 @@ export function DataSourceWizard({
           onBack={handleBack}
           onSubmit={handleFinalSubmit}
           isLoading={isLoading}
+        />
+      )}
+
+      {step === "saving" && serverConfig && (
+        <SavingStep
+          serverName={serverConfig.name}
+          isCustomServer={selectedPreset?.id === "custom"}
+          currentStep={savingStatus}
+          error={savingError || undefined}
         />
       )}
     </Modal>

@@ -106,4 +106,23 @@ statsRouter.get("/graph", async (_req: Request, res: Response) => {
   }
 });
 
+// GET /api/stats/activity - Get recent sync activity
+statsRouter.get("/activity", async (_req: Request, res: Response) => {
+  try {
+    const service = await getStatsService();
+    const activity = await service.getRecentActivity();
+
+    res.json({
+      success: true,
+      data: activity,
+    });
+  } catch (err) {
+    logger.error({ err }, "Error fetching recent activity");
+    res.status(500).json({
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+});
+
 export { statsRouter };

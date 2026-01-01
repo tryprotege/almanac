@@ -9,6 +9,7 @@ interface MetricCardProps {
   icon: LucideIcon;
   iconColor: IconColor;
   loading?: boolean;
+  tooltip?: string;
 }
 
 export function MetricCard({
@@ -17,6 +18,7 @@ export function MetricCard({
   icon,
   iconColor,
   loading,
+  tooltip,
 }: MetricCardProps) {
   if (loading) {
     return (
@@ -31,7 +33,7 @@ export function MetricCard({
   }
 
   return (
-    <div className="metric-card">
+    <div className="metric-card" title={tooltip}>
       <FeaturedIcon icon={icon} color={iconColor} />
       <div className="metric-card-content">
         <span className="metric-card-title">{title}</span>

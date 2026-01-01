@@ -1,12 +1,8 @@
 import {
-  CheckCircle,
   Loader2,
-  Power,
-  PowerOff,
   RefreshCw,
   Settings,
   Trash2,
-  XCircle,
   MessageSquare,
   Github,
   Video,
@@ -14,13 +10,13 @@ import {
   FileText,
   Server,
   Shield,
+  FileCode,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { capitalCase } from "change-case";
 import {
-  useConnectDataSource,
   useDeleteDataSource,
-  useDisconnectDataSource,
   useDataSourceStatus,
   useSyncDataSource,
 } from "../hooks/useDataSources";
@@ -51,7 +47,23 @@ function getServiceIcon(serverName: string) {
   return Server;
 }
 
+// Helper function to format connection details for subtitle
+function getConnectionDetails(server: DataSourceConfig): string {
+  const parts: string[] = [server.type];
+
+  if (server.type === "stdio" && server.command) {
+    const commandStr =
+      server.command + (server.args?.length ? ` ${server.args.join(" ")}` : "");
+    parts.push(commandStr);
+  } else if (server.type === "sse" && server.url) {
+    parts.push(server.url);
+  }
+
+  return parts.join(" • ");
+}
+
 export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
+  const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [_syncJobId, setSyncJobId] = useState<string | null>(null);
   const [oauthStatus, setOauthStatus] = useState<{
@@ -59,8 +71,6 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
     expiresAt?: string;
   } | null>(null);
 
-  const connectMutation = useConnectDataSource();
-  const disconnectMutation = useDisconnectDataSource();
   const deleteMutation = useDeleteDataSource();
   const syncMutation = useSyncDataSource();
   const { data: statusData, isLoading: statusLoading } = useDataSourceStatus(
@@ -69,11 +79,7 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
   );
 
   const isConnected = statusData?.connected || false;
-  const isLoading =
-    statusLoading ||
-    connectMutation.isPending ||
-    disconnectMutation.isPending ||
-    deleteMutation.isPending;
+  const isLoading = statusLoading || deleteMutation.isPending;
 
   // Check OAuth status if server uses OAuth
   useEffect(() => {
@@ -89,14 +95,6 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
   const oauthConnected = oauthStatus?.connected || false;
   const oauthExpired = requiresOAuth && !oauthConnected;
 
-  const handleConnect = () => {
-    if (isConnected) {
-      disconnectMutation.mutate(server.name);
-    } else {
-      connectMutation.mutate(server.name);
-    }
-  };
-
   const handleDelete = () => {
     deleteMutation.mutate(server.name);
     setShowDeleteConfirm(false);
@@ -111,7 +109,6 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
         name: server.name,
       });
 
-      // Get jobId from response
       const jobId = result.data.data?.jobId;
       if (jobId) {
         setSyncJobId(jobId);
@@ -122,183 +119,87 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
   };
 
   const ServiceIcon = getServiceIcon(server.name);
+  const connectionDetails = getConnectionDetails(server);
 
   return (
     <div className="card relative flex flex-col">
-      {/* Server Info */}
-      <div>
-        <div className="flex items-center gap-3 mb-3">
-          <div className="p-2.5 rounded-lg text-brand-purple bg-brand-purple/10">
-            <ServiceIcon className="w-6 h-6" />
-          </div>
-          <h3 className="text-lg font-semibold text-text-primary">
-            {capitalCase(server.name)}
-          </h3>
+      {/* Compact Header */}
+      <div className="flex items-start gap-3 mb-3">
+        <div className="p-2 rounded-lg text-brand-purple bg-brand-purple/10 flex-shrink-0">
+          <ServiceIcon className="w-5 h-5" />
         </div>
-        <div className="mt-2 space-y-1 grid grid-cols-[15%_85%] gap-2 text-left">
-          <div className="flex items-left text-sm col-start-auto">
-            <span className="text-text-tertiary w-16">Type:</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="text-base font-semibold text-text-primary truncate">
+              {capitalCase(server.name)}
+            </h3>
+            {/* Status Indicator Dot */}
+            {server.isDisabled ? (
+              <span
+                className="w-2 h-2 rounded-full bg-text-quaternary flex-shrink-0"
+                title="Disabled"
+              />
+            ) : isConnected ? (
+              <span
+                className="w-2 h-2 rounded-full bg-brand-success-light flex-shrink-0"
+                title="Ready"
+              />
+            ) : (
+              <span
+                className="w-2 h-2 rounded-full bg-text-quaternary flex-shrink-0"
+                title="Not Ready"
+              />
+            )}
           </div>
-          <div>
-            <span className="text-text-secondary font-medium">
-              {server.type}
-            </span>
-          </div>
-          {server.type === "stdio" && server.command && (
-            <>
-              <div className="flex items-start text-sm">
-                <span className="text-text-tertiary w-16 flex-shrink-0">
-                  Command:
-                </span>
-              </div>
-              <div>
-                <span className="text-text-secondary font-mono text-xs break-all">
-                  {server.command}
-                  {server.args && server.args.length > 0
-                    ? ` ${server.args.join(" ")}`
-                    : ""}
-                </span>
-              </div>
-            </>
-          )}
-          {server.type === "sse" && server.url && (
-            <>
-              {" "}
-              <div className="flex items-start text-sm">
-                <span className="text-text-tertiary w-16 flex-shrink-0">
-                  URL:
-                </span>
-              </div>
-              <div>
-                <span className="text-text-secondary font-mono text-xs break-all">
-                  {server.url}
-                </span>
-              </div>
-            </>
-          )}
-          {server.env && Object.keys(server.env).length > 0 && (
-            <>
-              <div className="flex items-start text-sm">
-                <span className="text-text-tertiary w-16 flex-shrink-0">
-                  Env:
-                </span>
-              </div>
-              <div>
-                <span className="text-text-secondary text-xs">
-                  {Object.keys(server.env).length} variable(s)
-                </span>
-              </div>
-            </>
-          )}
+          {/* Compact Connection Details */}
+          <p className="text-xs text-text-tertiary truncate font-mono">
+            {connectionDetails}
+          </p>
         </div>
       </div>
 
-      {/* Sync Progress Bar */}
-      {/* {isSyncing && (
-        <div className="mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {syncProgress.state === "waiting" ? "Queued..." : "Syncing..."}
-            </span>
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {syncProgress.progress}%
+      {/* OAuth Reconnection Alert - Only when expired */}
+      {oauthExpired && server._id && (
+        <div className="mb-3 bg-warning-bg border border-warning-border rounded-lg p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Shield className="w-4 h-4 text-warning-text flex-shrink-0" />
+            <span className="text-sm font-medium text-warning-text">
+              OAuth session expired
             </span>
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-            <div
-              className="bg-primary-600 dark:bg-primary-500 h-2.5 rounded-full transition-all duration-300"
-              style={{ width: `${syncProgress.progress}%` }}
-            ></div>
-          </div>
+          <OAuthConnectButton
+            mcpServerId={server._id}
+            mcpServerName={server.name}
+            serverType={server.type}
+            authConfig={server.oauth}
+            onSuccess={() => {
+              // Refresh OAuth status
+              fetch(`/api/oauth/status/${server._id}`)
+                .then((res) => res.json())
+                .then((data) => setOauthStatus(data))
+                .catch(() => setOauthStatus(null));
+            }}
+          />
         </div>
-      )} */}
+      )}
 
-      {/* Actions */}
-      {!showDeleteConfirm ? (
-        <div className="mt-auto ">
-          {/* Status Badge */}
-          <div className="mt-3 flex gap-2">
-            {server.isDisabled ? (
-              <span className="badge badge-neutral">Disabled</span>
-            ) : isConnected ? (
-              <span className="badge badge-success">Ready</span>
-            ) : (
-              <span className="badge badge-neutral">Not Ready</span>
-            )}
-            {requiresOAuth && oauthExpired && (
-              <span className="badge badge-error flex items-center gap-1">
-                <Shield className="w-3 h-3" />
-                OAuth Expired
-              </span>
-            )}
-          </div>
-          <div className="pt-4 flex items-center justify-center gap-2 flex-wrap">
-            {/* Reconnect OAuth Button (only if OAuth expired) */}
-            {oauthExpired && server._id && (
-              <OAuthConnectButton
-                mcpServerId={server._id}
-                mcpServerName={server.name}
-                serverType={server.type}
-                authConfig={server.oauth}
-                onSuccess={() => {
-                  // Refresh OAuth status
-                  fetch(`/api/oauth/status/${server._id}`)
-                    .then((res) => res.json())
-                    .then((data) => setOauthStatus(data))
-                    .catch(() => setOauthStatus(null));
-                }}
-              />
-            )}
-            {/* Sync Button - only show when connected (not for OAuth expired) */}
-            {isConnected && !oauthExpired && (
-              <button
-                onClick={handleSync}
-                disabled={syncMutation.isPending || isLoading}
-                className="btn btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 ${
-                    syncMutation.isPending ? "animate-spin" : ""
-                  }`}
-                />
-                Sync
-              </button>
-            )}
-            <button
-              onClick={() => onEdit(server)}
-              disabled={isLoading}
-              className="btn btn-secondary flex items-center gap-2"
-            >
-              <Settings className="w-4 h-4" />
-              Edit
-            </button>
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={isLoading}
-              className="btn bg-brand-error text-white hover:bg-brand-error/90 flex items-center gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-4 bg-brand-error/10 border border-brand-error/30 rounded-lg p-3">
-          <p className="text-sm text-brand-error mb-3">
-            Are you sure you want to delete this data source? This action cannot
-            be undone.
+      {/* Delete Confirmation */}
+      {showDeleteConfirm && (
+        <div className="mb-3 bg-error-bg border border-error-border rounded-lg p-3">
+          <p className="text-sm text-error-text mb-3">
+            Delete this data source? This action cannot be undone.
           </p>
-          <div className="flex items-center gap-2 justify-center">
+          <div className="flex items-center gap-2">
             <button
               onClick={handleDelete}
               disabled={isLoading}
-              className="btn bg-brand-error text-white hover:bg-brand-error/90 text-sm"
+              className="btn bg-error-border text-white hover:bg-error-text text-xs px-3 py-1.5"
             >
               Yes, Delete
             </button>
             <button
               onClick={() => setShowDeleteConfirm(false)}
-              className="btn btn-secondary text-sm"
+              className="btn btn-secondary text-xs px-3 py-1.5"
             >
               Cancel
             </button>
@@ -306,9 +207,64 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
         </div>
       )}
 
-      {/* Timestamps */}
+      {/* Icon Action Bar */}
+      {!showDeleteConfirm && (
+        <div className="flex items-center gap-1 pt-3 border-t border-border-secondary">
+          {/* Configure Indexing - only show when connected and OAuth not expired */}
+          {isConnected && !oauthExpired && (
+            <button
+              onClick={() => navigate(`/data-sources/${server.name}/config`)}
+              className="btn btn-icon-sm btn-ghost"
+              title="Configure Indexing"
+            >
+              <FileCode className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* Sync - only show when connected and OAuth not expired */}
+          {isConnected && !oauthExpired && (
+            <button
+              onClick={handleSync}
+              disabled={syncMutation.isPending || isLoading}
+              className="btn btn-icon-sm btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Sync Data"
+            >
+              <RefreshCw
+                className={`w-4 h-4 ${
+                  syncMutation.isPending ? "animate-spin" : ""
+                }`}
+              />
+            </button>
+          )}
+
+          {/* Edit */}
+          <button
+            onClick={() => onEdit(server)}
+            disabled={isLoading}
+            className="btn btn-icon-sm btn-ghost"
+            title="Edit Configuration"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+
+          {/* Spacer to push delete to the right */}
+          <div className="flex-1" />
+
+          {/* Delete */}
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={isLoading}
+            className="btn btn-icon-sm btn-ghost text-error-text hover:bg-error-bg"
+            title="Delete"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Timestamps Footer */}
       {server.createdAt && (
-        <div className="mt-4 pt-4 border-t border-border-secondary">
+        <div className="mt-3 pt-3 border-t border-border-secondary">
           <p className="text-xs text-text-quaternary">
             Created: {new Date(server.createdAt).toLocaleString()}
           </p>

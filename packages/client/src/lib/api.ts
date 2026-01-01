@@ -359,12 +359,21 @@ export interface GraphStats {
   relationshipsByType: { [type: string]: number };
 }
 
+// Activity Item type
+export interface ActivityItem {
+  service: string;
+  time: string;
+  description: string;
+  isNew: boolean;
+}
+
 // Statistics API
 export const statsApi = {
   overview: () => api.get<ApiResponse<OverviewStats>>("/stats/overview"),
   records: () => api.get<ApiResponse<RecordStats>>("/stats/records"),
   vectors: () => api.get<ApiResponse<VectorStats>>("/stats/vectors"),
   graph: () => api.get<ApiResponse<GraphStats>>("/stats/graph"),
+  activity: () => api.get<ApiResponse<ActivityItem[]>>("/stats/activity"),
 };
 
 // Model Configuration API Types

@@ -181,6 +181,19 @@ class MCPClientManager {
       } else {
         // Non-OAuth: use headers if provided
         const headers = config.headers || {};
+
+        // Log sanitized headers for debugging
+        const sanitizedHeaders = Object.keys(headers).reduce((acc, key) => {
+          acc[key] =
+            key.toLowerCase() === "authorization" ? "[REDACTED]" : headers[key];
+          return acc;
+        }, {} as Record<string, string>);
+
+        logger.debug(
+          { serverName: config.name, headers: sanitizedHeaders },
+          "Connecting with headers"
+        );
+
         httpOpts.requestInit = { headers };
         transport = new StreamableHTTPClientTransport(
           new URL(config.url),
@@ -229,7 +242,16 @@ class MCPClientManager {
 
     this.clients.set(config.name, client);
     this.transports.set(config.name, transport);
-    await this.refreshTools(config.name);
+
+    // Refresh tools with error handling
+    try {
+      await this.refreshTools(config.name);
+    } catch (toolError) {
+      logger.warn(
+        { error: toolError, serverName: config.name },
+        "Tool refresh failed but connection established"
+      );
+    }
 
     logger.info(`Connected to MCP server: ${config.name}`);
   }
@@ -270,10 +292,42 @@ class MCPClientManager {
       throw new Error(`Client ${serverName} not connected`);
     }
 
-    const response = await client.listTools();
+    try {
+      const response = await client.listTools();
 
-    if (response && response.tools) {
-      this.toolCache.set(serverName, response.tools);
+      logger.debug(
+        { serverName, responseType: typeof response },
+        "Received listTools response"
+      );
+
+      // Validate response structure
+      if (!response) {
+        logger.warn({ serverName }, "listTools returned no response");
+        this.toolCache.set(serverName, []);
+        return;
+      }
+
+      // Ensure tools is an array
+      if (response.tools && Array.isArray(response.tools)) {
+        this.toolCache.set(serverName, response.tools);
+        logger.info(
+          { serverName, toolCount: response.tools.length },
+          "Successfully cached tools"
+        );
+      } else {
+        logger.warn(
+          { serverName, responseType: typeof response.tools },
+          "listTools response.tools is not an array"
+        );
+        this.toolCache.set(serverName, []);
+      }
+    } catch (error) {
+      logger.error(
+        { error, serverName },
+        "Failed to refresh tools - continuing without tools"
+      );
+      // Don't throw - allow connection to succeed even if tool listing fails
+      this.toolCache.set(serverName, []);
     }
   }
 

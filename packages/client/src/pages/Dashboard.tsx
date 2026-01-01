@@ -6,15 +6,62 @@ import {
   Workflow,
   X,
 } from "lucide-react";
-import { ActivityFeed, ActivityItem } from "../components/ui/ActivityFeed";
+import { ActivityFeed } from "../components/ui/ActivityFeed";
 import { Badge } from "../components/ui/Badge";
 import { DataTable } from "../components/ui/DataTable";
 import { MetricCard } from "../components/ui/MetricCard";
 import { PageHeader } from "../components/ui/PageHeader";
 import { useStats } from "../hooks/useStats";
+import { useDataSources } from "../hooks/useDataSources";
+import { statsApi, ActivityItem } from "../lib/api";
+import { capitalCase } from "change-case";
+import { useEffect, useState } from "react";
+
+// Helper function to format relative time
+function formatRelativeTime(date: Date | string | undefined): string {
+  if (!date) return "Never";
+
+  const now = new Date();
+  const syncDate = new Date(date);
+  const diffMs = now.getTime() - syncDate.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60)
+    return `${diffMins} ${diffMins === 1 ? "minute" : "minutes"} ago`;
+  if (diffHours < 24)
+    return `${diffHours} ${diffHours === 1 ? "hour" : "hours"} ago`;
+  return `${diffDays} ${diffDays === 1 ? "day" : "days"} ago`;
+}
 
 export default function Dashboard() {
   const { stats, isLoading, error } = useStats();
+  const { servers, isLoading: sourcesLoading } = useDataSources();
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+
+  // Fetch recent activity
+  useEffect(() => {
+    const fetchActivity = async () => {
+      try {
+        const response = await statsApi.activity();
+        if (response.data.success && response.data.data) {
+          setActivity(response.data.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch activity:", err);
+      } finally {
+        setActivityLoading(false);
+      }
+    };
+
+    fetchActivity();
+    // Refresh activity every 30 seconds
+    const interval = setInterval(fetchActivity, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (error) {
     return (
@@ -28,32 +75,19 @@ export default function Dashboard() {
     );
   }
 
-  // Mock recent activity data (replace with real data from API)
-  const recentActivity: ActivityItem[] = [
-    {
-      service: "GitHub",
-      time: "2 minutes ago",
-      description: "Indexed 15 new repositories",
-      isNew: true,
-    },
-    {
-      service: "Notion",
-      time: "10 minutes ago",
-      description: "Synced 24 pages and 8 databases",
-    },
-    {
-      service: "Fathom",
-      time: "1 hour ago",
-      description: "Updated analytics data",
-    },
-  ];
+  // Build complete data sources list from all configured sources
+  const dataSourcesList =
+    servers?.map((server) => {
+      const sourceData = stats?.bySource?.[server.name];
+      const hasData = sourceData && sourceData.records > 0;
 
-  // Mock newly connected servers (replace with real data)
-  const newlyConnected = [
-    { name: "GitHub", status: "Online", lastSync: "2 minutes ago" },
-    { name: "Notion", status: "Online", lastSync: "10 minutes ago" },
-    { name: "Fathom", status: "Online", lastSync: "1 hour ago" },
-  ];
+      return {
+        name: capitalCase(server.name),
+        records: sourceData?.records || 0,
+        status: hasData ? "Has Data" : "No Data",
+        lastSync: formatRelativeTime(sourceData?.lastSync),
+      };
+    }) || [];
 
   return (
     <div className="pb-8">
@@ -74,6 +108,7 @@ export default function Dashboard() {
               icon={FileText}
               iconColor="purple"
               loading={isLoading}
+              tooltip="Total records synced across all data sources"
             />
             <MetricCard
               title="Vector Embeddings"
@@ -81,6 +116,7 @@ export default function Dashboard() {
               icon={Search}
               iconColor="blue"
               loading={isLoading}
+              tooltip="Total vector embeddings stored in Qdrant for semantic search"
             />
             <MetricCard
               title="Graph Nodes"
@@ -88,6 +124,7 @@ export default function Dashboard() {
               icon={Workflow}
               iconColor="orange"
               loading={isLoading}
+              tooltip="Total nodes in the knowledge graph"
             />
           </div>
 
@@ -99,41 +136,48 @@ export default function Dashboard() {
               icon={Server}
               iconColor="indigo"
               loading={isLoading}
+              tooltip="Total number of configured data sources"
             />
             <MetricCard
-              title="Connected"
+              title="Active"
               value={stats?.dataSources?.connected || 0}
               icon={CheckSquare}
               iconColor="green"
               loading={isLoading}
+              tooltip="Data sources currently connected and running"
             />
             <MetricCard
-              title="Disconnected"
+              title="Inactive"
               value={stats?.dataSources?.disconnected || 0}
               icon={X}
               iconColor="gray"
               loading={isLoading}
+              tooltip="Data sources configured but not currently connected"
             />
           </div>
 
-          {/* Newly Connected Table */}
+          {/* Data Sources Table */}
           <DataTable
-            title="Newly Connected"
+            title="Data Sources"
             columns={[
-              { key: "name", header: "Server Name" },
+              { key: "name", header: "Source Name" },
+              { key: "records", header: "Records" },
               {
                 key: "status",
                 header: "Status",
                 render: (item) => (
-                  <Badge variant="success" dot>
+                  <Badge
+                    variant={item.status === "Has Data" ? "success" : "neutral"}
+                    dot={item.status === "Has Data"}
+                  >
                     {item.status}
                   </Badge>
                 ),
               },
               { key: "lastSync", header: "Last Sync" },
             ]}
-            data={newlyConnected}
-            loading={isLoading}
+            data={dataSourcesList}
+            loading={isLoading || sourcesLoading}
             showAll={() => {
               // Navigate to data sources page
               window.location.href = "/data-sources";
@@ -147,7 +191,7 @@ export default function Dashboard() {
             <h3 className="text-base font-semibold text-text-primary mb-6">
               Recent Activity
             </h3>
-            <ActivityFeed items={recentActivity} loading={isLoading} />
+            <ActivityFeed items={activity} loading={activityLoading} />
           </div>
         </div>
       </div>

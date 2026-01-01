@@ -22,15 +22,45 @@ import logger from "./utils/logger.js";
  */
 function toMCPServerConfig(doc: any): MCPServerConfig {
   const json = doc.toJSON();
+
+  // Helper to safely convert Map to object, or pass through if already an object
+  const convertMapOrObject = (
+    value: any
+  ): Record<string, string> | undefined => {
+    if (!value) return undefined;
+
+    // If it's a Map, convert it
+    if (value instanceof Map) {
+      return Object.fromEntries(value);
+    }
+
+    // If it's already a plain object, return it
+    if (typeof value === "object" && !Array.isArray(value)) {
+      return value;
+    }
+
+    // Log unexpected type
+    logger.warn(
+      {
+        valueType: typeof value,
+        isMap: value instanceof Map,
+        isArray: Array.isArray(value),
+      },
+      "Unexpected type in convertMapOrObject"
+    );
+
+    return undefined;
+  };
+
   return {
     _id: doc._id?.toString(),
     name: json.name,
     type: json.type,
     command: json.command,
     args: json.args || undefined,
-    env: json.env ? Object.fromEntries(json.env) : undefined,
+    env: convertMapOrObject(json.env),
     url: json.url,
-    headers: json.headers ? Object.fromEntries(json.headers) : undefined,
+    headers: convertMapOrObject(json.headers),
     authType: json.authType || "none",
     oauth: json.oauth,
     isDisabled: json.isDisabled || false,

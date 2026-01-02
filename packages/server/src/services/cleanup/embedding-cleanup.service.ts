@@ -39,7 +39,7 @@ export async function cleanupOrphanedEmbeddings(
     const entityQuery: any = { itemType: "entity" };
     if (source) {
       // Find entities whose source documents match the source prefix
-      entityQuery.sourceDocumentIds = { $regex: `^${source}_` };
+      entityQuery.sourceRecordIds = { $regex: `^${source}_` };
     }
 
     const entityMetadata = await GraphEmbeddingMetadata.find(entityQuery);
@@ -49,7 +49,7 @@ export async function cleanupOrphanedEmbeddings(
 
     for (const meta of entityMetadata) {
       try {
-        const exists = await graphStore.nodeExists(meta.entityId!);
+        const exists = await graphStore.nodeExists(meta.memgraphId!);
         if (!exists) {
           // Delete from MongoDB
           await GraphEmbeddingMetadata.deleteOne({ _id: meta._id });
@@ -100,7 +100,7 @@ export async function cleanupOrphanedEmbeddings(
 
           // Delete from Qdrant using relationship point ID (which is the _id)
           try {
-            await vectorStore.deleteByIds([meta._id]);
+            await vectorStore.deleteByIds([meta._id.toString()]);
           } catch (err) {
             logger.warn(
               { err, pointId: meta._id },
@@ -122,8 +122,8 @@ export async function cleanupOrphanedEmbeddings(
     // 3. Clean up embeddings with no source documents
     const noSourceDocs = await GraphEmbeddingMetadata.find({
       $or: [
-        { sourceDocumentIds: { $size: 0 } },
-        { sourceDocumentIds: { $exists: false } },
+        { sourceRecordIds: { $size: 0 } },
+        { sourceRecordIds: { $exists: false } },
       ],
     });
 
@@ -181,7 +181,7 @@ export async function cleanupEmbeddingsBySource(
 
   // Delete all metadata where any source document matches the source prefix
   const result = await GraphEmbeddingMetadata.deleteMany({
-    sourceDocumentIds: { $regex: `^${source}_` },
+    sourceRecordIds: { $regex: `^${source}_` },
   });
 
   logger.info({ msg: `✅ Deleted ${result.deletedCount} metadata records` });
@@ -206,21 +206,19 @@ export async function cleanupAllEmbeddings(): Promise<{ deleted: number }> {
  * Used when deleting a document
  */
 export async function removeDocumentFromEmbeddingProvenance(
-  documentId: string
+  recordId: string
 ): Promise<{ updated: number; deleted: number }> {
-  logger.info(
-    `🧹 Removing document ${documentId} from embedding provenance...`
-  );
+  logger.info(`🧹 Removing document ${recordId} from embedding provenance...`);
 
-  // Remove document from sourceDocumentIds arrays
+  // Remove document from sourceRecordIds arrays
   const updateResult = await GraphEmbeddingMetadata.updateMany(
-    { sourceDocumentIds: documentId },
-    { $pull: { sourceDocumentIds: documentId } }
+    { sourceRecordIds: recordId },
+    { $pull: { sourceRecordIds: recordId } }
   );
 
   // Delete metadata that now has no source documents
   const deleteResult = await GraphEmbeddingMetadata.deleteMany({
-    sourceDocumentIds: { $size: 0 },
+    sourceRecordIds: { $size: 0 },
   });
 
   logger.info(

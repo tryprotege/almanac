@@ -84,7 +84,7 @@ async function indexVectorRecords() {
   // Get all sources to process
   const sources: SourceType[] = options.source
     ? [options.source]
-    : ["notion", "fathom"]; // Add more sources as needed
+    : ["notion", "fathom", "github", "slack"]; // Add more sources as needed
 
   // Show what will be processed
   logger.info({

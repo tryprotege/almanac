@@ -803,7 +803,7 @@ export class GraphStore {
    */
   async linkEntityToDocument(
     entityId: string,
-    documentId: string,
+    recordId: string,
     metadata?: { confidence?: number }
   ): Promise<void> {
     const entityNode = new Cypher.Node();
@@ -819,7 +819,7 @@ export class GraphStore {
 
     const matchDoc = new Cypher.Match(
       new Cypher.Pattern(docNode, {
-        properties: { id: new Cypher.Param(documentId) },
+        properties: { id: new Cypher.Param(recordId) },
       })
     );
 
@@ -847,7 +847,7 @@ export class GraphStore {
    */
   async linkDocumentsToRelationshipsBatch(
     links: Array<{
-      documentId: string;
+      recordId: string;
       relationshipType: string;
       sourceEntityId: string;
       targetEntityId: string;
@@ -860,7 +860,7 @@ export class GraphStore {
     // const query = `
     //   UNWIND $links AS link
     //   MATCH (source:Entity {id: link.sourceEntityId})
-    //   MERGE (doc:Document {id: link.documentId})
+    //   MERGE (doc:Document {id: link.recordId})
     //   MERGE (doc)-[r:MENTIONS_REL]->(source)
     //   SET r.relationshipType = link.relationshipType,
     //       r.sourceEntityId = link.sourceEntityId,
@@ -878,7 +878,7 @@ export class GraphStore {
       try {
         const query = `
           MATCH (source:Entity {id: $sourceEntityId})
-          MERGE (doc:Document {id: $documentId})
+          MERGE (doc:Document {id: $recordId})
           MERGE (doc)-[r:MENTIONS_REL]->(source)
           SET r.relationshipType = $relationshipType,
               r.sourceEntityId = $sourceEntityId,
@@ -891,7 +891,7 @@ export class GraphStore {
         const result = await this.memgraph.executeQuery<{ sourceId: string }>(
           query,
           {
-            documentId: link.documentId,
+            recordId: link.recordId,
             sourceEntityId: link.sourceEntityId,
             relationshipType: link.relationshipType,
             targetEntityId: link.targetEntityId,
@@ -904,7 +904,7 @@ export class GraphStore {
           failureCount++;
           logger.error({
             msg: "❌ MENTIONS_REL failed: Source entity does not exist in graph",
-            documentId: link.documentId,
+            recordId: link.recordId,
             relationshipType: link.relationshipType,
             sourceEntityId: link.sourceEntityId,
             targetEntityId: link.targetEntityId,
@@ -918,7 +918,7 @@ export class GraphStore {
         logger.error({
           msg: "❌ Failed to create MENTIONS_REL relationship (exception)",
           err,
-          documentId: link.documentId,
+          recordId: link.recordId,
           relationshipType: link.relationshipType,
           sourceEntityId: link.sourceEntityId,
           targetEntityId: link.targetEntityId,
@@ -947,9 +947,9 @@ export class GraphStore {
    * Remove all entity mentions from a specific document
    * Returns the list of entity IDs that were unlinked
    */
-  async unlinkAllEntitiesFromDocument(documentId: string): Promise<string[]> {
+  async unlinkAllEntitiesFromDocument(recordId: string): Promise<string[]> {
     const query = `
-      MATCH (entity:Entity)-[r:MENTIONED_IN]->(doc {id: $documentId})
+      MATCH (entity:Entity)-[r:MENTIONED_IN]->(doc {id: $recordId})
       WITH entity, r
       DELETE r
       RETURN entity.id AS entityId
@@ -957,7 +957,7 @@ export class GraphStore {
 
     const results = await this.memgraph.executeQuery<{ entityId: string }>(
       query,
-      { documentId }
+      { recordId }
     );
 
     return results.map((r) => r.entityId);
@@ -1042,7 +1042,7 @@ export class GraphStore {
   /**
    * Get all entities mentioned in a document
    */
-  async getDocumentEntities(documentId: string): Promise<
+  async getDocumentEntities(recordId: string): Promise<
     Array<{
       id: string;
       type: string;
@@ -1058,7 +1058,7 @@ export class GraphStore {
         .related(rel, { type: "MENTIONED_IN" })
         .to(docNode)
     )
-      .where(Cypher.eq(docNode.property("id"), new Cypher.Param(documentId)))
+      .where(Cypher.eq(docNode.property("id"), new Cypher.Param(recordId)))
       .return(
         [entityNode.property("id"), "id"],
         [entityNode.property("type"), "type"],
@@ -1222,7 +1222,7 @@ export class GraphStore {
    * @deprecated This method is deprecated and will be removed. Use RelationshipMentionStore instead.
    */
   async linkDocumentToRelationship(
-    documentId: string,
+    recordId: string,
     relationshipType: string,
     sourceEntityId: string,
     targetEntityId: string,
@@ -1234,7 +1234,7 @@ export class GraphStore {
 
     const matchDoc = new Cypher.Match(
       new Cypher.Pattern(docNode, {
-        properties: { id: new Cypher.Param(documentId) },
+        properties: { id: new Cypher.Param(recordId) },
       })
     );
 
@@ -1269,7 +1269,7 @@ export class GraphStore {
   async linkEntitiesToDocuments(
     links: Array<{
       entityId: string;
-      documentId: string;
+      recordId: string;
       confidence?: number;
     }>
   ): Promise<void> {
@@ -1278,7 +1278,7 @@ export class GraphStore {
     const query = `
       UNWIND $links AS link
       MATCH (entity:Entity {id: link.entityId})
-      MATCH (doc {id: link.documentId})
+      MATCH (doc {id: link.recordId})
       MERGE (entity)-[r:MENTIONED_IN]->(doc)
       SET r.extractedAt = datetime(),
           r.confidence = link.confidence
@@ -1287,7 +1287,7 @@ export class GraphStore {
     await this.memgraph.executeQuery(query, {
       links: links.map((l) => ({
         entityId: l.entityId,
-        documentId: l.documentId,
+        recordId: l.recordId,
         confidence: l.confidence || 1.0,
       })),
     });
@@ -1296,17 +1296,17 @@ export class GraphStore {
   /**
    * Remove all relationship mentions from a document
    */
-  async unlinkRelationshipsFromDocument(documentId: string): Promise<number> {
+  async unlinkRelationshipsFromDocument(recordId: string): Promise<number> {
     const query = `
-      MATCH (doc {id: $documentId})-[r:MENTIONS_REL]->()
+      MATCH (doc {id: $recordId})-[r:MENTIONS_REL]->()
       WITH count(r) AS count
-      MATCH (doc {id: $documentId})-[r:MENTIONS_REL]->()
+      MATCH (doc {id: $recordId})-[r:MENTIONS_REL]->()
       DELETE r
       RETURN count
     `;
 
     const results = await this.memgraph.executeQuery<{ count: number }>(query, {
-      documentId,
+      recordId,
     });
 
     const count = results[0]?.count || 0;
@@ -1380,7 +1380,7 @@ export class GraphStore {
   /**
    * Get all relationships mentioned in a document
    */
-  async getDocumentRelationships(documentId: string): Promise<
+  async getDocumentRelationships(recordId: string): Promise<
     Array<{
       type: string;
       sourceId: string;
@@ -1397,7 +1397,7 @@ export class GraphStore {
         .related(rel, { type: "MENTIONS_REL" })
         .to(targetNode)
     )
-      .where(Cypher.eq(docNode.property("id"), new Cypher.Param(documentId)))
+      .where(Cypher.eq(docNode.property("id"), new Cypher.Param(recordId)))
       .return(
         [rel.property("relationshipType"), "type"],
         [rel.property("sourceEntityId"), "sourceId"],

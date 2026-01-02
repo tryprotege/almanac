@@ -44,7 +44,7 @@ export class RerankerService {
    * Check if reranker is enabled
    */
   isEnabled(): boolean {
-    return env.RERANKER_ENABLED;
+    return env.RERANKER_ENABLED || true;
   }
 
   /**

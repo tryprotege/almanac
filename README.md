@@ -72,6 +72,53 @@ ebee-oss/
 - `pnpm test` - Run tests across all packages
 - `pnpm type-check` - Type check all packages
 
+### Sync and Benchmark Script
+
+The `scripts/syncAndBenchmark.sh` script automates the complete workflow of wiping data, starting services, registering MCP servers, syncing records, indexing data, and running benchmarks.
+
+**Basic Usage:**
+
+```bash
+./scripts/syncAndBenchmark.sh
+```
+
+**Options:**
+
+- `--mcp-servers=<server1,server2>` - Specify which MCP servers to enable (comma-separated). Available servers: `notion`, `github`, `fathom`, `slack`. If not specified, all servers are enabled.
+- `--skip-benchmark` - Skip running benchmark tests
+- `--skip-index-vector` - Skip vector indexing
+- `--skip-index-graph` - Skip graph indexing
+
+**Examples:**
+
+```bash
+# Enable only GitHub and Notion servers
+./scripts/syncAndBenchmark.sh --mcp-servers=github,notion
+
+# Skip benchmark tests but run full indexing
+./scripts/syncAndBenchmark.sh --skip-benchmark
+
+# Enable only Slack, skip vector indexing
+./scripts/syncAndBenchmark.sh --mcp-servers=slack --skip-index-vector
+
+# Enable all servers, skip both indexing steps
+./scripts/syncAndBenchmark.sh --skip-index-vector --skip-index-graph
+
+# Full workflow with only GitHub and Fathom
+./scripts/syncAndBenchmark.sh --mcp-servers=github,fathom
+```
+
+**What the script does:**
+
+1. Wipes existing data from all databases
+2. Starts the development server
+3. Registers specified MCP servers (GitHub, Notion, Fathom, Slack)
+4. Syncs records from registered MCP servers
+5. Indexes vectors for semantic search (unless skipped)
+6. Indexes graph relationships (unless skipped)
+7. Runs benchmark tests (unless skipped)
+8. Cleans up running processes
+
 ### Client Package
 
 ```bash

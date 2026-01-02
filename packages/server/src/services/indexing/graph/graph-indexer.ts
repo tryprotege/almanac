@@ -604,13 +604,8 @@ export const indexAllRecords = async (
       }
 
       // Process to graph format (pure function)
-      const {
-        nodes,
-        relationships,
-        documentRelationships,
-        entityNameToId,
-        entityIdToType,
-      } = processRecordsToGraph(validResults);
+      const { nodes, relationships, documentRelationships, entityNameToId } =
+        processRecordsToGraph(validResults);
 
       // DEBUG: Log what processRecordsToGraph returned
       logger.info({
@@ -714,14 +709,14 @@ export const indexAllRecords = async (
         // 2. Collect all entity-to-document links
         const entityLinks: Array<{
           entityId: string;
-          documentId: string;
+          recordId: string;
         }> = [];
         for (const result of validResults) {
           const { nodes: recordNodes } = entitiesToGraphNodes(result.entities);
           for (const node of recordNodes) {
             entityLinks.push({
               entityId: node.id,
-              documentId: result.recordId,
+              recordId: result.recordId,
             });
           }
         }
@@ -741,7 +736,9 @@ export const indexAllRecords = async (
           entityIdToNormalizedName.set(id, normalizedName);
         }
 
-        const entityMetadataOps = nodes.map((node) => {
+        const entityMetadataOps = nodes.map<
+          Parameters<typeof GraphEmbeddingMetadata.bulkWrite>[0][0]
+        >((node) => {
           // Calculate content checksum for this entity
           const contentChecksum = calculateEmbeddingChecksum({
             entityType: node.type,
@@ -751,27 +748,26 @@ export const indexAllRecords = async (
 
           // Lookup source documents directly from pre-computed map
           const normalizedName = entityIdToNormalizedName.get(node.id);
-          const documentIds = normalizedName
+          const recordIds = normalizedName
             ? entityToDocuments.get(normalizedName) || []
             : [];
 
           return {
             updateOne: {
-              filter: { _id: node.id },
+              filter: { memgraphId: node.id },
               update: {
                 $set: {
                   itemType: "entity",
-                  entityId: node.id,
+                  memgraphId: node.id,
                   entityType: node.type,
                   entityDescription: node.description, // Store LLM-extracted description
-                  source: source,
                   contentChecksum: contentChecksum,
-                  lastUpdatedBy: source,
+                  lastUpdatedBy: recordIds[recordIds.length - 1],
                 },
                 $addToSet: {
                   sources: source,
-                  sourceDocumentIds: {
-                    $each: documentIds, // Direct lookup - no filtering needed!
+                  sourceRecordIds: {
+                    $each: recordIds, // Direct lookup - no filtering needed!
                   },
                 },
               },
@@ -868,7 +864,7 @@ export const indexAllRecords = async (
         // 2. Collect all document-to-relationship links
         // Use the pre-computed mapping to avoid re-running processRecordsToGraph per record
         const relLinks: Array<{
-          documentId: string;
+          recordId: string;
           relationshipType: string;
           sourceEntityId: string;
           targetEntityId: string;
@@ -915,9 +911,9 @@ export const indexAllRecords = async (
           }
 
           const lookupKey = `${sourceEntityName}|${rel.type}|${targetEntityName}`;
-          const documentIds = relToDocuments.get(lookupKey) || [];
+          const recordIds = relToDocuments.get(lookupKey) || [];
 
-          if (documentIds.length === 0) {
+          if (recordIds.length === 0) {
             logger.warn({
               msg: "⚠️  No source documents found for relationship",
               sourceId: rel.sourceId,
@@ -929,9 +925,9 @@ export const indexAllRecords = async (
           }
 
           // Link this relationship to all documents that mentioned it
-          for (const docId of documentIds) {
+          for (const docId of recordIds) {
             relLinks.push({
-              documentId: docId,
+              recordId: docId,
               relationshipType: rel.type,
               sourceEntityId: rel.sourceId,
               targetEntityId: rel.targetId,
@@ -951,7 +947,7 @@ export const indexAllRecords = async (
         for (const result of validResults) {
           for (const adapterRel of result.adapterRelationships) {
             relLinks.push({
-              documentId: result.recordId,
+              recordId: result.recordId,
               relationshipType: adapterRel.type,
               sourceEntityId: adapterRel.sourceId,
               targetEntityId: adapterRel.targetId,
@@ -984,24 +980,23 @@ export const indexAllRecords = async (
         >();
 
         for (const link of relLinks) {
-          const existing = mentionsByDocument.get(link.documentId) || [];
+          const existing = mentionsByDocument.get(link.recordId) || [];
           existing.push({
             sourceEntityId: link.sourceEntityId,
             targetEntityId: link.targetEntityId,
             type: link.relationshipType,
             confidence: link.confidence,
           });
-          mentionsByDocument.set(link.documentId, existing);
+          mentionsByDocument.set(link.recordId, existing);
         }
 
         // Add mentions for each document in parallel
         await Promise.all(
-          Array.from(mentionsByDocument.entries()).map(
-            ([documentId, mentions]) =>
-              relationshipMentionStore.addDocumentMentionsBatch(
-                documentId,
-                mentions
-              )
+          Array.from(mentionsByDocument.entries()).map(([recordId, mentions]) =>
+            relationshipMentionStore.addDocumentMentionsBatch(
+              recordId,
+              mentions
+            )
           )
         );
 
@@ -1057,26 +1052,26 @@ export const indexAllRecords = async (
           }
 
           const lookupKey2 = `${sourceEntityName}|${rel.type}|${targetEntityName}`;
-          const documentIds = relToDocuments.get(lookupKey2) || [];
+          const recordIds = relToDocuments.get(lookupKey2) || [];
 
           return {
             updateOne: {
-              filter: { _id: relId },
+              filter: { memgraphId: relId },
               update: {
                 $set: {
                   itemType: "relationship",
+                  memgraphId: relId,
                   sourceId: rel.sourceId,
                   targetId: rel.targetId,
                   relType: rel.type,
                   relationshipDescription: description, // Store LLM-extracted description
-                  source: source,
                   contentChecksum: contentChecksum,
-                  lastUpdatedBy: source,
+                  lastUpdatedBy: recordIds[recordIds.length - 1],
                 },
                 $addToSet: {
                   sources: source,
-                  sourceDocumentIds: {
-                    $each: documentIds, // Array of actual document IDs
+                  sourceRecordIds: {
+                    $each: recordIds, // Array of actual document IDs
                   },
                 },
               },
@@ -1232,6 +1227,7 @@ export const indexAllRecords = async (
 /**
  * Index a single record
  * Useful for incremental updates
+ * TODO: this is unused
  */
 export const indexSingleRecord = async (
   record: Record,

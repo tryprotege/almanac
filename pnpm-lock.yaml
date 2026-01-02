@@ -32,6 +32,9 @@ importers:
       openai:
         specifier: ^6.9.1
         version: 6.9.1(zod@3.25.76)
+      p-limit:
+        specifier: ^7.2.0
+        version: 7.2.0
       pino:
         specifier: ^10.1.0
         version: 10.1.0
@@ -1375,8 +1378,8 @@ packages:
     resolution: {integrity: sha512-058GAcqHd3I7oYLnLIMhcZMdg8i6hCvD4K3s5PY8RuSXp7QAl9/+usOIxrDSfNMGK4cfya94LqHj+txwIe3wUQ==}
     engines: {node: '>=18'}
 
-  '@sourcegraph/amp@0.0.1767211275-g453f32':
-    resolution: {integrity: sha512-QVwMMvSMjgfnQLSmOF8FriiWR+mlbK3kb4IGe+gGPN+JCWzcYYf7ULYXTgpgnRWsdXati+qIoXaLdCnoJ3QGbA==}
+  '@sourcegraph/amp@0.0.1767386223-g46ed64':
+    resolution: {integrity: sha512-tLqr3k7GpqEjIg974Nc28yYPbqlgBvFaMzH4teIR0zfI8cBAvIPKMY+4AkCWl9vFNONR2iC9DnHj4022H0RGlA==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -4729,10 +4732,10 @@ snapshots:
 
   '@sourcegraph/amp-sdk@0.1.0-20251217003600-gcd4203a':
     dependencies:
-      '@sourcegraph/amp': 0.0.1767211275-g453f32
+      '@sourcegraph/amp': 0.0.1767386223-g46ed64
       zod: 3.25.76
 
-  '@sourcegraph/amp@0.0.1767211275-g453f32':
+  '@sourcegraph/amp@0.0.1767386223-g46ed64':
     dependencies:
       '@napi-rs/keyring': 1.1.9
 

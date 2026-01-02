@@ -4,6 +4,9 @@ import {
   encryptMapValues,
   decryptMapValues,
   hexToBuffer,
+  encrypt,
+  decrypt,
+  isEncrypted,
 } from "@ebee-oss/shared-util";
 import logger from "../utils/logger.js";
 import { env } from "../env.js";
@@ -45,6 +48,19 @@ const MCPServerConfigSchema = new mongoose.Schema(
     url: { type: String },
     headers: { type: Map, of: String },
     isDisabled: { type: Boolean, default: false },
+    // OAuth fields
+    authType: {
+      type: String,
+      enum: ["api_key", "oauth"],
+      default: "api_key",
+    },
+    oauthTokens: {
+      accessToken: { type: String },
+      refreshToken: { type: String },
+      expiresAt: { type: Date },
+      scope: { type: String },
+      tokenType: { type: String },
+    },
   },
   {
     collection: "mcp_server_configs",
@@ -81,7 +97,71 @@ MCPServerConfigSchema.pre("save", function () {
       "Encrypted headers values for config"
     );
   }
+
+  // Encrypt OAuth tokens if modified
+  if (this.isModified("oauthTokens") && this.oauthTokens && encryptionKey) {
+    if (
+      this.oauthTokens.accessToken &&
+      !isEncrypted(this.oauthTokens.accessToken)
+    ) {
+      this.oauthTokens.accessToken = encrypt(
+        this.oauthTokens.accessToken,
+        encryptionKey
+      );
+    }
+    if (
+      this.oauthTokens.refreshToken &&
+      !isEncrypted(this.oauthTokens.refreshToken)
+    ) {
+      this.oauthTokens.refreshToken = encrypt(
+        this.oauthTokens.refreshToken,
+        encryptionKey
+      );
+    }
+    logger.debug(
+      { configName: this.name },
+      "Encrypted OAuth tokens for config"
+    );
+  }
 });
+
+// Helper function to decrypt OAuth tokens
+function decryptOAuthTokens(doc: any) {
+  if (doc.oauthTokens && encryptionKey) {
+    if (
+      doc.oauthTokens.accessToken &&
+      isEncrypted(doc.oauthTokens.accessToken)
+    ) {
+      try {
+        doc.oauthTokens.accessToken = decrypt(
+          doc.oauthTokens.accessToken,
+          encryptionKey
+        );
+      } catch (err) {
+        logger.error(
+          { err, configName: doc.name },
+          "Failed to decrypt access token"
+        );
+      }
+    }
+    if (
+      doc.oauthTokens.refreshToken &&
+      isEncrypted(doc.oauthTokens.refreshToken)
+    ) {
+      try {
+        doc.oauthTokens.refreshToken = decrypt(
+          doc.oauthTokens.refreshToken,
+          encryptionKey
+        );
+      } catch (err) {
+        logger.error(
+          { err, configName: doc.name },
+          "Failed to decrypt refresh token"
+        );
+      }
+    }
+  }
+}
 
 // Decrypt after finding multiple documents
 MCPServerConfigSchema.post("find", function (docs: any[]) {
@@ -93,6 +173,7 @@ MCPServerConfigSchema.post("find", function (docs: any[]) {
       if (doc.headers) {
         doc.headers = decryptMapValues(doc.headers, encryptionKey);
       }
+      decryptOAuthTokens(doc);
     });
   }
 });
@@ -106,6 +187,7 @@ MCPServerConfigSchema.post("findOne", function (doc: any) {
     if (doc.headers) {
       doc.headers = decryptMapValues(doc.headers, encryptionKey);
     }
+    decryptOAuthTokens(doc);
   }
 });
 
@@ -118,6 +200,7 @@ MCPServerConfigSchema.post("findOneAndUpdate", function (doc: any) {
     if (doc.headers) {
       doc.headers = decryptMapValues(doc.headers, encryptionKey);
     }
+    decryptOAuthTokens(doc);
   }
 });
 

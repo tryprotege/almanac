@@ -325,3 +325,31 @@ export const modelConfigApi = {
       testConfig
     ),
 };
+
+// OAuth API Types
+export interface OAuthAuthorizationResponse {
+  authUrl: string;
+  state: string;
+}
+
+export interface OAuthStatusResponse {
+  connected: boolean;
+  service: string;
+  hasValidToken?: boolean;
+  expiresAt?: string;
+  scope?: string;
+}
+
+// OAuth API
+export const oauthApi = {
+  authorize: (service: string) =>
+    api.get<ApiResponse<OAuthAuthorizationResponse>>(
+      `/oauth/${service}/authorize`
+    ),
+  status: (service: string) =>
+    api.get<ApiResponse<OAuthStatusResponse>>(`/oauth/${service}/status`),
+  disconnect: (service: string) =>
+    api.delete<ApiResponse<{ message: string }>>(
+      `/oauth/${service}/disconnect`
+    ),
+};

@@ -43,6 +43,8 @@ export interface ServicePreset {
   authGuide: string;
   setupSteps: string[];
   comingSoon?: boolean;
+  supportsOAuth?: boolean;
+  oauthScopes?: string[];
 }
 
 export const SERVICE_PRESETS: Record<string, ServicePreset> = {
@@ -87,6 +89,19 @@ export const SERVICE_PRESETS: Record<string, ServicePreset> = {
       "Copy the 'Bot User OAuth Token' (starts with xoxb-)",
       "Find your Team ID in your Slack workspace settings",
     ],
+    supportsOAuth: true,
+    oauthScopes: [
+      "channels:read",
+      "channels:history",
+      "users:read",
+      "chat:write",
+      "groups:read",
+      "groups:history",
+      "im:read",
+      "im:history",
+      "mpim:read",
+      "mpim:history",
+    ],
   },
 
   github: {
@@ -124,6 +139,8 @@ export const SERVICE_PRESETS: Record<string, ServicePreset> = {
       "Generate and copy the token (starts with ghp_ or github_pat_)",
       "Paste the token in the Authorization field below",
     ],
+    supportsOAuth: true,
+    oauthScopes: ["repo", "read:org", "read:user", "workflow"],
   },
 
   fathom: {
@@ -238,6 +255,8 @@ export const SERVICE_PRESETS: Record<string, ServicePreset> = {
       "Share the pages/databases you want to access with your integration",
       'Enter as JSON: {"Authorization": "Bearer ntn_YOUR_TOKEN", "Notion-Version": "2022-06-28"}',
     ],
+    supportsOAuth: true,
+    oauthScopes: [],
   },
 };
 

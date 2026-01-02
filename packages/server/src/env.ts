@@ -98,6 +98,16 @@ const envSchema = z.object({
     .length(64, "Encryption key must be 64 hex characters (32 bytes)")
     .regex(/^[0-9a-f]{64}$/i, "Encryption key must be valid hexadecimal")
     .optional(),
+
+  // OAuth Configuration
+  GITHUB_OAUTH_CLIENT_ID: z.string().optional(),
+  GITHUB_OAUTH_CLIENT_SECRET: z.string().optional(),
+  NOTION_OAUTH_CLIENT_ID: z.string().optional(),
+  NOTION_OAUTH_CLIENT_SECRET: z.string().optional(),
+  SLACK_OAUTH_CLIENT_ID: z.string().optional(),
+  SLACK_OAUTH_CLIENT_SECRET: z.string().optional(),
+  SERVER_URL: z.string().default("http://localhost:3000"),
+  CLIENT_URL: z.string().default("http://localhost:5173"),
 });
 
 const parsedEnv = envSchema.parse({

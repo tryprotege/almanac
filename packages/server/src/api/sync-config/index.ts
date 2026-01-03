@@ -24,6 +24,8 @@ import type {
   ValidationWarning,
 } from "@ebee-oss/indexing-engine";
 import { connectQdrant } from "../../connections/qdrant.js";
+import { DataSourceModel } from "../../models/data-source.model.js";
+import { mcpClientManager } from "../../mcp/client.js";
 
 const router: Router = Router();
 
@@ -240,6 +242,66 @@ router.post("/sync", async (req, res) => {
       return res.status(404).json({
         error: `No active SyncConfig found for ${serverName}`,
       });
+    }
+
+    // Ensure MCP server is connected before syncing
+    if (!mcpClientManager.isConnected(serverName)) {
+      logger.info(
+        { serverName },
+        "MCP server not connected, attempting connection before sync"
+      );
+
+      // Load data source config
+      const dataSource = await DataSourceModel.findOne({ name: serverName });
+
+      if (!dataSource) {
+        return res.status(404).json({
+          error: `Data source ${serverName} not found`,
+        });
+      }
+
+      try {
+        // Convert MongoDB document to MCPServerConfig with proper types
+        const serverConfig = {
+          _id: dataSource._id?.toString(),
+          name: dataSource.name,
+          type: dataSource.type,
+          command: dataSource.command || undefined,
+          args: dataSource.args || undefined,
+          env: dataSource.env ? Object.fromEntries(dataSource.env) : undefined,
+          url: dataSource.url || undefined,
+          headers: dataSource.headers
+            ? Object.fromEntries(dataSource.headers)
+            : undefined,
+          authType: dataSource.authType,
+          oauth: dataSource.oauth
+            ? {
+                authorizationUrl:
+                  dataSource.oauth.authorizationUrl || undefined,
+                tokenUrl: dataSource.oauth.tokenUrl || undefined,
+                clientId: dataSource.oauth.clientId || undefined,
+                scopes: dataSource.oauth.scopes,
+                clientMetadataUrl: dataSource.oauth.metadataUrl || undefined,
+              }
+            : undefined,
+          isDisabled: dataSource.isDisabled,
+        };
+
+        await mcpClientManager.connect(serverConfig);
+        logger.info({ serverName }, "MCP server connected successfully");
+      } catch (connectError) {
+        logger.error(
+          { err: connectError, serverName },
+          "Failed to connect to MCP server"
+        );
+        return res.status(500).json({
+          error: "Failed to connect to MCP server",
+          message:
+            connectError instanceof Error
+              ? connectError.message
+              : "Unknown error",
+        });
+      }
     }
 
     // Start sync in background

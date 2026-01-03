@@ -59,9 +59,9 @@ export function DataSourceWizard({
   onClose,
   existingSource,
 }: DataSourceWizardProps) {
-  const createMutation = useCreateDataSource();
-  const updateMutation = useUpdateDataSource();
-  const connectMutation = useConnectDataSource();
+  const createMutation = useCreateDataSource(true); // silent mode
+  const updateMutation = useUpdateDataSource(true); // silent mode
+  const connectMutation = useConnectDataSource(true); // silent mode
   const generateConfig = useGenerateSyncConfig();
   const saveConfig = useSaveSyncConfig();
   const syncConfig = useSyncWithConfig();
@@ -333,19 +333,23 @@ export function DataSourceWizard({
         });
       }
 
-      // 3. Trigger initial sync
-      setSavingStatus("syncing");
-      await syncConfig.mutateAsync({
+      // 3. Trigger initial sync in background (don't wait for completion)
+      syncConfig.mutateAsync({
         serverName: serverConfig.name,
         incremental: false,
       });
 
-      // 4. Mark complete and close after a brief delay
+      // 4. Show success message and close immediately
       setSavingStatus("complete");
+      toast.success(
+        `Data source saved! Initial sync is running in the background.`,
+        { duration: 4000 }
+      );
+
       setTimeout(() => {
         onClose();
         resetWizard();
-      }, 2000);
+      }, 1500);
     } catch (error) {
       console.error("Failed to save data source:", error);
       setSavingStatus("error");

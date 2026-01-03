@@ -93,7 +93,8 @@ function extractPath(record: any, path: string): any | any[] {
  */
 export function extractEntities(
   record: any,
-  entityConfigs: EntityExtractionConfig[]
+  entityConfigs: EntityExtractionConfig[],
+  source: string
 ): ExtractedEntity[] {
   const entities: ExtractedEntity[] = [];
 
@@ -156,7 +157,7 @@ export function extractEntities(
         }
 
         entities.push({
-          id: `${config.type.toLowerCase()}_${entityId}`,
+          id: `${source}_${config.type.toLowerCase()}_${entityId}`,
           type: config.type,
           title: titles[i] || entityId,
           properties:
@@ -177,7 +178,7 @@ export function extractEntities(
       }
 
       entities.push({
-        id: `${config.type.toLowerCase()}_${id}`, // Prefix with type for uniqueness
+        id: `${source}_${config.type.toLowerCase()}_${id}`, // Prefix with source and type for uniqueness
         type: config.type,
         title: title || id,
         properties: Object.keys(properties).length > 0 ? properties : undefined,
@@ -195,7 +196,8 @@ export function extractRelationships(
   record: any,
   documentId: string,
   documentType: string,
-  relationshipConfigs: RelationshipConfig[]
+  relationshipConfigs: RelationshipConfig[],
+  source: string
 ): ExtractedRelationship[] {
   const relationships: ExtractedRelationship[] = [];
 
@@ -254,7 +256,7 @@ export function extractRelationships(
         relationships.push({
           sourceId: sourceId,
           sourceType: config.sourceType || documentType,
-          targetId: `${config.targetType.toLowerCase()}_${tid}`,
+          targetId: `${source}_${config.targetType.toLowerCase()}_${tid}`,
           targetType: config.targetType,
           type: config.type,
           confidence: config.confidence || 1.0,
@@ -265,7 +267,7 @@ export function extractRelationships(
       relationships.push({
         sourceId: sourceId,
         sourceType: config.sourceType || documentType,
-        targetId: `${config.targetType.toLowerCase()}_${targetId}`,
+        targetId: `${source}_${config.targetType.toLowerCase()}_${targetId}`,
         targetType: config.targetType,
         type: config.type,
         confidence: config.confidence || 1.0,

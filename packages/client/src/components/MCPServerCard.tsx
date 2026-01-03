@@ -210,8 +210,8 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
       {/* Icon Action Bar */}
       {!showDeleteConfirm && (
         <div className="flex items-center gap-1 pt-3 border-t border-border-secondary">
-          {/* Configure Indexing - only show when connected and OAuth not expired */}
-          {isConnected && !oauthExpired && (
+          {/* Configure Indexing - show unless disabled or OAuth expired */}
+          {!server.isDisabled && !oauthExpired && (
             <button
               onClick={() => navigate(`/data-sources/${server.name}/config`)}
               className="btn btn-icon-sm btn-ghost"
@@ -221,8 +221,8 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
             </button>
           )}
 
-          {/* Sync - only show when connected and OAuth not expired */}
-          {isConnected && !oauthExpired && (
+          {/* Sync - show unless disabled or OAuth expired */}
+          {!server.isDisabled && !oauthExpired && (
             <button
               onClick={handleSync}
               disabled={syncMutation.isPending || isLoading}

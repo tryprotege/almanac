@@ -29,7 +29,7 @@ export function useDataSources() {
 /**
  * Hook to create a new data source configuration
  */
-export function useCreateDataSource() {
+export function useCreateDataSource(silent: boolean = false) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -38,12 +38,16 @@ export function useCreateDataSource() {
     ) => dataSourcesApi.create(config),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["data-sources"] });
-      toast.success("Data source created successfully");
+      if (!silent) {
+        toast.success("Data source created successfully");
+      }
     },
     onError: (error: any) => {
-      toast.error(
-        error.response?.data?.error || "Failed to create data source"
-      );
+      if (!silent) {
+        toast.error(
+          error.response?.data?.error || "Failed to create data source"
+        );
+      }
     },
   });
 }
@@ -51,7 +55,7 @@ export function useCreateDataSource() {
 /**
  * Hook to update an existing data source configuration
  */
-export function useUpdateDataSource() {
+export function useUpdateDataSource(silent: boolean = false) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -64,12 +68,16 @@ export function useUpdateDataSource() {
     }) => dataSourcesApi.update(name, config),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["data-sources"] });
-      toast.success("Data source updated successfully");
+      if (!silent) {
+        toast.success("Data source updated successfully");
+      }
     },
     onError: (error: any) => {
-      toast.error(
-        error.response?.data?.error || "Failed to update data source"
-      );
+      if (!silent) {
+        toast.error(
+          error.response?.data?.error || "Failed to update data source"
+        );
+      }
     },
   });
 }
@@ -97,19 +105,23 @@ export function useDeleteDataSource() {
 /**
  * Hook to connect to a data source
  */
-export function useConnectDataSource() {
+export function useConnectDataSource(silent: boolean = false) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (name: string) => dataSourcesApi.connect(name),
     onSuccess: (_, name) => {
       queryClient.invalidateQueries({ queryKey: ["data-sources"] });
-      toast.success(`Connected to ${name}`);
+      if (!silent) {
+        toast.success(`Connected to ${name}`);
+      }
     },
     onError: (error: any, name) => {
-      toast.error(
-        error.response?.data?.error || `Failed to connect to ${name}`
-      );
+      if (!silent) {
+        toast.error(
+          error.response?.data?.error || `Failed to connect to ${name}`
+        );
+      }
     },
   });
 }

@@ -210,24 +210,50 @@ export class StatsService {
   }
 
   /**
-   * Get records count by source with last sync time
+   * Get records count by source with last sync time, embedded count, and graph indexed count
    */
   private async getRecordsBySource(): Promise<{
-    [source: string]: { records: number; lastSync?: Date };
+    [source: string]: {
+      records: number;
+      embedded: number;
+      graphIndexed: number;
+      lastSync?: Date;
+    };
   }> {
     try {
       // Get all unique sources
       const sources = await RecordModel.distinct("source").exec();
 
-      const result: { [source: string]: { records: number; lastSync?: Date } } =
-        {};
+      const result: {
+        [source: string]: {
+          records: number;
+          embedded: number;
+          graphIndexed: number;
+          lastSync?: Date;
+        };
+      } = {};
 
       await Promise.all(
         sources.map(async (source: string) => {
+          // Total records count
           const count = await this.recordStore.countBySource(
             source as SourceType,
             true
           );
+
+          // Count embedded records (have lastEmbeddedAt set)
+          const embeddedCount = await RecordModel.countDocuments({
+            source,
+            deletedAt: { $exists: false },
+            lastEmbeddedAt: { $exists: true },
+          }).exec();
+
+          // Count graph-indexed records (have lastGraphIndexAt set)
+          const graphIndexedCount = await RecordModel.countDocuments({
+            source,
+            deletedAt: { $exists: false },
+            lastGraphIndexAt: { $exists: true },
+          }).exec();
 
           // Get the most recent sync time for this source
           const recentRecord = await RecordModel.findOne({
@@ -240,6 +266,8 @@ export class StatsService {
 
           result[source] = {
             records: count,
+            embedded: embeddedCount,
+            graphIndexed: graphIndexedCount,
             lastSync: recentRecord?.syncedAt,
           };
         })
@@ -507,6 +535,8 @@ export interface OverviewStats {
   bySource: {
     [source: string]: {
       records: number;
+      embedded: number;
+      graphIndexed: number;
       lastSync?: Date;
     };
   };

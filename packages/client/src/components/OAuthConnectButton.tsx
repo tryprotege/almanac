@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 
 interface OAuthConnectButtonProps {
   mcpServerId: string;
@@ -35,15 +36,16 @@ export function OAuthConnectButton({
 
   // Listen for OAuth callback messages from popup window
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       // Verify origin for security
       if (event.origin !== window.location.origin) {
         return;
       }
 
       if (event.data.type === "oauth-success") {
-        setStatus("connected");
         setIsConnecting(false);
+        // Refresh status from server to get latest state
+        await checkStatus();
         onSuccess?.();
       } else if (event.data.type === "oauth-error") {
         onError?.(event.data.error || "OAuth authentication failed");
@@ -74,27 +76,42 @@ export function OAuthConnectButton({
     try {
       let authorizationUrl: string;
 
-      // Use SSE OAuth flow for SSE servers (auto-discovery)
-      if (serverType === "sse") {
-        const response = await fetch(`/api/oauth/start-sse/${mcpServerId}`, {
+      // Use auto-discovery OAuth flow for remote MCP servers (SSE and streamable-http)
+      if (serverType === "sse" || serverType === "streamable-http") {
+        toast.loading("Discovering OAuth configuration...", {
+          id: "oauth-discovery",
+        });
+        const response = await fetch(`/api/oauth/start-remote/${mcpServerId}`, {
           method: "POST",
         });
         if (!response.ok) {
-          throw new Error("Failed to start SSE OAuth flow");
+          toast.error("Failed to discover OAuth configuration", {
+            id: "oauth-discovery",
+          });
+          throw new Error("Failed to start OAuth flow with auto-discovery");
         }
         const data = await response.json();
 
         if (!data.requiresAuth) {
           // Server doesn't require OAuth
+          toast.success("No OAuth required for this server", {
+            id: "oauth-discovery",
+          });
           onSuccess?.();
           setIsConnecting(false);
           return;
         }
 
         if (!data.authorizationUrl) {
+          toast.error("No authorization URL received", {
+            id: "oauth-discovery",
+          });
           throw new Error("No authorization URL received");
         }
 
+        toast.success("OAuth configuration discovered", {
+          id: "oauth-discovery",
+        });
         authorizationUrl = data.authorizationUrl;
       } else {
         // Standard OAuth flow for other server types
@@ -107,6 +124,10 @@ export function OAuthConnectButton({
       }
 
       // Open authorization URL in popup window
+      toast.loading("Redirecting to authorization...", {
+        id: "oauth-redirect",
+      });
+
       const width = 600;
       const height = 700;
       const left = window.screen.width / 2 - width / 2;
@@ -119,14 +140,31 @@ export function OAuthConnectButton({
       );
 
       if (!popup) {
+        toast.error("Failed to open authorization window", {
+          id: "oauth-redirect",
+        });
         throw new Error("Failed to open OAuth popup window");
       }
 
+      toast.success("Authorization window opened", { id: "oauth-redirect" });
+
       // Check if popup was closed manually
+      // Wrap in try-catch to handle COOP errors
+      const startTime = Date.now();
       const checkPopupClosed = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkPopupClosed);
-          setIsConnecting(false);
+        try {
+          if (popup.closed) {
+            clearInterval(checkPopupClosed);
+            setIsConnecting(false);
+          }
+        } catch (error) {
+          // COOP policy may block access to popup.closed
+          // In this case, we rely on the postMessage callback instead
+          // Clear interval after a reasonable timeout (2 minutes)
+          if (Date.now() - startTime > 120000) {
+            clearInterval(checkPopupClosed);
+            setIsConnecting(false);
+          }
         }
       }, 500);
     } catch (err) {
@@ -171,21 +209,31 @@ export function OAuthConnectButton({
     }
   };
 
-  // For SSE servers, we don't need pre-configured OAuth (it's auto-discovered)
+  // For SSE and streamable-http servers, we don't need pre-configured OAuth (it's auto-discovered)
   // For other servers, we need the authConfig
-  if (serverType !== "sse" && (!authConfig || !authConfig.authorizationUrl)) {
+  if (
+    serverType !== "sse" &&
+    serverType !== "streamable-http" &&
+    (!authConfig || !authConfig.authorizationUrl)
+  ) {
     return null; // Don't show button if OAuth is not configured
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-3">
       {status === "connected" ? (
         <>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-lg">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+            <span className="text-sm text-green-600 dark:text-green-400 font-medium">
+              Connected
+            </span>
+          </div>
           <button
             onClick={handleDisconnect}
             className="btn btn-secondary text-sm"
           >
-            Disconnect OAuth
+            Disconnect
           </button>
           <button onClick={handleRefresh} className="btn btn-secondary text-sm">
             Refresh Token
@@ -195,7 +243,7 @@ export function OAuthConnectButton({
         <button
           onClick={handleConnect}
           disabled={isConnecting}
-          className="btn btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
         >
           {isConnecting ? (
             <>

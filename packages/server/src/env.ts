@@ -104,7 +104,8 @@ const envSchema = z.object({
   OAUTH_REDIRECT_URI: z
     .string()
     .url()
-    .default("http://localhost:3001/api/oauth/callback"),
+    .default("http://localhost:3000/api/oauth/callback"),
+  OAUTH_CLIENT_URL: z.string().url().default("http://localhost:5173"), // Vite dev server default
 });
 
 const parsedEnv = envSchema.parse({

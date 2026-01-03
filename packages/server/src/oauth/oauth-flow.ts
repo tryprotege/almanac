@@ -120,15 +120,37 @@ export class OAuthFlowManager {
       throw new Error("Invalid OAuth state - token record not found");
     }
 
-    // Get MCP server config
-    const mcpConfig = await MCPServerConfigModel.findById(
+    // Get OAuth config - try DataSource first, then MCPServerConfig for backward compatibility
+    let oauthConfig: any;
+
+    const dataSource = await DataSourceModel.findById(
       tokenRecord.mcpServerConfigId
     );
-    if (!mcpConfig || !mcpConfig.oauth) {
-      throw new Error("MCP server OAuth config not found");
+
+    if (dataSource && dataSource.oauth) {
+      oauthConfig = dataSource.oauth;
+      logger.debug(
+        { mcpServerConfigId: tokenRecord.mcpServerConfigId },
+        "Found OAuth config in DataSourceModel"
+      );
+    } else {
+      const mcpConfig = await MCPServerConfigModel.findById(
+        tokenRecord.mcpServerConfigId
+      );
+      if (mcpConfig && mcpConfig.oauth) {
+        oauthConfig = mcpConfig.oauth;
+        logger.debug(
+          { mcpServerConfigId: tokenRecord.mcpServerConfigId },
+          "Found OAuth config in MCPServerConfigModel"
+        );
+      }
     }
 
-    const oauthConfig = mcpConfig.oauth;
+    if (!oauthConfig) {
+      throw new Error(
+        "OAuth config not found in either DataSource or MCPServerConfig"
+      );
+    }
 
     // Prepare token exchange request
     const tokenRequestBody = new URLSearchParams({
@@ -169,7 +191,13 @@ export class OAuthFlowManager {
       );
     }
 
-    const tokenData = await response.json();
+    const tokenData = (await response.json()) as {
+      access_token?: string;
+      refresh_token?: string;
+      expires_in?: number;
+      scope?: string;
+      token_type?: string;
+    };
 
     // Extract tokens from response
     const accessToken = tokenData.access_token;
@@ -232,13 +260,33 @@ export class OAuthFlowManager {
       throw new Error("No refresh token available");
     }
 
-    // Get MCP server config
-    const mcpConfig = await MCPServerConfigModel.findById(mcpServerId);
-    if (!mcpConfig || !mcpConfig.oauth) {
-      throw new Error("MCP server OAuth config not found");
+    // Get OAuth config - try DataSource first, then MCPServerConfig for backward compatibility
+    let oauthConfig: any;
+
+    const dataSource = await DataSourceModel.findById(mcpServerId);
+
+    if (dataSource && dataSource.oauth) {
+      oauthConfig = dataSource.oauth;
+      logger.debug(
+        { mcpServerId },
+        "Found OAuth config in DataSourceModel for refresh"
+      );
+    } else {
+      const mcpConfig = await MCPServerConfigModel.findById(mcpServerId);
+      if (mcpConfig && mcpConfig.oauth) {
+        oauthConfig = mcpConfig.oauth;
+        logger.debug(
+          { mcpServerId },
+          "Found OAuth config in MCPServerConfigModel for refresh"
+        );
+      }
     }
 
-    const oauthConfig = mcpConfig.oauth;
+    if (!oauthConfig) {
+      throw new Error(
+        "OAuth config not found in either DataSource or MCPServerConfig"
+      );
+    }
 
     // Prepare token refresh request
     const tokenRequestBody = new URLSearchParams({
@@ -273,7 +321,13 @@ export class OAuthFlowManager {
       );
     }
 
-    const tokenData = await response.json();
+    const tokenData = (await response.json()) as {
+      access_token?: string;
+      refresh_token?: string;
+      expires_in?: number;
+      scope?: string;
+      token_type?: string;
+    };
 
     // Extract tokens from response
     const accessToken = tokenData.access_token;
@@ -396,7 +450,7 @@ export class OAuthFlowManager {
 
     return {
       connected: true,
-      expiresAt: tokenRecord.expiresAt,
+      expiresAt: tokenRecord.expiresAt ?? undefined,
       hasRefreshToken: !!tokenRecord.refreshToken,
       scope: tokenRecord.scope,
     };

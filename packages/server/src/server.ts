@@ -123,7 +123,7 @@ const runServer = async () => {
     }
   });
 
-  // POST /api/data-sources - Create a new data source config
+  // POST /api/data-sources - Create a new data source config (with upsert support)
   app.post("/api/data-sources", async (req: Request, res: Response) => {
     try {
       const configData: MCPServerConfig = req.body;
@@ -135,15 +135,52 @@ const runServer = async () => {
         return;
       }
 
-      // Create and save the config
-      const config = new DataSourceModel(configData);
-      await config.save();
+      // Auto-detect authType if OAuth config is present
+      if (!configData.authType && configData.oauth) {
+        configData.authType = "oauth";
+        logger.info(
+          { serverName: configData.name },
+          "Auto-detected authType=oauth from OAuth configuration"
+        );
+      }
+
+      // Check if config already exists
+      const existingConfig = await DataSourceModel.findOne({
+        name: configData.name,
+      });
+
+      let config;
+      let wasUpdated = false;
+
+      if (existingConfig) {
+        // Update existing config (upsert behavior)
+        logger.info(
+          { serverName: configData.name },
+          "Data source already exists, updating instead"
+        );
+
+        // Disconnect if currently connected before updating
+        if (mcpClientManager.isConnected(configData.name)) {
+          await mcpClientManager.disconnect(configData.name);
+        }
+
+        config = await DataSourceModel.findOneAndUpdate(
+          { name: configData.name },
+          configData,
+          { new: true, runValidators: true }
+        );
+        wasUpdated = true;
+      } else {
+        // Create new config
+        config = new DataSourceModel(configData);
+        await config.save();
+      }
 
       // Optionally connect to the server immediately
       // Skip for OAuth servers - they need OAuth flow first
       if (configData.name && configData.authType !== "oauth") {
         try {
-          await mcpClientManager.connect(toMCPServerConfig(config));
+          await mcpClientManager.connect(toMCPServerConfig(config!));
         } catch (connectError) {
           logger.error(
             { err: connectError, serverName: configData.name },
@@ -157,11 +194,16 @@ const runServer = async () => {
         );
       }
 
-      res.status(201).json({ success: true, data: config });
+      res.status(wasUpdated ? 200 : 201).json({
+        success: true,
+        data: config,
+        message: wasUpdated
+          ? "Data source updated successfully"
+          : "Data source created successfully",
+      });
     } catch (err) {
-      logger.error({ err }, "Error creating data source config");
-      const statusCode = (err as any).code === 11000 ? 409 : 500;
-      res.status(statusCode).json({
+      logger.error({ err }, "Error creating/updating data source config");
+      res.status(500).json({
         success: false,
         error: err instanceof Error ? err.message : String(err),
       });
@@ -445,9 +487,34 @@ const runServer = async () => {
         return;
       }
 
+      // Auto-connect if not already connected
       if (!mcpClientManager.isConnected(config.name)) {
-        res.status(400).json({ success: false, error: "Server not connected" });
-        return;
+        logger.info(
+          { serverName: config.name },
+          "MCP server not connected, attempting connection before sync"
+        );
+
+        try {
+          await mcpClientManager.connect(toMCPServerConfig(config));
+          logger.info(
+            { serverName: config.name },
+            "MCP server connected successfully"
+          );
+        } catch (connectError) {
+          logger.error(
+            { err: connectError, serverName: config.name },
+            "Failed to connect to MCP server"
+          );
+          res.status(500).json({
+            success: false,
+            error: "Failed to connect to MCP server",
+            message:
+              connectError instanceof Error
+                ? connectError.message
+                : "Unknown error",
+          });
+          return;
+        }
       }
 
       // Queue sync job

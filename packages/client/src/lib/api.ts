@@ -331,6 +331,8 @@ export interface OverviewStats {
   bySource: {
     [source: string]: {
       records: number;
+      embedded: number;
+      graphIndexed: number;
       lastSync?: string;
     };
   };

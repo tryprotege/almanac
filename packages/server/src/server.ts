@@ -5,6 +5,7 @@ import express, { NextFunction, Request, Response } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import { router } from "./api/index.js";
+import { configRouter } from "./api/config/index.js";
 import { mcpClientManager, MCPServerConfig } from "./mcp/client.js";
 import { validateConfig } from "./mcp/config-loader.js";
 import {
@@ -15,7 +16,9 @@ import {
 import { DataSourceModel } from "./models/data-source.model.js";
 import { syncMcpServerQueue } from "./services/queue/sync.queue.js";
 import logger from "./utils/logger.js";
+import { env } from "./env.js";
 
+console.log(">>>>>");
 /**
  * Convert MongoDB document to MCPServerConfig
  * Handles Map to Record conversion and ensures all required fields
@@ -69,7 +72,18 @@ function toMCPServerConfig(doc: any): MCPServerConfig {
 
 // Start server
 const runServer = async () => {
-  await initializeServices();
+  // In setup mode, only initialize MongoDB for storing config
+  // In normal mode, initialize all services
+  if (!env.isSetupMode) {
+    await initializeServices();
+  } else {
+    // Only connect to MongoDB in setup mode
+    const { connectMongoose } = await import("./connections/mongoose.js");
+    await connectMongoose();
+    logger.warn(
+      "⚠️  Running in SETUP MODE - LLM features disabled until configured"
+    );
+  }
 
   const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
   const HOST = process.env.HOST || "0.0.0.0";
@@ -101,10 +115,42 @@ const runServer = async () => {
     next();
   });
 
+  // Setup mode middleware - block certain routes if in setup mode
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (env.isSetupMode) {
+      // Allow only these routes in setup mode
+      const allowedPaths = [
+        "/health",
+        "/api/config", // Config management
+      ];
+
+      const isAllowed = allowedPaths.some((p) => req.path.startsWith(p));
+
+      if (!isAllowed) {
+        res.status(503).json({
+          success: false,
+          error:
+            "Server is in setup mode. Please complete configuration first.",
+          setupRequired: true,
+          setupUrl: "/api/config/env/status",
+        });
+        return;
+      }
+    }
+    next();
+  });
+
   // Health check endpoint
   app.get("/health", (_req: Request, res: Response) => {
-    res.json({ status: "ok", version: "0.1.0" });
+    res.json({
+      status: "ok",
+      version: "0.1.0",
+      setupMode: env.isSetupMode,
+    });
   });
+
+  // Config API endpoints (always available)
+  app.use("/api/config", configRouter);
 
   // Data Source REST API endpoints
   // GET /api/data-sources - List all data source configs

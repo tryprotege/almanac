@@ -11,7 +11,7 @@
     "build": "pnpm --recursive run build",
     "build:server": "pnpm --filter server run build",
     "build:client": "pnpm --filter client run build",
-    "start": "pnpm --filter server run start",
+    "start": "pnpm run docker:infra && pnpm dev",
     "test": "pnpm --recursive run test",
     "type-check": "pnpm --recursive run type-check",
     "docker:infra": "docker compose up -d",

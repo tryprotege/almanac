@@ -60,7 +60,6 @@ export function OAuthStep({
   const handleOAuthSuccess = () => {
     // Trust the OAuthConnectButton - if it says success, it's success
     setOauthStatus("success");
-    toast.success("OAuth authorization complete!");
 
     // Auto-advance after a brief moment
     setTimeout(() => {

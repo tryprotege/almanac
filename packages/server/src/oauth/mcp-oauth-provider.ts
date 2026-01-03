@@ -5,6 +5,7 @@ import type {
   OAuthTokens,
 } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { MCPServerConfigModel } from "../models/mcp-config.model.js";
+import { DataSourceModel } from "../models/data-source.model.js";
 import { OAuthTokenModel } from "../models/oauth-token.model.js";
 import logger from "../utils/logger.js";
 import { env } from "../env.js";
@@ -15,6 +16,10 @@ import { env } from "../env.js";
  */
 export class MCPOAuthProvider implements OAuthClientProvider {
   private redirectCallback?: (url: URL) => void;
+  private tokensCache?: OAuthTokens;
+  private clientInfoCache?: OAuthClientInformationMixed;
+  private codeVerifierCache?: string;
+  private isInitialized = false;
 
   constructor(
     private mcpServerId: string,
@@ -23,6 +28,49 @@ export class MCPOAuthProvider implements OAuthClientProvider {
     public readonly clientMetadataUrl?: string
   ) {
     this.redirectCallback = onRedirect;
+    // Initialize cache asynchronously
+    this.initializeCache().catch((err) => {
+      logger.error(
+        { err, mcpServerId },
+        "Failed to initialize OAuth provider cache"
+      );
+    });
+  }
+
+  /**
+   * Initialize cache from database
+   */
+  private async initializeCache(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
+    try {
+      // Load tokens
+      this.tokensCache = await this.loadTokens();
+
+      // Load client information
+      this.clientInfoCache = await this.loadClientInformation();
+
+      // Load code verifier
+      this.codeVerifierCache = await this.loadCodeVerifier();
+
+      this.isInitialized = true;
+
+      logger.debug(
+        {
+          mcpServerId: this.mcpServerId,
+          hasTokens: !!this.tokensCache,
+          hasClientInfo: !!this.clientInfoCache,
+        },
+        "OAuth provider cache initialized"
+      );
+    } catch (err) {
+      logger.error(
+        { err, mcpServerId: this.mcpServerId },
+        "Failed to initialize OAuth provider cache"
+      );
+    }
   }
 
   /**
@@ -51,12 +99,18 @@ export class MCPOAuthProvider implements OAuthClientProvider {
    * Returns dynamically registered client info OR static client credentials
    */
   clientInformation(): OAuthClientInformationMixed | undefined {
-    // This should be called synchronously, but we need to load from DB
-    // We'll need to cache this or make the SDK support async
-    // For now, return undefined and rely on the SDK to register
-    logger.warn(
+    // Return cached value
+    if (this.clientInfoCache) {
+      logger.debug(
+        { mcpServerId: this.mcpServerId },
+        "Returning cached client information"
+      );
+      return this.clientInfoCache;
+    }
+
+    logger.debug(
       { mcpServerId: this.mcpServerId },
-      "clientInformation() called synchronously - returning undefined"
+      "No cached client information available"
     );
     return undefined;
   }
@@ -70,34 +124,61 @@ export class MCPOAuthProvider implements OAuthClientProvider {
       "Saving OAuth client information"
     );
 
+    // Update cache immediately
+    this.clientInfoCache = clientInfo;
+
     // Extract registration_access_token if it exists (only on full response)
     const registrationAccessToken =
       "registration_access_token" in clientInfo
         ? clientInfo.registration_access_token
         : undefined;
 
-    // Save to database asynchronously
-    MCPServerConfigModel.findByIdAndUpdate(
+    const clientMetadata = {
+      clientId: clientInfo.client_id,
+      clientSecret: clientInfo.client_secret,
+      clientIdIssuedAt: clientInfo.client_id_issued_at,
+      clientSecretExpiresAt: clientInfo.client_secret_expires_at,
+      registrationAccessToken,
+    };
+
+    // Try to save to DataSource first (for streamable-http/sse servers)
+    DataSourceModel.findByIdAndUpdate(
       this.mcpServerId,
       {
         $set: {
           "oauth.registrationStatus": "registered",
-          "oauth.clientMetadata": {
-            clientId: clientInfo.client_id,
-            clientSecret: clientInfo.client_secret,
-            clientIdIssuedAt: clientInfo.client_id_issued_at,
-            clientSecretExpiresAt: clientInfo.client_secret_expires_at,
-            registrationAccessToken,
-          },
+          "oauth.clientMetadata": clientMetadata,
         },
       },
       { new: true }
     )
-      .then(() => {
-        logger.info(
-          { mcpServerId: this.mcpServerId },
-          "Successfully saved client information"
-        );
+      .then((updated) => {
+        if (updated) {
+          logger.info(
+            { mcpServerId: this.mcpServerId },
+            "Successfully saved client information to DataSource"
+          );
+        } else {
+          // If not found in DataSource, try MCPServerConfig
+          return MCPServerConfigModel.findByIdAndUpdate(
+            this.mcpServerId,
+            {
+              $set: {
+                "oauth.registrationStatus": "registered",
+                "oauth.clientMetadata": clientMetadata,
+              },
+            },
+            { new: true }
+          );
+        }
+      })
+      .then((updated) => {
+        if (updated) {
+          logger.info(
+            { mcpServerId: this.mcpServerId },
+            "Successfully saved client information to MCPServerConfig"
+          );
+        }
       })
       .catch((err) => {
         logger.error(
@@ -111,11 +192,18 @@ export class MCPOAuthProvider implements OAuthClientProvider {
    * Load OAuth tokens from database
    */
   tokens(): OAuthTokens | undefined {
-    // This is called synchronously by the SDK, but we need async DB access
-    // We'll need to cache tokens or make SDK support async
-    logger.warn(
+    // Return cached value
+    if (this.tokensCache) {
+      logger.debug(
+        { mcpServerId: this.mcpServerId },
+        "Returning cached OAuth tokens"
+      );
+      return this.tokensCache;
+    }
+
+    logger.debug(
       { mcpServerId: this.mcpServerId },
-      "tokens() called synchronously - returning undefined"
+      "No cached OAuth tokens available"
     );
     return undefined;
   }
@@ -125,6 +213,9 @@ export class MCPOAuthProvider implements OAuthClientProvider {
    */
   saveTokens(tokens: OAuthTokens): void {
     logger.info({ mcpServerId: this.mcpServerId }, "Saving OAuth tokens");
+
+    // Update cache immediately
+    this.tokensCache = tokens;
 
     const expiresAt = tokens.expires_in
       ? new Date(Date.now() + tokens.expires_in * 1000)
@@ -186,6 +277,9 @@ export class MCPOAuthProvider implements OAuthClientProvider {
       "Saving PKCE code verifier"
     );
 
+    // Update cache immediately
+    this.codeVerifierCache = codeVerifier;
+
     // Save to database asynchronously
     OAuthTokenModel.findOneAndUpdate(
       { mcpServerConfigId: this.mcpServerId },
@@ -210,11 +304,18 @@ export class MCPOAuthProvider implements OAuthClientProvider {
    * Retrieve PKCE code verifier
    */
   codeVerifier(): string {
-    // This is called synchronously by the SDK
-    // We'll need to cache this value
-    logger.warn(
+    // Return cached value
+    if (this.codeVerifierCache) {
+      logger.debug(
+        { mcpServerId: this.mcpServerId },
+        "Returning cached code verifier"
+      );
+      return this.codeVerifierCache;
+    }
+
+    logger.debug(
       { mcpServerId: this.mcpServerId },
-      "codeVerifier() called synchronously - returning empty string"
+      "No cached code verifier available"
     );
     return "";
   }
@@ -226,6 +327,37 @@ export class MCPOAuthProvider implements OAuthClientProvider {
     OAuthClientInformationMixed | undefined
   > {
     try {
+      // Try DataSource first (for streamable-http/sse servers)
+      const dataSource = await DataSourceModel.findById(this.mcpServerId);
+
+      if (dataSource?.oauth) {
+        // Return dynamic registration if available
+        if (
+          dataSource.oauth.registrationStatus === "registered" &&
+          dataSource.oauth.clientMetadata
+        ) {
+          return {
+            client_id: dataSource.oauth.clientMetadata.clientId!,
+            client_secret:
+              dataSource.oauth.clientMetadata.clientSecret ?? undefined,
+            client_id_issued_at:
+              dataSource.oauth.clientMetadata.clientIdIssuedAt ?? undefined,
+            client_secret_expires_at:
+              dataSource.oauth.clientMetadata.clientSecretExpiresAt ??
+              undefined,
+          };
+        }
+
+        // Fall back to static credentials
+        if (dataSource.oauth.clientId) {
+          return {
+            client_id: dataSource.oauth.clientId,
+            client_secret: dataSource.oauth.clientSecret ?? undefined,
+          };
+        }
+      }
+
+      // Fall back to MCPServerConfig (for backward compatibility)
       const config = await MCPServerConfigModel.findById(this.mcpServerId);
 
       if (!config?.oauth) {

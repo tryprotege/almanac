@@ -21,7 +21,10 @@ export default function OAuthCallback() {
           { type: "oauth-success" },
           window.location.origin
         );
-        // Close popup after short delay
+        // Close popup immediately - the parent window will handle UI updates
+        window.close();
+      } else {
+        // If no opener (opened directly), close after showing success message
         setTimeout(() => {
           window.close();
         }, 2000);
@@ -40,6 +43,12 @@ export default function OAuthCallback() {
           window.close();
         }, 5000);
       }
+    } else {
+      // No success or error params - might be accessed directly
+      // Show processing state briefly, then close
+      setTimeout(() => {
+        window.close();
+      }, 3000);
     }
   }, []);
 

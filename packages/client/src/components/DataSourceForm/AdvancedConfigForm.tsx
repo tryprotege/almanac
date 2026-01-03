@@ -31,7 +31,7 @@ export function AdvancedConfigForm({
 }: AdvancedConfigFormProps) {
   const [formData, setFormData] = useState<FormData>({
     name: "",
-    type: "stdio",
+    type: "streamable-http",
     command: "",
     args: "",
     env: [],
@@ -72,7 +72,7 @@ export function AdvancedConfigForm({
     } else {
       setFormData({
         name: "",
-        type: "stdio",
+        type: "streamable-http",
         command: "",
         args: "",
         env: [],
@@ -375,37 +375,6 @@ export function AdvancedConfigForm({
         </>
       )}
 
-      {/* Authentication (only for network-based servers) */}
-      {(formData.type === "sse" || formData.type === "streamable-http") && (
-        <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1">
-            Authentication
-          </label>
-          <select
-            value={formData.authType}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                authType: e.target.value as "none" | "api-key" | "oauth",
-              })
-            }
-            disabled={isLoading}
-            className="input"
-          >
-            <option value="none">None</option>
-            <option value="api-key">API Key (via headers)</option>
-            <option value="oauth">OAuth 2.1</option>
-          </select>
-          <p className="mt-1 text-xs text-text-quaternary">
-            {formData.authType === "none" && "No authentication required"}
-            {formData.authType === "api-key" &&
-              "Add API key as a custom header below"}
-            {formData.authType === "oauth" &&
-              "OAuth flow will be triggered after server creation"}
-          </p>
-        </div>
-      )}
-
       {/* SSE and Streamable HTTP Fields */}
       {(formData.type === "sse" || formData.type === "streamable-http") && (
         <>
@@ -426,6 +395,35 @@ export function AdvancedConfigForm({
             {errors.url && (
               <p className="mt-1 text-sm text-brand-error">{errors.url}</p>
             )}
+          </div>
+
+          {/* Authentication (only for network-based servers) */}
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">
+              Authentication
+            </label>
+            <select
+              value={formData.authType}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  authType: e.target.value as "none" | "api-key" | "oauth",
+                })
+              }
+              disabled={isLoading}
+              className="input"
+            >
+              <option value="none">None</option>
+              <option value="api-key">API Key (via headers)</option>
+              <option value="oauth">OAuth 2.1</option>
+            </select>
+            <p className="mt-1 text-xs text-text-quaternary">
+              {formData.authType === "none" && "No authentication required"}
+              {formData.authType === "api-key" &&
+                "Add API key as a custom header below"}
+              {formData.authType === "oauth" &&
+                "OAuth flow will be triggered after server creation"}
+            </p>
           </div>
 
           {/* Headers (only show if not using OAuth, since OAuth uses Bearer token) */}

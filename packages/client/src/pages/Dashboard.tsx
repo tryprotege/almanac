@@ -84,6 +84,8 @@ export default function Dashboard() {
       return {
         name: capitalCase(server.name),
         records: sourceData?.records || 0,
+        embedded: sourceData?.embedded || 0,
+        graphIndexed: sourceData?.graphIndexed || 0,
         status: hasData ? "Has Data" : "No Data",
         lastSync: formatRelativeTime(sourceData?.lastSync),
       };
@@ -162,6 +164,8 @@ export default function Dashboard() {
             columns={[
               { key: "name", header: "Source Name" },
               { key: "records", header: "Records" },
+              { key: "embedded", header: "Embedded" },
+              { key: "graphIndexed", header: "Graph" },
               {
                 key: "status",
                 header: "Status",

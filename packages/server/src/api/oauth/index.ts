@@ -4,6 +4,7 @@ import { DataSourceModel } from "../../models/data-source.model.js";
 import { discoverOAuthMetadata } from "../../oauth/discovery.js";
 import { discoverSseOAuth } from "../../oauth/sse-oauth.js";
 import { mcpClientManager } from "../../mcp/client.js";
+import { env } from "../../env.js";
 import logger from "../../utils/logger.js";
 
 const router: ExpressRouter = Router();
@@ -106,10 +107,11 @@ router.post("/discover", async (req, res) => {
 });
 
 /**
- * POST /api/oauth/start-sse/:mcpServerId
- * Initiate OAuth flow for an SSE MCP server (with auto-discovery)
+ * POST /api/oauth/start-remote/:mcpServerId
+ * Initiate OAuth flow for remote MCP servers (SSE or streamable-http) with auto-discovery
+ * Supports OAuth 2.1 Dynamic Client Registration (RFC 7591)
  */
-router.post("/start-sse/:mcpServerId", async (req, res) => {
+router.post("/start-remote/:mcpServerId", async (req, res) => {
   try {
     const { mcpServerId } = req.params;
 
@@ -119,13 +121,17 @@ router.post("/start-sse/:mcpServerId", async (req, res) => {
       return res.status(404).json({ error: "Data source not found" });
     }
 
-    if (dataSource.type !== "sse" || !dataSource.url) {
-      return res
-        .status(400)
-        .json({ error: "Data source is not configured as SSE" });
+    if (
+      (dataSource.type !== "sse" && dataSource.type !== "streamable-http") ||
+      !dataSource.url
+    ) {
+      return res.status(400).json({
+        error:
+          "Data source must be configured as SSE or streamable-http with a URL",
+      });
     }
 
-    // Perform SSE OAuth discovery
+    // Perform OAuth discovery via pre-flight
     const discovery = await discoverSseOAuth(dataSource.url);
 
     if (!discovery.requiresAuth) {
@@ -141,23 +147,106 @@ router.post("/start-sse/:mcpServerId", async (req, res) => {
       });
     }
 
-    // Start OAuth flow with discovered metadata
+    // Check if we have a client_id, if not perform dynamic client registration
+    let clientId = dataSource.oauth?.clientId || "";
+    let clientSecret = dataSource.oauth?.clientSecret;
+
+    if (!clientId && discovery.oauthMetadata.registrationEndpoint) {
+      logger.info(
+        {
+          mcpServerId,
+          registrationEndpoint: discovery.oauthMetadata.registrationEndpoint,
+        },
+        "Performing dynamic client registration"
+      );
+
+      try {
+        const redirectUri =
+          dataSource.oauth?.redirectUri || env.OAUTH_REDIRECT_URI;
+
+        const registrationResponse = await fetch(
+          discovery.oauthMetadata.registrationEndpoint,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify({
+              client_name: `eBee MCP Client - ${dataSource.name}`,
+              redirect_uris: [redirectUri],
+              grant_types: ["authorization_code", "refresh_token"],
+              response_types: ["code"],
+              token_endpoint_auth_method: "none", // PKCE doesn't require client secret
+              application_type: "web",
+            }),
+          }
+        );
+
+        if (!registrationResponse.ok) {
+          const errorText = await registrationResponse.text();
+          throw new Error(
+            `Client registration failed: ${registrationResponse.status} ${errorText}`
+          );
+        }
+
+        const registrationData = (await registrationResponse.json()) as {
+          client_id: string;
+          client_secret?: string;
+        };
+
+        clientId = registrationData.client_id;
+        clientSecret = registrationData.client_secret;
+
+        // Save the registered client credentials AND discovered OAuth endpoints
+        await DataSourceModel.findByIdAndUpdate(mcpServerId, {
+          $set: {
+            "oauth.clientId": clientId,
+            "oauth.clientSecret": clientSecret,
+            "oauth.redirectUri": redirectUri,
+            "oauth.authorizationUrl":
+              discovery.oauthMetadata.authorizationEndpoint,
+            "oauth.tokenUrl": discovery.oauthMetadata.tokenEndpoint,
+            "oauth.scopes": discovery.oauthMetadata.scopesSupported || [],
+            "oauth.usePKCE": true,
+            "oauth.registrationStatus": "dynamic",
+          },
+        });
+
+        logger.info(
+          { mcpServerId, clientId },
+          "Dynamic client registration successful"
+        );
+      } catch (registrationError) {
+        logger.error(
+          { err: registrationError, mcpServerId },
+          "Failed to register OAuth client"
+        );
+        return res.status(500).json({
+          error: "Failed to register OAuth client",
+          message:
+            registrationError instanceof Error
+              ? registrationError.message
+              : String(registrationError),
+        });
+      }
+    }
+
+    // Start OAuth flow with discovered metadata and client credentials
     const { authorizationUrl, state } = await oauthFlowManager.startFlow(
       mcpServerId,
       {
         authorizationUrl: discovery.oauthMetadata.authorizationEndpoint,
         tokenUrl: discovery.oauthMetadata.tokenEndpoint,
-        clientId: dataSource.oauth?.clientId || "",
-        clientSecret: dataSource.oauth?.clientSecret ?? undefined,
-        redirectUri:
-          dataSource.oauth?.redirectUri ||
-          "http://localhost:3001/api/oauth/callback",
+        clientId,
+        clientSecret: clientSecret ?? undefined,
+        redirectUri: dataSource.oauth?.redirectUri || env.OAUTH_REDIRECT_URI,
         scopes: discovery.oauthMetadata.scopesSupported || [],
         usePKCE: true,
       }
     );
 
-    logger.info({ mcpServerId, state }, "SSE OAuth flow started");
+    logger.info({ mcpServerId, state }, "Remote OAuth flow started");
 
     res.json({
       requiresAuth: true,
@@ -166,9 +255,9 @@ router.post("/start-sse/:mcpServerId", async (req, res) => {
       metadata: discovery.oauthMetadata,
     });
   } catch (err) {
-    logger.error({ err }, "Failed to start SSE OAuth flow");
+    logger.error({ err }, "Failed to start remote OAuth flow");
     res.status(500).json({
-      error: "Failed to start SSE OAuth flow",
+      error: "Failed to start remote OAuth flow",
       message: err instanceof Error ? err.message : String(err),
     });
   }
@@ -266,7 +355,7 @@ router.get("/callback", async (req, res) => {
     if (error) {
       logger.error({ error, error_description }, "OAuth authorization failed");
       return res.redirect(
-        `/oauth/callback?error=${encodeURIComponent(
+        `${env.OAUTH_CLIENT_URL}/oauth/callback?error=${encodeURIComponent(
           error as string
         )}&description=${encodeURIComponent(
           (error_description as string) || ""
@@ -288,12 +377,14 @@ router.get("/callback", async (req, res) => {
 
     logger.info({ state }, "OAuth callback handled successfully");
 
-    // Redirect to success page (frontend will handle popup messaging)
-    res.redirect("/oauth/callback?success=true");
+    // Redirect to success page on client (frontend will handle popup messaging)
+    res.redirect(`${env.OAUTH_CLIENT_URL}/oauth/callback?success=true`);
   } catch (err) {
     logger.error({ err }, "Failed to handle OAuth callback");
     res.redirect(
-      `/oauth/callback?error=callback_failed&description=${encodeURIComponent(
+      `${
+        env.OAUTH_CLIENT_URL
+      }/oauth/callback?error=callback_failed&description=${encodeURIComponent(
         err instanceof Error ? err.message : String(err)
       )}`
     );

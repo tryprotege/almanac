@@ -1,4 +1,4 @@
-import { Shield, CheckCircle, AlertCircle } from "lucide-react";
+import { Shield, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { DataSourceConfig, oauthApi, dataSourcesApi } from "../../lib/api";
 import { OAuthConnectButton } from "../OAuthConnectButton";
@@ -18,57 +18,61 @@ export function OAuthStep({
   isLoading,
 }: OAuthStepProps) {
   const [oauthStatus, setOauthStatus] = useState<
-    "pending" | "authorizing" | "success" | "error"
+    "pending" | "success" | "error"
   >("pending");
   const [serverId, setServerId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fetchingServerId, setFetchingServerId] = useState(true);
 
   // Fetch server ID when component mounts
   useEffect(() => {
     const fetchServerId = async () => {
+      setFetchingServerId(true);
       try {
         const response = await dataSourcesApi.get(serverConfig.name);
+        console.log("Fetched server data:", response.data);
+
         if (response.data.data?._id) {
           setServerId(response.data.data._id);
+          setFetchingServerId(false);
         } else {
-          setErrorMessage("Failed to get server ID");
+          setErrorMessage(
+            "Server created but no ID returned. Please try refreshing the page."
+          );
           setOauthStatus("error");
+          setFetchingServerId(false);
         }
       } catch (error) {
+        console.error("Failed to fetch server ID:", error);
         setErrorMessage(
-          error instanceof Error ? error.message : "Failed to fetch server"
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch server. The server may not have been created yet."
         );
         setOauthStatus("error");
+        setFetchingServerId(false);
       }
     };
 
     fetchServerId();
   }, [serverConfig.name]);
 
-  const handleOAuthSuccess = async (returnedServerId: string) => {
-    setServerId(returnedServerId);
+  const handleOAuthSuccess = () => {
+    // Trust the OAuthConnectButton - if it says success, it's success
+    setOauthStatus("success");
+    toast.success("OAuth authorization complete!");
 
-    // Verify OAuth status
-    try {
-      const response = await oauthApi.status(returnedServerId);
-      if (response.data.data?.connected) {
-        setOauthStatus("success");
-        toast.success("OAuth authorization complete!");
-
-        // Wait a moment, then proceed
-        setTimeout(() => {
-          onComplete(returnedServerId);
-        }, 1500);
-      } else {
-        setOauthStatus("error");
-        setErrorMessage("OAuth authorization failed - tokens not found");
+    // Auto-advance after a brief moment
+    setTimeout(() => {
+      if (serverId) {
+        onComplete(serverId);
       }
-    } catch (error) {
-      setOauthStatus("error");
-      setErrorMessage(
-        error instanceof Error ? error.message : "Failed to verify OAuth status"
-      );
-    }
+    }, 1500);
+  };
+
+  const handleOAuthError = (error: string) => {
+    setOauthStatus("error");
+    setErrorMessage(error);
   };
 
   return (
@@ -90,9 +94,6 @@ export function OAuthStep({
             {oauthStatus === "pending" && (
               <Shield className="w-6 h-6 text-brand-purple" />
             )}
-            {oauthStatus === "authorizing" && (
-              <Shield className="w-6 h-6 text-brand-warning animate-pulse" />
-            )}
             {oauthStatus === "success" && (
               <CheckCircle className="w-6 h-6 text-brand-success" />
             )}
@@ -113,25 +114,34 @@ export function OAuthStep({
                   access your data. You'll be redirected to complete the
                   authorization process.
                 </p>
-                {serverId && (
+                {serverId && !fetchingServerId && (
                   <OAuthConnectButton
                     mcpServerId={serverId}
                     mcpServerName={serverConfig.name}
                     serverType={serverConfig.type}
                     authConfig={serverConfig.oauth}
-                    onSuccess={() => handleOAuthSuccess(serverId)}
+                    onSuccess={handleOAuthSuccess}
+                    onError={handleOAuthError}
                   />
                 )}
-                {!serverId && (
-                  <p className="text-text-tertiary text-sm">
-                    Preparing authorization...
-                  </p>
+                {fetchingServerId && (
+                  <div className="flex items-center gap-2 text-text-tertiary text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Preparing authorization...</span>
+                  </div>
+                )}
+                {!serverId && !fetchingServerId && (
+                  <div className="text-error-text text-sm">
+                    <p className="mb-2">Failed to load server configuration.</p>
+                    <button
+                      onClick={onBack}
+                      className="btn btn-secondary btn-sm"
+                    >
+                      Go Back and Try Again
+                    </button>
+                  </div>
                 )}
               </div>
-            )}
-
-            {oauthStatus === "authorizing" && (
-              <p className="text-text-secondary">Completing authorization...</p>
             )}
 
             {oauthStatus === "success" && (
@@ -184,7 +194,7 @@ export function OAuthStep({
       <div className="flex items-center justify-between pt-4 border-t border-border-secondary">
         <button
           onClick={onBack}
-          disabled={isLoading || oauthStatus === "authorizing"}
+          disabled={isLoading || oauthStatus === "success"}
           className="btn btn-secondary"
         >
           Back
@@ -196,7 +206,8 @@ export function OAuthStep({
             mcpServerName={serverConfig.name}
             serverType={serverConfig.type}
             authConfig={serverConfig.oauth}
-            onSuccess={() => handleOAuthSuccess(serverId)}
+            onSuccess={handleOAuthSuccess}
+            onError={handleOAuthError}
           />
         )}
       </div>

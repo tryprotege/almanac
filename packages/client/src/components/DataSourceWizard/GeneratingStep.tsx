@@ -140,7 +140,7 @@ export function GeneratingStep({
                 AI-Powered Generation
               </h4>
               <p className="text-sm text-text-secondary">
-                This process typically takes 10-30 seconds depending on the
+                This process typically takes up to 5 minutes depending on the
                 number of tools your MCP server provides.
               </p>
             </div>

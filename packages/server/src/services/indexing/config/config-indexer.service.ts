@@ -132,7 +132,8 @@ export async function* indexAll(
           if (recordType.entities && recordType.entities.length > 0) {
             transformed.extractedEntities = extractEntities(
               rawRecord,
-              recordType.entities
+              recordType.entities,
+              serverName
             );
           }
 
@@ -141,7 +142,8 @@ export async function* indexAll(
               rawRecord,
               transformed._id,
               recordType.name,
-              recordType.relationships
+              recordType.relationships,
+              serverName
             );
           }
 
@@ -273,7 +275,8 @@ export async function* runIncrementalSync(
           if (recordType.entities && recordType.entities.length > 0) {
             transformed.extractedEntities = extractEntities(
               rawRecord,
-              recordType.entities
+              recordType.entities,
+              serverName
             );
           }
 
@@ -282,7 +285,8 @@ export async function* runIncrementalSync(
               rawRecord,
               transformed._id,
               recordType.name,
-              recordType.relationships
+              recordType.relationships,
+              serverName
             );
           }
 

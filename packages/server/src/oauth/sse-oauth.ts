@@ -22,6 +22,7 @@ export interface SseOAuthDiscoveryResult {
   oauthMetadata?: {
     authorizationEndpoint: string;
     tokenEndpoint: string;
+    registrationEndpoint?: string;
     scopesSupported?: string[];
   };
   error?: string;
@@ -138,6 +139,7 @@ export async function discoverSseOAuth(
 async function fetchSseOAuthMetadata(sseUrl: string): Promise<{
   authorizationEndpoint: string;
   tokenEndpoint: string;
+  registrationEndpoint?: string;
   scopesSupported?: string[];
 } | null> {
   try {
@@ -166,10 +168,23 @@ async function fetchSseOAuthMetadata(sseUrl: string): Promise<{
     logger.info({ sseUrl, wwwAuth }, "WWW-Authenticate header received");
 
     // Parse WWW-Authenticate header to extract metadata URL
-    const metadataUrl = parseWwwAuthenticate(wwwAuth);
+    let metadataUrl = parseWwwAuthenticate(wwwAuth);
+
+    // If no metadata URL in header, try standard well-known endpoints
     if (!metadataUrl) {
-      logger.warn({ sseUrl, wwwAuth }, "Could not parse OAuth metadata URL");
-      return null;
+      logger.info(
+        { sseUrl },
+        "No metadata URL in WWW-Authenticate, trying standard discovery endpoints"
+      );
+      metadataUrl = await tryStandardDiscovery(sseUrl);
+
+      if (!metadataUrl) {
+        logger.warn(
+          { sseUrl, wwwAuth },
+          "Could not discover OAuth metadata via any method"
+        );
+        return null;
+      }
     }
 
     // Check if this is a resource_metadata URL (RFC 8707)
@@ -248,6 +263,10 @@ async function fetchSseOAuthMetadata(sseUrl: string): Promise<{
       return {
         authorizationEndpoint: authServerMetadata.authorization_endpoint,
         tokenEndpoint: authServerMetadata.token_endpoint,
+        registrationEndpoint:
+          typeof authServerMetadata.registration_endpoint === "string"
+            ? authServerMetadata.registration_endpoint
+            : undefined,
         scopesSupported: Array.isArray(resourceMetadata.scopes_supported)
           ? (resourceMetadata.scopes_supported as string[])
           : undefined,
@@ -289,6 +308,10 @@ async function fetchSseOAuthMetadata(sseUrl: string): Promise<{
       return {
         authorizationEndpoint: metadata.authorization_endpoint,
         tokenEndpoint: metadata.token_endpoint,
+        registrationEndpoint:
+          typeof metadata.registration_endpoint === "string"
+            ? metadata.registration_endpoint
+            : undefined,
         scopesSupported: Array.isArray(metadata.scopes_supported)
           ? (metadata.scopes_supported as string[])
           : undefined,
@@ -296,6 +319,77 @@ async function fetchSseOAuthMetadata(sseUrl: string): Promise<{
     }
   } catch (err) {
     logger.error({ err, sseUrl }, "Error fetching OAuth metadata");
+    return null;
+  }
+}
+
+/**
+ * Try standard OAuth discovery endpoints
+ * Attempts RFC 8414 and OIDC discovery on the base URL
+ */
+async function tryStandardDiscovery(
+  endpointUrl: string
+): Promise<string | null> {
+  try {
+    // Extract base URL (remove path, keep protocol and domain)
+    const url = new URL(endpointUrl);
+    const baseUrl = `${url.protocol}//${url.host}`;
+
+    logger.info({ endpointUrl, baseUrl }, "Trying standard OAuth discovery");
+
+    // Try RFC 8414: OAuth 2.0 Authorization Server Metadata
+    const rfc8414Url = `${baseUrl}/.well-known/oauth-authorization-server`;
+    logger.info({ rfc8414Url }, "Trying RFC 8414 discovery");
+
+    try {
+      const response = await fetch(rfc8414Url, {
+        headers: { Accept: "application/json" },
+      });
+
+      if (response.ok) {
+        const metadata = (await response.json()) as Record<string, unknown>;
+        if (metadata.authorization_endpoint && metadata.token_endpoint) {
+          logger.info(
+            { rfc8414Url, metadata },
+            "Successfully discovered OAuth metadata via RFC 8414"
+          );
+          return rfc8414Url;
+        }
+      }
+    } catch (err) {
+      logger.debug({ err, rfc8414Url }, "RFC 8414 discovery failed");
+    }
+
+    // Try OIDC: OpenID Connect Discovery
+    const oidcUrl = `${baseUrl}/.well-known/openid-configuration`;
+    logger.info({ oidcUrl }, "Trying OIDC discovery");
+
+    try {
+      const response = await fetch(oidcUrl, {
+        headers: { Accept: "application/json" },
+      });
+
+      if (response.ok) {
+        const metadata = (await response.json()) as Record<string, unknown>;
+        if (metadata.authorization_endpoint && metadata.token_endpoint) {
+          logger.info(
+            { oidcUrl, metadata },
+            "Successfully discovered OAuth metadata via OIDC"
+          );
+          return oidcUrl;
+        }
+      }
+    } catch (err) {
+      logger.debug({ err, oidcUrl }, "OIDC discovery failed");
+    }
+
+    logger.warn(
+      { endpointUrl, baseUrl },
+      "All standard discovery methods failed"
+    );
+    return null;
+  } catch (err) {
+    logger.error({ err, endpointUrl }, "Error during standard discovery");
     return null;
   }
 }

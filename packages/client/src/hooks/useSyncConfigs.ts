@@ -4,7 +4,7 @@ import { syncConfigApi } from "../lib/api";
 // Hook to list all sync configs
 export function useSyncConfigs() {
   return useQuery({
-    queryKey: ["sync-configs"],
+    queryKey: ["indexing-configs"],
     queryFn: async () => {
       const response = await syncConfigApi.list();
       return response.data.data?.configs || [];
@@ -15,7 +15,7 @@ export function useSyncConfigs() {
 // Hook to get a single sync config
 export function useSyncConfig(serverName: string | null) {
   return useQuery({
-    queryKey: ["sync-config", serverName],
+    queryKey: ["indexing-config", serverName],
     queryFn: async () => {
       if (!serverName) return null;
       try {
@@ -62,7 +62,7 @@ export function useSaveSyncConfig() {
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sync-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["indexing-configs"] });
     },
   });
 }
@@ -90,7 +90,7 @@ export function useDeleteSyncConfig() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sync-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["indexing-configs"] });
     },
   });
 }

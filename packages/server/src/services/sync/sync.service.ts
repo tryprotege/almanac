@@ -1,6 +1,6 @@
 import { loadProxyConfig } from "../../mcp/config-loader.js";
 import type { DataSource } from "../../models/data-source.model.js";
-import { SyncConfigModel } from "../../models/sync-config.model.js";
+import { IndexingConfigModel } from "../../models/indexing-config.model.js";
 import { RecordStore } from "../../stores/record.store.js";
 import logger from "../../utils/logger.js";
 import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
@@ -27,7 +27,7 @@ export const syncMcpServer = async (
   const recordStore = new RecordStore();
 
   // Step 1: Check if there's a SyncConfig for this source
-  const syncConfig = await SyncConfigModel.findOne({
+  const syncConfig = await IndexingConfigModel.findOne({
     serverName: dataSource.name,
     status: "active",
   });

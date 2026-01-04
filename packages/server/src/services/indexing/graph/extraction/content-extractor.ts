@@ -8,6 +8,7 @@ import { normalizeEntityName } from "../schema/entity-deduplication.js";
 import { chat } from "../../../llm/llm.js";
 import logger from "../../../../utils/logger.js";
 import sleep from "../../../../utils/sleep.js";
+import { env } from "../../../../env.js";
 import {
   buildCombinedExtractionPrompt,
   buildSingleEntityExtractionPrompt,
@@ -62,6 +63,7 @@ async function extractBothFromContent(
           { role: "user", content: prompt },
         ],
         {
+          model: env.LLM_EXTRACTION_MODEL,
           temperature: 0,
           maxTokens: 10000,
           frequencyPenalty: 0.1,
@@ -252,6 +254,7 @@ async function extractMissingEntity(
         { role: "user", content: prompt },
       ],
       {
+        model: env.LLM_EXTRACTION_MODEL,
         temperature: 0,
         maxTokens: 1000,
         frequencyPenalty: 0.2,

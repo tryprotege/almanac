@@ -1,5 +1,5 @@
 import { loadProxyConfig } from "../../mcp/config-loader.js";
-import { MCPServerConfig } from "../../models/mcp-config.model.js";
+import type { DataSource } from "../../models/data-source.model.js";
 import { SyncConfigModel } from "../../models/sync-config.model.js";
 import { RecordStore } from "../../stores/record.store.js";
 import logger from "../../utils/logger.js";
@@ -21,21 +21,21 @@ import { connectQdrant } from "../../connections/qdrant.js";
 import { createHash } from "crypto";
 
 export const syncMcpServer = async (
-  mcpConfig: MCPServerConfig,
+  dataSource: DataSource & { _id: any },
   options?: { limit?: number }
 ) => {
   const recordStore = new RecordStore();
 
   // Step 1: Check if there's a SyncConfig for this source
   const syncConfig = await SyncConfigModel.findOne({
-    serverName: mcpConfig.name,
+    serverName: dataSource.name,
     status: "active",
   });
 
   if (syncConfig) {
     // Use config-based sync (works for Linear, custom sources, etc.)
     logger.info(
-      { serverName: mcpConfig.name },
+      { serverName: dataSource.name },
       "Using config-based sync with SyncConfig"
     );
 
@@ -46,7 +46,7 @@ export const syncMcpServer = async (
     let recordsProcessed = 0;
 
     // Run config-based sync
-    const syncGenerator = indexAll(syncConfig.config, mcpConfig.name);
+    const syncGenerator = indexAll(syncConfig.config, dataSource.name);
 
     for await (const { records } of syncGenerator) {
       // 1. Save to MongoDB
@@ -110,12 +110,12 @@ export const syncMcpServer = async (
 
       recordsProcessed += records.length;
       logger.info(
-        `Processed ${recordsProcessed} records from ${mcpConfig.name}`
+        `Processed ${recordsProcessed} records from ${dataSource.name}`
       );
     }
 
     logger.info({
-      msg: `✅ Config-based sync completed for ${mcpConfig.name}`,
+      msg: `✅ Config-based sync completed for ${dataSource.name}`,
       recordsProcessed,
     });
     return;
@@ -123,24 +123,24 @@ export const syncMcpServer = async (
 
   // Step 2: Fall back to legacy adapter-based sync
   logger.info(
-    { serverName: mcpConfig.name },
+    { serverName: dataSource.name },
     "Using legacy adapter-based sync"
   );
 
   let adapter: BaseRecordAdapter;
 
   // Create adapter based on source type
-  if (mcpConfig.name === "notion") {
+  if (dataSource.name === "notion") {
     const notionClient = new NotionMCPClient();
     adapter = new NotionAdapter(notionClient);
-  } else if (mcpConfig.name === "github") {
+  } else if (dataSource.name === "github") {
     const githubClient = new GitHubMCPClient();
     adapter = new GitHubAdapter(githubClient, {
       includeArchived: false,
       includeForks: true,
       includePrivate: true,
     });
-  } else if (mcpConfig.name === "fathom") {
+  } else if (dataSource.name === "fathom") {
     const fathomClient = new FathomMCPClient();
     adapter = new FathomAdapter(fathomClient, {
       includeActionItems: true,
@@ -150,19 +150,19 @@ export const syncMcpServer = async (
       includeTeams: true,
       includeTranscripts: true,
     });
-  } else if (mcpConfig.name === "slack") {
+  } else if (dataSource.name === "slack") {
     const slackClient = new SlackMCPClient();
     adapter = new SlackAdapter(slackClient);
   } else {
     throw new Error(
-      `No SyncConfig found and no legacy adapter available for: ${mcpConfig.name}. Please generate a SyncConfig first.`
+      `No SyncConfig found and no legacy adapter available for: ${dataSource.name}. Please generate a SyncConfig first.`
     );
   }
 
   // Sync records for this source
-  await syncAllRecords(recordStore, mcpConfig.name, adapter, options);
+  await syncAllRecords(recordStore, dataSource.name, adapter, options);
 
-  logger.info({ msg: `✅ Saved ${mcpConfig.name} records into document DB` });
+  logger.info({ msg: `✅ Saved ${dataSource.name} records into document DB` });
 };
 
 /**

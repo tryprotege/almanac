@@ -23,10 +23,10 @@ try {
  */
 const OAuthTokenSchema = new mongoose.Schema(
   {
-    // Reference to MCP server config
+    // Reference to Data Source (MCP server config)
     mcpServerConfigId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "MCPServerConfig",
+      ref: "DataSource",
       required: true,
       index: true,
     },

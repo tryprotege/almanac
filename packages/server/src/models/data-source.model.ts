@@ -339,10 +339,82 @@ DataSourceSchema.post("findOneAndUpdate", function (doc: any) {
   }
 });
 
-export type DataSource = InferSchemaType<typeof DataSourceSchema>;
+// Instance methods
+DataSourceSchema.methods.getEnv = function (): Record<string, string> | null {
+  if (!this.env) return null;
+  return Object.fromEntries(this.env);
+};
+
+DataSourceSchema.methods.getHeaders = function (): Record<
+  string,
+  string
+> | null {
+  if (!this.headers) return null;
+  return Object.fromEntries(this.headers);
+};
+
+DataSourceSchema.methods.validateMCPConfig = function (): string | null {
+  if (!this.name) {
+    return "Server name is required";
+  }
+
+  if (!this.type || !["stdio", "sse", "streamable-http"].includes(this.type)) {
+    return "Server type must be 'stdio' or 'sse' or 'streamable-http'";
+  }
+
+  if (this.type === "stdio" && !this.command) {
+    return "stdio server requires 'command' field";
+  }
+
+  if (["sse", "streamable-http"].includes(this.type) && !this.url) {
+    return `${this.type} server requires 'url' field`;
+  }
+
+  return null;
+};
+
+// Virtual property for _id as string
+DataSourceSchema.virtual("idString").get(function () {
+  return this._id?.toString();
+});
+
+// Static methods
+DataSourceSchema.statics.loadMCPServers = async function () {
+  const dataSources = await this.find({
+    isDisabled: false,
+  });
+
+  const validDataSources = dataSources.filter((dataSource: any) => {
+    const error = dataSource.validateMCPConfig();
+    if (error) {
+      logger.error(
+        { configName: dataSource.name, error },
+        `Invalid config for ${dataSource.name}: ${error}`
+      );
+      return false;
+    }
+    return true;
+  });
+
+  return validDataSources;
+};
+
+export type DataSource = InferSchemaType<typeof DataSourceSchema> & {
+  _id: mongoose.Types.ObjectId;
+  getEnv(): Record<string, string> | null;
+  getHeaders(): Record<string, string> | null;
+  validateMCPConfig(): string | null;
+  idString: string;
+};
+
+export interface DataSourceModel extends mongoose.Model<DataSource> {
+  loadMCPServers(): Promise<
+    (mongoose.Document<unknown, {}, DataSource> & DataSource)[]
+  >;
+}
 
 // Export the model
-export const DataSourceModel = mongoose.model<DataSource>(
+export const DataSourceModel = mongoose.model<DataSource, DataSourceModel>(
   "DataSource",
   DataSourceSchema
 );

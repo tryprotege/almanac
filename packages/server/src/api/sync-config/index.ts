@@ -261,33 +261,7 @@ router.post("/sync", async (req, res) => {
       }
 
       try {
-        // Convert MongoDB document to MCPServerConfig with proper types
-        const serverConfig = {
-          _id: dataSource._id?.toString(),
-          name: dataSource.name,
-          type: dataSource.type,
-          command: dataSource.command || undefined,
-          args: dataSource.args || undefined,
-          env: dataSource.env ? Object.fromEntries(dataSource.env) : undefined,
-          url: dataSource.url || undefined,
-          headers: dataSource.headers
-            ? Object.fromEntries(dataSource.headers)
-            : undefined,
-          authType: dataSource.authType,
-          oauth: dataSource.oauth
-            ? {
-                authorizationUrl:
-                  dataSource.oauth.authorizationUrl || undefined,
-                tokenUrl: dataSource.oauth.tokenUrl || undefined,
-                clientId: dataSource.oauth.clientId || undefined,
-                scopes: dataSource.oauth.scopes,
-                clientMetadataUrl: dataSource.oauth.metadataUrl || undefined,
-              }
-            : undefined,
-          isDisabled: dataSource.isDisabled,
-        };
-
-        await mcpClientManager.connect(serverConfig);
+        await mcpClientManager.connect(dataSource);
         logger.info({ serverName }, "MCP server connected successfully");
       } catch (connectError) {
         logger.error(

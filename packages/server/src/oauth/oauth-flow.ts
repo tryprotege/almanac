@@ -1,5 +1,4 @@
 import { OAuthTokenModel } from "../models/oauth-token.model.js";
-import { MCPServerConfigModel } from "../models/mcp-config.model.js";
 import { DataSourceModel } from "../models/data-source.model.js";
 import { generatePKCE, generateState } from "./pkce.js";
 import logger from "../utils/logger.js";
@@ -49,11 +48,8 @@ export class OAuthFlowManager {
   }> {
     logger.info({ mcpServerId }, "Starting OAuth flow");
 
-    // Validate server exists (try DataSource first, then MCPServerConfig)
-    let serverExists = await DataSourceModel.findById(mcpServerId);
-    if (!serverExists) {
-      serverExists = await MCPServerConfigModel.findById(mcpServerId);
-    }
+    // Validate server exists
+    const serverExists = await DataSourceModel.findById(mcpServerId);
     if (!serverExists) {
       throw new Error(`MCP server not found: ${mcpServerId}`);
     }
@@ -120,37 +116,20 @@ export class OAuthFlowManager {
       throw new Error("Invalid OAuth state - token record not found");
     }
 
-    // Get OAuth config - try DataSource first, then MCPServerConfig for backward compatibility
-    let oauthConfig: any;
-
+    // Get OAuth config from DataSource
     const dataSource = await DataSourceModel.findById(
       tokenRecord.mcpServerConfigId
     );
 
-    if (dataSource && dataSource.oauth) {
-      oauthConfig = dataSource.oauth;
-      logger.debug(
-        { mcpServerConfigId: tokenRecord.mcpServerConfigId },
-        "Found OAuth config in DataSourceModel"
-      );
-    } else {
-      const mcpConfig = await MCPServerConfigModel.findById(
-        tokenRecord.mcpServerConfigId
-      );
-      if (mcpConfig && mcpConfig.oauth) {
-        oauthConfig = mcpConfig.oauth;
-        logger.debug(
-          { mcpServerConfigId: tokenRecord.mcpServerConfigId },
-          "Found OAuth config in MCPServerConfigModel"
-        );
-      }
+    if (!dataSource || !dataSource.oauth) {
+      throw new Error("OAuth config not found in DataSource");
     }
 
-    if (!oauthConfig) {
-      throw new Error(
-        "OAuth config not found in either DataSource or MCPServerConfig"
-      );
-    }
+    const oauthConfig = dataSource.oauth;
+    logger.debug(
+      { mcpServerConfigId: tokenRecord.mcpServerConfigId },
+      "Found OAuth config in DataSourceModel"
+    );
 
     // Prepare token exchange request
     const tokenRequestBody = new URLSearchParams({
@@ -260,33 +239,18 @@ export class OAuthFlowManager {
       throw new Error("No refresh token available");
     }
 
-    // Get OAuth config - try DataSource first, then MCPServerConfig for backward compatibility
-    let oauthConfig: any;
-
+    // Get OAuth config from DataSource
     const dataSource = await DataSourceModel.findById(mcpServerId);
 
-    if (dataSource && dataSource.oauth) {
-      oauthConfig = dataSource.oauth;
-      logger.debug(
-        { mcpServerId },
-        "Found OAuth config in DataSourceModel for refresh"
-      );
-    } else {
-      const mcpConfig = await MCPServerConfigModel.findById(mcpServerId);
-      if (mcpConfig && mcpConfig.oauth) {
-        oauthConfig = mcpConfig.oauth;
-        logger.debug(
-          { mcpServerId },
-          "Found OAuth config in MCPServerConfigModel for refresh"
-        );
-      }
+    if (!dataSource || !dataSource.oauth) {
+      throw new Error("OAuth config not found in DataSource");
     }
 
-    if (!oauthConfig) {
-      throw new Error(
-        "OAuth config not found in either DataSource or MCPServerConfig"
-      );
-    }
+    const oauthConfig = dataSource.oauth;
+    logger.debug(
+      { mcpServerId },
+      "Found OAuth config in DataSourceModel for refresh"
+    );
 
     // Prepare token refresh request
     const tokenRequestBody = new URLSearchParams({

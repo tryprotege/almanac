@@ -5,8 +5,7 @@ import express, { NextFunction, Request, Response } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import { router } from "./api/index.js";
-import { mcpClientManager, MCPServerConfig } from "./mcp/client.js";
-import { validateConfig } from "./mcp/config-loader.js";
+import { mcpClientManager } from "./mcp/client.js";
 import {
   initializeServices,
   mcpServer,
@@ -15,57 +14,6 @@ import {
 import { DataSourceModel } from "./models/data-source.model.js";
 import { syncMcpServerQueue } from "./services/queue/sync.queue.js";
 import logger from "./utils/logger.js";
-
-/**
- * Convert MongoDB document to MCPServerConfig
- * Handles Map to Record conversion and ensures all required fields
- */
-function toMCPServerConfig(doc: any): MCPServerConfig {
-  const json = doc.toJSON();
-
-  // Helper to safely convert Map to object, or pass through if already an object
-  const convertMapOrObject = (
-    value: any
-  ): Record<string, string> | undefined => {
-    if (!value) return undefined;
-
-    // If it's a Map, convert it
-    if (value instanceof Map) {
-      return Object.fromEntries(value);
-    }
-
-    // If it's already a plain object, return it
-    if (typeof value === "object" && !Array.isArray(value)) {
-      return value;
-    }
-
-    // Log unexpected type
-    logger.warn(
-      {
-        valueType: typeof value,
-        isMap: value instanceof Map,
-        isArray: Array.isArray(value),
-      },
-      "Unexpected type in convertMapOrObject"
-    );
-
-    return undefined;
-  };
-
-  return {
-    _id: doc._id?.toString(),
-    name: json.name,
-    type: json.type,
-    command: json.command,
-    args: json.args || undefined,
-    env: convertMapOrObject(json.env),
-    url: json.url,
-    headers: convertMapOrObject(json.headers),
-    authType: json.authType || "none",
-    oauth: json.oauth,
-    isDisabled: json.isDisabled || false,
-  };
-}
 
 // Start server
 const runServer = async () => {
@@ -126,14 +74,7 @@ const runServer = async () => {
   // POST /api/data-sources - Create a new data source config (with upsert support)
   app.post("/api/data-sources", async (req: Request, res: Response) => {
     try {
-      const configData: MCPServerConfig = req.body;
-
-      // Validate the config
-      const validationError = validateConfig(configData);
-      if (validationError) {
-        res.status(400).json({ success: false, error: validationError });
-        return;
-      }
+      const configData = req.body;
 
       // Auto-detect authType if OAuth config is present
       if (!configData.authType && configData.oauth) {
@@ -178,18 +119,18 @@ const runServer = async () => {
 
       // Optionally connect to the server immediately
       // Skip for OAuth servers - they need OAuth flow first
-      if (configData.name && configData.authType !== "oauth") {
+      if (config!.name && config!.authType !== "oauth") {
         try {
-          await mcpClientManager.connect(toMCPServerConfig(config!));
+          await mcpClientManager.connect(config!);
         } catch (connectError) {
           logger.error(
-            { err: connectError, serverName: configData.name },
-            `Failed to auto-connect to ${configData.name}`
+            { err: connectError, serverName: config!.name },
+            `Failed to auto-connect to ${config!.name}`
           );
         }
-      } else if (configData.authType === "oauth") {
+      } else if (config!.authType === "oauth") {
         logger.info(
-          { serverName: configData.name },
+          { serverName: config!.name },
           "Skipping auto-connect for OAuth server - OAuth flow required first"
         );
       }
@@ -241,20 +182,10 @@ const runServer = async () => {
   app.put("/api/data-sources/:name", async (req: Request, res: Response) => {
     try {
       const name = decodeURIComponent(req.params.name);
-      const updateData: Partial<MCPServerConfig> = req.body;
+      const updateData = req.body;
 
       // Don't allow changing the name
       delete (updateData as any).name;
-
-      // Validate if type is being changed
-      if (updateData.type) {
-        const tempConfig = { ...updateData, name } as MCPServerConfig;
-        const validationError = validateConfig(tempConfig);
-        if (validationError) {
-          res.status(400).json({ success: false, error: validationError });
-          return;
-        }
-      }
 
       const config = await DataSourceModel.findOneAndUpdate(
         { name },
@@ -274,7 +205,7 @@ const runServer = async () => {
       if (mcpClientManager.isConnected(name)) {
         try {
           await mcpClientManager.disconnect(name);
-          await mcpClientManager.connect(toMCPServerConfig(config));
+          await mcpClientManager.connect(config);
           logger.info(
             { serverName: name },
             `Reconnected to updated MCP server: ${name}`
@@ -381,7 +312,7 @@ const runServer = async () => {
           }
         }
 
-        await mcpClientManager.connect(toMCPServerConfig(config));
+        await mcpClientManager.connect(config);
 
         res.json({ success: true, message: `Connected to ${name}` });
       } catch (err) {
@@ -495,7 +426,7 @@ const runServer = async () => {
         );
 
         try {
-          await mcpClientManager.connect(toMCPServerConfig(config));
+          await mcpClientManager.connect(config);
           logger.info(
             { serverName: config.name },
             "MCP server connected successfully"
@@ -519,7 +450,7 @@ const runServer = async () => {
 
       // Queue sync job
       const job = await syncMcpServerQueue.add(config._id.toString(), {
-        mcpConfig: toMCPServerConfig(config) as any, // use toJSON instead of toObject as `Map` won't be preserved when passing to redis
+        mcpConfig: config as any,
       });
 
       // Return jobId for progress tracking

@@ -422,8 +422,8 @@ export const modelConfigApi = {
 export interface ToolClassification {
   toolName: string;
   category: "read" | "search" | "write";
-  confidence: number;
-  reasoning: string;
+  confidence?: number;
+  reasoning?: string;
 }
 
 export interface SyncConfigData {
@@ -447,6 +447,7 @@ export interface SyncConfigSummary {
   id: string;
   serverName: string;
   displayName: string;
+  icon?: string;
   status: "draft" | "active" | "disabled";
   updatedAt: string;
   fetcherCount: number;
@@ -462,6 +463,7 @@ export interface GeneratedSyncConfigResult {
   };
   samples: Record<string, any>;
   toolsUsed: string[];
+  toolClassifications?: Record<string, ToolClassification>;
 }
 
 export interface PreviewResult {
@@ -523,4 +525,13 @@ export const syncConfigApi = {
     api.delete<ApiResponse<{ success: boolean }>>(
       `/indexing-config/${encodeURIComponent(serverName)}`
     ),
+
+  resetSync: (serverName: string) =>
+    api.post<
+      ApiResponse<{
+        success: boolean;
+        serverName: string;
+        stateCleared: boolean;
+      }>
+    >("/indexing-config/reset-sync", { serverName }),
 };

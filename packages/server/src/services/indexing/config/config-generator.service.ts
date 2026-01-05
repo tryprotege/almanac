@@ -1,6 +1,6 @@
 import type {
   IndexingConfig,
-  GeneratedConfigResult,
+  GeneratedSyncConfigResult,
   ValidationResult,
 } from "@ebee-oss/indexing-engine";
 import { mcpClientManager } from "../../../mcp/client.js";
@@ -18,6 +18,10 @@ import {
   formatErrorsForLLM,
   type TestRunResult,
 } from "./config-validator.service.js";
+import {
+  validateConfigPost,
+  type PostValidationIssue,
+} from "./config-post-validator.service.js";
 
 export interface ConfigGeneratorOptions {
   serverName: string;
@@ -40,7 +44,7 @@ export interface IterationResult {
 /**
  * Result of iterative config generation
  */
-export interface IterativeGenerationResult extends GeneratedConfigResult {
+export interface IterativeGenerationResult extends GeneratedSyncConfigResult {
   iterations: IterationResult[];
   totalAttempts: number;
   finalTestResult?: TestRunResult;
@@ -159,7 +163,7 @@ export async function generateConfigIterative(
  */
 export async function generateConfig(
   options: ConfigGeneratorOptions
-): Promise<GeneratedConfigResult> {
+): Promise<GeneratedSyncConfigResult> {
   const { serverName, displayName, sampleLimit = 3 } = options;
 
   logger.info(`Generating config for MCP server: ${serverName}`);
@@ -214,8 +218,38 @@ export async function generateConfig(
   // Step 7: Attach tool classifications to config
   config.toolClassifications = classificationResult.classifications;
 
-  // Step 8: Validate generated config
+  // Step 8: Run post-generation validation (NEW - Phase 1)
+  const postValidation = await validateConfigPost(config, samples);
+
+  if (!postValidation.valid) {
+    logger.warn(
+      { issues: postValidation.issues },
+      "Post-generation validation found issues"
+    );
+  }
+
+  // Step 9: Validate generated config
   const validation = validateConfig(config);
+
+  // Merge post-validation issues into validation result
+  if (postValidation.issues.length > 0) {
+    for (const issue of postValidation.issues) {
+      if (issue.severity === "error") {
+        validation.errors.push({
+          path: issue.path,
+          message: issue.message,
+          code: "POST_VALIDATION_ERROR",
+        });
+      } else {
+        validation.warnings.push({
+          path: issue.path,
+          message: issue.message,
+          suggestion: issue.suggestion,
+        });
+      }
+    }
+    validation.valid = validation.errors.length === 0;
+  }
 
   // Log the full prompt for debugging
   logger.debug({ prompt }, "Full prompt sent to LLM for config generation");

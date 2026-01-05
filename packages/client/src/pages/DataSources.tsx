@@ -192,6 +192,7 @@ export default function DataSources() {
               <MCPServerCard
                 key={source.id}
                 server={source.server}
+                syncConfig={source.config}
                 onEdit={handleEdit}
               />
             ))}

@@ -84,7 +84,13 @@ export async function* fetchWithForEach(
       let lastError: Error | null = null;
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          const result = await fetchPage(serverName, config.tool, params);
+          // Create a minimal config for the tool call (without arrayPath since forEach doesn't need it)
+          const callConfig: FetcherConfig = {
+            tool: config.tool,
+            resultPath: config.resultPath,
+            params,
+          };
+          const result = await fetchPage(serverName, callConfig, params);
           return result.records;
         } catch (err) {
           lastError = err as Error;
@@ -208,7 +214,13 @@ async function* fetchWithBatchMode(
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const result = await fetchPage(serverName, config.tool, params);
+        // Create a minimal config for the tool call (without arrayPath since forEach doesn't need it)
+        const callConfig: FetcherConfig = {
+          tool: config.tool,
+          resultPath: config.resultPath,
+          params,
+        };
+        const result = await fetchPage(serverName, callConfig, params);
         allResults.push(...result.records);
         break; // Success
       } catch (err) {
@@ -266,7 +278,7 @@ export async function* fetchAll(
     }
 
     // Fetch page
-    const result = await fetchPage(serverName, config.tool, params);
+    const result = await fetchPage(serverName, config, params);
 
     // Always yield result (even if 0 records) so we can access raw response
     yield result;
@@ -385,17 +397,31 @@ function extractRecordsFromMCPResponse(response: any): {
  */
 async function fetchPage(
   serverName: string,
-  toolName: string,
+  config: FetcherConfig,
   params: Record<string, any>
 ): Promise<PageResult> {
+  console.log(
+    `[fetchPage] Calling tool: ${config.tool}, params:`,
+    JSON.stringify(params, null, 2)
+  );
+
   const response = await mcpClientManager.callTool(
     serverName,
-    toolName,
+    config.tool,
     params
+  );
+
+  console.log(
+    `[fetchPage] Raw MCP response structure:`,
+    JSON.stringify(response, null, 2).substring(0, 500)
   );
 
   // Extract records from MCP response format
   const parseResult = extractRecordsFromMCPResponse(response);
+
+  console.log(
+    `[fetchPage] Extracted ${parseResult.records.length} records before arrayPath`
+  );
 
   // Check if MCP returned an error
   if (parseResult.error) {
@@ -404,7 +430,7 @@ async function fetchPage(
       nextCursor: undefined,
       hasMore: false,
       mcpError: parseResult.error,
-      rawResponse: response, // Include raw response for debugging
+      rawResponse: response,
     };
   }
 
@@ -422,11 +448,70 @@ async function fetchPage(
     };
   }
 
+  let finalRecords = parseResult.records;
+
+  // Apply arrayPath if configured to extract nested records
+  if (config.arrayPath) {
+    console.log(
+      `[fetchPage] Applying arrayPath: ${config.arrayPath} to extract nested records`
+    );
+    console.log(
+      `[fetchPage] Records before arrayPath:`,
+      JSON.stringify(finalRecords, null, 2).substring(0, 300)
+    );
+
+    try {
+      // If we have a single wrapper object in an array, apply arrayPath to that object
+      // This handles cases like [{items: [...], next_cursor: "..."}] from extractRecordsFromMCPResponse
+      let target = finalRecords;
+      if (
+        finalRecords.length === 1 &&
+        typeof finalRecords[0] === "object" &&
+        finalRecords[0] !== null &&
+        !Array.isArray(finalRecords[0])
+      ) {
+        console.log(
+          `[fetchPage] Detected single wrapper object, applying arrayPath to object directly`
+        );
+        target = finalRecords[0];
+      }
+
+      const extractedRecords = JSONPath({
+        path: config.arrayPath,
+        json: target,
+      });
+
+      if (Array.isArray(extractedRecords)) {
+        finalRecords = extractedRecords;
+        if (extractedRecords.length > 0) {
+          console.log(
+            `[fetchPage] Successfully extracted ${finalRecords.length} records using arrayPath`
+          );
+          console.log(
+            `[fetchPage] First record after arrayPath:`,
+            JSON.stringify(finalRecords[0], null, 2).substring(0, 300)
+          );
+        } else {
+          console.log(
+            `[fetchPage] arrayPath "${config.arrayPath}" extracted 0 records (empty array)`
+          );
+        }
+      } else {
+        console.warn(
+          `[fetchPage] arrayPath "${config.arrayPath}" returned non-array:`,
+          extractedRecords
+        );
+      }
+    } catch (err) {
+      console.error(`[fetchPage] Error applying arrayPath:`, err);
+    }
+  }
+
   return {
-    records: parseResult.records,
+    records: finalRecords,
     nextCursor: response.next_cursor || response.nextCursor,
     hasMore: response.has_more ?? response.hasMore ?? false,
-    rawResponse: response, // Include raw response for debugging
+    rawResponse: response,
   };
 }
 

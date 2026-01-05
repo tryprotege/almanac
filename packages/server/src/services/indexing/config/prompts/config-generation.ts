@@ -371,6 +371,80 @@ This makes **1 call** with {teams: ["Team1", "Team2", ...]} instead of N individ
 - Very small datasets (< 10 items) where individual calls are fine
 - Tool documentation indicates batch limits that are too small
 
+## Post-Fetch Grouping (For Messaging & Threaded Content)
+
+For messaging platforms (Slack, WhatsApp, Discord) or any content with thread-like structures, use the grouping configuration to automatically group related records and create parent records.
+
+### When to Use Grouping
+
+Use grouping when:
+- ✅ Platform has threaded messages (Slack threads, email threads, forum threads)
+- ✅ Chat messages should be grouped into conversations
+- ✅ Records have natural parent-child relationships that need explicit modeling
+- ✅ You want to create aggregate records representing groups
+
+Do NOT use grouping when:
+- ❌ Records are already independent entities (tasks, issues, documents)
+- ❌ Parent-child relationships already explicit via parentId field
+- ❌ No meaningful grouping exists
+
+### Grouping Strategies
+
+**1. Thread Strategy**: For platforms with explicit thread IDs (Slack thread_ts, email thread_id, Discord thread_id). Use threadIdPath and parentIndicatorPath to identify threads.
+
+**2. LLM Conversation Strategy**: For chat platforms without explicit thread IDs. Uses AI to semantically group messages into conversations based on topic continuity and context.
+
+**3. Time Window Strategy**: Groups records within a time window (e.g., 1 hour). Optionally filters by same user and context.
+
+**4. User Session Strategy**: Groups user activity into sessions with configurable timeout.
+
+### Key Configuration Fields
+
+- **strategy**: One of "thread", "llm_conversation", "time_window", "user_session"
+- **config**: Strategy-specific settings (paths to fields, thresholds, etc.)
+- **parentRecord**: Defines how to create parent records
+  - recordType: Type name for parent records (e.g., "thread", "conversation")
+  - sourceIdStrategy: How to generate parent IDs ("first_child", "hash", "concatenate", "template")
+  - sourceIdTemplate: Template for parent IDs
+  - fields: Parent record fields using aggregate mappings
+
+### Aggregate Mapping Functions
+
+Use these in parentRecord.fields to aggregate child data:
+- **concat**: Concatenate text from all children (supports itemTemplate and separator)
+- **merge**: Merge arrays/objects from children
+- **first**: Take value from first child
+- **last**: Take value from last child
+- **unique**: Collect unique values across children
+
+### Grouping Configuration Location
+
+Add grouping at the RecordTypeConfig level (inside recordTypes, not at top level).
+
+### Messaging Platform Guidelines
+
+**Slack:**
+- Use thread strategy with threadIdPath pointing to thread_ts field
+- Parent record type: "thread"
+- Aggregate user names from user field
+- Include timestamps in content template
+
+**WhatsApp / General Chat:**
+- Use llm_conversation strategy for semantic grouping
+- Parent record type: "conversation"
+- Sort by timestamp before grouping
+- Use larger minGroupSize (3-5) to avoid trivial groups
+
+**Discord:**
+- Use thread strategy with threadIdPath pointing to thread_id field
+- Similar to Slack configuration
+- Consider channel context in relationships
+
+**Email:**
+- Use thread strategy with threadIdPath pointing to thread_id field
+- Parent record type: "email_thread"
+- Aggregate sender emails into people field
+
 ## Instructions
 
 1. **Analyze the tools** and sample data to understand the data structure
@@ -379,6 +453,7 @@ This makes **1 call** with {teams: ["Team1", "Team2", ...]} instead of N individ
 4. **Map fields** to the target schema using appropriate mapping types
 5. **Add enrichments** if additional data is needed per record
 6. **Use format processors** for rich content (Notion blocks, Slack messages, etc.)
+7. **Add grouping configuration** for messaging platforms or threaded content
 
 ## Sync Order (Critical for Data Dependencies)
 
@@ -507,6 +582,238 @@ Return ONLY valid JSON with this structure:
   }
 }
 \`\`\`
+
+## ⚠️ CRITICAL ANTI-PATTERNS TO AVOID
+
+These patterns will cause immediate failure. DO NOT include them in your config:
+
+### 1. Missing arrayPath for List/Array Responses
+❌ **NEVER** forget arrayPath when resultPath points to an array:
+\`\`\`json
+{
+  "fetchers": {
+    "list_meetings": {
+      "tool": "list_meetings",
+      "resultPath": "$.content[0].text",  // Returns: {"items": [{...}, {...}]}
+      // ❌ MISSING: arrayPath to extract individual items
+    }
+  }
+}
+\`\`\`
+
+This will treat the ENTIRE response object as ONE record, causing "Record missing ID field" errors.
+
+✅ **ALWAYS** add arrayPath to extract individual items:
+\`\`\`json
+{
+  "fetchers": {
+    "list_meetings": {
+      "tool": "list_meetings",
+      "resultPath": "$.content[0].text",  // Extract the JSON string
+      "arrayPath": "$.items[*]",          // ✅ Extract each item from the array
+      "pagination": { "type": "cursor", ... }
+    }
+  }
+}
+\`\`\`
+
+**How to detect when arrayPath is needed:**
+1. Look at the sample response structure
+2. If it contains an array of objects (like \`{"items": [...]}\`, \`{"results": [...]}\`, \`{"data": [...]}\`)
+3. You MUST add arrayPath to extract individual objects from that array
+
+### 2. Creating Record Types for Enrichment-Only Tools
+❌ **NEVER** create separate record types for tools that only enrich existing records:
+\`\`\`json
+{
+  "recordTypes": {
+    "meeting": {
+      "fetcher": "list_meetings",
+      "enrichments": [
+        { "name": "transcript", "tool": "get_transcript", ... }
+      ]
+    },
+    "transcript": {  // ❌ WRONG: Transcript should NOT be a separate record type
+      "fetcher": "get_transcript",
+      "detection": { "always": true }
+    }
+  }
+}
+\`\`\`
+
+This creates duplicate processing and causes errors when enrichment tools are called without proper parameters.
+
+✅ **ONLY** use enrichment tools within enrichments:
+\`\`\`json
+{
+  "recordTypes": {
+    "meeting": {
+      "fetcher": "list_meetings",
+      "enrichments": [
+        {
+          "name": "transcript",
+          "tool": "get_transcript",  // ✅ Used as enrichment only
+          "paramMapping": { "recording_id": "$.recording_id" }
+        }
+      ]
+    }
+    // ✅ NO separate transcript record type
+  }
+}
+\`\`\`
+
+**How to identify enrichment-only tools:**
+- Tool name starts with "get_" or "fetch_" (singular)
+- Tool requires an ID parameter (page_id, recording_id, issue_id, etc.)
+- Tool returns details for ONE specific entity
+- Cannot be called without parameters to discover all entities
+
+**These should be enrichments, NOT record types:**
+- ✅ get_transcript (requires recording_id) → enrichment
+- ✅ get_page_details (requires page_id) → enrichment
+- ✅ fetch_issue_comments (requires issue_id) → enrichment
+
+**These can be PRIMARY record types:**
+- ✅ list_meetings (lists all meetings) → record type
+- ✅ search_pages (discovers all pages) → record type
+- ✅ get_all_issues (gets all issues) → record type
+
+### 3. Placeholder/Hardcoded Values in Fetcher Params
+❌ **NEVER** use placeholder or example values:
+\`\`\`json
+{
+  "fetchers": {
+    "get_issue": {
+      "tool": "get_issue",
+      "params": {
+        "issue_id": "EXAMPLE-123",  // ❌ WRONG: Placeholder value
+        "project": "your-project"    // ❌ WRONG: "your-" prefix is a placeholder
+      }
+    }
+  }
+}
+\`\`\`
+
+✅ **CORRECT** approach for discovery:
+- Use list/search tools without hardcoded IDs as PRIMARY fetchers
+- Use single-fetch tools ONLY in enrichments with paramMapping from parent records
+- If you see a tool that requires specific IDs, it should be an enrichment, not a primary fetcher
+
+### 4. Fetchers That Can't Discover Records
+❌ **NEVER** create fetchers with identifier params as primary data source:
+\`\`\`json
+{
+  "fetchers": {
+    "get_page": {
+      "tool": "get_page",
+      "params": {
+        "page_id": "abc123"  // ❌ WRONG: Can only fetch ONE specific page
+      }
+    }
+  }
+}
+\`\`\`
+
+✅ **CORRECT** discovery mechanism:
+\`\`\`json
+{
+  "fetchers": {
+    "list_pages": {
+      "tool": "search_pages",  // ✅ Lists ALL pages
+      "params": {},
+      "pagination": { "type": "cursor", ... }
+    }
+  },
+  "recordTypes": {
+    "page": {
+      "fetcher": "list_pages",
+      "enrichments": [
+        {
+          "name": "page_details",
+          "tool": "get_page",  // ✅ Single-fetch used in enrichment
+          "paramMapping": { "page_id": "$.id" }
+        }
+      ]
+    }
+  }
+}
+\`\`\`
+
+### 5. Unresolvable Enrichment Paths
+❌ **NEVER** use paths in paramMapping that don't exist in sample data:
+\`\`\`json
+{
+  "enrichments": [
+    {
+      "name": "details",
+      "tool": "get_details",
+      "paramMapping": {
+        "id": "$.nonexistent_field"  // ❌ Field doesn't exist in sample
+      }
+    }
+  ]
+}
+\`\`\`
+
+✅ **VERIFY** paths against sample data:
+- Check that the path exists in the actual sample response
+- Test the JSONPath expression mentally: does \`$.field\` exist?
+- If nested, verify each level: \`$.parent.child\` requires both to exist
+
+### 6. Wrong Primary Fetcher Selection
+❌ **NEVER** use these as PRIMARY fetchers:
+- Tools with "get_" prefix that require specific IDs
+- Tools with "fetch_" that need identifiers
+- Single-item retrieval tools
+- Tools that return one specific entity
+
+✅ **USE** these as PRIMARY fetchers:
+- Tools with "list_" prefix
+- Tools with "search_" prefix
+- Tools that "get all" or "retrieve multiple"
+- Tools with pagination support
+
+### 7. Missing Pagination
+❌ **NEVER** ignore pagination if the tool supports it:
+\`\`\`json
+{
+  "fetchers": {
+    "list_all": {
+      "tool": "list_items",
+      // ❌ MISSING: pagination config
+      "resultPath": "$.items"
+    }
+  }
+}
+\`\`\`
+
+✅ **ALWAYS** add pagination when supported:
+\`\`\`json
+{
+  "fetchers": {
+    "list_all": {
+      "tool": "list_items",
+      "pagination": {  // ✅ Fetches ALL pages
+        "type": "cursor",
+        "cursorParam": "page_token",
+        "cursorPath": "$.next_page_token"
+      },
+      "resultPath": "$.items"
+    }
+  }
+}
+\`\`\`
+
+## Validation Checklist
+
+Before generating, verify:
+
+1. ✅ All fetchers use list/search tools (not get/fetch with IDs)
+2. ✅ No placeholder values (no "example", "your-", "test", "123", etc.)
+3. ✅ All paramMapping paths verified against sample data
+4. ✅ Pagination configured for tools that support it
+5. ✅ Single-fetch tools used ONLY in enrichments
+6. ✅ forEach used when tools need dynamic params from earlier fetchers
 
 ## Important Rules
 

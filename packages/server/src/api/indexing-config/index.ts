@@ -9,7 +9,7 @@ import {
 } from "../../services/indexing/config/config-indexer.service.js";
 import { IndexingConfigModel } from "../../models/indexing-config.model.js";
 import { RecordModel } from "../../models/record.model.js";
-import { RecordTransformer } from "@ebee-oss/indexing-engine";
+import { transformRecord } from "@ebee-oss/indexing-engine";
 import { RecordStore } from "../../stores/record.store.js";
 import { VectorStore } from "../../stores/vector.store.js";
 import { insertRecordToVectorDB } from "../../services/indexing/embeddings/vector-indexer.service.js";
@@ -80,7 +80,13 @@ router.post("/generate", async (req, res) => {
       logger.info(`Successfully generated config for ${serverName}`);
     }
 
-    res.json({ data: result });
+    // Include classification breakdown for UI display
+    const response = {
+      ...result,
+      toolClassifications: result.config.toolClassifications || {},
+    };
+
+    res.json({ data: response });
   } catch (err) {
     logger.error({ err, msg: "Failed to generate indexing config" });
     res.status(500).json({
@@ -157,11 +163,9 @@ router.post("/preview", async (req, res) => {
     }
 
     // Transform sample records
-    const transformer = new RecordTransformer(recordType, config.source);
-
     const transformedRecords = await Promise.all(
       sampleRecords.map((record: any) =>
-        transformer.transform({ record, enrichments: {} })
+        transformRecord({ record, enrichments: {} }, recordType, config.source)
       )
     );
 
@@ -418,6 +422,7 @@ router.get("/", async (req, res) => {
           id: c._id,
           serverName: c.serverName,
           displayName: c.config.displayName,
+          icon: c.config.icon,
           status: c.status,
           updatedAt: c.updatedAt,
           fetcherCount: Object.keys(c.config.fetchers).length,
@@ -428,6 +433,46 @@ router.get("/", async (req, res) => {
   } catch (err) {
     logger.error({ err }, "Failed to list configs");
     res.status(500).json({ error: "Failed to list configs" });
+  }
+});
+
+/**
+ * POST /api/indexing-config/reset-sync
+ * Reset sync state for a server to force full resync
+ */
+router.post("/reset-sync", async (req, res) => {
+  try {
+    const { serverName } = req.body;
+
+    if (!serverName) {
+      return res.status(400).json({ error: "serverName is required" });
+    }
+
+    // Import MCPSyncStateModel
+    const { MCPSyncStateModel } = await import(
+      "../../models/mcp-sync-state.model.js"
+    );
+
+    // Delete sync state to force full resync
+    const result = await MCPSyncStateModel.deleteOne({ serverName });
+
+    logger.info(
+      `Reset sync state for ${serverName} (deleted: ${result.deletedCount})`
+    );
+
+    res.json({
+      data: {
+        success: true,
+        serverName,
+        stateCleared: result.deletedCount > 0,
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to reset sync state");
+    res.status(500).json({
+      error: "Failed to reset sync state",
+      message: err instanceof Error ? err.message : "Unknown error",
+    });
   }
 });
 

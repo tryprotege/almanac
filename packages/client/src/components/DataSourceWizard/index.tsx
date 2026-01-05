@@ -1,8 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Modal } from "../ui/Modal";
-import { ServiceSelector } from "../DataSourceForm/ServiceSelector";
-import { ServiceConfigForm } from "../DataSourceForm/ServiceConfigForm";
 import { AdvancedConfigForm } from "../DataSourceForm/AdvancedConfigForm";
 import {
   ServicePreset,
@@ -26,6 +23,7 @@ import {
   useGenerateSyncConfig,
   useSaveSyncConfig,
   useSyncWithConfig,
+  useSyncConfig,
 } from "../../hooks/useSyncConfigs";
 import toast from "react-hot-toast";
 
@@ -66,6 +64,9 @@ export function DataSourceWizard({
   const saveConfig = useSaveSyncConfig();
   const syncConfig = useSyncWithConfig();
 
+  // Check if existing source has a sync config
+  const existingConfig = useSyncConfig(existingSource?.name || null);
+
   const [step, setStep] = useState<WizardStep>("select");
   const [selectedPreset, setSelectedPreset] = useState<ServicePreset | null>(
     null
@@ -94,13 +95,12 @@ export function DataSourceWizard({
       setSelectedPreset(resolvedPreset);
       setStep("configure");
     } else if (isOpen && !existingSource) {
-      // New source - start at selection
-      setStep("select");
-      setSelectedPreset(null);
-      setServerConfig(null);
+      // New source - skip selector and go directly to custom config
+      setSelectedPreset(CUSTOM_PRESET);
+      setStep("configure");
     } else if (!isOpen) {
       // Reset when closing
-      setStep("select");
+      setStep("configure");
       setSelectedPreset(null);
       setServerConfig(null);
       setIsCustomServerCreated(false);
@@ -108,23 +108,10 @@ export function DataSourceWizard({
     }
   }, [existingSource, isOpen]);
 
-  const handleSelectService = (preset: ServicePreset) => {
-    setSelectedPreset(preset);
-    if (preset.id === "custom") {
-      setStep("configure");
-    } else {
-      setStep("configure");
-    }
-  };
-
   const handleBack = () => {
     if (step === "configure") {
-      if (existingSource) {
-        onClose();
-      } else {
-        setStep("select");
-        setSelectedPreset(null);
-      }
+      // Close the wizard - no selector step to go back to
+      onClose();
     } else if (step === "oauth-auth") {
       setStep("configure");
     } else if (step === "config-choice") {
@@ -175,7 +162,7 @@ export function DataSourceWizard({
       try {
         // Check if we're editing an existing server
         if (existingSource) {
-          // Update existing server
+          // Update existing server (backend handles reconnection automatically)
           toast.loading("Updating data source...", { id: "update-server" });
           await updateMutation.mutateAsync({
             name: existingSource.name,
@@ -183,19 +170,27 @@ export function DataSourceWizard({
           });
           toast.success("Data source updated", { id: "update-server" });
 
-          // Only reconnect for non-OAuth servers
-          // OAuth servers need to complete OAuth flow first
-          if (config.authType !== ("oauth" as const)) {
-            // Reconnect to refresh tools
-            toast.loading("Reconnecting to data source...", {
-              id: "reconnect-server",
-            });
-            await connectMutation.mutateAsync(config.name);
-            toast.success("Reconnected to data source", {
-              id: "reconnect-server",
-            });
+          // Backend PUT endpoint automatically reconnects if server was connected
+          // Just wait a moment for reconnection to complete
+          await new Promise((resolve) => setTimeout(resolve, 1000));
 
-            // Show config choice
+          // Check if server already has a sync config
+          if (existingConfig.data) {
+            // Server has existing config - just close wizard, no need to reconfigure
+            toast.success(
+              "Data source updated successfully. Your existing indexing configuration is unchanged.",
+              {
+                id: "update-success",
+                duration: 4000,
+              }
+            );
+            onClose();
+            resetWizard();
+            return;
+          }
+
+          // No existing config - show config choice for non-OAuth servers
+          if (config.authType !== ("oauth" as const)) {
             setStep("config-choice");
           } else {
             // OAuth server - close wizard, user needs to complete OAuth first
@@ -433,21 +428,7 @@ export function DataSourceWizard({
       size="full"
       disableClose={isLoading}
     >
-      {step === "select" && <ServiceSelector onSelect={handleSelectService} />}
-
-      {step === "configure" &&
-        selectedPreset &&
-        selectedPreset.id !== "custom" && (
-          <ServiceConfigForm
-            preset={selectedPreset}
-            existingSource={existingSource}
-            onBack={handleBack}
-            onSubmit={handleConfigureSubmit}
-            isLoading={isLoading}
-          />
-        )}
-
-      {step === "configure" && selectedPreset?.id === "custom" && (
+      {step === "configure" && selectedPreset && (
         <AdvancedConfigForm
           server={existingSource}
           onBack={handleBack}

@@ -46,9 +46,14 @@ export interface TransformedRecord {
   checksum?: string;
   version?: number;
 
-  // NEW: Graph data extracted from record
+  // Graph data extracted from record
   extractedEntities?: ExtractedEntity[];
   extractedRelationships?: ExtractedRelationship[];
+
+  // Grouping fields - added for thread/conversation grouping
+  isParentRecord?: boolean; // True if this is a parent record created by grouping
+  groupId?: string; // Group identifier for records that belong to a group
+  childIds?: string[]; // For parent records, IDs of child records
 }
 
 /**

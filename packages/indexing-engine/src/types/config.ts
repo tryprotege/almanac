@@ -21,6 +21,14 @@ export interface SyncConfig {
   source: string; // MCP server name
   displayName: string; // Human-readable name
 
+  /**
+   * Icon for the data source. Supports:
+   * - Emoji: "💬", "📊", "🐙"
+   * - Image URL: "https://cdn.example.com/logo.png"
+   * - Inline SVG: "<svg>...</svg>"
+   */
+  icon?: string;
+
   fetchers: Record<string, FetcherConfig>;
   recordTypes: Record<string, RecordTypeConfig>;
 
@@ -57,6 +65,13 @@ export interface FetcherConfig {
   incrementalSync?: IncrementalSyncConfig;
 
   resultPath: string; // JSONPath to records array in response
+
+  /**
+   * Optional JSONPath to extract individual records from nested arrays
+   * Applied after initial response parsing to extract items from wrapper objects
+   * Example: "$.items[*]" to extract items from {items: [...], next_cursor: "..."}
+   */
+  arrayPath?: string;
 }
 
 export interface PaginationConfig {
@@ -124,6 +139,13 @@ export interface RecordTypeConfig {
 
   fields: FieldMappings;
   relationships?: RelationshipConfig[]; // Enhanced to create graph edges
+
+  /**
+   * Post-fetch grouping configuration
+   * Enables grouping related records (e.g., messages into threads/conversations)
+   * and creating parent records to represent those groups
+   */
+  grouping?: GroupingConfig;
 }
 
 export interface DetectionConfig {
@@ -223,6 +245,248 @@ export interface RelationshipConfig {
   targetIdPath: string; // Required: "$.status.id", "$.project.id"
 
   confidence?: number; // Default 1.0
+}
+
+/**
+ * GroupingConfig - Post-fetch record grouping configuration
+ * Enables grouping related records and creating parent records
+ */
+export interface GroupingConfig {
+  /**
+   * Strategy for grouping records
+   * - "thread": Group by thread identifier (e.g., thread_ts in Slack)
+   * - "llm_conversation": Use LLM to analyze and group related messages
+   * - "time_window": Group by time proximity
+   * - "user_session": Group by user activity sessions
+   */
+  strategy: "thread" | "llm_conversation" | "time_window" | "user_session";
+
+  /**
+   * Configuration specific to the strategy
+   */
+  config:
+    | ThreadGroupingConfig
+    | LLMGroupingConfig
+    | TimeWindowGroupingConfig
+    | SessionGroupingConfig;
+
+  /**
+   * Parent record to create for each group
+   */
+  parentRecord: ParentRecordConfig;
+
+  /**
+   * Minimum group size to create a parent (default: 2)
+   * Groups smaller than this remain as standalone records
+   */
+  minGroupSize?: number;
+
+  /**
+   * Maximum group size before splitting (optional)
+   */
+  maxGroupSize?: number;
+}
+
+/**
+ * ThreadGroupingConfig - Group records by thread identifier
+ */
+export interface ThreadGroupingConfig {
+  /**
+   * JSONPath to thread identifier in record
+   * Example: "$.thread_ts" for Slack
+   */
+  threadIdPath: string;
+
+  /**
+   * JSONPath to parent message indicator
+   * Example: "$.reply_count" (if exists and > 0, it's a parent)
+   */
+  parentIndicatorPath?: string;
+}
+
+/**
+ * LLMGroupingConfig - Use LLM to group related records into conversations
+ */
+export interface LLMGroupingConfig {
+  /**
+   * Model to use for grouping analysis
+   */
+  model?: string; // defaults to env.LLM_CHAT_MODEL
+
+  /**
+   * System prompt for the LLM (can include variables)
+   */
+  systemPrompt: string;
+
+  /**
+   * Fields to include in the grouping analysis
+   * Example: ["$.text", "$.user", "$.ts"]
+   */
+  analysisFields: string[];
+
+  /**
+   * Batch size for processing (default: 50)
+   */
+  batchSize?: number;
+
+  /**
+   * Overlap between batches for context (default: 10)
+   */
+  batchOverlap?: number;
+
+  /**
+   * Max concurrent LLM calls (default: 3)
+   */
+  concurrency?: number;
+
+  /**
+   * Sorting before grouping
+   */
+  sortBy?: string; // JSONPath, e.g., "$.ts"
+  sortOrder?: "asc" | "desc";
+}
+
+/**
+ * TimeWindowGroupingConfig - Group records by time proximity
+ */
+export interface TimeWindowGroupingConfig {
+  /**
+   * JSONPath to timestamp field
+   */
+  timestampPath: string;
+
+  /**
+   * Window size in seconds
+   */
+  windowSeconds: number;
+
+  /**
+   * Optional: Group only if same user
+   */
+  sameUserPath?: string;
+
+  /**
+   * Optional: Group only if same channel/context
+   */
+  sameContextPath?: string;
+}
+
+/**
+ * SessionGroupingConfig - Group records by user session
+ */
+export interface SessionGroupingConfig {
+  /**
+   * JSONPath to user identifier
+   */
+  userIdPath: string;
+
+  /**
+   * JSONPath to timestamp
+   */
+  timestampPath: string;
+
+  /**
+   * Session timeout in seconds (default: 1800 = 30 min)
+   */
+  sessionTimeoutSeconds?: number;
+
+  /**
+   * Optional: Additional context matching
+   */
+  contextPath?: string;
+}
+
+/**
+ * ParentRecordConfig - Configuration for creating parent records
+ */
+export interface ParentRecordConfig {
+  /**
+   * Record type name for the parent (e.g., "thread", "conversation")
+   */
+  recordType: string;
+
+  /**
+   * How to generate the parent's sourceId
+   * - "first_child": Use first child's sourceId with prefix
+   * - "concatenate": Concatenate child IDs
+   * - "hash": Hash of child IDs
+   * - "template": Use template with variables
+   */
+  sourceIdStrategy: "first_child" | "concatenate" | "hash" | "template";
+
+  /**
+   * Template or prefix for sourceId (if applicable)
+   * Example: "thread-${firstChild.sourceId}"
+   */
+  sourceIdTemplate?: string;
+
+  /**
+   * Field mappings for parent record
+   * Can reference: firstChild, lastChild, allChildren, groupId
+   */
+  fields: ParentFieldMappings;
+
+  /**
+   * Store child IDs in parent's rawData (default: true)
+   */
+  storeChildIds?: boolean;
+
+  /**
+   * Child ID field name in rawData (default: "childIds")
+   */
+  childIdsField?: string;
+}
+
+/**
+ * ParentFieldMappings - Field mappings for parent records
+ */
+export interface ParentFieldMappings {
+  title: ParentFieldMapping;
+  content: ParentFieldMapping;
+  people?: ParentFieldMapping;
+  primaryDate?: ParentFieldMapping;
+  tags?: ParentFieldMapping;
+}
+
+/**
+ * ParentFieldMapping - Field mapping for parent records
+ */
+export type ParentFieldMapping =
+  | PathMapping
+  | AggregateMapping
+  | TemplateMapping
+  | CodeMapping;
+
+/**
+ * AggregateMapping - Aggregate values from child records
+ */
+export interface AggregateMapping {
+  type: "aggregate";
+  /**
+   * Aggregation function
+   * - "concat": Concatenate from all children
+   * - "merge": Merge arrays/objects
+   * - "first": Take from first child
+   * - "last": Take from last child
+   * - "unique": Collect unique values
+   */
+  function: "concat" | "merge" | "first" | "last" | "unique";
+
+  /**
+   * JSONPath to extract from each child
+   */
+  path: string;
+
+  /**
+   * Separator for concat (default: "\n")
+   */
+  separator?: string;
+
+  /**
+   * Template for each item (optional)
+   * Example: "[${child.ts}] ${child.user}: ${child.text}"
+   */
+  itemTemplate?: string;
 }
 
 /**

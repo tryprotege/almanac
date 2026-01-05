@@ -3,7 +3,7 @@ import type {
   RecordTypeConfig,
   TransformedRecord,
 } from "@ebee-oss/indexing-engine";
-import { RecordTransformer } from "@ebee-oss/indexing-engine";
+import { transformRecord } from "@ebee-oss/indexing-engine";
 import {
   fetchAll as fetchPaginated,
   fetchWithForEach,
@@ -122,11 +122,14 @@ export async function* indexAll(
           }
 
           // Transform
-          const transformer = new RecordTransformer(recordType, serverName);
-          const transformed = await transformer.transform({
-            record: rawRecord,
-            enrichments,
-          });
+          const transformed = await transformRecord(
+            {
+              record: rawRecord,
+              enrichments,
+            },
+            recordType,
+            serverName
+          );
 
           // Extract entities and relationships (NEW)
           if (recordType.entities && recordType.entities.length > 0) {
@@ -265,11 +268,14 @@ export async function* runIncrementalSync(
             );
           }
 
-          const transformer = new RecordTransformer(recordType, serverName);
-          const transformed = await transformer.transform({
-            record: rawRecord,
-            enrichments,
-          });
+          const transformed = await transformRecord(
+            {
+              record: rawRecord,
+              enrichments,
+            },
+            recordType,
+            serverName
+          );
 
           // Extract entities and relationships
           if (recordType.entities && recordType.entities.length > 0) {
@@ -332,6 +338,15 @@ function matchRecordType(
   recordTypes: RecordTypeConfig[]
 ): RecordTypeConfig | null {
   for (const recordType of recordTypes) {
+    // Handle missing detection config - default to matching
+    if (!recordType.detection) {
+      logger.warn(
+        { recordType: recordType.name },
+        "Record type missing detection config, defaulting to match"
+      );
+      return recordType;
+    }
+
     if (recordType.detection.always) {
       return recordType;
     }

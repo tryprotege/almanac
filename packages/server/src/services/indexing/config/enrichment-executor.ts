@@ -1,6 +1,8 @@
 import type { EnrichmentConfig } from "@ebee-oss/indexing-engine";
 import { mcpClientManager } from "../../../mcp/client.js";
+import { JSONPath } from "jsonpath-plus";
 import pLimit from "p-limit";
+import logger from "../../../utils/logger.js";
 
 export interface EnrichedRecord {
   [key: string]: any;
@@ -18,12 +20,39 @@ export async function enrich(
 ): Promise<EnrichedRecord> {
   const enrichments: Record<string, any> = {};
 
+  logger.debug(
+    {
+      enrichmentCount: configs.length,
+      enrichmentNames: configs.map((c) => c.name),
+    },
+    "Starting enrichments for record"
+  );
+
   // Run enrichments in parallel with concurrency limit
   await Promise.all(
     configs.map((config) =>
       concurrencyLimit(async () => {
-        const result = await executeEnrichment(serverName, record, config);
-        enrichments[config.name] = result;
+        try {
+          const result = await executeEnrichment(serverName, record, config);
+          enrichments[config.name] = result;
+          logger.debug(
+            {
+              enrichmentName: config.name,
+              hasResult: result !== null && result !== undefined,
+            },
+            "Enrichment completed"
+          );
+        } catch (err) {
+          logger.error(
+            {
+              err,
+              enrichmentName: config.name,
+              toolName: config.tool || config.fetcher,
+            },
+            "Enrichment failed"
+          );
+          enrichments[config.name] = null;
+        }
       })
     )
   );
@@ -48,6 +77,15 @@ async function executeEnrichment(
     throw new Error(`Enrichment ${config.name} missing tool or fetcher`);
   }
 
+  logger.debug(
+    {
+      enrichmentName: config.name,
+      toolName,
+      params,
+    },
+    "Calling enrichment tool"
+  );
+
   // Call MCP tool
   const response = await mcpClientManager.callTool(
     serverName,
@@ -55,9 +93,31 @@ async function executeEnrichment(
     params
   );
 
+  logger.debug(
+    {
+      enrichmentName: config.name,
+      responseType: typeof response,
+      hasContent: response?.content !== undefined,
+    },
+    "Received enrichment response"
+  );
+
   // Extract result using resultPath if provided
   if (config.resultPath) {
-    return extractPath(response, config.resultPath);
+    const extracted = extractPath(response, config.resultPath);
+    logger.debug(
+      {
+        enrichmentName: config.name,
+        resultPath: config.resultPath,
+        extractedType: typeof extracted,
+        extractedValue:
+          typeof extracted === "string"
+            ? extracted.substring(0, 100)
+            : extracted,
+      },
+      "Extracted enrichment result using resultPath"
+    );
+    return extracted;
   }
 
   return response;
@@ -91,16 +151,18 @@ function buildParams(
 }
 
 /**
- * Extract value from response using dot notation
+ * Extract value from response using JSONPath
+ * Supports array syntax like $.content[0].text
  */
 function extractPath(obj: any, path: string): any {
-  const parts = path.split(".");
-  let value = obj;
-
-  for (const part of parts) {
-    if (value == null) return undefined;
-    value = value[part];
+  try {
+    const result = JSONPath({ path, json: obj, wrap: false });
+    return result;
+  } catch (err) {
+    logger.warn(
+      { path, error: err },
+      "Failed to extract path from object, returning undefined"
+    );
+    return undefined;
   }
-
-  return value;
 }

@@ -1,0 +1,451 @@
+{
+  "version": "1.0",
+  "source": "linear",
+  "displayName": "Linear",
+  "syncOrder": [
+    "list_users",
+    "list_teams",
+    "list_statuses",
+    "list_labels",
+    "list_projects",
+    "list_issues",
+    "list_comments"
+  ],
+  "fetchers": {
+    "list_users": {
+      "tool": "list_users",
+      "description": "All users in the Linear workspace",
+      "resultPath": "$.content[0].text"
+    },
+    "list_teams": {
+      "tool": "list_teams",
+      "description": "All teams in the Linear workspace",
+      "resultPath": "$.content[0].text"
+    },
+    "list_statuses": {
+      "tool": "list_issue_statuses",
+      "description": "Issue statuses – one call per team (statuses are identical across teams)",
+      "forEach": {
+        "source": "list_teams",
+        "path": "$[*]",
+        "paramMapping": {
+          "team": "$.name"
+        },
+        "concurrency": 3,
+        "continueOnError": true,
+        "retries": 2
+      },
+      "resultPath": "$.content[0].text"
+    },
+    "list_labels": {
+      "tool": "list_issue_labels",
+      "description": "All issue labels (workspace‑wide)",
+      "resultPath": "$.content[0].text"
+    },
+    "list_projects": {
+      "tool": "list_projects",
+      "description": "All projects in the workspace",
+      "resultPath": "$.content[0].text"
+    },
+    "list_issues": {
+      "tool": "list_issues",
+      "description": "All issues (including archived) – will be filtered later by record type",
+      "resultPath": "$.content[0].text"
+    },
+    "list_comments": {
+      "tool": "list_comments",
+      "description": "Comments for every issue",
+      "forEach": {
+        "source": "list_issues",
+        "path": "$[*]",
+        "paramMapping": {
+          "issueId": "$.id"
+        },
+        "concurrency": 5,
+        "continueOnError": true,
+        "retries": 2
+      },
+      "resultPath": "$.content[0].text"
+    }
+  },
+  "recordTypes": {
+    "user": {
+      "name": "User",
+      "fetcher": "list_users",
+      "detection": {
+        "condition": "record.email && record.id"
+      },
+      "fields": {
+        "title": {
+          "type": "path",
+          "path": "$.name"
+        },
+        "content": {
+          "type": "template",
+          "template": "Linear user **${record.email}**"
+        },
+        "primaryDate": {
+          "type": "path",
+          "path": "$.createdAt"
+        }
+      }
+    },
+    "team": {
+      "name": "Team",
+      "fetcher": "list_teams",
+      "detection": {
+        "condition": "record.name && record.id"
+      },
+      "fields": {
+        "title": {
+          "type": "path",
+          "path": "$.name"
+        },
+        "content": {
+          "type": "template",
+          "template": "Team **${record.name}** (ID: ${record.id})"
+        },
+        "primaryDate": {
+          "type": "path",
+          "path": "$.createdAt"
+        }
+      }
+    },
+    "status": {
+      "name": "Status",
+      "fetcher": "list_statuses",
+      "detection": {
+        "condition": "record.name && record.id"
+      },
+      "fields": {
+        "title": {
+          "type": "path",
+          "path": "$.name"
+        },
+        "content": {
+          "type": "template",
+          "template": "Workflow status **${record.name}**"
+        }
+      }
+    },
+    "label": {
+      "name": "Label",
+      "fetcher": "list_labels",
+      "detection": {
+        "condition": "record.name && record.id"
+      },
+      "fields": {
+        "title": {
+          "type": "path",
+          "path": "$.name"
+        },
+        "content": {
+          "type": "template",
+          "template": "Label **${record.name}** (color ${record.color})"
+        },
+        "tags": {
+          "type": "paths",
+          "paths": [
+            "$.name"
+          ]
+        }
+      }
+    },
+    "project": {
+      "name": "Project",
+      "fetcher": "list_projects",
+      "detection": {
+        "condition": "record.name && record.id"
+      },
+      "fields": {
+        "title": {
+          "type": "path",
+          "path": "$.name"
+        },
+        "content": {
+          "type": "path",
+          "path": "$.description"
+        },
+        "primaryDate": {
+          "type": "path",
+          "path": "$.createdAt"
+        },
+        "tags": {
+          "type": "paths",
+          "paths": [
+            "$.labels[*].name"
+          ]
+        }
+      }
+    },
+    "issue": {
+      "name": "Issue",
+      "fetcher": "list_issues",
+      "detection": {
+        "condition": "record.id && record.title"
+      },
+      "enrichments": [
+        {
+          "name": "full",
+          "tool": "get_issue",
+          "paramMapping": {
+            "id": "$.id",
+            "includeRelations": true
+          },
+          "resultPath": "$.content[0].text"
+        }
+      ],
+      "entities": [
+        {
+          "name": "assignee",
+          "type": "User",
+          "idPath": "$.assigneeId",
+          "titlePath": "$.assignee",
+          "condition": "record.assigneeId"
+        },
+        {
+          "name": "creator",
+          "type": "User",
+          "idPath": "$.createdById",
+          "titlePath": "$.createdBy",
+          "condition": "record.createdById"
+        },
+        {
+          "name": "project",
+          "type": "Project",
+          "idPath": "$.projectId",
+          "titlePath": "$.project",
+          "condition": "record.projectId"
+        },
+        {
+          "name": "team",
+          "type": "Team",
+          "idPath": "$.teamId",
+          "titlePath": "$.team",
+          "condition": "record.teamId"
+        },
+        {
+          "name": "status",
+          "type": "Status",
+          "idPath": "$.status",
+          "titlePath": "$.status",
+          "condition": "record.status"
+        }
+      ],
+      "relationships": [
+        {
+          "name": "issue_assignee",
+          "type": "ASSIGNED_TO",
+          "targetType": "User",
+          "targetIdPath": "$.assigneeId",
+          "condition": "record.assigneeId"
+        },
+        {
+          "name": "issue_creator",
+          "type": "CREATED_BY",
+          "targetType": "User",
+          "targetIdPath": "$.createdById",
+          "condition": "record.createdById"
+        },
+        {
+          "name": "issue_project",
+          "type": "BELONGS_TO",
+          "targetType": "Project",
+          "targetIdPath": "$.projectId",
+          "condition": "record.projectId"
+        },
+        {
+          "name": "issue_team",
+          "type": "PART_OF",
+          "targetType": "Team",
+          "targetIdPath": "$.teamId",
+          "condition": "record.teamId"
+        },
+        {
+          "name": "issue_status",
+          "type": "HAS_STATUS",
+          "targetType": "Status",
+          "targetIdPath": "$.status",
+          "condition": "record.status"
+        },
+        {
+          "name": "issue_label",
+          "type": "TAGGED_WITH",
+          "targetType": "Label",
+          "targetIdPath": "$.labels[*].id",
+          "condition": "record.labels && record.labels.length > 0"
+        }
+      ],
+      "fields": {
+        "title": {
+          "type": "path",
+          "path": "$.title"
+        },
+        "content": {
+          "type": "path",
+          "path": "$.description"
+        },
+        "primaryDate": {
+          "type": "path",
+          "path": "$.createdAt"
+        },
+        "tags": {
+          "type": "paths",
+          "paths": [
+            "$.labels[*].name"
+          ]
+        },
+        "people": {
+          "type": "paths",
+          "paths": [
+            "$.assignee",
+            "$.createdBy"
+          ]
+        }
+      }
+    },
+    "comment": {
+      "name": "Comment",
+      "fetcher": "list_comments",
+      "detection": {
+        "condition": "record.id && record.body"
+      },
+      "fields": {
+        "title": {
+          "type": "template",
+          "template": "Comment by ${record.author?.name || 'unknown'}"
+        },
+        "content": {
+          "type": "path",
+          "path": "$.body"
+        },
+        "primaryDate": {
+          "type": "path",
+          "path": "$.createdAt"
+        },
+        "parentId": {
+          "type": "path",
+          "path": "$.issueId"
+        }
+      },
+      "relationships": [
+        {
+          "name": "comment_on_issue",
+          "type": "COMMENT_ON",
+          "targetType": "Issue",
+          "targetIdPath": "$.issueId",
+          "condition": "record.issueId"
+        },
+        {
+          "name": "comment_author",
+          "type": "WRITTEN_BY",
+          "targetType": "User",
+          "targetIdPath": "$.author.id",
+          "condition": "record.author && record.author.id"
+        }
+      ]
+    }
+  },
+  "toolClassifications": {
+    "list_comments": {
+      "toolName": "list_comments",
+      "category": "read"
+    },
+    "create_comment": {
+      "toolName": "create_comment",
+      "category": "write"
+    },
+    "list_cycles": {
+      "toolName": "list_cycles",
+      "category": "read"
+    },
+    "get_document": {
+      "toolName": "get_document",
+      "category": "read"
+    },
+    "list_documents": {
+      "toolName": "list_documents",
+      "category": "read"
+    },
+    "create_document": {
+      "toolName": "create_document",
+      "category": "write"
+    },
+    "update_document": {
+      "toolName": "update_document",
+      "category": "write"
+    },
+    "get_issue": {
+      "toolName": "get_issue",
+      "category": "read"
+    },
+    "list_issues": {
+      "toolName": "list_issues",
+      "category": "read"
+    },
+    "create_issue": {
+      "toolName": "create_issue",
+      "category": "write"
+    },
+    "update_issue": {
+      "toolName": "update_issue",
+      "category": "write"
+    },
+    "list_issue_statuses": {
+      "toolName": "list_issue_statuses",
+      "category": "read"
+    },
+    "get_issue_status": {
+      "toolName": "get_issue_status",
+      "category": "read"
+    },
+    "list_issue_labels": {
+      "toolName": "list_issue_labels",
+      "category": "read"
+    },
+    "create_issue_label": {
+      "toolName": "create_issue_label",
+      "category": "write"
+    },
+    "list_projects": {
+      "toolName": "list_projects",
+      "category": "read"
+    },
+    "get_project": {
+      "toolName": "get_project",
+      "category": "read"
+    },
+    "create_project": {
+      "toolName": "create_project",
+      "category": "write"
+    },
+    "update_project": {
+      "toolName": "update_project",
+      "category": "write"
+    },
+    "list_project_labels": {
+      "toolName": "list_project_labels",
+      "category": "read"
+    },
+    "list_teams": {
+      "toolName": "list_teams",
+      "category": "read"
+    },
+    "get_team": {
+      "toolName": "get_team",
+      "category": "read"
+    },
+    "list_users": {
+      "toolName": "list_users",
+      "category": "read"
+    },
+    "get_user": {
+      "toolName": "get_user",
+      "category": "read"
+    },
+    "search_documentation": {
+      "toolName": "search_documentation",
+      "category": "search"
+    }
+  }
+}

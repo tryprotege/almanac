@@ -1,6 +1,11 @@
-import type { FetcherConfig } from "@ebee-oss/indexing-engine";
+import type { FetcherConfig, RateLimitConfig } from "@ebee-oss/indexing-engine";
 import { mcpClientManager } from "../../../mcp/client.js";
 import { JSONPath } from "jsonpath-plus";
+import {
+  applyRateLimit,
+  handleRateLimitError,
+  notifySuccess,
+} from "./rate-limiter.js";
 
 export interface PageResult {
   records: any[];
@@ -89,8 +94,14 @@ export async function* fetchWithForEach(
             tool: config.tool,
             resultPath: config.resultPath,
             params,
+            rateLimit: config.rateLimit,
           };
-          const result = await fetchPage(serverName, callConfig, params);
+          const result = await fetchPage(
+            serverName,
+            callConfig,
+            params,
+            config.rateLimit
+          );
           return result.records;
         } catch (err) {
           lastError = err as Error;
@@ -219,8 +230,14 @@ async function* fetchWithBatchMode(
           tool: config.tool,
           resultPath: config.resultPath,
           params,
+          rateLimit: config.rateLimit,
         };
-        const result = await fetchPage(serverName, callConfig, params);
+        const result = await fetchPage(
+          serverName,
+          callConfig,
+          params,
+          config.rateLimit
+        );
         allResults.push(...result.records);
         break; // Success
       } catch (err) {
@@ -277,8 +294,13 @@ export async function* fetchAll(
       addPaginationParams(params, cursor, config.pagination);
     }
 
-    // Fetch page
-    const result = await fetchPage(serverName, config, params);
+    // Fetch page with rate limiting
+    const result = await fetchPage(
+      serverName,
+      config,
+      params,
+      config.rateLimit
+    );
 
     // Always yield result (even if 0 records) so we can access raw response
     yield result;
@@ -398,18 +420,46 @@ function extractRecordsFromMCPResponse(response: any): {
 async function fetchPage(
   serverName: string,
   config: FetcherConfig,
-  params: Record<string, any>
+  params: Record<string, any>,
+  rateLimitConfig?: RateLimitConfig
 ): Promise<PageResult> {
   console.log(
     `[fetchPage] Calling tool: ${config.tool}, params:`,
     JSON.stringify(params, null, 2)
   );
 
-  const response = await mcpClientManager.callTool(
-    serverName,
-    config.tool,
-    params
-  );
+  // Apply rate limiting before making the call
+  const scopeId = `${serverName}:${config.tool}`;
+  await applyRateLimit(rateLimitConfig, scopeId);
+
+  let response: any;
+  try {
+    response = await mcpClientManager.callTool(serverName, config.tool, params);
+
+    // Notify success for exponential backoff strategy
+    notifySuccess(rateLimitConfig, scopeId);
+  } catch (err: any) {
+    // Check if this is a rate limit error (429)
+    if (err.status === 429 || err.message?.includes("rate limit")) {
+      // Extract Retry-After header if available
+      const retryAfter = err.headers?.["retry-after"] || err.retryAfter;
+
+      // Handle rate limit and wait
+      await handleRateLimitError(rateLimitConfig, scopeId, retryAfter);
+
+      // Retry the request
+      response = await mcpClientManager.callTool(
+        serverName,
+        config.tool,
+        params
+      );
+
+      notifySuccess(rateLimitConfig, scopeId);
+    } else {
+      // Re-throw non-rate-limit errors
+      throw err;
+    }
+  }
 
   console.log(
     `[fetchPage] Raw MCP response structure:`,
@@ -449,6 +499,7 @@ async function fetchPage(
   }
 
   let finalRecords = parseResult.records;
+  let paginationSource = finalRecords;
 
   // Apply arrayPath if configured to extract nested records
   if (config.arrayPath) {
@@ -474,6 +525,7 @@ async function fetchPage(
           `[fetchPage] Detected single wrapper object, applying arrayPath to object directly`
         );
         target = finalRecords[0];
+        paginationSource = target; // Use the wrapper object for pagination info
       }
 
       const extractedRecords = JSONPath({
@@ -507,10 +559,44 @@ async function fetchPage(
     }
   }
 
+  // Extract pagination info from the appropriate source
+  let nextCursor: string | undefined;
+  let hasMore = false;
+
+  if (config.pagination) {
+    // Try to extract cursor from paginationSource using configured path
+    if (config.pagination.cursorPath) {
+      try {
+        const extractedCursor = JSONPath({
+          path: config.pagination.cursorPath,
+          json: paginationSource,
+          wrap: false,
+        });
+        nextCursor = extractedCursor;
+        console.log(
+          `[fetchPage] Extracted cursor from path "${config.pagination.cursorPath}":`,
+          nextCursor
+        );
+      } catch (err) {
+        console.warn(
+          `[fetchPage] Failed to extract cursor using path "${config.pagination.cursorPath}":`,
+          err
+        );
+      }
+    }
+
+    // Determine if there are more pages
+    if (nextCursor !== undefined && nextCursor !== null) {
+      hasMore = true;
+    } else {
+      hasMore = false;
+    }
+  }
+
   return {
     records: finalRecords,
-    nextCursor: response.next_cursor || response.nextCursor,
-    hasMore: response.has_more ?? response.hasMore ?? false,
+    nextCursor,
+    hasMore,
     rawResponse: response,
   };
 }

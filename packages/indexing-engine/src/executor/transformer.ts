@@ -71,16 +71,17 @@ export async function transformRecord(
   };
 
   // Generate record ID - tries common ID field patterns
-  const sourceId = record.id || record._id || record.sourceId;
+  let sourceId = record.id || record._id || record.sourceId;
   if (!sourceId) {
     // Check for other common ID patterns
+    const idKey = Object.keys(record).find(
+      (k) => k.endsWith("_id") || k.endsWith("Id")
+    );
     const potentialId =
       record.recordId ||
       record.uuid ||
       record.guid ||
-      Object.keys(record).find((k) => k.endsWith("_id") || k.endsWith("Id"))?.[
-        record as any
-      ] ||
+      (idKey ? record[idKey] : undefined) ||
       record.url ||
       record.uri;
 
@@ -94,6 +95,8 @@ export async function transformRecord(
           `Available fields: ${Object.keys(record).join(", ")}`
       );
     }
+
+    sourceId = potentialId;
   }
 
   const _id = generateRecordId(sourceId, config.name, source);

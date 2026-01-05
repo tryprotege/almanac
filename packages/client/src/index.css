@@ -434,7 +434,7 @@
   }
 
   .modal-container {
-    @apply bg-bg-primary rounded-lg shadow-xl w-full min-w-0 max-h-[90vh] overflow-hidden flex flex-col border border-border-secondary;
+    @apply bg-bg-primary rounded-lg shadow-xl min-w-0 max-h-[90vh] overflow-hidden flex flex-col border border-border-secondary;
     animation: scaleIn 0.2s ease-out;
   }
 
@@ -481,7 +481,7 @@
   }
 
   .modal-footer {
-    @apply flex items-center justify-between gap-3 p-6 border-t border-border-secondary flex-shrink-0;
+    @apply flex items-center justify-end gap-3 p-6 border-t border-border-secondary flex-shrink-0;
   }
 
   /* Gradient Utilities */

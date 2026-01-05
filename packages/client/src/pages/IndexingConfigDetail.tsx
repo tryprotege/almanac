@@ -14,6 +14,8 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
+import toast from "react-hot-toast";
+import { Modal, ModalFooter } from "../components/ui/Modal";
 import {
   useSyncConfig,
   useGenerateSyncConfig,
@@ -1125,179 +1127,155 @@ export default function IndexingConfigDetail() {
         </div>
 
         {/* Guidance Modal */}
-        {showGuidanceModal && (
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-bg-primary rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-border-secondary">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-text-primary">
-                    Regenerate Config with Guidance
-                  </h2>
-                  <button
-                    onClick={() => {
-                      setShowGuidanceModal(false);
-                      setUserGuidance("");
-                    }}
-                    className="text-text-quaternary hover:text-text-secondary"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
+        <Modal
+          isOpen={showGuidanceModal}
+          onClose={() => {
+            setShowGuidanceModal(false);
+            setUserGuidance("");
+          }}
+          title="Regenerate Config with Guidance"
+          size="lg"
+        >
+          <div className="p-6">
+            <p className="text-sm text-text-tertiary mb-4">
+              Provide specific instructions to guide the LLM in generating the
+              config. For example, you can request specific entity extractions,
+              field mappings, or data transformations.
+            </p>
 
-                <p className="text-sm text-text-tertiary mb-4">
-                  Provide specific instructions to guide the LLM in generating
-                  the config. For example, you can request specific entity
-                  extractions, field mappings, or data transformations.
-                </p>
-
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-text-secondary mb-2">
-                    Your Guidance
-                  </label>
-                  <textarea
-                    value={userGuidance}
-                    onChange={(e) => setUserGuidance(e.target.value)}
-                    placeholder="Example: Please add entity extraction for project statuses. Projects have a status field that can be: Planned, In Progress, Paused, Completed, or Canceled."
-                    className="textarea h-48"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-3">
-                  <button
-                    onClick={() => {
-                      setShowGuidanceModal(false);
-                      setUserGuidance("");
-                    }}
-                    className="btn btn-secondary"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setShowGuidanceModal(false);
-                      setGenerationStep("generating");
-                      try {
-                        const result = await generateConfig.mutateAsync({
-                          serverName: config.serverName,
-                          userGuidance: userGuidance || undefined,
-                        });
-                        setGeneratedResult(result);
-                        setGenerationStep("result");
-                        setUserGuidance("");
-                      } catch (error) {
-                        console.error("Failed to regenerate config:", error);
-                        setGenerationStep("idle");
-                      }
-                    }}
-                    disabled={!userGuidance.trim()}
-                    className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Generate Config
-                  </button>
-                </div>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-2">
+                Your Guidance
+              </label>
+              <textarea
+                value={userGuidance}
+                onChange={(e) => setUserGuidance(e.target.value)}
+                placeholder="Example: Please add entity extraction for project statuses. Projects have a status field that can be: Planned, In Progress, Paused, Completed, or Canceled."
+                className="textarea h-48"
+              />
             </div>
           </div>
-        )}
+
+          <ModalFooter>
+            <button
+              onClick={() => {
+                setShowGuidanceModal(false);
+                setUserGuidance("");
+              }}
+              className="btn btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={async () => {
+                setShowGuidanceModal(false);
+                setGenerationStep("generating");
+                try {
+                  const result = await generateConfig.mutateAsync({
+                    serverName: config.serverName,
+                    userGuidance: userGuidance || undefined,
+                  });
+                  setGeneratedResult(result);
+                  setGenerationStep("result");
+                  setUserGuidance("");
+                } catch (error) {
+                  console.error("Failed to regenerate config:", error);
+                  setGenerationStep("idle");
+                }
+              }}
+              disabled={!userGuidance.trim()}
+              className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Generate Config
+            </button>
+          </ModalFooter>
+        </Modal>
 
         {/* Reset Sync Modal */}
-        {showResetModal && (
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-bg-primary rounded-lg shadow-xl max-w-lg w-full border border-border-secondary">
-              <div className="p-6">
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="p-3 bg-brand-warning/10 rounded-lg flex-shrink-0">
-                    <AlertCircle className="w-6 h-6 text-brand-warning" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-text-primary mb-2">
-                      Reset Sync State & Full Resync
-                    </h2>
-                    <p className="text-sm text-text-tertiary">
-                      This will clear all sync progress and re-index all data
-                      from scratch.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-bg-secondary rounded-lg p-4 mb-4">
-                  <h3 className="text-sm font-medium text-text-primary mb-2">
-                    What will happen:
-                  </h3>
-                  <ul className="text-sm text-text-secondary space-y-2">
-                    <li className="flex items-start gap-2">
-                      <span className="text-brand-warning mt-0.5">•</span>
-                      <span>Sync cursors will be reset for all fetchers</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-brand-warning mt-0.5">•</span>
-                      <span>A full resync will be triggered immediately</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-brand-warning mt-0.5">•</span>
-                      <span>All data will be re-fetched from the source</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-brand-success mt-0.5">•</span>
-                      <span>
-                        Existing records will be updated (not deleted)
-                      </span>
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="flex items-center justify-end gap-3">
-                  <button
-                    onClick={() => setShowResetModal(false)}
-                    className="btn btn-secondary"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={async () => {
-                      try {
-                        console.log(
-                          "Resetting sync state for:",
-                          config.serverName
-                        );
-                        await resetSyncState.mutateAsync(config.serverName);
-                        console.log("Sync state reset, starting full sync...");
-
-                        await syncWithConfig.mutateAsync({
-                          serverName: config.serverName,
-                          incremental: false,
-                        });
-
-                        setShowResetModal(false);
-                        alert(
-                          "Sync state reset and full resync started successfully!"
-                        );
-                      } catch (error) {
-                        console.error("Failed to reset and resync:", error);
-                        alert(
-                          "Failed to reset and resync. Check console for details."
-                        );
-                      }
-                    }}
-                    disabled={
-                      resetSyncState.isPending || syncWithConfig.isPending
-                    }
-                    className="btn btn-primary bg-brand-warning hover:bg-brand-warning/90 border-brand-warning text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {resetSyncState.isPending || syncWithConfig.isPending ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                        Processing...
-                      </>
-                    ) : (
-                      "Reset & Resync"
-                    )}
-                  </button>
-                </div>
+        <Modal
+          isOpen={showResetModal}
+          onClose={() => setShowResetModal(false)}
+          title="Reset Sync State & Full Resync"
+          subtitle="This will clear all sync progress and re-index all data from scratch."
+          size="lg"
+        >
+          <div className="p-6">
+            <div className="flex items-start gap-3">
+              <div className="p-3 bg-brand-warning/10 rounded-lg flex-shrink-0">
+                <AlertCircle className="w-6 h-6 text-brand-warning" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-text-primary mb-2">
+                  What will happen:
+                </h3>
+                <ul className="text-sm text-text-secondary space-y-2">
+                  <li className="flex items-start gap-2">
+                    <span className="text-brand-warning mt-0.5">•</span>
+                    <span>Sync cursors will be reset for all fetchers</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-brand-warning mt-0.5">•</span>
+                    <span>A full resync will be triggered immediately</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-brand-warning mt-0.5">•</span>
+                    <span>All data will be re-fetched from the source</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-brand-success mt-0.5">•</span>
+                    <span>Existing records will be updated (not deleted)</span>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
-        )}
+
+          <ModalFooter>
+            <button
+              onClick={() => setShowResetModal(false)}
+              className="btn btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  console.log("Resetting sync state for:", config.serverName);
+                  await resetSyncState.mutateAsync(config.serverName);
+                  console.log("Sync state reset, starting full sync...");
+
+                  await syncWithConfig.mutateAsync({
+                    serverName: config.serverName,
+                    incremental: false,
+                  });
+
+                  setShowResetModal(false);
+                  toast.success(
+                    "Sync state reset and full resync started successfully!"
+                  );
+                } catch (error) {
+                  console.error("Failed to reset and resync:", error);
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : "Failed to reset and resync. Check console for details."
+                  );
+                }
+              }}
+              disabled={resetSyncState.isPending || syncWithConfig.isPending}
+              className="btn btn-primary bg-brand-warning hover:bg-brand-warning/90 border-brand-warning text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {resetSyncState.isPending || syncWithConfig.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Processing...
+                </>
+              ) : (
+                "Reset & Resync"
+              )}
+            </button>
+          </ModalFooter>
+        </Modal>
       </div>
     </div>
   );

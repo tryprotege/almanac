@@ -1,0 +1,189 @@
+{
+  "version": "1.0",
+  "source": "fathom",
+  "displayName": "fathom",
+  "rateLimit": {
+    "maxRequests": 60,
+    "windowSeconds": 60,
+    "strategy": "token_bucket",
+    "allowBurst": true,
+    "burstMultiplier": 2
+  },
+  "syncOrder": [
+    "list_meetings",
+    "list_teams",
+    "list_team_members"
+  ],
+  "fetchers": {
+    "list_meetings": {
+      "tool": "list_meetings",
+      "resultPath": "$.content[0].text",
+      "arrayPath": "$.items[*]",
+      "pagination": {
+        "type": "cursor",
+        "cursorParam": "cursor",
+        "cursorPath": "$.next_cursor",
+        "limitParam": "limit"
+      },
+      "detection": {
+        "type": "always"
+      }
+    },
+    "list_teams": {
+      "tool": "list_teams",
+      "resultPath": "$.content[0].text",
+      "arrayPath": "$.items[*]",
+      "detection": {
+        "type": "always"
+      }
+    },
+    "list_team_members": {
+      "tool": "list_team_members",
+      "forEach": {
+        "source": "list_teams",
+        "path": "$[*]",
+        "paramMapping": {
+          "team": "$.name"
+        },
+        "concurrency": 3,
+        "continueOnError": true,
+        "retries": 2
+      },
+      "resultPath": "$.content[0].text",
+      "arrayPath": "$.items[*]",
+      "detection": {
+        "type": "always"
+      }
+    }
+  },
+  "recordTypes": {
+    "meeting": {
+      "name": "meeting",
+      "fetcher": "list_meetings",
+      "enrichments": [
+        {
+          "name": "transcript",
+          "tool": "get_transcript",
+          "paramMapping": {
+            "recording_id": "$.recording_id"
+          },
+          "resultPath": "$.content[0].text"
+        },
+        {
+          "name": "summary",
+          "tool": "get_summary",
+          "paramMapping": {
+            "recording_id": "$.recording_id"
+          },
+          "resultPath": "$.content[0].text"
+        }
+      ],
+      "entities": [
+        {
+          "name": "person",
+          "type": "Person",
+          "idPath": "$.calendar_invitees[*].email",
+          "titlePath": "$.calendar_invitees[*].name",
+          "condition": "record.calendar_invitees && record.calendar_invitees.length > 0"
+        }
+      ],
+      "relationships": [
+        {
+          "name": "meeting_person",
+          "type": "INVOLVED_PERSON",
+          "targetType": "Person",
+          "targetIdPath": "$.calendar_invitees[*].email",
+          "condition": "record.calendar_invitees && record.calendar_invitees.length > 0"
+        }
+      ],
+      "fields": {
+        "title": {
+          "type": "path",
+          "path": "$.title"
+        },
+        "content": {
+          "type": "processor",
+          "processor": "transcript-to-markdown",
+          "input": "enrichments.transcript"
+        },
+        "people": {
+          "type": "paths",
+          "paths": [
+            "$.calendar_invitees[*].name"
+          ]
+        },
+        "primaryDate": {
+          "type": "path",
+          "path": "$.created_at"
+        },
+        "tags": {
+          "type": "path",
+          "path": "$.calendar_invitees_domains_type"
+        }
+      }
+    },
+    "team": {
+      "name": "team",
+      "fetcher": "list_teams",
+      "fields": {
+        "title": {
+          "type": "path",
+          "path": "$.name"
+        },
+        "content": {
+          "type": "template",
+          "template": "Team ${record.name}"
+        }
+      }
+    },
+    "team_member": {
+      "name": "team_member",
+      "fetcher": "list_team_members",
+      "fields": {
+        "title": {
+          "type": "path",
+          "path": "$.name"
+        },
+        "people": {
+          "type": "path",
+          "path": "$.email"
+        },
+        "content": {
+          "type": "template",
+          "template": "${record.name} (${record.email})"
+        }
+      },
+      "relationships": [
+        {
+          "name": "member_of_team",
+          "type": "MEMBER_OF",
+          "targetType": "Team",
+          "targetIdPath": "$.team",
+          "condition": "record.team"
+        }
+      ]
+    }
+  },
+  "toolClassifications": {
+    "list_meetings": {
+      "toolName": "list_meetings",
+      "category": "read"
+    },
+    "get_transcript": {
+      "toolName": "get_transcript",
+      "category": "read"
+    },
+    "get_summary": {
+      "toolName": "get_summary",
+      "category": "read"
+    },
+    "list_teams": {
+      "toolName": "list_teams",
+      "category": "read"
+    },
+    "list_team_members": {
+      "toolName": "list_team_members",
+      "category": "read"
+    }
+  }
+}

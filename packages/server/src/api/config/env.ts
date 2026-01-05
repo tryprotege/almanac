@@ -5,11 +5,16 @@ import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
 import logger from "../../utils/logger.js";
+import {
+  appEnvResult,
+  applicationSchema,
+  infrastructureSchema,
+  sourceEnv,
+} from "../../env.js";
 
 const router: ExpressRouter = Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, "../../../.env");
-const envExamplePath = path.join(__dirname, "../../../.env.example");
 
 // Helper to write env map back to file, preserving comments
 function writeEnvFile(updates: Record<string, string>): void {
@@ -18,8 +23,6 @@ function writeEnvFile(updates: Record<string, string>): void {
   // Read existing file or example
   if (fs.existsSync(envPath)) {
     content = fs.readFileSync(envPath, "utf-8");
-  } else if (fs.existsSync(envExamplePath)) {
-    content = fs.readFileSync(envExamplePath, "utf-8");
   }
 
   const lines = content.split("\n");
@@ -53,93 +56,72 @@ function writeEnvFile(updates: Record<string, string>): void {
   fs.writeFileSync(envPath, newLines.join("\n"));
 }
 
-// GET /api/config/status - Check configuration status
-router.get("/status", (_req: Request, res: Response) => {
+// Helper to get schema defaults and info
+function getSchemaInfo(schema: any): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const [key, def] of Object.entries(schema.shape)) {
+    const zodDef = def as any;
+    result[key] = {
+      type: zodDef._def.typeName?.replace("Zod", "").toLowerCase() || "string",
+      required: !zodDef.isOptional(),
+      default: zodDef._def.defaultValue?.() ?? undefined,
+    };
+  }
+  return result;
+}
+
+// GET /api/config/env - Read current config with schema info and status
+router.get("/", (_req: Request, res: Response) => {
   try {
-    const missing: string[] = [];
+    const invalidVars =
+      appEnvResult.error?.issues.map((i) => String(i.path[0])) || [];
+
+    // Get schema information
+    const infraInfo = getSchemaInfo(infrastructureSchema);
+    const appInfo = getSchemaInfo(applicationSchema);
+
+    // Calculate configured and missing
     const configured: string[] = [];
+    const missing: string[] = [];
 
-    const requiredAppVars = [
-      "LLM_API_KEY",
-      "LLM_PROVIDER",
-      "LLM_CHAT_MODEL",
-      "LLM_EMBEDDING_MODEL",
-      "LLM_INDEXING_CONFIG_MODEL",
-    ];
-
-    requiredAppVars.forEach((key) => {
-      if (process.env[key] && process.env[key] !== "your_llm_api_key_here") {
-        configured.push(key);
-      } else {
+    // Check infrastructure vars
+    for (const [key, info] of Object.entries(infraInfo)) {
+      if (process.env[key] || info.default !== undefined) {
+        if (!invalidVars.includes(key)) {
+          configured.push(key);
+        }
+      } else if (info.required) {
         missing.push(key);
       }
-    });
+    }
+
+    // Check application vars
+    for (const [key, info] of Object.entries(appInfo)) {
+      if (process.env[key] || info.default !== undefined) {
+        if (!invalidVars.includes(key)) {
+          configured.push(key);
+        }
+      } else if (info.required) {
+        missing.push(key);
+      }
+    }
+
+    const setupComplete = invalidVars.length === 0 && missing.length === 0;
 
     res.json({
       success: true,
       data: {
-        setupComplete: missing.length === 0,
+        values: sourceEnv,
+        schema: {
+          infrastructure: infraInfo,
+          application: appInfo,
+        },
+        invalidVars,
+        setupComplete,
         configured,
         missing,
-        optional: ["RERANKER_API_KEY", "ENCRYPTION_KEY"],
       },
     });
-  } catch (err) {
-    logger.error({ err }, "Error checking config status");
-    res.status(500).json({
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-});
-
-// GET /api/config/env - Read current config (masked)
-router.get("/", (_req: Request, res: Response) => {
-  try {
-    const maskValue = (value: string | undefined): string => {
-      if (
-        !value ||
-        value === "your_llm_api_key_here" ||
-        value === "your_fireworks_api_key_here"
-      ) {
-        return "";
-      }
-      // Mask API keys but show first/last few chars
-      if (value.length > 8) {
-        return `${value.substring(0, 4)}${"•".repeat(8)}${value.substring(
-          value.length - 4
-        )}`;
-      }
-      return "••••••••";
-    };
-
-    const config = {
-      LLM_PROVIDER: process.env.LLM_PROVIDER || "openrouter",
-      LLM_API_KEY: maskValue(process.env.LLM_API_KEY),
-      LLM_BASE_URL: process.env.LLM_BASE_URL || "",
-      LLM_CHAT_MODEL: process.env.LLM_CHAT_MODEL || "openai/gpt-oss-20b",
-      LLM_EMBEDDING_MODEL:
-        process.env.LLM_EMBEDDING_MODEL || "qwen/qwen3-embedding-4b",
-      LLM_INDEXING_CONFIG_MODEL:
-        process.env.LLM_INDEXING_CONFIG_MODEL || "openai/gpt-oss-120b",
-      RERANKER_ENABLED: process.env.RERANKER_ENABLED || "false",
-      RERANKER_API_KEY: maskValue(process.env.RERANKER_API_KEY),
-      RERANKER_BASE_URL:
-        process.env.RERANKER_BASE_URL ||
-        "https://api.fireworks.ai/inference/v1/rerank",
-      RERANKER_MODEL:
-        process.env.RERANKER_MODEL || "fireworks/qwen3-reranker-8b",
-      ENCRYPTION_KEY: process.env.ENCRYPTION_KEY ? "••••••••" : "",
-      DB_INDEXING_CONCURRENCY: process.env.DB_INDEXING_CONCURRENCY || "32",
-      SCHEMA_LEARNING_CONCURRENCY:
-        process.env.SCHEMA_LEARNING_CONCURRENCY || "32",
-      VECTOR_INDEXING_CONCURRENCY:
-        process.env.VECTOR_INDEXING_CONCURRENCY || "32",
-      GRAPH_EXTRACTION_CONCURRENCY:
-        process.env.GRAPH_EXTRACTION_CONCURRENCY || "32",
-    };
-
-    res.json({ success: true, data: config });
   } catch (err) {
     logger.error({ err }, "Error reading config");
     res.status(500).json({
@@ -152,19 +134,7 @@ router.get("/", (_req: Request, res: Response) => {
 // PUT /api/config/env - Update .env file
 router.put("/", async (req: Request, res: Response) => {
   try {
-    const updates = req.body;
-
-    // Validate required fields
-    const requiredFields = ["LLM_API_KEY", "LLM_PROVIDER"];
-    for (const field of requiredFields) {
-      if (!updates[field]) {
-        res.status(400).json({
-          success: false,
-          error: `Missing required field: ${field}`,
-        });
-        return;
-      }
-    }
+    const updates: Record<string, any> = req.body;
 
     // Auto-generate encryption key if not provided
     if (!updates.ENCRYPTION_KEY && !process.env.ENCRYPTION_KEY) {
@@ -172,10 +142,15 @@ router.put("/", async (req: Request, res: Response) => {
       logger.info("Auto-generated ENCRYPTION_KEY");
     }
 
-    // Filter out masked values (don't update if user didn't change)
+    const allVars = [
+      ...Object.keys(infrastructureSchema.shape),
+      ...Object.keys(applicationSchema.shape),
+    ];
+
+    // Only accept the keys defined in the schemas
     const filteredUpdates: Record<string, string> = {};
     for (const [key, value] of Object.entries(updates)) {
-      if (typeof value === "string" && !value.includes("•")) {
+      if (allVars.includes(key)) {
         filteredUpdates[key] = value;
       }
     }
@@ -190,9 +165,6 @@ router.put("/", async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message:
-        "Configuration saved. Please restart the server for changes to take effect.",
-      restartRequired: true,
     });
   } catch (err) {
     logger.error({ err }, "Error updating config");
@@ -201,56 +173,6 @@ router.put("/", async (req: Request, res: Response) => {
       error: err instanceof Error ? err.message : String(err),
     });
   }
-});
-
-// POST /api/config/validate - Test LLM connection
-router.post("/validate", async (req: Request, res: Response) => {
-  try {
-    const { provider, apiKey, chatModel, embeddingModel } = req.body;
-
-    const results = {
-      llm: { valid: false, error: null as string | null },
-      embedding: { valid: false, error: null as string | null },
-    };
-
-    // Basic validation
-    if (!provider || !apiKey) {
-      res.status(400).json({
-        success: false,
-        error: "Provider and API key are required",
-      });
-      return;
-    }
-
-    // For now, just validate format
-    // TODO: Add actual API calls to test connectivity
-    if (apiKey.length > 10) {
-      results.llm.valid = true;
-      results.embedding.valid = true;
-    } else {
-      results.llm.error = "API key appears to be invalid";
-      results.embedding.error = "API key appears to be invalid";
-    }
-
-    res.json({ success: true, data: results });
-  } catch (err) {
-    logger.error({ err }, "Error validating config");
-    res.status(500).json({
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-});
-
-// POST /api/config/restart - Trigger server restart
-router.post("/restart", (_req: Request, res: Response) => {
-  logger.info("Server restart requested");
-  res.json({ success: true, message: "Server restarting..." });
-
-  // Give time for response to be sent
-  setTimeout(() => {
-    process.exit(0); // Docker/PM2 will restart the process
-  }, 500);
 });
 
 export { router as envConfigRouter };

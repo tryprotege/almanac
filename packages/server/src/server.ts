@@ -5,6 +5,7 @@ import express, { NextFunction, Request, Response } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import { router } from "./api/index.js";
+import { configRouter } from "./api/config/index.js";
 import { mcpClientManager } from "./mcp/client.js";
 import {
   initializeServices,
@@ -78,7 +79,7 @@ const runServer = async () => {
           error:
             "Server is in setup mode. Please complete configuration first.",
           setupRequired: true,
-          setupUrl: "/api/config/env/status",
+          setupUrl: "/api/config/env",
         });
         return;
       }

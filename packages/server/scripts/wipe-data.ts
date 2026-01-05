@@ -2,13 +2,13 @@ import "dotenv/config";
 import { initializeServices } from "../src/mcp/initialization.js";
 import { RecordModel } from "../src/models/record.model.js";
 import { GraphSchemaModel } from "../src/models/graph-schema.model.js";
-import { MCPServerConfigModel } from "../src/models/mcp-config.model.js";
 import { GraphEmbeddingMetadata } from "../src/models/graph-embedding-metadata.model.js";
 import { GraphStore } from "../src/stores/graph.store.js";
 import { VectorStore } from "../src/stores/vector.store.js";
 import { cleanupOrphanedEmbeddings } from "../src/services/cleanup/embedding-cleanup.service.js";
 import * as readline from "readline";
 import logger from "../src/utils/logger.js";
+import { DataSourceModel } from "../src/models/data-source.model.js";
 
 /**
  * Script to wipe all data from MongoDB, Memgraph, and Qdrant
@@ -77,7 +77,7 @@ async function getStatistics(
     source ? { source } : {}
   );
   const schemaCount = await GraphSchemaModel.countDocuments();
-  const mcpConfigCount = await MCPServerConfigModel.countDocuments();
+  const mcpConfigCount = await DataSourceModel.countDocuments();
 
   // Memgraph stats
   let nodeCount = 0;
@@ -186,7 +186,7 @@ async function wipeMongoDB(
   // Optionally delete MCP configs
   if (!keepMcpConfig) {
     const mcpFilter = source ? { name: source } : {};
-    const mcpResult = await MCPServerConfigModel.deleteMany(mcpFilter);
+    const mcpResult = await DataSourceModel.deleteMany(mcpFilter);
     logger.info(`   ✓ Deleted ${mcpResult.deletedCount} MCP server configs`);
   } else {
     logger.info(`   ⊘ Kept MCP server configs (--keep-mcp-config)`);

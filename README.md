@@ -249,8 +249,6 @@ cp packages/server/.env.example packages/server/.env
 **Required Settings:**
 
 - `LLM_API_KEY` - Your LLM provider API key
-- `LLM_PROVIDER` - Provider name (openrouter, openai, anthropic, azure)
-- `LLM_INDEXING_CONFIG_MODEL` - Model for generating indexing configurations
 
 **Optional Settings:**
 

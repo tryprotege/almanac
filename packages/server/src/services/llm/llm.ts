@@ -40,7 +40,8 @@ export async function chat(
     temperature: options?.temperature ?? 0.7,
     max_tokens: options?.maxTokens,
     stream: false,
-    frequency_penalty: options?.frequencyPenalty,
+    // TODO: disable for now as grok-4-1-fast-reasoning and grok-4-1-fast-non-reasoning don't support it
+    // frequency_penalty: options?.frequencyPenalty,
     // Prioritize new reasoning format, fall back to legacy reasoningEffort
     ...(options?.reasoning && {
       reasoning: options.reasoning,
@@ -56,3 +57,8 @@ export async function chat(
 
   return completion.choices[0]?.message?.content || "";
 }
+
+export const llm = new OpenAI({
+  baseURL: env.LLM_BASE_URL,
+  apiKey: env.LLM_API_KEY,
+});

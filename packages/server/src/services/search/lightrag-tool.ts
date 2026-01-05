@@ -6,8 +6,6 @@ import { lightragQuery, LightRAGDependencies } from "./lightrag-query.js";
 import { GraphStore } from "../../stores/graph.store.js";
 import { VectorStore } from "../../stores/vector.store.js";
 import { RecordStore } from "../../stores/record.store.js";
-import { LLMService } from "../llm/llm.service.js";
-import { RerankerService } from "../reranker/reranker.service.js";
 import {
   lightragQueryTool,
   LightRAGQuery,
@@ -41,8 +39,6 @@ export async function registerLightRAGTool(
     graphStore: new GraphStore(connections.memgraph),
     vectorStore: new VectorStore(connections.qdrant),
     recordStore: new RecordStore(),
-    llm: new LLMService(openaiClient),
-    reranker: new RerankerService(),
     openaiClient,
     embeddingModel: env.LLM_EMBEDDING_MODEL,
   };

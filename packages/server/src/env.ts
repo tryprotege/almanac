@@ -1,19 +1,11 @@
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
-import fs from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const envPath = path.join(__dirname, "../.env");
-const envExamplePath = path.join(__dirname, "../.env.example");
-
-// Auto-create .env from .env.example if it doesn't exist
-if (!fs.existsSync(envPath) && fs.existsSync(envExamplePath)) {
-  fs.copyFileSync(envExamplePath, envPath);
-  console.log("📝 Created .env from .env.example");
-}
 
 dotenv.config({
   path: envPath,
@@ -22,7 +14,7 @@ dotenv.config({
 import { z } from "zod";
 
 // Infrastructure schema - REQUIRED for server to start (with defaults)
-const infrastructureSchema = z.object({
+export const infrastructureSchema = z.object({
   // Logging Configuration
   LOG_LEVEL: z
     .enum(["trace", "debug", "info", "warn", "error", "fatal"])
@@ -61,47 +53,28 @@ const infrastructureSchema = z.object({
 });
 
 // Application schema - OPTIONAL at startup (can be configured via UI)
-const applicationSchema = z.object({
-  // LLM Configuration (provider-agnostic)
-  LLM_PROVIDER: z
-    .enum(["openai", "openrouter", "azure", "anthropic"])
-    .optional(),
-  LLM_API_KEY: z.string().optional(),
-  LLM_BASE_URL: z.string().optional(),
+export const applicationSchema = z.object({
+  LLM_API_KEY: z.string(),
+  LLM_BASE_URL: z.string(),
 
   // Model Configuration - Separate for chat and embeddings
-  LLM_CHAT_MODEL: z.string().default("openai/gpt-oss-20b"),
-  LLM_EMBEDDING_MODEL: z.string().default("qwen/qwen3-embedding-4b"),
-  LLM_INDEXING_CONFIG_MODEL: z.string(),
-  LLM_EXTRACTION_MODEL: z.string().default("openai/gpt-oss-20b"),
+  LLM_CHAT_MODEL: z.string(),
+  LLM_EMBEDDING_MODEL: z.string(),
+  LLM_EXTRACTION_MODEL: z.string(),
 
   // Reranker Configuration (generic - works with any provider)
-  RERANKER_ENABLED: z.preprocess((val) => {
-    if (typeof val === "boolean") return val;
-    if (typeof val === "string") {
-      const lower = val.toLowerCase();
-      if (lower === "true" || lower === "1") return true;
-      if (lower === "false" || lower === "0") return false;
-    }
-    return val;
-  }, z.boolean().optional()),
-  RERANKER_API_KEY: z.string().optional(),
+  RERANKER_ENABLED: z.boolean().default(false),
   RERANKER_BASE_URL: z.string().optional(),
   RERANKER_MODEL: z.string().optional(),
 
-  DB_INDEXING_CONCURRENCY: z.coerce.number().optional(),
-
-  // Schema Learning Configuration
-  SCHEMA_LEARNING_CONCURRENCY: z.coerce.number().optional(),
-  SCHEMA_LEARNING_MAX_BATCH_CHARS: z.coerce.number().optional(),
+  DB_INDEXING_CONCURRENCY: z.coerce.number().default(32),
 
   // Vector Indexing Configuration
-  VECTOR_INDEXING_CONCURRENCY: z.coerce.number().optional(),
-  VECTOR_INDEXING_MAX_BATCH_SIZE: z.coerce.number().optional(),
+  VECTOR_INDEXING_CONCURRENCY: z.coerce.number().default(32),
 
   // Graph Extraction Configuration
-  GRAPH_EXTRACTION_CONCURRENCY: z.coerce.number().optional(),
-  ENABLE_TOXIC_DOCUMENT_FILTER: z.boolean().optional(),
+  GRAPH_EXTRACTION_CONCURRENCY: z.coerce.number().default(32),
+  ENABLE_TOXIC_DOCUMENT_FILTER: z.boolean().default(false),
 
   // Dynamic Entity Limit Configuration
   ENTITY_CHARS_PER_ENTITY: z.coerce.number().optional(),
@@ -119,58 +92,55 @@ const applicationSchema = z.object({
     .optional(),
 });
 
-// Parse infrastructure (will throw if missing required fields)
-const infraEnv = infrastructureSchema.parse(process.env);
-
-// Parse application (won't throw - just returns what's available)
-const appEnvResult = applicationSchema.safeParse({
+const processEnv = {
   ...process.env,
   RERANKER_ENABLED:
     process.env.RERANKER_ENABLED?.toLowerCase().trim() === "true",
+  ENABLE_TOXIC_DOCUMENT_FILTER:
+    process.env.ENABLE_TOXIC_DOCUMENT_FILTER?.toLowerCase().trim() === "true",
   SYNC_MAX_RECORDS: process.env.SYNC_MAX_RECORDS
     ? parseInt(process.env.SYNC_MAX_RECORDS)
     : undefined,
-});
+};
 
-const appEnv = appEnvResult.success ? appEnvResult.data : {};
+function partialParse<T extends z.ZodRawShape>(
+  schema: z.ZodObject<T>,
+  input: unknown
+) {
+  const shape = schema.shape;
+  const result: any = {};
+
+  for (const key in shape) {
+    const fieldSchema = shape[key];
+    const parsed = fieldSchema.safeParse((input as any)?.[key]);
+    result[key] = parsed.success ? parsed.data : undefined;
+  }
+
+  return result as z.infer<typeof schema>;
+}
+
+// Parse infrastructure (will throw if missing required fields)
+const infraEnv = infrastructureSchema.parse(processEnv);
+
+// Parse application (won't throw - just returns what's available)
+export const appEnvResult = applicationSchema.safeParse(processEnv);
+
+const appEnv = appEnvResult.data || partialParse(applicationSchema, processEnv);
 
 // Determine if we're in setup mode
-// Setup mode is active if critical LLM config is missing
-const isSetupMode =
-  !appEnv.LLM_API_KEY ||
-  appEnv.LLM_API_KEY === "your_llm_api_key_here" ||
-  !appEnv.LLM_INDEXING_CONFIG_MODEL;
-
-// Apply defaults for application config
-// Always apply performance/concurrency defaults, even in setup mode
-const appEnvWithDefaults = {
-  LLM_PROVIDER: appEnv.LLM_PROVIDER || "openrouter",
-  LLM_CHAT_MODEL: appEnv.LLM_CHAT_MODEL || "openai/gpt-oss-20b",
-  LLM_EMBEDDING_MODEL: appEnv.LLM_EMBEDDING_MODEL || "qwen/qwen3-embedding-4b",
-  LLM_INDEXING_CONFIG_MODEL:
-    appEnv.LLM_INDEXING_CONFIG_MODEL || "openai/gpt-oss-120b",
-  RERANKER_ENABLED: appEnv.RERANKER_ENABLED || false,
-  RERANKER_BASE_URL:
-    appEnv.RERANKER_BASE_URL || "https://api.fireworks.ai/inference/v1/rerank",
-  RERANKER_MODEL: appEnv.RERANKER_MODEL || "fireworks/qwen3-reranker-8b",
-  DB_INDEXING_CONCURRENCY: appEnv.DB_INDEXING_CONCURRENCY || 32,
-  SCHEMA_LEARNING_CONCURRENCY: appEnv.SCHEMA_LEARNING_CONCURRENCY || 32,
-  SCHEMA_LEARNING_MAX_BATCH_CHARS:
-    appEnv.SCHEMA_LEARNING_MAX_BATCH_CHARS || 250000,
-  VECTOR_INDEXING_CONCURRENCY: appEnv.VECTOR_INDEXING_CONCURRENCY || 32,
-  VECTOR_INDEXING_MAX_BATCH_SIZE: appEnv.VECTOR_INDEXING_MAX_BATCH_SIZE || 100,
-  GRAPH_EXTRACTION_CONCURRENCY: appEnv.GRAPH_EXTRACTION_CONCURRENCY || 32,
-  ENABLE_TOXIC_DOCUMENT_FILTER: appEnv.ENABLE_TOXIC_DOCUMENT_FILTER || false,
-  ...appEnv,
-};
+const isSetupMode = !appEnvResult.success;
 
 // TODO: Compute embedding dimensions based on model
 // This ensures dimension consistency across the application
 const EMBEDDING_DIMENSIONS = 2560;
 
-export const env = {
+export const sourceEnv = {
   ...infraEnv,
-  ...appEnvWithDefaults,
+  ...appEnv,
+};
+
+export const env = {
+  ...sourceEnv,
   EMBEDDING_DIMENSIONS,
   isSetupMode,
 };
@@ -183,27 +153,15 @@ if (isSetupMode) {
   );
   console.log("=".repeat(70));
 
-  // List missing required variables
-  const missingVars: string[] = [];
-  if (!appEnv.LLM_API_KEY || appEnv.LLM_API_KEY === "your_llm_api_key_here") {
-    missingVars.push("LLM_API_KEY");
-  }
-  if (!appEnv.LLM_INDEXING_CONFIG_MODEL) {
-    missingVars.push("LLM_INDEXING_CONFIG_MODEL");
-  }
+  const invalidVars = appEnvResult.error?.issues.map(
+    (i) => i.path[0] as string
+  );
 
-  if (missingVars.length > 0) {
-    console.log("\n❌ Missing Required Environment Variables:");
-    missingVars.forEach((varName) => {
+  if (invalidVars && invalidVars.length > 0) {
+    console.log("\n❌ Invalid Environment Variables:");
+    invalidVars.forEach((varName) => {
       console.log(`   - ${varName}`);
     });
   }
-
-  console.log("\n📝 How to configure:");
-  console.log("   1. Visit the application at http://localhost:5173");
-  console.log("   2. Navigate to Settings → Environment Configuration");
-  console.log("   3. Fill in the required LLM API credentials");
-  console.log("   4. Save and restart the server");
-  console.log("\n   Or manually edit packages/server/.env file");
   console.log("=".repeat(70) + "\n");
 }

@@ -11,7 +11,6 @@ import {
   indexEntityEmbeddings,
   indexRelationshipEmbeddings,
 } from "../indexing/graph/graph-embeddings.js";
-import { createLLMClient } from "../llm/providers.js";
 import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
 import { GitHubMCPClient } from "../sources/github/mcpClient.js";
 import { NotionMCPClient } from "../sources/notion/mcpClient.js";
@@ -23,6 +22,7 @@ import { SlackAdapter } from "../sync/adapters/slack-adapter.js";
 import { createRedisConnection, QUEUE_NAME } from "./config.js";
 import { env } from "../../env.js";
 import { SlackMCPClient } from "../sources/slack/mcpClient.js";
+import { llm } from "../llm/llm.js";
 
 const processor: Processor<
   IndexGraphJobData,
@@ -71,16 +71,13 @@ const processor: Processor<
     );
   }
 
-  // Create LLM client for extraction
-  const openaiClient = createLLMClient();
-
   // Use functional approach for indexing
   const result = await indexAllRecords(
     source,
     recordStore,
     graphStore,
     adapters,
-    openaiClient,
+    llm,
     {
       batchSize: 100,
       concurrency: env.GRAPH_EXTRACTION_CONCURRENCY,

@@ -55,7 +55,7 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
 
   const loadData = async (silent: boolean = false) => {
     try {
-      const configRes = await api.get("/config/env");
+      const configRes = await api.get("http://localhost:3000/api/config/env");
 
       if (configRes.data.success && configRes.data.data) {
         const data = configRes.data.data;

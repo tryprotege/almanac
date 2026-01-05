@@ -4,7 +4,6 @@ import type {
   OAuthClientInformationMixed,
   OAuthTokens,
 } from "@modelcontextprotocol/sdk/shared/auth.js";
-import { MCPServerConfigModel } from "../models/mcp-config.model.js";
 import { DataSourceModel } from "../models/data-source.model.js";
 import { OAuthTokenModel } from "../models/oauth-token.model.js";
 import logger from "../utils/logger.js";
@@ -23,7 +22,7 @@ export class MCPOAuthProvider implements OAuthClientProvider {
 
   constructor(
     private mcpServerId: string,
-    private mcpServerUrl: string,
+    _mcpServerUrl: string,
     onRedirect?: (url: URL) => void,
     public readonly clientMetadataUrl?: string
   ) {
@@ -141,7 +140,7 @@ export class MCPOAuthProvider implements OAuthClientProvider {
       registrationAccessToken,
     };
 
-    // Try to save to DataSource first (for streamable-http/sse servers)
+    // Save to DataSource
     DataSourceModel.findByIdAndUpdate(
       this.mcpServerId,
       {
@@ -159,24 +158,9 @@ export class MCPOAuthProvider implements OAuthClientProvider {
             "Successfully saved client information to DataSource"
           );
         } else {
-          // If not found in DataSource, try MCPServerConfig
-          return MCPServerConfigModel.findByIdAndUpdate(
-            this.mcpServerId,
-            {
-              $set: {
-                "oauth.registrationStatus": "registered",
-                "oauth.clientMetadata": clientMetadata,
-              },
-            },
-            { new: true }
-          );
-        }
-      })
-      .then((updated) => {
-        if (updated) {
-          logger.info(
+          logger.warn(
             { mcpServerId: this.mcpServerId },
-            "Successfully saved client information to MCPServerConfig"
+            "Failed to save client information - DataSource not found"
           );
         }
       })
@@ -327,63 +311,33 @@ export class MCPOAuthProvider implements OAuthClientProvider {
     OAuthClientInformationMixed | undefined
   > {
     try {
-      // Try DataSource first (for streamable-http/sse servers)
       const dataSource = await DataSourceModel.findById(this.mcpServerId);
 
-      if (dataSource?.oauth) {
-        // Return dynamic registration if available
-        if (
-          dataSource.oauth.registrationStatus === "registered" &&
-          dataSource.oauth.clientMetadata
-        ) {
-          return {
-            client_id: dataSource.oauth.clientMetadata.clientId!,
-            client_secret:
-              dataSource.oauth.clientMetadata.clientSecret ?? undefined,
-            client_id_issued_at:
-              dataSource.oauth.clientMetadata.clientIdIssuedAt ?? undefined,
-            client_secret_expires_at:
-              dataSource.oauth.clientMetadata.clientSecretExpiresAt ??
-              undefined,
-          };
-        }
-
-        // Fall back to static credentials
-        if (dataSource.oauth.clientId) {
-          return {
-            client_id: dataSource.oauth.clientId,
-            client_secret: dataSource.oauth.clientSecret ?? undefined,
-          };
-        }
-      }
-
-      // Fall back to MCPServerConfig (for backward compatibility)
-      const config = await MCPServerConfigModel.findById(this.mcpServerId);
-
-      if (!config?.oauth) {
+      if (!dataSource?.oauth) {
         return undefined;
       }
 
       // Return dynamic registration if available
       if (
-        config.oauth.registrationStatus === "registered" &&
-        config.oauth.clientMetadata
+        dataSource.oauth.registrationStatus === "registered" &&
+        dataSource.oauth.clientMetadata
       ) {
         return {
-          client_id: config.oauth.clientMetadata.clientId!,
-          client_secret: config.oauth.clientMetadata.clientSecret ?? undefined,
+          client_id: dataSource.oauth.clientMetadata.clientId!,
+          client_secret:
+            dataSource.oauth.clientMetadata.clientSecret ?? undefined,
           client_id_issued_at:
-            config.oauth.clientMetadata.clientIdIssuedAt ?? undefined,
+            dataSource.oauth.clientMetadata.clientIdIssuedAt ?? undefined,
           client_secret_expires_at:
-            config.oauth.clientMetadata.clientSecretExpiresAt ?? undefined,
+            dataSource.oauth.clientMetadata.clientSecretExpiresAt ?? undefined,
         };
       }
 
       // Fall back to static credentials
-      if (config.oauth.clientId) {
+      if (dataSource.oauth.clientId) {
         return {
-          client_id: config.oauth.clientId,
-          client_secret: config.oauth.clientSecret ?? undefined,
+          client_id: dataSource.oauth.clientId,
+          client_secret: dataSource.oauth.clientSecret ?? undefined,
         };
       }
 

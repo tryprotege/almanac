@@ -10,28 +10,7 @@ import { EventEmitter } from "events";
 import logger from "../utils/logger.js";
 import { oauthProviderFactory } from "../oauth/mcp-oauth-provider.js";
 import { discoverSseOAuth } from "../oauth/sse-oauth.js";
-
-export interface MCPServerConfig {
-  _id?: string;
-  name: string;
-  type: "stdio" | "sse" | "streamable-http";
-  command?: string | null;
-  args?: string[] | null;
-  env?: Record<string, string> | null;
-  url?: string | null;
-  headers?: Record<string, string> | null;
-  requestInit?: RequestInit;
-  eventSourceInit?: any;
-  authType?: "none" | "api-key" | "oauth"; // Optional, defaults to "none"
-  oauth?: {
-    authorizationUrl?: string;
-    tokenUrl?: string;
-    clientId?: string;
-    scopes?: string[];
-    clientMetadataUrl?: string;
-  };
-  isDisabled?: boolean;
-}
+import type { DataSource } from "../models/data-source.model.js";
 
 class MCPClientManager {
   private clients: Map<string, Client> = new Map();
@@ -51,22 +30,22 @@ class MCPClientManager {
   /**
    * Create OAuth provider for a server
    */
-  private createOAuthProvider(config: MCPServerConfig): any | undefined {
-    if (config.authType !== "oauth" || !config._id) {
+  private createOAuthProvider(dataSource: DataSource): any | undefined {
+    if (dataSource.authType !== "oauth" || !dataSource._id) {
       return undefined;
     }
 
     return oauthProviderFactory.createProvider(
-      config._id,
-      config.url!,
+      dataSource._id.toString(),
+      dataSource.url!,
       (authUrl) => {
         // Emit event for frontend to handle redirect
         this.eventEmitter.emit("oauth-redirect-required", {
-          serverId: config._id,
+          serverId: dataSource._id?.toString(),
           authUrl: authUrl.toString(),
         });
       },
-      config.oauth?.clientMetadataUrl
+      dataSource.oauth?.clientMetadataUrl || undefined
     );
   }
 
@@ -110,77 +89,78 @@ class MCPClientManager {
   /**
    * Connect to an MCP server
    */
-  async connect(config: MCPServerConfig): Promise<void> {
-    if (this.clients.has(config.name)) {
+  async connect(dataSource: DataSource): Promise<void> {
+    if (this.clients.has(dataSource.name)) {
       logger.error(
-        { clientName: config.name },
-        `Client ${config.name} already connected`
+        { clientName: dataSource.name },
+        `Client ${dataSource.name} already connected`
       );
       return;
     }
 
     // Pre-flight OAuth discovery for SSE servers
-    if (config.type === "sse" && config.authType === "oauth" && config.url) {
-      await this.handleSseOAuthPreFlight(config);
+    if (
+      dataSource.type === "sse" &&
+      dataSource.authType === "oauth" &&
+      dataSource.url
+    ) {
+      await this.handleSseOAuthPreFlight(dataSource);
       return; // Will retry connection after OAuth
     }
 
     let transport: Transport;
 
-    if (config.type === "stdio") {
+    if (dataSource.type === "stdio") {
       // stdio doesn't support OAuth
-      if (!config.command) {
+      if (!dataSource.command) {
         throw new Error("stdio transport requires command");
       }
       transport = new StdioClientTransport({
-        command: config.command,
-        args: config.args || [],
-        env: config.env || undefined,
+        command: dataSource.command,
+        args: dataSource.args || [],
+        env: dataSource.getEnv() || undefined,
       });
-    } else if (config.type === "sse") {
-      if (!config.url) {
+    } else if (dataSource.type === "sse") {
+      if (!dataSource.url) {
         throw new Error("sse transport requires url");
       }
 
       const sseOpts: { requestInit?: RequestInit; eventSourceInit?: any } = {};
 
       // Create OAuth provider if needed
-      const oauthProvider = this.createOAuthProvider(config);
+      const oauthProvider = this.createOAuthProvider(dataSource);
 
       if (oauthProvider) {
         // Use OAuth provider (SDK handles auth automatically)
-        transport = new SSEClientTransport(new URL(config.url), {
+        transport = new SSEClientTransport(new URL(dataSource.url), {
           authProvider: oauthProvider,
           ...sseOpts,
         });
       } else {
         // Non-OAuth: use headers if provided
-        const headers = config.headers || {};
+        const headers = dataSource.getHeaders() || {};
         sseOpts.requestInit = { headers };
-        if (config.eventSourceInit) {
-          sseOpts.eventSourceInit = config.eventSourceInit;
-        }
-        transport = new SSEClientTransport(new URL(config.url), sseOpts);
+        transport = new SSEClientTransport(new URL(dataSource.url), sseOpts);
       }
-    } else if (config.type === "streamable-http") {
-      if (!config.url) {
+    } else if (dataSource.type === "streamable-http") {
+      if (!dataSource.url) {
         throw new Error("streamable-http transport requires url");
       }
 
       const httpOpts: { requestInit?: RequestInit } = {};
 
       // Create OAuth provider if needed
-      const oauthProvider = this.createOAuthProvider(config);
+      const oauthProvider = this.createOAuthProvider(dataSource);
 
       if (oauthProvider) {
         // Use OAuth provider
-        transport = new StreamableHTTPClientTransport(new URL(config.url), {
+        transport = new StreamableHTTPClientTransport(new URL(dataSource.url), {
           authProvider: oauthProvider,
           ...httpOpts,
         });
       } else {
         // Non-OAuth: use headers if provided
-        const headers = config.headers || {};
+        const headers = dataSource.getHeaders() || {};
 
         // Log sanitized headers for debugging
         const sanitizedHeaders = Object.keys(headers).reduce((acc, key) => {
@@ -190,22 +170,22 @@ class MCPClientManager {
         }, {} as Record<string, string>);
 
         logger.debug(
-          { serverName: config.name, headers: sanitizedHeaders },
+          { serverName: dataSource.name, headers: sanitizedHeaders },
           "Connecting with headers"
         );
 
         httpOpts.requestInit = { headers };
         transport = new StreamableHTTPClientTransport(
-          new URL(config.url),
+          new URL(dataSource.url),
           httpOpts
         );
       }
     } else {
-      throw new Error(`Unknown transport type: ${config.type}`);
+      throw new Error(`Unknown transport type: ${dataSource.type}`);
     }
 
     const client = new Client(
-      { name: `ebee-proxy-client-${config.name}`, version: "0.1.0" },
+      { name: `ebee-proxy-client-${dataSource.name}`, version: "0.1.0" },
       { capabilities: {} }
     );
 
@@ -215,15 +195,17 @@ class MCPClientManager {
       if (error instanceof UnauthorizedError) {
         // OAuth flow required - wait for callback
         logger.info(
-          { serverName: config.name },
+          { serverName: dataSource.name },
           "OAuth authorization required"
         );
 
-        if (!config._id) {
+        if (!dataSource._id) {
           throw new Error("Server ID required for OAuth flow");
         }
 
-        const authCode = await this.waitForOAuthCallback(config._id);
+        const authCode = await this.waitForOAuthCallback(
+          dataSource._id.toString()
+        );
 
         // finishAuth is only available on HTTP transports with OAuth
         if (
@@ -240,20 +222,20 @@ class MCPClientManager {
       }
     }
 
-    this.clients.set(config.name, client);
-    this.transports.set(config.name, transport);
+    this.clients.set(dataSource.name, client);
+    this.transports.set(dataSource.name, transport);
 
     // Refresh tools with error handling
     try {
-      await this.refreshTools(config.name);
+      await this.refreshTools(dataSource.name);
     } catch (toolError) {
       logger.warn(
-        { error: toolError, serverName: config.name },
+        { error: toolError, serverName: dataSource.name },
         "Tool refresh failed but connection established"
       );
     }
 
-    logger.info(`Connected to MCP server: ${config.name}`);
+    logger.info(`Connected to MCP server: ${dataSource.name}`);
   }
 
   /**
@@ -488,34 +470,32 @@ class MCPClientManager {
    * 3. Store tokens
    * 4. Connect with authenticated session
    */
-  private async handleSseOAuthPreFlight(
-    config: MCPServerConfig
-  ): Promise<void> {
-    if (!config.url || !config._id) {
+  private async handleSseOAuthPreFlight(dataSource: DataSource): Promise<void> {
+    if (!dataSource.url || !dataSource._id) {
       throw new Error("SSE OAuth requires url and server ID");
     }
 
     logger.info(
-      { serverName: config.name, url: config.url },
+      { serverName: dataSource.name, url: dataSource.url },
       "Starting SSE OAuth pre-flight discovery"
     );
 
     // Perform discovery
-    const discovery = await discoverSseOAuth(config.url);
+    const discovery = await discoverSseOAuth(dataSource.url);
 
     if (!discovery.requiresAuth) {
       logger.info(
-        { serverName: config.name },
+        { serverName: dataSource.name },
         "SSE server does not require authentication, retrying connection"
       );
       // Retry connection without OAuth
-      const configNoAuth = { ...config, authType: "none" as const };
-      return this.connect(configNoAuth);
+      const dataSourceNoAuth = { ...dataSource, authType: "none" as const };
+      return this.connect(dataSourceNoAuth);
     }
 
     if (discovery.error || !discovery.oauthMetadata) {
       logger.error(
-        { serverName: config.name, error: discovery.error },
+        { serverName: dataSource.name, error: discovery.error },
         "SSE OAuth discovery failed"
       );
       throw new Error(
@@ -524,28 +504,29 @@ class MCPClientManager {
     }
 
     // Check if we already have tokens
-    const existingProvider = oauthProviderFactory.getProvider(config._id);
+    const existingProvider = oauthProviderFactory.getProvider(
+      dataSource._id.toString()
+    );
     if (existingProvider) {
       // Try to connect with existing tokens
       logger.info(
-        { serverName: config.name },
+        { serverName: dataSource.name },
         "Found existing OAuth provider, attempting connection"
       );
       // Retry connection (will use OAuth provider)
-      const configWithAuth = { ...config };
-      return this.connect(configWithAuth);
+      return this.connect(dataSource);
     }
 
     // Need to trigger OAuth flow
     logger.info(
-      { serverName: config.name, metadata: discovery.oauthMetadata },
+      { serverName: dataSource.name, metadata: discovery.oauthMetadata },
       "SSE requires OAuth, triggering authorization flow"
     );
 
     // Emit event for frontend to handle
     this.eventEmitter.emit("oauth-redirect-required", {
-      serverId: config._id,
-      serverName: config.name,
+      serverId: dataSource._id?.toString(),
+      serverName: dataSource.name,
       authorizationEndpoint: discovery.oauthMetadata.authorizationEndpoint,
       tokenEndpoint: discovery.oauthMetadata.tokenEndpoint,
       scopes: discovery.oauthMetadata.scopesSupported || [],

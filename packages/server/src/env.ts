@@ -70,9 +70,10 @@ const applicationSchema = z.object({
   LLM_BASE_URL: z.string().optional(),
 
   // Model Configuration - Separate for chat and embeddings
-  LLM_CHAT_MODEL: z.string().optional(),
-  LLM_EMBEDDING_MODEL: z.string().optional(),
-  LLM_INDEXING_CONFIG_MODEL: z.string().optional(),
+  LLM_CHAT_MODEL: z.string().default("openai/gpt-oss-20b"),
+  LLM_EMBEDDING_MODEL: z.string().default("qwen/qwen3-embedding-4b"),
+  LLM_INDEXING_CONFIG_MODEL: z.string(),
+  LLM_EXTRACTION_MODEL: z.string().default("openai/gpt-oss-20b"),
 
   // Reranker Configuration (generic - works with any provider)
   RERANKER_ENABLED: z.preprocess((val) => {

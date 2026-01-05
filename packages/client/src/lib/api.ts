@@ -479,11 +479,11 @@ export interface SyncResult {
 // Sync Config API
 export const syncConfigApi = {
   list: () =>
-    api.get<ApiResponse<{ configs: SyncConfigSummary[] }>>("/sync-config"),
+    api.get<ApiResponse<{ configs: SyncConfigSummary[] }>>("/indexing-config"),
 
   get: (serverName: string) =>
     api.get<ApiResponse<SyncConfigData>>(
-      `/sync-config/${encodeURIComponent(serverName)}`
+      `/indexing-config/${encodeURIComponent(serverName)}`
     ),
 
   generate: (params: {
@@ -493,14 +493,14 @@ export const syncConfigApi = {
     userGuidance?: string;
   }) =>
     api.post<ApiResponse<GeneratedSyncConfigResult>>(
-      "/sync-config/generate",
+      "/indexing-config/generate",
       params,
       { timeout: 300000 } // 5 minutes for complex config generation
     ),
 
   validate: (config: SyncConfigData["config"]) =>
     api.post<ApiResponse<{ valid: boolean; errors: any[]; warnings: any[] }>>(
-      "/sync-config/validate",
+      "/indexing-config/validate",
       config
     ),
 
@@ -508,18 +508,19 @@ export const syncConfigApi = {
     config: any;
     sampleRecords: any[];
     recordTypeName: string;
-  }) => api.post<ApiResponse<PreviewResult>>("/sync-config/preview", params),
+  }) =>
+    api.post<ApiResponse<PreviewResult>>("/indexing-config/preview", params),
 
   save: (params: { config: any; status?: "draft" | "active" | "disabled" }) =>
     api.post<
       ApiResponse<{ success: boolean; configId: string; serverName: string }>
-    >("/sync-config/save", params),
+    >("/indexing-config/save", params),
 
   sync: (params: { serverName: string; incremental?: boolean }) =>
-    api.post<ApiResponse<SyncResult>>("/sync-config/sync", params),
+    api.post<ApiResponse<SyncResult>>("/indexing-config/sync", params),
 
   delete: (serverName: string) =>
     api.delete<ApiResponse<{ success: boolean }>>(
-      `/sync-config/${encodeURIComponent(serverName)}`
+      `/indexing-config/${encodeURIComponent(serverName)}`
     ),
 };

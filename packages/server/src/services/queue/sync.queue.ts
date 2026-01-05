@@ -1,6 +1,6 @@
 import { Processor, Queue, Worker } from "bullmq";
 
-import { MCPServerConfig } from "../../models/mcp-config.model.js";
+import type { DataSource } from "../../models/data-source.model.js";
 import { syncMcpServer } from "../sync/sync.service.js";
 import { indexGraphQueue } from "./index-graph.queue.js";
 import { indexVectorQueue } from "./index-vector.queue.js";
@@ -12,28 +12,20 @@ const processor: Processor<
   SyncMcpServerJobResult,
   string
 > = async ({ data: { mcpConfig } }) => {
-  if (mcpConfig.env && !(mcpConfig.env instanceof Map)) {
-    mcpConfig.env = new Map(Object.entries(mcpConfig.env));
-  }
-
-  if (mcpConfig.headers && !(mcpConfig.headers instanceof Map)) {
-    mcpConfig.headers = new Map(Object.entries(mcpConfig.headers));
-  }
-
   await syncMcpServer(mcpConfig);
 
   await Promise.all([
     indexVectorQueue.add(mcpConfig.name, {
-      source: mcpConfig.name,
+      source: mcpConfig.name as any,
     }),
     indexGraphQueue.add(mcpConfig.name, {
-      source: mcpConfig.name,
+      source: mcpConfig.name as any,
     }),
   ]);
 };
 
 type SyncMcpServerJobData = {
-  mcpConfig: MCPServerConfig;
+  mcpConfig: DataSource & { _id: any };
 };
 
 type SyncMcpServerJobResult = void;

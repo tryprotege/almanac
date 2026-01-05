@@ -68,6 +68,11 @@ function extractArrayPath(record: any, path: string): any[] {
  * Supports dot notation paths and array wildcards [*]
  */
 function extractPath(record: any, path: string): any | any[] {
+  // Guard against null/undefined paths
+  if (!path) {
+    return undefined;
+  }
+
   // Check if path contains array wildcard
   if (path.includes("[*]")) {
     return extractArrayPath(record, path);

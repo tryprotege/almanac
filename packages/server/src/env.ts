@@ -5,13 +5,16 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const envPath = path.join(__dirname, "../.env");
+
 dotenv.config({
-  path: path.join(__dirname, "../.env"),
+  path: envPath,
 });
 
 import { z } from "zod";
 
-const envSchema = z.object({
+// Infrastructure schema - REQUIRED for server to start (with defaults)
+export const infrastructureSchema = z.object({
   // Logging Configuration
   LOG_LEVEL: z
     .enum(["trace", "debug", "info", "warn", "error", "fatal"])
@@ -41,58 +44,45 @@ const envSchema = z.object({
   QDRANT_PORT: z.string().default("6333"),
   QDRANT_API_KEY: z.string().optional(),
 
-  // LLM Configuration (provider-agnostic)
-  LLM_PROVIDER: z
-    .enum(["openai", "openrouter", "azure", "anthropic"])
-    .default("openrouter"),
-  LLM_API_KEY: z.string().optional(),
-  LLM_BASE_URL: z.string().optional(),
+  // OAuth Configuration
+  OAUTH_REDIRECT_URI: z
+    .string()
+    .url()
+    .default("http://localhost:3000/api/oauth/callback"),
+  OAUTH_CLIENT_URL: z.string().url().default("http://localhost:5173"),
+});
+
+// Application schema - OPTIONAL at startup (can be configured via UI)
+export const applicationSchema = z.object({
+  LLM_API_KEY: z.string(),
+  LLM_BASE_URL: z.string(),
 
   // Model Configuration - Separate for chat and embeddings
-  LLM_CHAT_MODEL: z.string().default("openai/gpt-oss-20b"),
-  LLM_EMBEDDING_MODEL: z.string().default("qwen/qwen3-embedding-4b"),
-  LLM_INDEXING_CONFIG_MODEL: z.string(),
-  LLM_EXTRACTION_MODEL: z.string().default("openai/gpt-oss-20b"),
+  LLM_CHAT_MODEL: z.string(),
+  LLM_EMBEDDING_MODEL: z.string(),
+  LLM_EXTRACTION_MODEL: z.string(),
 
   // Reranker Configuration (generic - works with any provider)
-  RERANKER_ENABLED: z.preprocess((val) => {
-    if (typeof val === "boolean") return val;
-    if (typeof val === "string") {
-      const lower = val.toLowerCase();
-      if (lower === "true" || lower === "1") return true;
-      if (lower === "false" || lower === "0") return false;
-    }
-    return val;
-  }, z.boolean().default(false)),
-  RERANKER_API_KEY: z.string().optional(),
-  RERANKER_BASE_URL: z
-    .string()
-    .default("https://api.fireworks.ai/inference/v1/rerank"),
-  RERANKER_MODEL: z.string().default("fireworks/qwen3-reranker-8b"),
+  RERANKER_ENABLED: z.boolean().default(false),
+  RERANKER_BASE_URL: z.string().optional(),
+  RERANKER_MODEL: z.string().optional(),
 
   DB_INDEXING_CONCURRENCY: z.coerce.number().default(32),
 
-  // Schema Learning Configuration
-  SCHEMA_LEARNING_CONCURRENCY: z.coerce.number().default(32),
-  SCHEMA_LEARNING_MAX_BATCH_CHARS: z.coerce.number().default(250000),
-
   // Vector Indexing Configuration
   VECTOR_INDEXING_CONCURRENCY: z.coerce.number().default(32),
-  VECTOR_INDEXING_MAX_BATCH_SIZE: z.coerce.number().default(100),
 
   // Graph Extraction Configuration
   GRAPH_EXTRACTION_CONCURRENCY: z.coerce.number().default(32),
   ENABLE_TOXIC_DOCUMENT_FILTER: z.boolean().default(false),
 
   // Dynamic Entity Limit Configuration
-  // Ratio: 1 entity per X characters (optional, no limit if not set)
   ENTITY_CHARS_PER_ENTITY: z.coerce.number().optional(),
-  // Maximum entities per document cap (optional, no limit if not set)
   MAX_ENTITIES_PER_DOCUMENT: z.coerce.number().optional(),
 
   // Sync Configuration
-  SYNC_CUTOFF_DATE: z.string().datetime().optional(), // datetime in ISO format eg. "2023-06-01T00:00:00.000Z"
-  SYNC_MAX_RECORDS: z.coerce.number().optional(), // Maximum total number of records (per record type) to fetch during sync operations (optional, no limit if not set)
+  SYNC_CUTOFF_DATE: z.string().datetime().optional(),
+  SYNC_MAX_RECORDS: z.coerce.number().optional(),
 
   // Encryption Configuration
   ENCRYPTION_KEY: z
@@ -100,30 +90,78 @@ const envSchema = z.object({
     .length(64, "Encryption key must be 64 hex characters (32 bytes)")
     .regex(/^[0-9a-f]{64}$/i, "Encryption key must be valid hexadecimal")
     .optional(),
-
-  // OAuth Configuration
-  OAUTH_REDIRECT_URI: z
-    .string()
-    .url()
-    .default("http://localhost:3000/api/oauth/callback"),
-  OAUTH_CLIENT_URL: z.string().url().default("http://localhost:5173"), // Vite dev server default
 });
 
-const parsedEnv = envSchema.parse({
+const processEnv = {
   ...process.env,
   RERANKER_ENABLED:
     process.env.RERANKER_ENABLED?.toLowerCase().trim() === "true",
+  ENABLE_TOXIC_DOCUMENT_FILTER:
+    process.env.ENABLE_TOXIC_DOCUMENT_FILTER?.toLowerCase().trim() === "true",
   SYNC_MAX_RECORDS: process.env.SYNC_MAX_RECORDS
     ? parseInt(process.env.SYNC_MAX_RECORDS)
     : undefined,
-} satisfies Partial<z.infer<typeof envSchema>>);
+};
+
+function partialParse<T extends z.ZodRawShape>(
+  schema: z.ZodObject<T>,
+  input: unknown
+) {
+  const shape = schema.shape;
+  const result: any = {};
+
+  for (const key in shape) {
+    const fieldSchema = shape[key];
+    const parsed = fieldSchema.safeParse((input as any)?.[key]);
+    result[key] = parsed.success ? parsed.data : undefined;
+  }
+
+  return result as z.infer<typeof schema>;
+}
+
+// Parse infrastructure (will throw if missing required fields)
+const infraEnv = infrastructureSchema.parse(processEnv);
+
+// Parse application (won't throw - just returns what's available)
+export const appEnvResult = applicationSchema.safeParse(processEnv);
+
+const appEnv = appEnvResult.data || partialParse(applicationSchema, processEnv);
+
+// Determine if we're in setup mode
+const isSetupMode = !appEnvResult.success;
 
 // TODO: Compute embedding dimensions based on model
 // This ensures dimension consistency across the application
-
 const EMBEDDING_DIMENSIONS = 2560;
 
-export const env = {
-  ...parsedEnv,
-  EMBEDDING_DIMENSIONS,
+export const sourceEnv = {
+  ...infraEnv,
+  ...appEnv,
 };
+
+export const env = {
+  ...sourceEnv,
+  EMBEDDING_DIMENSIONS,
+  isSetupMode,
+};
+
+// Log setup mode status and missing variables
+if (isSetupMode) {
+  console.log("\n" + "=".repeat(70));
+  console.log(
+    "⚠️  Running in SETUP MODE - LLM features disabled until configured via UI"
+  );
+  console.log("=".repeat(70));
+
+  const invalidVars = appEnvResult.error?.issues.map(
+    (i) => i.path[0] as string
+  );
+
+  if (invalidVars && invalidVars.length > 0) {
+    console.log("\n❌ Invalid Environment Variables:");
+    invalidVars.forEach((varName) => {
+      console.log(`   - ${varName}`);
+    });
+  }
+  console.log("=".repeat(70) + "\n");
+}

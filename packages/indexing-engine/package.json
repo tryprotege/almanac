@@ -6,8 +6,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./types": "./dist/types/index.js"
+    ".": "./src/index.ts",
+    "./types": "./src/types/index.ts"
   },
   "scripts": {
     "dev": "tsc --watch",

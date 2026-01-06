@@ -59,7 +59,7 @@ cd ../.. && pnpm dev & sleep 5
 # Register MCP servers based on arguments
 if should_enable_server "github"; then
   echo "Enabling GitHub MCP server..."
-  curl --request POST --url http://localhost:3000/api/mcp-servers --header 'Content-Type: application/json' --data '
+  curl --request POST --url http://localhost:3000/api/data-sources --header 'Content-Type: application/json' --data '
   {
     "name": "github",
     "type": "streamable-http",
@@ -70,7 +70,7 @@ fi
 
 if should_enable_server "notion"; then
   echo "Enabling Notion MCP server..."
-  curl --request POST --url http://localhost:3000/api/mcp-servers --header 'Content-Type: application/json' --data '
+  curl --request POST --url http://localhost:3000/api/data-sources --header 'Content-Type: application/json' --data '
   {
     "name": "notion",
     "type": "streamable-http",
@@ -81,7 +81,7 @@ fi
 
 if should_enable_server "fathom"; then
   echo "Enabling Fathom MCP server..."
-  curl --request POST --url http://localhost:3000/api/mcp-servers --header 'Content-Type: application/json' --data '
+  curl --request POST --url http://localhost:3000/api/data-sources --header 'Content-Type: application/json' --data '
   {
     "name": "fathom",
     "type": "streamable-http",
@@ -92,7 +92,7 @@ fi
 
 if should_enable_server "slack"; then
   echo "Enabling Slack MCP server..."
-  curl --request POST --url http://localhost:3000/api/mcp-servers --header 'Content-Type: application/json' --data '
+  curl --request POST --url http://localhost:3000/api/data-sources --header 'Content-Type: application/json' --data '
   {
     "name": "slack",
     "type": "streamable-http",

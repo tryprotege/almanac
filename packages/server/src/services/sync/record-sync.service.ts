@@ -9,7 +9,7 @@ import { BaseRecordAdapter } from "./adapters/base-adapter.js";
 import logger from "../../utils/logger.js";
 
 // Create concurrency limiter. Have this outside of the function to ensure the limit applied to all invocations
-const limit = pLimit(env.DB_INDEXING_CONCURRENCY);
+const limit = pLimit(env.DB_INDEXING_CONCURRENCY ?? 5);
 
 /**
  * Sync a single record

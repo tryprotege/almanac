@@ -8,8 +8,6 @@ import { RecordModel } from "../../models/record.model.js";
 import { GraphStore } from "../../stores/graph.store.js";
 import { VectorStore } from "../../stores/vector.store.js";
 import { RecordStore } from "../../stores/record.store.js";
-import { LLMService } from "../llm/llm.service.js";
-import { RerankerService } from "../reranker/reranker.service.js";
 import { embed } from "../../utils/embedding.js";
 import { extractKeywordsNER } from "../../utils/keyword-extractor.js";
 import OpenAI from "openai";
@@ -24,6 +22,8 @@ import {
 } from "../../types/lightrag.types.js";
 import logger from "../../utils/logger.js";
 import { GraphEmbeddingMetadata } from "../../models/graph-embedding-metadata.model.js";
+import { env } from "../../env.js";
+import { rerank } from "../llm/index.js";
 
 // ============================================
 // Dependencies Interface
@@ -33,8 +33,6 @@ export interface LightRAGDependencies {
   graphStore: GraphStore;
   vectorStore: VectorStore;
   recordStore: RecordStore;
-  llm: LLMService;
-  reranker: RerankerService;
   openaiClient: OpenAI;
   embeddingModel: string;
 }
@@ -331,14 +329,13 @@ async function mixMode(
   // Apply reranking if enabled
   if (
     params.enable_rerank !== false &&
-    deps.reranker.isEnabled() &&
+    env.RERANKER_ENABLED &&
     hybridResult.chunks.length > 0
   ) {
     logger.debug({ msg: `[LightRAG] Applying reranking...` });
     const rerankedChunks = await rerankChunks(
       params.query,
-      hybridResult.chunks,
-      deps.reranker
+      hybridResult.chunks
     );
 
     // Filter by score_threshold after reranking
@@ -622,15 +619,14 @@ async function resultsToChunks(
 
 async function rerankChunks(
   query: string,
-  chunks: LightRAGRecord[],
-  reranker: RerankerService
+  chunks: LightRAGRecord[]
 ): Promise<LightRAGRecord[]> {
   const docs = chunks.map((c) => ({
     id: c.id,
     text: `${c.title}\n${c.snippet}`,
   }));
 
-  const reranked = await reranker.rerank(query, docs, {
+  const reranked = await rerank(query, docs, {
     topK: chunks.length,
   });
 

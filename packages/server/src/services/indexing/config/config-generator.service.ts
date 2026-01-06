@@ -3,21 +3,21 @@ import type {
   GeneratedSyncConfigResult,
   ValidationResult,
 } from "@ebee-oss/indexing-engine";
+import { env } from "../../../env.js";
 import { mcpClientManager } from "../../../mcp/client.js";
-import { generateConfigPrompt } from "./prompts/config-generation.js";
+import { chat } from "../../../services/llm/index.js";
+import logger from "../../../utils/logger.js";
+import { llm } from "../../llm/llm.js";
+import {
+  testConfigDryRun,
+  type TestRunResult,
+} from "./config-validator.service.js";
 import {
   generateDebugPrompt,
   parseDebugResponse,
 } from "./prompts/config-debug.js";
-import { createLLMClient, chat } from "../../../services/llm/index.js";
-import { ModelConfigModel } from "../../../models/model-config.model.js";
-import logger from "../../../utils/logger.js";
+import { generateConfigPrompt } from "./prompts/config-generation.js";
 import { classifyTools, filterReadTools } from "./tool-classifier.service.js";
-import {
-  testConfigDryRun,
-  formatErrorsForLLM,
-  type TestRunResult,
-} from "./config-validator.service.js";
 import {
   validateConfigPost,
   type PostValidationIssue,
@@ -58,12 +58,7 @@ export interface IterativeGenerationResult extends GeneratedSyncConfigResult {
 export async function generateConfigIterative(
   options: ConfigGeneratorOptions
 ): Promise<IterativeGenerationResult> {
-  const {
-    serverName,
-    displayName,
-    sampleLimit = 3,
-    maxIterations = 3,
-  } = options;
+  const { serverName, maxIterations = 3 } = options;
 
   logger.info(
     `Starting iterative config generation for: ${serverName} (max ${maxIterations} attempts)`
@@ -73,7 +68,6 @@ export async function generateConfigIterative(
   let currentConfig: IndexingConfig | null = null;
   let samples: Record<string, any> = {};
   let toolsUsed: string[] = [];
-  let classificationResult: any = null;
 
   // Step 1: Generate initial config
   const initialResult = await generateConfig(options);
@@ -874,55 +868,19 @@ async function callLLMForConfig(prompt: string): Promise<IndexingConfig> {
  * Call LLM API using user-configured model from UI Settings
  */
 async function callLLM(prompt: string): Promise<string> {
-  // Load model config from MongoDB (user settings from UI)
-  const modelConfig = await ModelConfigModel.findOne({ _id: "default" });
-
-  if (!modelConfig) {
-    throw new Error(
-      "No model configuration found. Please configure LLM settings in UI."
-    );
-  }
-
-  // Create LLM client with user settings
-  const client = createLLMClient(
-    modelConfig.llmProvider,
-    modelConfig.llmApiKey || undefined,
-    modelConfig.llmBaseURL || undefined
-  );
-
-  // Use dedicated indexing config model if set, otherwise fall back to chat model
-  const modelToUse =
-    modelConfig.llmIndexingConfigModel || modelConfig.llmChatModel;
-
-  logger.info(
-    `Calling LLM: ${modelConfig.llmProvider} / ${modelToUse}${
-      modelConfig.llmIndexingConfigModel
-        ? " (indexing config model)"
-        : " (chat model fallback)"
-    }`
-  );
   logger.debug(`Prompt length: ${prompt.length} characters`);
 
-  // LOG PROMPT IMMEDIATELY at INFO level
-  logger.info("=== LLM PROMPT START ===");
-  logger.info(prompt);
-  logger.info("=== LLM PROMPT END ===");
+  // LOG PROMPT IMMEDIATELY at DEBUG level
+  logger.debug(prompt);
 
   try {
-    // Build options for LLM call
-    const options: any = {
-      model: modelToUse,
+    // Call LLM with the prompt
+    const response = await chat(llm, [{ role: "user", content: prompt }], {
+      model: env.LLM_CHAT_MODEL,
       temperature: 0.15, // Lower temperature for structured output
       maxTokens: 16000, // Allow large configs (increased for complex servers)
-      reasoning_effort: "high",
-    };
-
-    // Call LLM with the prompt
-    const response = await chat(
-      client,
-      [{ role: "user", content: prompt }],
-      options
-    );
+      reasoningEffort: "high",
+    });
 
     logger.info("LLM call completed successfully");
     return response;

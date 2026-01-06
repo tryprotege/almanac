@@ -5,6 +5,7 @@ import express, { NextFunction, Request, Response } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import { router } from "./api/index.js";
+import { configRouter } from "./api/config/index.js";
 import { mcpClientManager } from "./mcp/client.js";
 import {
   initializeServices,
@@ -15,10 +16,22 @@ import { DataSourceModel } from "./models/data-source.model.js";
 import { syncMcpServerQueue } from "./services/queue/sync.queue.js";
 import { presetLoader } from "./services/presets/preset-loader.service.js";
 import logger from "./utils/logger.js";
+import { env } from "./env.js";
 
 // Start server
 const runServer = async () => {
-  await initializeServices();
+  // In setup mode, only initialize MongoDB for storing config
+  // In normal mode, initialize all services
+  if (!env.isSetupMode) {
+    await initializeServices();
+  } else {
+    // Only connect to MongoDB in setup mode
+    const { connectMongoose } = await import("./connections/mongoose.js");
+    await connectMongoose();
+    logger.warn(
+      "⚠️  Running in SETUP MODE - LLM features disabled until configured"
+    );
+  }
 
   // Load presets from data-sources-config directory
   logger.info("Loading data source presets...");
@@ -62,9 +75,38 @@ const runServer = async () => {
     next();
   });
 
+  // Setup mode middleware - block certain routes if in setup mode
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (env.isSetupMode) {
+      // Allow only these routes in setup mode
+      const allowedPaths = [
+        "/health",
+        "/api/config", // Config management
+      ];
+
+      const isAllowed = allowedPaths.some((p) => req.path.startsWith(p));
+
+      if (!isAllowed) {
+        res.status(503).json({
+          success: false,
+          error:
+            "Server is in setup mode. Please complete configuration first.",
+          setupRequired: true,
+          setupUrl: "/api/config/env",
+        });
+        return;
+      }
+    }
+    next();
+  });
+
   // Health check endpoint
   app.get("/health", (_req: Request, res: Response) => {
-    res.json({ status: "ok", version: "0.1.0" });
+    res.json({
+      status: "ok",
+      version: "0.1.0",
+      setupMode: env.isSetupMode,
+    });
   });
 
   // API endpoints (includes data-sources routes)

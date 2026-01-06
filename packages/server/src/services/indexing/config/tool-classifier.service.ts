@@ -3,9 +3,10 @@ import type {
   ToolCategory,
 } from "@ebee-oss/indexing-engine";
 import { generateToolClassificationPrompt } from "./prompts/tool-classification.js";
-import { createLLMClient, chat } from "../../llm/index.js";
-import { ModelConfigModel } from "../../../models/model-config.model.js";
+import { chat } from "../../llm/index.js";
 import logger from "../../../utils/logger.js";
+import { llm } from "../../llm/llm.js";
+import { env } from "../../../env.js";
 
 export interface ClassifyToolsOptions {
   serverName: string;
@@ -158,39 +159,8 @@ async function callLLMForClassification(
  * Call LLM API using user-configured model from UI Settings
  */
 async function callLLM(prompt: string): Promise<string> {
-  // Load model config from MongoDB (user settings from UI)
-  const modelConfig = await ModelConfigModel.findOne({ _id: "default" });
-
-  if (!modelConfig) {
-    throw new Error(
-      "No model configuration found. Please configure LLM settings in UI."
-    );
-  }
-
-  // Create LLM client with user settings
-  const client = createLLMClient(
-    modelConfig.llmProvider,
-    modelConfig.llmApiKey || undefined,
-    modelConfig.llmBaseURL || undefined
-  );
-
-  // Use dedicated indexing config model if set, otherwise fall back to chat model
-  const modelToUse =
-    modelConfig.llmIndexingConfigModel || modelConfig.llmChatModel;
-
-  logger.info(
-    `Calling LLM for tool classification: ${
-      modelConfig.llmProvider
-    } / ${modelToUse}${
-      modelConfig.llmIndexingConfigModel
-        ? " (indexing config model)"
-        : " (chat model fallback)"
-    }`
-  );
-
-  // Call LLM with the prompt
-  const response = await chat(client, [{ role: "user", content: prompt }], {
-    model: modelToUse,
+  const response = await chat(llm, [{ role: "user", content: prompt }], {
+    model: env.LLM_CHAT_MODEL,
     temperature: 0.2, // Lower temperature for more consistent classification
     maxTokens: 4000,
   });

@@ -1,23 +1,23 @@
 import type {
   IndexingConfig,
-  GeneratedConfigResult,
+  GeneratedSyncConfigResult,
   ValidationResult,
 } from "@ebee-oss/indexing-engine";
+import { env } from "../../../env.js";
 import { mcpClientManager } from "../../../mcp/client.js";
-import { generateConfigPrompt } from "./prompts/config-generation.js";
+import { chat } from "../../../services/llm/index.js";
+import logger from "../../../utils/logger.js";
+import { llm } from "../../llm/llm.js";
+import {
+  testConfigDryRun,
+  type TestRunResult,
+} from "./config-validator.service.js";
 import {
   generateDebugPrompt,
   parseDebugResponse,
 } from "./prompts/config-debug.js";
-import { createLLMClient, chat } from "../../../services/llm/index.js";
-import { ModelConfigModel } from "../../../models/model-config.model.js";
-import logger from "../../../utils/logger.js";
+import { generateConfigPrompt } from "./prompts/config-generation.js";
 import { classifyTools, filterReadTools } from "./tool-classifier.service.js";
-import {
-  testConfigDryRun,
-  formatErrorsForLLM,
-  type TestRunResult,
-} from "./config-validator.service.js";
 
 export interface ConfigGeneratorOptions {
   serverName: string;
@@ -40,7 +40,7 @@ export interface IterationResult {
 /**
  * Result of iterative config generation
  */
-export interface IterativeGenerationResult extends GeneratedConfigResult {
+export interface IterativeGenerationResult extends GeneratedSyncConfigResult {
   iterations: IterationResult[];
   totalAttempts: number;
   finalTestResult?: TestRunResult;
@@ -53,12 +53,7 @@ export interface IterativeGenerationResult extends GeneratedConfigResult {
 export async function generateConfigIterative(
   options: ConfigGeneratorOptions
 ): Promise<IterativeGenerationResult> {
-  const {
-    serverName,
-    displayName,
-    sampleLimit = 3,
-    maxIterations = 3,
-  } = options;
+  const { serverName, maxIterations = 3 } = options;
 
   logger.info(
     `Starting iterative config generation for: ${serverName} (max ${maxIterations} attempts)`
@@ -68,7 +63,6 @@ export async function generateConfigIterative(
   let currentConfig: IndexingConfig | null = null;
   let samples: Record<string, any> = {};
   let toolsUsed: string[] = [];
-  let classificationResult: any = null;
 
   // Step 1: Generate initial config
   const initialResult = await generateConfig(options);
@@ -159,7 +153,7 @@ export async function generateConfigIterative(
  */
 export async function generateConfig(
   options: ConfigGeneratorOptions
-): Promise<GeneratedConfigResult> {
+): Promise<GeneratedSyncConfigResult> {
   const { serverName, displayName, sampleLimit = 3 } = options;
 
   logger.info(`Generating config for MCP server: ${serverName}`);
@@ -373,33 +367,6 @@ async function callLLMForConfig(prompt: string): Promise<IndexingConfig> {
  * Call LLM API using user-configured model from UI Settings
  */
 async function callLLM(prompt: string): Promise<string> {
-  // Load model config from MongoDB (user settings from UI)
-  const modelConfig = await ModelConfigModel.findOne({ _id: "default" });
-
-  if (!modelConfig) {
-    throw new Error(
-      "No model configuration found. Please configure LLM settings in UI."
-    );
-  }
-
-  // Create LLM client with user settings
-  const client = createLLMClient(
-    modelConfig.llmProvider,
-    modelConfig.llmApiKey || undefined,
-    modelConfig.llmBaseURL || undefined
-  );
-
-  // Use dedicated indexing config model if set, otherwise fall back to chat model
-  const modelToUse =
-    modelConfig.llmIndexingConfigModel || modelConfig.llmChatModel;
-
-  logger.info(
-    `Calling LLM: ${modelConfig.llmProvider} / ${modelToUse}${
-      modelConfig.llmIndexingConfigModel
-        ? " (indexing config model)"
-        : " (chat model fallback)"
-    }`
-  );
   logger.debug(`Prompt length: ${prompt.length} characters`);
 
   // LOG PROMPT IMMEDIATELY at INFO level
@@ -409,8 +376,8 @@ async function callLLM(prompt: string): Promise<string> {
 
   try {
     // Call LLM with the prompt
-    const response = await chat(client, [{ role: "user", content: prompt }], {
-      model: modelToUse,
+    const response = await chat(llm, [{ role: "user", content: prompt }], {
+      model: env.LLM_CHAT_MODEL,
       temperature: 0.3, // Lower temperature for structured output
       maxTokens: 16000, // Allow large configs (increased for complex servers)
     });

@@ -24,7 +24,39 @@ ebee-oss/
 - Docker Desktop or Docker Engine
 - Docker Compose
 
-### Installation
+### One-Command Setup (Recommended)
+
+The easiest way to get started:
+
+```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd ebee-oss
+
+# 2. Install dependencies
+pnpm install
+
+# 3. Start everything (Docker services + dev servers)
+pnpm start
+```
+
+This single command will:
+
+- Start all required Docker services (MongoDB, Redis, Qdrant, Memgraph)
+- Wait for services to be healthy
+- Start the development server and client
+- Auto-create `.env` from `.env.example` if it doesn't exist
+
+**First-time setup:**
+
+1. Open http://localhost:5173 in your browser
+2. You'll see a setup wizard if configuration is missing
+3. Enter your LLM API key and other settings via the UI
+4. Click "Save Configuration" and restart the server
+
+### Alternative: Manual Setup
+
+If you prefer to configure manually:
 
 1. **Install dependencies:**
 
@@ -32,36 +64,34 @@ ebee-oss/
    pnpm install
    ```
 
-2. **Start development servers:**
+2. **Configure environment:**
 
    ```bash
-   # Start all services (client + server)
-   pnpm dev
-
-   # Or start individually
-   pnpm dev:client  # Client on http://localhost:5173
-   pnpm dev:server  # Server on http://localhost:3000
+   cp packages/server/.env.example packages/server/.env
+   # Edit packages/server/.env with your API keys
    ```
 
-### Docker Development
-
-1. **Start all services (databases + application):**
+3. **Start services:**
 
    ```bash
-   pnpm docker:all
-   ```
-
-2. **Start only infra:**
-
-   ```bash
+   # Start Docker services only
    pnpm docker:infra
+
+   # Start development servers
+   pnpm dev
    ```
 
-3. **Stop all services:**
+### Docker-Only Development
 
-   ```bash
-   pnpm docker:down
-   ```
+Run everything in Docker (no local Node.js required):
+
+```bash
+# Start all services including app
+pnpm docker:all
+
+# Stop all services
+pnpm docker:down
+```
 
 ## 📚 Available Scripts
 
@@ -191,13 +221,42 @@ This project uses Docker Compose to manage the following services:
 - **Databases**: MongoDB, Qdrant, Memgraph, Redis
 - **Features**: Vector search, graph indexing, schema learning
 
-## 📝 Environment Variables
+## 📝 Environment Configuration
 
-Copy `.env.example` to `.env` in the server package and configure:
+### UI-Based Configuration (Recommended)
+
+The easiest way to configure eBee is through the web interface:
+
+1. Start the application with `pnpm start`
+2. Open http://localhost:5173
+3. If configuration is missing, you'll see a setup wizard
+4. Navigate to **Settings → Environment** to configure:
+   - LLM Provider & API Key
+   - Model selections (chat, embedding, indexing)
+   - Optional: Reranker settings
+   - Performance tuning (concurrency settings)
+5. Click "Save Configuration" and restart the server
+
+### Manual Configuration
+
+Alternatively, you can manually edit the `.env` file:
 
 ```bash
 cp packages/server/.env.example packages/server/.env
+# Edit packages/server/.env with your settings
 ```
+
+**Required Settings:**
+
+- `LLM_API_KEY` - Your LLM provider API key
+
+**Optional Settings:**
+
+- `RERANKER_ENABLED` - Enable reranking for better search results
+- `ENCRYPTION_KEY` - Auto-generated if not provided
+- Performance tuning (concurrency, batch sizes)
+
+See [`packages/server/.env.example`](packages/server/.env.example) for all available options.
 
 ## 📄 License
 

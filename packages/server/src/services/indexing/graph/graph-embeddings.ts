@@ -191,7 +191,7 @@ export async function indexRelationshipEmbeddings(
   // Look up MongoDB IDs for these entity IDs
   const entityMetadata = await GraphEmbeddingMetadata.find({
     itemType: "entity",
-    entityId: { $in: Array.from(uniqueEntityIds) },
+    memgraphId: { $in: Array.from(uniqueEntityIds) },
   });
 
   // Create mapping from Memgraph entity ID to MongoDB document ID

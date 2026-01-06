@@ -13,11 +13,24 @@ import {
 } from "./mcp/initialization.js";
 import { DataSourceModel } from "./models/data-source.model.js";
 import { syncMcpServerQueue } from "./services/queue/sync.queue.js";
+import { presetLoader } from "./services/presets/preset-loader.service.js";
 import logger from "./utils/logger.js";
 
 // Start server
 const runServer = async () => {
   await initializeServices();
+
+  // Load presets from data-sources-config directory
+  logger.info("Loading data source presets...");
+  try {
+    await presetLoader.loadPresetsAtStartup();
+    logger.info(
+      { count: presetLoader.getPresetCount() },
+      "Data source presets loaded successfully"
+    );
+  } catch (error) {
+    logger.error({ error }, "Failed to load presets, continuing anyway");
+  }
 
   const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
   const HOST = process.env.HOST || "0.0.0.0";

@@ -191,6 +191,41 @@ export const graphApi = {
     }),
 };
 
+// Preset Types
+export interface PresetVariable {
+  key: string;
+  label: string;
+  type: "text" | "password";
+  required: boolean;
+  helpText?: string;
+}
+
+export interface PresetSummary {
+  id: string;
+  displayName: string;
+  description: string;
+  icon: string;
+  category: string;
+  connectionType: string;
+  authType?: string;
+  variables: PresetVariable[];
+  hasIndexingConfig: boolean;
+}
+
+export interface DataSourcePreset extends PresetSummary {
+  connection: {
+    type: "stdio" | "sse" | "streamable-http";
+    command?: string;
+    args?: string[];
+    url?: string;
+    auth?: {
+      type: "oauth" | "api-key";
+      provider?: string;
+    };
+  };
+  indexingConfig: any; // Full indexing config from preset
+}
+
 // Data Sources API
 export interface DataSourceConfig {
   _id?: string;
@@ -212,6 +247,7 @@ export interface DataSourceConfig {
     redirectUri?: string;
     scopes?: string[];
   };
+  presetId?: string; // If created from a preset
   isDisabled?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -265,6 +301,13 @@ export const dataSourcesApi = {
     ),
   sync: (configId: string) =>
     api.post<ApiResponse<{ jobId: string }>>(`/sync`, { configId }),
+};
+
+// Presets API
+export const presetsApi = {
+  list: () => api.get<PresetSummary[]>("/presets"),
+  get: (id: string) =>
+    api.get<DataSourcePreset>(`/presets/${encodeURIComponent(id)}`),
 };
 
 // OAuth API

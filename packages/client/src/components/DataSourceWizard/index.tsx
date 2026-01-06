@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Settings } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { AdvancedConfigForm } from "../DataSourceForm/AdvancedConfigForm";
 import {
@@ -6,6 +7,7 @@ import {
   getPresetById,
   CUSTOM_PRESET,
 } from "../DataSourceForm/presets";
+import { usePreset } from "../../hooks/usePresets";
 import { IndexingStep } from "./IndexingStep";
 import { ReviewStep } from "./ReviewStep";
 import { ConfigChoiceStep } from "./ConfigChoiceStep";
@@ -31,6 +33,7 @@ interface DataSourceWizardProps {
   isOpen: boolean;
   onClose: () => void;
   existingSource?: DataSourceConfig | null;
+  presetId?: string | null;
 }
 
 type WizardStep =
@@ -56,6 +59,7 @@ export function DataSourceWizard({
   isOpen,
   onClose,
   existingSource,
+  presetId,
 }: DataSourceWizardProps) {
   const createMutation = useCreateDataSource(true); // silent mode
   const updateMutation = useUpdateDataSource(true); // silent mode
@@ -66,6 +70,9 @@ export function DataSourceWizard({
 
   // Check if existing source has a sync config
   const existingConfig = useSyncConfig(existingSource?.name || null);
+
+  // Load preset data if presetId is provided
+  const { data: presetData } = usePreset(presetId || null);
 
   const [step, setStep] = useState<WizardStep>("select");
   const [selectedPreset, setSelectedPreset] = useState<ServicePreset | null>(
@@ -83,19 +90,60 @@ export function DataSourceWizard({
 
   useEffect(() => {
     if (isOpen && existingSource) {
-      const preset = getPresetById(existingSource.name);
-      // If no preset found, this is a custom server - use CUSTOM_PRESET
-      const resolvedPreset = preset || CUSTOM_PRESET;
-      console.log(
-        "DataSourceWizard: Editing source",
-        existingSource.name,
-        "preset:",
-        resolvedPreset.id
-      );
-      setSelectedPreset(resolvedPreset);
+      // Check if this is a preset-based source by looking for presetId
+      const isPresetBased = !!existingSource.presetId;
+
+      if (isPresetBased) {
+        // Try to find the preset by presetId first, then fallback to name
+        const preset = getPresetById(
+          existingSource.presetId || existingSource.name
+        );
+        console.log(
+          "DataSourceWizard: Editing preset-based source",
+          existingSource.name,
+          "preset:",
+          preset?.id
+        );
+        setSelectedPreset(preset || CUSTOM_PRESET);
+      } else {
+        // This is a custom server - use CUSTOM_PRESET
+        console.log(
+          "DataSourceWizard: Editing custom source",
+          existingSource.name
+        );
+        setSelectedPreset(CUSTOM_PRESET);
+      }
       setStep("configure");
-    } else if (isOpen && !existingSource) {
-      // New source - skip selector and go directly to custom config
+    } else if (isOpen && presetId && presetData) {
+      // New source from marketplace preset
+      console.log("DataSourceWizard: Creating from preset", presetId);
+      // Create a preset object for the wizard
+      const connection = presetData.data.connection;
+      const preset: ServicePreset = {
+        id: presetData.data.id,
+        name: presetData.data.id,
+        displayName: presetData.data.displayName,
+        description: presetData.data.description,
+        icon: Settings, // Use default icon since API returns string
+        type: connection.type || "stdio",
+        command: connection.command,
+        args: connection.args,
+        url: connection.url,
+        requiredEnv: [], // Env vars will be handled by the form
+        documentation: presetData.data.description,
+        authGuide: presetData.data.description,
+        setupSteps: [],
+      };
+      setSelectedPreset(preset);
+
+      // Pre-populate with indexing config if available
+      if (presetData.data.indexingConfig) {
+        setImportedConfig(presetData.data.indexingConfig);
+      }
+
+      setStep("configure");
+    } else if (isOpen && !existingSource && !presetId) {
+      // New custom source - skip selector and go directly to custom config
       setSelectedPreset(CUSTOM_PRESET);
       setStep("configure");
     } else if (!isOpen) {
@@ -106,7 +154,7 @@ export function DataSourceWizard({
       setIsCustomServerCreated(false);
       setImportedConfig(null);
     }
-  }, [existingSource, isOpen]);
+  }, [existingSource, isOpen, presetId, presetData]);
 
   const handleBack = () => {
     if (step === "configure") {
@@ -136,12 +184,21 @@ export function DataSourceWizard({
   ) => {
     setServerConfig(config);
 
+    // Add presetId to config for preset-based sources (not custom)
+    const configWithPreset = {
+      ...config,
+      presetId:
+        selectedPreset?.id !== "custom"
+          ? presetId || selectedPreset?.id
+          : undefined,
+    };
+
     // If OAuth is required, create server first, then go to OAuth step
     if (config.authType === ("oauth" as const)) {
       try {
         // Create the server first
         toast.loading("Creating data source...", { id: "create-server" });
-        const response = await createMutation.mutateAsync(config);
+        const response = await createMutation.mutateAsync(configWithPreset);
         toast.success("Data source created", { id: "create-server" });
         setIsCustomServerCreated(true);
 
@@ -166,7 +223,7 @@ export function DataSourceWizard({
           toast.loading("Updating data source...", { id: "update-server" });
           await updateMutation.mutateAsync({
             name: existingSource.name,
-            config,
+            config: configWithPreset,
           });
           toast.success("Data source updated", { id: "update-server" });
 
@@ -208,7 +265,7 @@ export function DataSourceWizard({
         } else {
           // Create new server
           toast.loading("Creating data source...", { id: "create-server" });
-          await createMutation.mutateAsync(config);
+          await createMutation.mutateAsync(configWithPreset);
           toast.success("Data source created", { id: "create-server" });
           setIsCustomServerCreated(true);
 
@@ -307,15 +364,24 @@ export function DataSourceWizard({
     setSavingError(null);
 
     try {
+      // Add presetId to config for preset-based sources (not custom)
+      const configWithPreset = {
+        ...serverConfig,
+        presetId:
+          selectedPreset?.id !== "custom"
+            ? presetId || selectedPreset?.id
+            : undefined,
+      };
+
       // 1. Create/update MCP server (skip for custom if already created)
       if (existingSource) {
         await updateMutation.mutateAsync({
           name: existingSource.name,
-          config: serverConfig,
+          config: configWithPreset,
         });
       } else if (selectedPreset?.id !== "custom" || !isCustomServerCreated) {
         // Only create if not a custom server (already created in handleConfigureSubmit)
-        await createMutation.mutateAsync(serverConfig);
+        await createMutation.mutateAsync(configWithPreset);
       }
 
       // 2. Save sync config if custom
@@ -431,6 +497,16 @@ export function DataSourceWizard({
       {step === "configure" && selectedPreset && (
         <AdvancedConfigForm
           server={existingSource}
+          preset={
+            presetData
+              ? {
+                  id: presetData.data.id,
+                  displayName: presetData.data.displayName,
+                  connection: presetData.data.connection,
+                  variables: presetData.data.variables,
+                }
+              : null
+          }
           onBack={handleBack}
           onSubmit={handleConfigureSubmit}
           isLoading={isLoading}

@@ -15,6 +15,7 @@ dataSourcesRouter.get("/", async (_req: Request, res: Response) => {
       _id: ds._id,
       name: ds.name,
       type: ds.type,
+      presetId: ds.presetId,
       command: ds.command,
       args: ds.args,
       env: ds.env ? Object.fromEntries(ds.env) : undefined,
@@ -61,6 +62,7 @@ dataSourcesRouter.get("/:name", async (req: Request, res: Response) => {
         _id: dataSource._id,
         name: dataSource.name,
         type: dataSource.type,
+        presetId: dataSource.presetId,
         command: dataSource.command,
         args: dataSource.args,
         env: dataSource.env ? Object.fromEntries(dataSource.env) : undefined,
@@ -141,6 +143,7 @@ dataSourcesRouter.post("/", async (req: Request, res: Response) => {
         _id: dataSource._id,
         name: dataSource.name,
         type: dataSource.type,
+        presetId: dataSource.presetId,
         command: dataSource.command,
         args: dataSource.args,
         env: dataSource.env ? Object.fromEntries(dataSource.env) : undefined,
@@ -182,6 +185,7 @@ dataSourcesRouter.put("/:name", async (req: Request, res: Response) => {
 
     // Update fields
     if (updates.type !== undefined) dataSource.type = updates.type;
+    if (updates.presetId !== undefined) dataSource.presetId = updates.presetId;
     if (updates.command !== undefined) dataSource.command = updates.command;
     if (updates.args !== undefined) dataSource.args = updates.args;
     if (updates.env !== undefined) {
@@ -227,6 +231,7 @@ dataSourcesRouter.put("/:name", async (req: Request, res: Response) => {
         _id: dataSource._id,
         name: dataSource.name,
         type: dataSource.type,
+        presetId: dataSource.presetId,
         command: dataSource.command,
         args: dataSource.args,
         env: dataSource.env ? Object.fromEntries(dataSource.env) : undefined,

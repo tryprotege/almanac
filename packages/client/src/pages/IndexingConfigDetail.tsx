@@ -23,6 +23,7 @@ import {
   useResetSyncState,
   useSyncWithConfig,
 } from "../hooks/useSyncConfigs";
+import { useDataSources } from "../hooks/useDataSources";
 import { useState, useEffect } from "react";
 import ConfigTabs from "../components/SyncConfig/ConfigTabs";
 import DataMappingTab from "../components/SyncConfig/DataMappingTab";
@@ -50,10 +51,15 @@ export default function IndexingConfigDetail() {
 
   // Disable refetching while generating to prevent state reset
   const { data: config, isLoading } = useSyncConfig(serverName || null);
+  const { servers } = useDataSources();
   const generateConfig = useGenerateSyncConfig();
   const saveConfig = useSaveSyncConfig();
   const resetSyncState = useResetSyncState();
   const syncWithConfig = useSyncWithConfig();
+
+  // Check if this data source is from a preset
+  const dataSource = servers.find((s) => s.name === serverName);
+  const isPresetBased = !!dataSource?.presetId;
 
   // Debug logging
   useEffect(() => {
@@ -799,34 +805,41 @@ export default function IndexingConfigDetail() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                onClick={async () => {
-                  console.log("Regenerating config for:", config.serverName);
-                  setGenerationStep("generating");
-                  try {
-                    const result = await generateConfig.mutateAsync({
-                      serverName: config.serverName,
-                    });
-                    console.log("Config regeneration completed:", result);
-                    setGeneratedResult(result);
-                    setGenerationStep("result");
-                  } catch (error) {
-                    console.error("Failed to regenerate config:", error);
-                    setGenerationStep("idle");
-                  }
-                }}
-                className="btn btn-secondary inline-flex items-center gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Regenerate Config
-              </button>
-              <button
-                onClick={() => setShowGuidanceModal(true)}
-                className="btn btn-secondary inline-flex items-center gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Regenerate with Guidance
-              </button>
+              {!isPresetBased && (
+                <>
+                  <button
+                    onClick={async () => {
+                      console.log(
+                        "Regenerating config for:",
+                        config.serverName
+                      );
+                      setGenerationStep("generating");
+                      try {
+                        const result = await generateConfig.mutateAsync({
+                          serverName: config.serverName,
+                        });
+                        console.log("Config regeneration completed:", result);
+                        setGeneratedResult(result);
+                        setGenerationStep("result");
+                      } catch (error) {
+                        console.error("Failed to regenerate config:", error);
+                        setGenerationStep("idle");
+                      }
+                    }}
+                    className="btn btn-secondary inline-flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Regenerate Config
+                  </button>
+                  <button
+                    onClick={() => setShowGuidanceModal(true)}
+                    className="btn btn-secondary inline-flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Regenerate with Guidance
+                  </button>
+                </>
+              )}
               <button
                 onClick={() => setShowResetModal(true)}
                 className="btn btn-primary inline-flex items-center gap-2 bg-brand-warning hover:bg-brand-warning/90 border-brand-warning text-white"
@@ -1008,19 +1021,21 @@ export default function IndexingConfigDetail() {
                             >
                               Copy to Clipboard
                             </button>
-                            <button
-                              onClick={() => {
-                                setIsEditing(true);
-                                setEditedJson(
-                                  JSON.stringify(config.config, null, 2)
-                                );
-                                setParseError(null);
-                              }}
-                              className="btn btn-primary text-sm inline-flex items-center gap-2"
-                            >
-                              <Edit className="w-4 h-4" />
-                              Edit Config
-                            </button>
+                            {!isPresetBased && (
+                              <button
+                                onClick={() => {
+                                  setIsEditing(true);
+                                  setEditedJson(
+                                    JSON.stringify(config.config, null, 2)
+                                  );
+                                  setParseError(null);
+                                }}
+                                className="btn btn-primary text-sm inline-flex items-center gap-2"
+                              >
+                                <Edit className="w-4 h-4" />
+                                Edit Config
+                              </button>
+                            )}
                           </>
                         )}
                         {isEditing && (

@@ -1,9 +1,31 @@
-import { Eye, EyeOff, Plus, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Lock, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DataSourceConfig } from "../../lib/api";
 
+interface PresetData {
+  id: string;
+  displayName: string;
+  connection: {
+    type: "stdio" | "sse" | "streamable-http";
+    command?: string;
+    args?: string[];
+    url?: string;
+    auth?: {
+      type: "oauth" | "api-key";
+      provider?: string;
+    };
+  };
+  variables?: Array<{
+    key: string;
+    label: string;
+    type: string;
+    required: boolean;
+  }>;
+}
+
 interface AdvancedConfigFormProps {
   server?: DataSourceConfig | null;
+  preset?: PresetData | null;
   onBack: () => void;
   onSubmit: (
     config: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt">
@@ -25,6 +47,7 @@ interface FormData {
 
 export function AdvancedConfigForm({
   server,
+  preset,
   onBack,
   onSubmit,
   isLoading,
@@ -42,10 +65,13 @@ export function AdvancedConfigForm({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Check if this is a preset-based source - either from preset prop or from server.presetId
+  const isPreset = (!!preset && preset.id !== "custom") || !!server?.presetId;
 
-  // Initialize form when server prop changes
+  // Initialize form when server or preset changes
   useEffect(() => {
     if (server) {
+      // Editing existing server
       setFormData({
         name: server.name,
         type: server.type,
@@ -69,7 +95,28 @@ export function AdvancedConfigForm({
         authType: server.authType || "none",
         isDisabled: server.isDisabled || false,
       });
+    } else if (preset && preset.id !== "custom") {
+      // New server from preset
+      const conn = preset.connection;
+      setFormData({
+        name: preset.id,
+        type: conn.type,
+        command: conn.command || "",
+        args: conn.args?.join(" ") || "",
+        // Initialize empty env vars/headers for preset variables
+        env:
+          preset.variables?.map((v) => ({
+            key: v.key,
+            value: "",
+            showValue: false,
+          })) || [],
+        url: conn.url || "",
+        headers: [],
+        authType: conn.auth?.type || "none",
+        isDisabled: false,
+      });
     } else {
+      // New custom server
       setFormData({
         name: "",
         type: "streamable-http",
@@ -83,7 +130,7 @@ export function AdvancedConfigForm({
       });
     }
     setErrors({});
-  }, [server]);
+  }, [server, preset]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -226,118 +273,209 @@ export function AdvancedConfigForm({
 
   return (
     <form onSubmit={handleSubmit} className="p-6 text-left space-y-4">
+      {/* Preset Badge */}
+      {isPreset && (
+        <div className="bg-brand-purple/20 border-2 border-brand-purple/50 rounded-lg p-4 flex items-start gap-3">
+          <Lock className="w-5 h-5 text-brand-purple flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="text-base font-bold text-brand-purple mb-1">
+              {preset
+                ? `${preset.displayName} Preset Configuration`
+                : "Preset-Based Data Source"}
+            </h4>
+            <p className="text-sm text-text-secondary leading-relaxed">
+              This is a pre-configured data source. Technical settings are
+              locked to ensure proper functionality.{" "}
+              <span className="font-semibold">
+                You can only update credentials
+              </span>{" "}
+              (environment variables or API keys).
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Name */}
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">
+        <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary mb-1">
+          {isPreset && <Lock className="w-3.5 h-3.5 text-text-quaternary" />}
           Server Name *
         </label>
-        <input
-          type="text"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          disabled={isLoading || !!server}
-          className="input"
-          placeholder="my-mcp-server"
-        />
+        <div className="relative">
+          <input
+            type="text"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            disabled={isLoading || !!server || isPreset}
+            className={`input ${
+              isPreset ? "bg-bg-secondary/50 cursor-not-allowed" : ""
+            }`}
+            placeholder="my-mcp-server"
+          />
+          {isPreset && (
+            <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-quaternary pointer-events-none" />
+          )}
+        </div>
         {errors.name && (
           <p className="mt-1 text-sm text-brand-error">{errors.name}</p>
         )}
-        {server && (
-          <p className="mt-1 text-xs text-text-quaternary">
-            Server name cannot be changed
+        {(server || isPreset) && (
+          <p className="mt-1 text-xs text-text-quaternary flex items-center gap-1">
+            {isPreset && <Lock className="w-3 h-3" />}
+            {isPreset
+              ? "Server name is set from preset and cannot be changed"
+              : "Server name cannot be changed"}
           </p>
         )}
       </div>
 
       {/* Type */}
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">
+        <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary mb-1">
+          {isPreset && <Lock className="w-3.5 h-3.5 text-text-quaternary" />}
           Server Type *
         </label>
-        <select
-          value={formData.type}
-          onChange={(e) =>
-            setFormData({
-              ...formData,
-              type: e.target.value as "stdio" | "sse" | "streamable-http",
-            })
-          }
-          disabled={isLoading}
-          className="input"
-        >
-          <option value="stdio">STDIO (Command-based)</option>
-          <option value="sse">SSE (Server-Sent Events)</option>
-          <option value="streamable-http">Streamable HTTP</option>
-        </select>
+        <div className="relative">
+          <select
+            value={formData.type}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                type: e.target.value as "stdio" | "sse" | "streamable-http",
+              })
+            }
+            disabled={isLoading || isPreset}
+            className={`input ${
+              isPreset ? "bg-bg-secondary/50 cursor-not-allowed" : ""
+            }`}
+          >
+            <option value="stdio">STDIO (Command-based)</option>
+            <option value="sse">SSE (Server-Sent Events)</option>
+            <option value="streamable-http">Streamable HTTP</option>
+          </select>
+          {isPreset && (
+            <Lock className="absolute right-10 top-1/2 -translate-y-1/2 w-4 h-4 text-text-quaternary pointer-events-none" />
+          )}
+        </div>
+        {isPreset && (
+          <p className="mt-1 text-xs text-text-quaternary flex items-center gap-1">
+            <Lock className="w-3 h-3" />
+            Connection type is set from preset and cannot be changed
+          </p>
+        )}
       </div>
 
       {/* STDIO Fields */}
       {formData.type === "stdio" && (
         <>
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">
+            <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary mb-1">
+              {isPreset && (
+                <Lock className="w-3.5 h-3.5 text-text-quaternary" />
+              )}
               Command *
             </label>
-            <input
-              type="text"
-              value={formData.command}
-              onChange={(e) =>
-                setFormData({ ...formData, command: e.target.value })
-              }
-              disabled={isLoading}
-              className="input"
-              placeholder="node"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={formData.command}
+                onChange={(e) =>
+                  setFormData({ ...formData, command: e.target.value })
+                }
+                disabled={isLoading || isPreset}
+                className={`input ${
+                  isPreset ? "bg-bg-secondary/50 cursor-not-allowed" : ""
+                }`}
+                placeholder="node"
+              />
+              {isPreset && (
+                <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-quaternary pointer-events-none" />
+              )}
+            </div>
             {errors.command && (
               <p className="mt-1 text-sm text-brand-error">{errors.command}</p>
+            )}
+            {isPreset && (
+              <p className="mt-1 text-xs text-text-quaternary flex items-center gap-1">
+                <Lock className="w-3 h-3" />
+                Command is set from preset and cannot be changed
+              </p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">
+            <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary mb-1">
+              {isPreset && (
+                <Lock className="w-3.5 h-3.5 text-text-quaternary" />
+              )}
               Arguments
             </label>
-            <input
-              type="text"
-              value={formData.args}
-              onChange={(e) =>
-                setFormData({ ...formData, args: e.target.value })
-              }
-              disabled={isLoading}
-              className="input"
-              placeholder="path/to/server.js --option value"
-            />
-            <p className="mt-1 text-xs text-text-quaternary">
-              Space-separated arguments
+            <div className="relative">
+              <input
+                type="text"
+                value={formData.args}
+                onChange={(e) =>
+                  setFormData({ ...formData, args: e.target.value })
+                }
+                disabled={isLoading || isPreset}
+                className={`input ${
+                  isPreset ? "bg-bg-secondary/50 cursor-not-allowed" : ""
+                }`}
+                placeholder="path/to/server.js --option value"
+              />
+              {isPreset && (
+                <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-quaternary pointer-events-none" />
+              )}
+            </div>
+            <p className="mt-1 text-xs text-text-quaternary flex items-center gap-1">
+              {isPreset && <Lock className="w-3 h-3" />}
+              {isPreset
+                ? "Arguments are set from preset and cannot be changed"
+                : "Space-separated arguments"}
             </p>
           </div>
 
           {/* Environment Variables */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-text-secondary">
+              <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary">
                 Environment Variables
+                {isPreset && formData.env.length > 0 && (
+                  <span className="text-xs text-text-quaternary font-normal flex items-center gap-1">
+                    <Lock className="w-3 h-3" />
+                    Keys locked
+                  </span>
+                )}
               </label>
-              <button
-                type="button"
-                onClick={addEnvVar}
-                disabled={isLoading}
-                className="text-sm text-brand-purple hover:text-brand-purple/80 flex items-center gap-1"
-              >
-                <Plus className="w-4 h-4" />
-                Add Variable
-              </button>
+              {!isPreset && (
+                <button
+                  type="button"
+                  onClick={addEnvVar}
+                  disabled={isLoading}
+                  className="text-sm text-brand-purple hover:text-brand-purple/80 flex items-center gap-1"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Variable
+                </button>
+              )}
             </div>
             {formData.env.map((env, index) => (
               <div key={index} className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  value={env.key}
-                  onChange={(e) => updateEnvVar(index, "key", e.target.value)}
-                  disabled={isLoading}
-                  className="input flex-1"
-                  placeholder="KEY"
-                />
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={env.key}
+                    onChange={(e) => updateEnvVar(index, "key", e.target.value)}
+                    disabled={isLoading || isPreset}
+                    className={`input ${
+                      isPreset ? "bg-bg-secondary/50 cursor-not-allowed" : ""
+                    }`}
+                    placeholder="KEY"
+                  />
+                  {isPreset && (
+                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-quaternary pointer-events-none" />
+                  )}
+                </div>
                 <div className="flex-1 relative">
                   <input
                     type={env.showValue ? "text" : "password"}
@@ -379,49 +517,87 @@ export function AdvancedConfigForm({
       {(formData.type === "sse" || formData.type === "streamable-http") && (
         <>
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">
+            <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary mb-1">
+              {isPreset && (
+                <Lock className="w-3.5 h-3.5 text-text-quaternary" />
+              )}
               URL *
             </label>
-            <input
-              type="text"
-              value={formData.url}
-              onChange={(e) =>
-                setFormData({ ...formData, url: e.target.value })
-              }
-              disabled={isLoading}
-              className="input"
-              placeholder="https://example.com/mcp"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={formData.url}
+                onChange={(e) =>
+                  setFormData({ ...formData, url: e.target.value })
+                }
+                disabled={isLoading || isPreset}
+                className={`input ${
+                  isPreset ? "bg-bg-secondary/50 cursor-not-allowed" : ""
+                }`}
+                placeholder="https://example.com/mcp"
+              />
+              {isPreset && (
+                <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-quaternary pointer-events-none" />
+              )}
+            </div>
             {errors.url && (
               <p className="mt-1 text-sm text-brand-error">{errors.url}</p>
+            )}
+            {isPreset && (
+              <p className="mt-1 text-xs text-text-quaternary flex items-center gap-1">
+                <Lock className="w-3 h-3" />
+                URL is set from preset and cannot be changed
+              </p>
             )}
           </div>
 
           {/* Authentication (only for network-based servers) */}
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">
+            <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary mb-1">
+              {isPreset && preset?.connection.auth && (
+                <Lock className="w-3.5 h-3.5 text-text-quaternary" />
+              )}
               Authentication
             </label>
-            <select
-              value={formData.authType}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  authType: e.target.value as "none" | "api-key" | "oauth",
-                })
-              }
-              disabled={isLoading}
-              className="input"
-            >
-              <option value="none">None</option>
-              <option value="api-key">API Key (via headers)</option>
-              <option value="oauth">OAuth 2.1</option>
-            </select>
-            <p className="mt-1 text-xs text-text-quaternary">
-              {formData.authType === "none" && "No authentication required"}
-              {formData.authType === "api-key" &&
+            <div className="relative">
+              <select
+                value={formData.authType}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    authType: e.target.value as "none" | "api-key" | "oauth",
+                  })
+                }
+                disabled={isLoading || (isPreset && !!preset?.connection.auth)}
+                className={`input ${
+                  isPreset && preset?.connection.auth
+                    ? "bg-bg-secondary/50 cursor-not-allowed"
+                    : ""
+                }`}
+              >
+                <option value="none">None</option>
+                <option value="api-key">API Key (via headers)</option>
+                <option value="oauth">OAuth 2.1</option>
+              </select>
+              {isPreset && preset?.connection.auth && (
+                <Lock className="absolute right-10 top-1/2 -translate-y-1/2 w-4 h-4 text-text-quaternary pointer-events-none" />
+              )}
+            </div>
+            <p className="mt-1 text-xs text-text-quaternary flex items-center gap-1">
+              {isPreset && preset?.connection.auth && (
+                <Lock className="w-3 h-3" />
+              )}
+              {isPreset &&
+                preset?.connection.auth &&
+                "Authentication type is set from preset and cannot be changed"}
+              {(!isPreset || !preset?.connection.auth) &&
+                formData.authType === "none" &&
+                "No authentication required"}
+              {(!isPreset || !preset?.connection.auth) &&
+                formData.authType === "api-key" &&
                 "Add API key as a custom header below"}
-              {formData.authType === "oauth" &&
+              {(!isPreset || !preset?.connection.auth) &&
+                formData.authType === "oauth" &&
                 "OAuth flow will be triggered after server creation"}
             </p>
           </div>

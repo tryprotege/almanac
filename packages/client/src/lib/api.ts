@@ -421,46 +421,6 @@ export const statsApi = {
   activity: () => api.get<ApiResponse<ActivityItem[]>>("/stats/activity"),
 };
 
-// Model Configuration API Types
-export interface ModelConfigData {
-  llmProvider: "openai" | "openrouter" | "azure" | "anthropic";
-  llmApiKey?: string;
-  llmBaseURL?: string;
-  llmChatModel: string;
-  llmEmbeddingModel: string;
-  llmSyncConfigModel?: string;
-  rerankerEnabled: boolean;
-  rerankerApiKey?: string;
-  rerankerBaseURL?: string;
-  rerankerModel?: string;
-  updatedAt?: string;
-}
-
-export interface TestConnectionRequest {
-  llmProvider: string;
-  llmApiKey: string;
-  llmBaseURL?: string;
-  llmChatModel: string;
-}
-
-export interface TestConnectionResponse {
-  response: string;
-  model: string;
-  provider: string;
-}
-
-// Model Configuration API
-export const modelConfigApi = {
-  get: () => api.get<ApiResponse<ModelConfigData>>("/config/models"),
-  update: (config: Partial<ModelConfigData>) =>
-    api.put<ApiResponse<ModelConfigData>>("/config/models", config),
-  test: (testConfig: TestConnectionRequest) =>
-    api.post<ApiResponse<TestConnectionResponse>>(
-      "/config/models/test",
-      testConfig
-    ),
-};
-
 // Sync Config API Types
 export interface ToolClassification {
   toolName: string;

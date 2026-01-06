@@ -1,5 +1,4 @@
 import mongoose, { InferSchemaType } from "mongoose";
-import { SourceType } from "../types/index.js";
 import {
   encryptMapValues,
   decryptMapValues,

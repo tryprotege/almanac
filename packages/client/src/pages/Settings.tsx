@@ -3,7 +3,7 @@ import { ModelConfiguration } from "../components/ModelConfiguration";
 import { PersonaEditor } from "../components/PersonaEditor";
 import { PageHeader } from "../components/ui/PageHeader";
 
-type SettingsTab = "persona" | "models";
+type SettingsTab = "persona" | "variables";
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("persona");
@@ -14,8 +14,8 @@ export default function Settings() {
       label: "Persona",
     },
     {
-      id: "models" as SettingsTab,
-      label: "Models",
+      id: "variables" as SettingsTab,
+      label: "Variables",
     },
   ];
 
@@ -39,7 +39,7 @@ export default function Settings() {
       {/* Tab Content */}
       <div>
         {activeTab === "persona" && <PersonaEditor />}
-        {activeTab === "models" && <ModelConfiguration />}
+        {activeTab === "variables" && <ModelConfiguration />}
       </div>
     </div>
   );

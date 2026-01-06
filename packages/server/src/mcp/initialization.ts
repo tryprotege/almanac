@@ -13,33 +13,37 @@ import {
 import { connectQdrant, QdrantConnection } from "../connections/qdrant.js";
 import { connectRedis, RedisConnection } from "../connections/redis.js";
 import { resolveSerializedZodOutput } from "../utils/resolveSerializedZodOutput.js";
-import { mcpClientManager, MCPServerConfig } from "./client.js";
-import { loadProxyConfig } from "./config-loader.js";
+import { mcpClientManager } from "./client.js";
+import type {
+  DataSource,
+  DataSourceModel,
+} from "../models/data-source.model.js";
+import { DataSourceModel as DataSourceModelImpl } from "../models/data-source.model.js";
 import { registerLightRAGTool } from "../services/search/lightrag-tool.js";
 import { initWorkers } from "../services/queue/index.js";
 import { VectorStore } from "../stores/vector.store.js";
 import logger from "../utils/logger.js";
 
 export async function initializeRemoteServers(
-  configs: MCPServerConfig[],
+  dataSources: (DataSource & { _id: any })[],
   mcpSever: McpServer,
   skipMcpProxy = false
 ): Promise<void> {
   await Promise.all(
-    configs.map(async (config) => {
+    dataSources.map(async (dataSource) => {
       try {
-        await mcpClientManager.connect(config);
+        await mcpClientManager.connect(dataSource);
 
         if (skipMcpProxy) return;
 
         // Get tools only from the server we just connected to
-        const tools = mcpClientManager.getServerTools(config.name);
+        const tools = mcpClientManager.getServerTools(dataSource.name);
 
         tools.forEach((tool) => {
           mcpSever.registerTool(
-            `${config.name}__${tool.name}`,
+            `${dataSource.name}__${tool.name}`,
             {
-              description: `[${config.name}] ${tool.description}`,
+              description: `[${dataSource.name}] ${tool.description}`,
               title: tool.title,
               _meta: tool._meta,
               annotations: tool.annotations,
@@ -54,7 +58,7 @@ export async function initializeRemoteServers(
             },
             async (args, _extra) => {
               return await mcpClientManager.callTool(
-                config.name,
+                dataSource.name,
                 tool.name,
                 args
               );
@@ -63,8 +67,8 @@ export async function initializeRemoteServers(
         });
       } catch (err) {
         logger.error(
-          { err, configName: config.name },
-          `Failed to connect to ${config.name}`
+          { err, configName: dataSource.name },
+          `Failed to connect to ${dataSource.name}`
         );
       }
     })
@@ -79,19 +83,9 @@ export async function initializeRemoteServers(
 }
 
 const connectMcpServers = async (skipMcpProxy: boolean) => {
-  const validConfigs = await loadProxyConfig();
-  if (validConfigs.length > 0) {
-    await initializeRemoteServers(
-      validConfigs.map((c) => ({
-        ...c.toObject(),
-        env: c.env ? Object.fromEntries(c.env.entries()) : undefined,
-        headers: c.headers
-          ? Object.fromEntries(c.headers.entries())
-          : undefined,
-      })),
-      mcpServer,
-      skipMcpProxy
-    );
+  const dataSources = await DataSourceModelImpl.loadMCPServers();
+  if (dataSources.length > 0) {
+    await initializeRemoteServers(dataSources, mcpServer, skipMcpProxy);
   } else {
     logger.info({ msg: "No remote MCP servers configured" });
   }

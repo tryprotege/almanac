@@ -9,9 +9,9 @@ import { Record } from "../../../models/record.model.js";
 import { EntityRelationship, FetchOptions } from "../../../types/index.js";
 import { SlackMCPClient } from "../../sources/slack/mcpClient.js";
 import { BaseRecordAdapter } from "./base-adapter.js";
-import { createLLMClient } from "../../llm/providers.js";
 import { env } from "../../../env.js";
 import logger from "../../../utils/logger.js";
+import { llm } from "../../llm/llm.js";
 
 type SlackUser = Pick<Member, "id" | "name" | "real_name">;
 
@@ -413,7 +413,6 @@ ${messagesList}
 
 Group related messages together. Each message can only belong to ONE group.`;
 
-    const llm = createLLMClient();
     const response = await llm.chat.completions.create({
       stream: false,
       messages: [

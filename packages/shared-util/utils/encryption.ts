@@ -235,3 +235,85 @@ export function isValidEncryptionKey(keyHex: string): boolean {
     /^[0-9a-f]{64}$/i.test(keyHex)
   );
 }
+
+/**
+ * Generate a random salt for per-record encryption
+ * @returns 32-character hex string (16 bytes)
+ */
+export function generateSalt(): string {
+  return crypto.randomBytes(16).toString("hex");
+}
+
+/**
+ * Derive an encryption key from master key and salt using PBKDF2
+ * @param masterKey - 32-byte master encryption key (Buffer)
+ * @param salt - Salt string (hex)
+ * @returns Derived 32-byte key (Buffer)
+ */
+function deriveKey(masterKey: Buffer, salt: string): Buffer {
+  if (!masterKey || masterKey.length !== 32) {
+    throw new Error("Master key must be 32 bytes (256 bits)");
+  }
+
+  if (!salt || salt.length < 16) {
+    throw new Error("Salt must be at least 16 characters");
+  }
+
+  // Use PBKDF2 to derive key from master key + salt
+  // Iterations set to 10000 for performance balance
+  return crypto.pbkdf2Sync(masterKey, salt, 10000, 32, "sha256");
+}
+
+/**
+ * Encrypt a string value with per-record salt using AES-256-GCM
+ * @param plaintext - The plaintext string to encrypt
+ * @param masterKey - 32-byte master encryption key (Buffer)
+ * @param salt - Salt string for this record
+ * @returns Encrypted string in format: enc:{\"encrypted\":\"...\",\"iv\":\"...\",\"authTag\":\"...\""}
+ */
+export function encryptWithSalt(
+  plaintext: string,
+  masterKey: Buffer,
+  salt: string
+): string {
+  if (!plaintext) {
+    throw new Error("Plaintext cannot be empty");
+  }
+
+  if (!salt) {
+    throw new Error("Salt cannot be empty");
+  }
+
+  // Derive unique key from master key + salt
+  const derivedKey = deriveKey(masterKey, salt);
+
+  // Use standard encrypt function with derived key
+  return encrypt(plaintext, derivedKey);
+}
+
+/**
+ * Decrypt an encrypted value with per-record salt using AES-256-GCM
+ * @param encryptedValue - Encrypted string starting with "enc:"
+ * @param masterKey - 32-byte master encryption key (Buffer)
+ * @param salt - Salt string used during encryption
+ * @returns Decrypted plaintext string
+ */
+export function decryptWithSalt(
+  encryptedValue: string,
+  masterKey: Buffer,
+  salt: string
+): string {
+  if (!encryptedValue) {
+    throw new Error("Encrypted value cannot be empty");
+  }
+
+  if (!salt) {
+    throw new Error("Salt cannot be empty");
+  }
+
+  // Derive the same key from master key + salt
+  const derivedKey = deriveKey(masterKey, salt);
+
+  // Use standard decrypt function with derived key
+  return decrypt(encryptedValue, derivedKey);
+}

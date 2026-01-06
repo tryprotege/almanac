@@ -191,9 +191,44 @@ export const graphApi = {
     }),
 };
 
-// MCP Servers API
-export interface MCPServerConfig {
-  _id: string;
+// Preset Types
+export interface PresetVariable {
+  key: string;
+  label: string;
+  type: "text" | "password";
+  required: boolean;
+  helpText?: string;
+}
+
+export interface PresetSummary {
+  id: string;
+  displayName: string;
+  description: string;
+  icon: string;
+  category: string;
+  connectionType: string;
+  authType?: string;
+  variables: PresetVariable[];
+  hasIndexingConfig: boolean;
+}
+
+export interface DataSourcePreset extends PresetSummary {
+  connection: {
+    type: "stdio" | "sse" | "streamable-http";
+    command?: string;
+    args?: string[];
+    url?: string;
+    auth?: {
+      type: "oauth" | "api-key";
+      provider?: string;
+    };
+  };
+  indexingConfig: any; // Full indexing config from preset
+}
+
+// Data Sources API
+export interface DataSourceConfig {
+  _id?: string;
   name: string;
   type: "stdio" | "sse" | "streamable-http";
   command?: string;
@@ -201,40 +236,128 @@ export interface MCPServerConfig {
   env?: Record<string, string>;
   url?: string;
   headers?: Record<string, string>;
+  authType?: "none" | "api-key" | "oauth";
+  oauth?: {
+    issuerUrl?: string;
+    discoverySource?: "rfc8414" | "oidc" | "manual";
+    authorizationUrl?: string;
+    tokenUrl?: string;
+    clientId?: string;
+    clientSecret?: string;
+    redirectUri?: string;
+    scopes?: string[];
+  };
+  presetId?: string; // If created from a preset
   isDisabled?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export const mcpServersApi = {
-  list: () => api.get<ApiResponse<MCPServerConfig[]>>("/mcp-servers"),
+export interface OAuthMetadata {
+  issuer: string;
+  authorizationEndpoint: string;
+  tokenEndpoint: string;
+  scopesSupported?: string[];
+  responseTypesSupported?: string[];
+  grantTypesSupported?: string[];
+  revocationEndpoint?: string;
+  tokenEndpointAuthMethodsSupported?: string[];
+  codeChallengeMethodsSupported?: string[];
+}
+
+export interface OAuthDiscoveryResult {
+  success: boolean;
+  metadata?: OAuthMetadata;
+  source?: "rfc8414" | "oidc";
+  error?: string;
+}
+
+export const dataSourcesApi = {
+  list: () => api.get<ApiResponse<DataSourceConfig[]>>("/data-sources"),
   get: (name: string) =>
-    api.get<ApiResponse<MCPServerConfig>>(
-      `/mcp-servers/${encodeURIComponent(name)}`
+    api.get<ApiResponse<DataSourceConfig>>(
+      `/data-sources/${encodeURIComponent(name)}`
     ),
-  create: (config: Omit<MCPServerConfig, "_id" | "createdAt" | "updatedAt">) =>
-    api.post<ApiResponse<MCPServerConfig>>("/mcp-servers", config),
-  update: (name: string, config: Partial<MCPServerConfig>) =>
-    api.put<ApiResponse<MCPServerConfig>>(
-      `/mcp-servers/${encodeURIComponent(name)}`,
+  create: (config: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt">) =>
+    api.post<ApiResponse<DataSourceConfig>>("/data-sources", config),
+  update: (name: string, config: Partial<DataSourceConfig>) =>
+    api.put<ApiResponse<DataSourceConfig>>(
+      `/data-sources/${encodeURIComponent(name)}`,
       config
     ),
   delete: (name: string) =>
-    api.delete<ApiResponse<void>>(`/mcp-servers/${encodeURIComponent(name)}`),
+    api.delete<ApiResponse<void>>(`/data-sources/${encodeURIComponent(name)}`),
   connect: (name: string) =>
     api.post<ApiResponse<void>>(
-      `/mcp-servers/${encodeURIComponent(name)}/connect`
+      `/data-sources/${encodeURIComponent(name)}/connect`
     ),
   disconnect: (name: string) =>
     api.post<ApiResponse<void>>(
-      `/mcp-servers/${encodeURIComponent(name)}/disconnect`
+      `/data-sources/${encodeURIComponent(name)}/disconnect`
     ),
   status: (name: string) =>
     api.get<ApiResponse<{ name: string; connected: boolean }>>(
-      `/mcp-servers/${encodeURIComponent(name)}/status`
+      `/data-sources/${encodeURIComponent(name)}/status`
     ),
   sync: (configId: string) =>
     api.post<ApiResponse<{ jobId: string }>>(`/sync`, { configId }),
+};
+
+// Presets API
+export const presetsApi = {
+  list: () => api.get<PresetSummary[]>("/presets"),
+  get: (id: string) =>
+    api.get<DataSourcePreset>(`/presets/${encodeURIComponent(id)}`),
+};
+
+// OAuth API
+export const oauthApi = {
+  discover: (issuerUrl: string) =>
+    api.post<OAuthDiscoveryResult>("/oauth/discover", { issuerUrl }),
+  discoverSse: (sseUrl: string) =>
+    api.post<{
+      success: boolean;
+      requiresAuth: boolean;
+      metadata?: OAuthMetadata;
+      error?: string;
+    }>("/oauth/discover-sse", { sseUrl }),
+  start: (mcpServerId: string) =>
+    api.get<ApiResponse<{ authorizationUrl: string; state: string }>>(
+      `/oauth/start/${mcpServerId}`
+    ),
+  startSse: (mcpServerId: string) =>
+    api.post<
+      ApiResponse<{
+        requiresAuth: boolean;
+        authorizationUrl?: string;
+        state?: string;
+        metadata?: OAuthMetadata;
+        message?: string;
+      }>
+    >(`/oauth/start-sse/${mcpServerId}`),
+  postCode: (serverId: string, code: string, state?: string) =>
+    api.post<ApiResponse<{ success: boolean }>>("/oauth/code", {
+      serverId,
+      code,
+      state,
+    }),
+  status: (mcpServerId: string) =>
+    api.get<
+      ApiResponse<{
+        connected: boolean;
+        expiresAt?: string;
+        hasRefreshToken: boolean;
+        scope?: string[];
+      }>
+    >(`/oauth/status/${mcpServerId}`),
+  refresh: (mcpServerId: string) =>
+    api.post<ApiResponse<{ success: boolean; expiresIn?: number }>>(
+      `/oauth/refresh/${mcpServerId}`
+    ),
+  revoke: (mcpServerId: string) =>
+    api.delete<ApiResponse<{ success: boolean }>>(
+      `/oauth/revoke/${mcpServerId}`
+    ),
 };
 
 // Statistics API Types
@@ -243,7 +366,7 @@ export interface OverviewStats {
   totalVectors: number;
   totalGraphNodes: number;
   totalGraphRelationships: number;
-  mcpServers: {
+  dataSources: {
     total: number;
     connected: number;
     disconnected: number;
@@ -251,6 +374,8 @@ export interface OverviewStats {
   bySource: {
     [source: string]: {
       records: number;
+      embedded: number;
+      graphIndexed: number;
       lastSync?: string;
     };
   };
@@ -279,12 +404,21 @@ export interface GraphStats {
   relationshipsByType: { [type: string]: number };
 }
 
+// Activity Item type
+export interface ActivityItem {
+  service: string;
+  time: string;
+  description: string;
+  isNew: boolean;
+}
+
 // Statistics API
 export const statsApi = {
   overview: () => api.get<ApiResponse<OverviewStats>>("/stats/overview"),
   records: () => api.get<ApiResponse<RecordStats>>("/stats/records"),
   vectors: () => api.get<ApiResponse<VectorStats>>("/stats/vectors"),
   graph: () => api.get<ApiResponse<GraphStats>>("/stats/graph"),
+  activity: () => api.get<ApiResponse<ActivityItem[]>>("/stats/activity"),
 };
 
 // Model Configuration API Types
@@ -294,6 +428,7 @@ export interface ModelConfigData {
   llmBaseURL?: string;
   llmChatModel: string;
   llmEmbeddingModel: string;
+  llmSyncConfigModel?: string;
   rerankerEnabled: boolean;
   rerankerApiKey?: string;
   rerankerBaseURL?: string;
@@ -324,4 +459,122 @@ export const modelConfigApi = {
       "/config/models/test",
       testConfig
     ),
+};
+
+// Sync Config API Types
+export interface ToolClassification {
+  toolName: string;
+  category: "read" | "search" | "write";
+  confidence?: number;
+  reasoning?: string;
+}
+
+export interface SyncConfigData {
+  _id: string;
+  serverName: string;
+  displayName?: string;
+  status: "draft" | "active" | "disabled";
+  config: {
+    version: string;
+    source: string;
+    displayName: string;
+    fetchers: Record<string, any>;
+    recordTypes: Record<string, any>;
+    toolClassifications?: Record<string, ToolClassification>;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SyncConfigSummary {
+  id: string;
+  serverName: string;
+  displayName: string;
+  icon?: string;
+  status: "draft" | "active" | "disabled";
+  updatedAt: string;
+  fetcherCount: number;
+  recordTypeCount: number;
+}
+
+export interface GeneratedSyncConfigResult {
+  config: SyncConfigData["config"];
+  validation: {
+    valid: boolean;
+    errors: Array<{ path: string; message: string; code: string }>;
+    warnings: Array<{ path: string; message: string; suggestion?: string }>;
+  };
+  samples: Record<string, any>;
+  toolsUsed: string[];
+  toolClassifications?: Record<string, ToolClassification>;
+}
+
+export interface PreviewResult {
+  transformedRecords: any[];
+  recordTypeName: string;
+  recordCount: number;
+}
+
+export interface SyncResult {
+  success: boolean;
+  recordsProcessed: number;
+  syncType: "full" | "incremental";
+}
+
+// Sync Config API
+export const syncConfigApi = {
+  list: () =>
+    api.get<ApiResponse<{ configs: SyncConfigSummary[] }>>("/indexing-config"),
+
+  get: (serverName: string) =>
+    api.get<ApiResponse<SyncConfigData>>(
+      `/indexing-config/${encodeURIComponent(serverName)}`
+    ),
+
+  generate: (params: {
+    serverName: string;
+    displayName?: string;
+    sampleLimit?: number;
+    userGuidance?: string;
+  }) =>
+    api.post<ApiResponse<GeneratedSyncConfigResult>>(
+      "/indexing-config/generate",
+      params,
+      { timeout: 300000 } // 5 minutes for complex config generation
+    ),
+
+  validate: (config: SyncConfigData["config"]) =>
+    api.post<ApiResponse<{ valid: boolean; errors: any[]; warnings: any[] }>>(
+      "/indexing-config/validate",
+      config
+    ),
+
+  preview: (params: {
+    config: any;
+    sampleRecords: any[];
+    recordTypeName: string;
+  }) =>
+    api.post<ApiResponse<PreviewResult>>("/indexing-config/preview", params),
+
+  save: (params: { config: any; status?: "draft" | "active" | "disabled" }) =>
+    api.post<
+      ApiResponse<{ success: boolean; configId: string; serverName: string }>
+    >("/indexing-config/save", params),
+
+  sync: (params: { serverName: string; incremental?: boolean }) =>
+    api.post<ApiResponse<SyncResult>>("/indexing-config/sync", params),
+
+  delete: (serverName: string) =>
+    api.delete<ApiResponse<{ success: boolean }>>(
+      `/indexing-config/${encodeURIComponent(serverName)}`
+    ),
+
+  resetSync: (serverName: string) =>
+    api.post<
+      ApiResponse<{
+        success: boolean;
+        serverName: string;
+        stateCleared: boolean;
+      }>
+    >("/indexing-config/reset-sync", { serverName }),
 };

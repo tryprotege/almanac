@@ -1,0 +1,714 @@
+import type { FetcherConfig, RateLimitConfig } from "@ebee-oss/indexing-engine";
+import { mcpClientManager } from "../../../mcp/client.js";
+import { JSONPath } from "jsonpath-plus";
+import {
+  applyRateLimit,
+  handleRateLimitError,
+  notifySuccess,
+  notifyRateLimitError,
+  rateLimiterManager,
+} from "./rate-limiter.js";
+import { detectRateLimitError } from "./mcp-error-parser.js";
+
+export interface PageResult {
+  records: any[];
+  nextCursor?: string;
+  hasMore: boolean;
+  mcpError?: string; // MCP error message if tool call failed
+  rawResponse?: any; // Raw MCP response for debugging
+}
+
+export interface ForEachContext {
+  [fetcherName: string]: any[];
+}
+
+/**
+ * Fetch records by iterating over results from a previous fetcher
+ * Calls the tool once per item from the source, with mapped params
+ * OR uses batch mode to call with array of values (more efficient)
+ */
+export async function* fetchWithForEach(
+  serverName: string,
+  config: FetcherConfig,
+  fetcherResults: ForEachContext
+): AsyncGenerator<PageResult> {
+  const { forEach } = config;
+
+  if (!forEach) {
+    throw new Error(`fetchWithForEach called but forEach config is missing`);
+  }
+
+  // Check if batch mode is enabled
+  if (forEach.batchMode) {
+    yield* fetchWithBatchMode(serverName, config, fetcherResults);
+    return;
+  }
+
+  // Get source records from previous fetcher
+  const sourceRecords = fetcherResults[forEach.source];
+  if (!sourceRecords || sourceRecords.length === 0) {
+    console.warn(`forEach source "${forEach.source}" has no records`);
+    yield { records: [], hasMore: false };
+    return;
+  }
+
+  // Extract iteration items using JSONPath
+  const iterationItems = JSONPath({
+    path: forEach.path,
+    json: sourceRecords,
+  });
+
+  if (!iterationItems || iterationItems.length === 0) {
+    console.warn(`forEach path "${forEach.path}" matched no items`);
+    yield { records: [], hasMore: false };
+    return;
+  }
+
+  const concurrency = forEach.concurrency ?? 3;
+  const continueOnError = forEach.continueOnError ?? true;
+  const maxRetries = forEach.retries ?? 2;
+
+  // Process in batches for concurrency control
+  const allResults: any[] = [];
+  const errors: Array<{ item: any; error: Error }> = [];
+
+  for (let i = 0; i < iterationItems.length; i += concurrency) {
+    const batch = iterationItems.slice(i, i + concurrency);
+
+    const batchPromises = batch.map(async (item: any) => {
+      // Build params from static params + mapped params
+      const params = { ...config.params };
+
+      for (const [paramName, jsonPath] of Object.entries(
+        forEach.paramMapping
+      )) {
+        const value = JSONPath({ path: jsonPath, json: item, wrap: false });
+        if (value !== undefined) {
+          params[paramName] = value;
+        }
+      }
+
+      // Call with retries
+      let lastError: Error | null = null;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          // Apply rate limiting before each attempt (including retries)
+          if (attempt > 0) {
+            console.log(
+              `[forEach] Applying rate limit before retry attempt ${
+                attempt + 1
+              }...`
+            );
+            await applyRateLimit(config.rateLimit, serverName);
+          }
+
+          // Create a minimal config for the tool call (without arrayPath since forEach doesn't need it)
+          const callConfig: FetcherConfig = {
+            tool: config.tool,
+            resultPath: config.resultPath,
+            params,
+            rateLimit: config.rateLimit,
+          };
+          const result = await fetchPage(
+            serverName,
+            callConfig,
+            params,
+            config.rateLimit
+          );
+          return result.records;
+        } catch (err) {
+          lastError = err as Error;
+          if (attempt < maxRetries) {
+            await sleep(1000 * (attempt + 1)); // Exponential backoff
+          }
+        }
+      }
+
+      throw lastError;
+    });
+
+    const results = await Promise.allSettled(batchPromises);
+
+    for (let j = 0; j < results.length; j++) {
+      const result = results[j];
+      if (result.status === "fulfilled") {
+        allResults.push(...(result.value || []));
+      } else {
+        errors.push({ item: batch[j], error: result.reason });
+        if (!continueOnError) {
+          throw result.reason;
+        }
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    console.warn(
+      `forEach completed with ${errors.length} errors:`,
+      errors.map((e) => e.error.message)
+    );
+  }
+
+  yield {
+    records: allResults,
+    hasMore: false,
+  };
+}
+
+/**
+ * Fetch using batch mode - call tool with array of values instead of one-by-one
+ * More efficient when the tool accepts array parameters
+ */
+async function* fetchWithBatchMode(
+  serverName: string,
+  config: FetcherConfig,
+  fetcherResults: ForEachContext
+): AsyncGenerator<PageResult> {
+  const { forEach } = config;
+
+  if (!forEach || !forEach.batchMode) {
+    throw new Error(
+      `fetchWithBatchMode called but batchMode config is missing`
+    );
+  }
+
+  // Get source records from previous fetcher
+  const sourceRecords = fetcherResults[forEach.source];
+  if (!sourceRecords || sourceRecords.length === 0) {
+    console.warn(`forEach source "${forEach.source}" has no records`);
+    yield { records: [], hasMore: false };
+    return;
+  }
+
+  // Extract iteration items using JSONPath
+  const iterationItems = JSONPath({
+    path: forEach.path,
+    json: sourceRecords,
+  });
+
+  if (!iterationItems || iterationItems.length === 0) {
+    console.warn(`forEach path "${forEach.path}" matched no items`);
+    yield { records: [], hasMore: false };
+    return;
+  }
+
+  // Extract values from each item using valueMapping
+  const values: any[] = [];
+  for (const item of iterationItems) {
+    const value = JSONPath({
+      path: forEach.batchMode.valueMapping,
+      json: item,
+      wrap: false,
+    });
+    if (value !== undefined) {
+      values.push(value);
+    }
+  }
+
+  if (values.length === 0) {
+    console.warn(`forEach batchMode: no values extracted from items`);
+    yield { records: [], hasMore: false };
+    return;
+  }
+
+  const batchSize = forEach.batchMode.batchSize ?? 100;
+  const continueOnError = forEach.continueOnError ?? true;
+  const maxRetries = forEach.retries ?? 2;
+
+  const allResults: any[] = [];
+  const errors: Array<{ batch: any[]; error: Error }> = [];
+
+  // Split into batches
+  for (let i = 0; i < values.length; i += batchSize) {
+    const batch = values.slice(i, i + batchSize);
+
+    console.log(
+      `Calling ${config.tool} with batch of ${batch.length} items (${i}-${
+        i + batch.length
+      }/${values.length})`
+    );
+
+    // Build params with batch array
+    const params = {
+      ...config.params,
+      [forEach.batchMode.batchParam]: batch,
+    };
+
+    // Call with retries
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // Create a minimal config for the tool call (without arrayPath since forEach doesn't need it)
+        const callConfig: FetcherConfig = {
+          tool: config.tool,
+          resultPath: config.resultPath,
+          params,
+          rateLimit: config.rateLimit,
+        };
+        const result = await fetchPage(
+          serverName,
+          callConfig,
+          params,
+          config.rateLimit
+        );
+        allResults.push(...result.records);
+        break; // Success
+      } catch (err) {
+        lastError = err as Error;
+        if (attempt < maxRetries) {
+          console.warn(
+            `Batch call failed (attempt ${attempt + 1}/${
+              maxRetries + 1
+            }), retrying...`
+          );
+          await sleep(1000 * (attempt + 1)); // Exponential backoff
+        }
+      }
+    }
+
+    if (lastError) {
+      errors.push({ batch, error: lastError });
+      if (!continueOnError) {
+        throw lastError;
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    console.warn(
+      `forEach batch mode completed with ${errors.length} batch errors:`,
+      errors.map((e) => e.error.message)
+    );
+  }
+
+  yield {
+    records: allResults,
+    hasMore: false,
+  };
+}
+
+/**
+ * Fetch all records with pagination
+ * Yields PageResult objects containing records and raw MCP response
+ */
+export async function* fetchAll(
+  serverName: string,
+  config: FetcherConfig,
+  initialParams: Record<string, any> = {}
+): AsyncGenerator<PageResult> {
+  let cursor: string | undefined;
+  let hasMore = true;
+
+  while (hasMore) {
+    const params = { ...config.params, ...initialParams };
+
+    // Add pagination parameters
+    if (config.pagination) {
+      addPaginationParams(params, cursor, config.pagination);
+    }
+
+    // Fetch page with rate limiting
+    const result = await fetchPage(
+      serverName,
+      config,
+      params,
+      config.rateLimit
+    );
+
+    // Always yield result (even if 0 records) so we can access raw response
+    yield result;
+
+    // Update cursor and hasMore
+    cursor = result.nextCursor;
+    hasMore = result.hasMore;
+
+    // If no pagination config, break after first page
+    if (!config.pagination || config.pagination.type === "none") {
+      break;
+    }
+  }
+}
+
+/**
+ * Extract records from MCP response format
+ * MCP responses come in format: {content: [{type: "text", text: "...JSON..."}]}
+ * OR direct data arrays: {content: [{id: "...", ...}], pageInfo: {...}}
+ * OR pagination wrappers: {content: [...], pageInfo: {...}}
+ */
+function extractRecordsFromMCPResponse(response: any): {
+  records: any[];
+  error?: string;
+} {
+  // Check for pagination wrapper format first (e.g., Linear)
+  // {content: [{id: "...", ...}], pageInfo: {...}}
+  if (
+    response?.content &&
+    Array.isArray(response.content) &&
+    response.pageInfo &&
+    response.content.length > 0 &&
+    response.content[0]?.id
+  ) {
+    // This is a pagination wrapper - content is the array of records
+    return { records: response.content };
+  }
+
+  // If response has content array (MCP format), extract the text and parse it
+  if (response?.content && Array.isArray(response.content)) {
+    const textContent = response.content.find((c: any) => c.type === "text");
+
+    if (textContent?.text) {
+      const text = textContent.text.trim();
+
+      // Check if it's an error message (not JSON)
+      if (
+        text.startsWith("Entity not") ||
+        text.startsWith("Error") ||
+        text.startsWith("Failed") ||
+        text.startsWith("MCP error") ||
+        (!text.startsWith("[") && !text.startsWith("{"))
+      ) {
+        console.warn(
+          "MCP response contains error message:",
+          text.substring(0, 100)
+        );
+        return { records: [], error: text }; // Return error info
+      }
+
+      try {
+        const parsed = JSON.parse(text);
+
+        // Could be an array or an object
+        if (Array.isArray(parsed)) {
+          return { records: parsed };
+        }
+
+        // Check for common nested array patterns
+        if (parsed.content && Array.isArray(parsed.content)) {
+          // Linear MCP format: {content: [...], pageInfo: {...}}
+          return { records: parsed.content };
+        }
+        if (parsed.results && Array.isArray(parsed.results)) {
+          return { records: parsed.results };
+        }
+        if (parsed.records && Array.isArray(parsed.records)) {
+          return { records: parsed.records };
+        }
+        if (parsed.data) {
+          return {
+            records: Array.isArray(parsed.data) ? parsed.data : [parsed.data],
+          };
+        }
+
+        // Single object - return as array
+        return { records: [parsed] };
+      } catch (err) {
+        // If parsing fails, return empty array
+        console.warn("Failed to parse MCP response text as JSON:", err);
+        return { records: [] };
+      }
+    }
+
+    // Handle direct content arrays (not text wrappers)
+    // If content[0] has an 'id' field, it's likely a direct data array
+    if (response.content.length > 0 && response.content[0]?.id) {
+      return { records: response.content };
+    }
+  }
+
+  // Fallback to existing logic for non-MCP responses
+  if (response.records && Array.isArray(response.records)) {
+    return { records: response.records };
+  }
+  if (response.results && Array.isArray(response.results)) {
+    return { records: response.results };
+  }
+
+  // Single response object
+  return { records: [response] };
+}
+
+/**
+ * Fetch a single page
+ */
+async function fetchPage(
+  serverName: string,
+  config: FetcherConfig,
+  params: Record<string, any>,
+  rateLimitConfig?: RateLimitConfig
+): Promise<PageResult> {
+  // Use server-level scope so all tools share the same rate limiter
+  // This is important for APIs like Fathom that have a global rate limit
+  const scopeId = serverName;
+
+  console.log(
+    `[Fetcher] About to call ${config.tool} with params:`,
+    JSON.stringify(params, null, 2)
+  );
+
+  // Apply rate limiting before making the call
+  console.log(`[Fetcher] Applying rate limit for ${scopeId}...`);
+  const delayMs = await applyRateLimit(rateLimitConfig, scopeId);
+  if (delayMs > 0) {
+    console.log(`[Fetcher] Rate limit applied - waited ${delayMs}ms`);
+  }
+
+  console.log(`[Fetcher] Making API call to ${config.tool}...`);
+  const callStartTime = Date.now();
+
+  // Check if server is paused due to rate limiting
+  await rateLimiterManager.waitIfPaused(serverName);
+
+  let response: any;
+  let caughtError: Error | undefined;
+
+  try {
+    response = await mcpClientManager.callTool(serverName, config.tool, params);
+
+    const callDuration = Date.now() - callStartTime;
+    console.log(
+      `[Fetcher] API call to ${config.tool} succeeded in ${callDuration}ms`
+    );
+  } catch (err: any) {
+    const callDuration = Date.now() - callStartTime;
+    console.error(
+      `[Fetcher] API call to ${config.tool} failed after ${callDuration}ms:`,
+      err.message
+    );
+    caughtError = err;
+    response = err.response; // MCP errors may have response attached
+  }
+
+  // Check for rate limit in response or error
+  const rateLimitInfo = detectRateLimitError(response, caughtError);
+
+  if (rateLimitInfo.isRateLimit) {
+    console.warn(
+      `[Fetcher] Rate limit detected for ${config.tool}:`,
+      rateLimitInfo.errorMessage?.substring(0, 200)
+    );
+
+    // Notify rate limiter to adjust
+    notifyRateLimitError(
+      rateLimitConfig,
+      scopeId,
+      serverName,
+      rateLimitInfo.retryAfter
+    );
+
+    // Handle rate limit and wait
+    await handleRateLimitError(
+      rateLimitConfig,
+      scopeId,
+      rateLimitInfo.retryAfter
+    );
+
+    // Apply rate limit again before retry
+    console.log(`[Fetcher] Applying rate limit before retry...`);
+    await applyRateLimit(rateLimitConfig, scopeId);
+
+    // Retry the request
+    try {
+      response = await mcpClientManager.callTool(
+        serverName,
+        config.tool,
+        params
+      );
+      console.log(`[Fetcher] Retry succeeded for ${config.tool}`);
+      notifySuccess(rateLimitConfig, scopeId);
+    } catch (retryErr: any) {
+      console.error(
+        `[Fetcher] Retry failed for ${config.tool}:`,
+        retryErr.message
+      );
+      throw retryErr;
+    }
+  } else if (caughtError) {
+    // Non-rate-limit error, re-throw
+    throw caughtError;
+  } else {
+    // Success on first try
+    notifySuccess(rateLimitConfig, scopeId);
+  }
+
+  console.log(
+    `[fetchPage] Raw MCP response structure:`,
+    JSON.stringify(response, null, 2).substring(0, 500)
+  );
+
+  // Extract records from MCP response format
+  const parseResult = extractRecordsFromMCPResponse(response);
+
+  console.log(
+    `[fetchPage] Extracted ${parseResult.records.length} records before arrayPath`
+  );
+
+  // Check if MCP returned an error
+  if (parseResult.error) {
+    return {
+      records: [],
+      nextCursor: undefined,
+      hasMore: false,
+      mcpError: parseResult.error,
+      rawResponse: response,
+    };
+  }
+
+  // Validate that we have actual records
+  if (!Array.isArray(parseResult.records)) {
+    console.warn(
+      "fetchPage: extracted records is not an array",
+      typeof parseResult.records
+    );
+    return {
+      records: [],
+      nextCursor: undefined,
+      hasMore: false,
+      rawResponse: response,
+    };
+  }
+
+  let finalRecords = parseResult.records;
+  let paginationSource = finalRecords;
+
+  // Apply arrayPath if configured to extract nested records
+  if (config.arrayPath) {
+    console.log(
+      `[fetchPage] Applying arrayPath: ${config.arrayPath} to extract nested records`
+    );
+    console.log(
+      `[fetchPage] Records before arrayPath:`,
+      JSON.stringify(finalRecords, null, 2).substring(0, 300)
+    );
+
+    try {
+      // If we have a single wrapper object in an array, apply arrayPath to that object
+      // This handles cases like [{items: [...], next_cursor: "..."}] from extractRecordsFromMCPResponse
+      let target = finalRecords;
+      if (
+        finalRecords.length === 1 &&
+        typeof finalRecords[0] === "object" &&
+        finalRecords[0] !== null &&
+        !Array.isArray(finalRecords[0])
+      ) {
+        console.log(
+          `[fetchPage] Detected single wrapper object, applying arrayPath to object directly`
+        );
+        target = finalRecords[0];
+        paginationSource = target; // Use the wrapper object for pagination info
+      }
+
+      const extractedRecords = JSONPath({
+        path: config.arrayPath,
+        json: target,
+      });
+
+      if (Array.isArray(extractedRecords)) {
+        finalRecords = extractedRecords;
+        if (extractedRecords.length > 0) {
+          console.log(
+            `[fetchPage] Successfully extracted ${finalRecords.length} records using arrayPath`
+          );
+          console.log(
+            `[fetchPage] First record after arrayPath:`,
+            JSON.stringify(finalRecords[0], null, 2).substring(0, 300)
+          );
+        } else {
+          console.log(
+            `[fetchPage] arrayPath "${config.arrayPath}" extracted 0 records (empty array)`
+          );
+        }
+      } else {
+        console.warn(
+          `[fetchPage] arrayPath "${config.arrayPath}" returned non-array:`,
+          extractedRecords
+        );
+      }
+    } catch (err) {
+      console.error(`[fetchPage] Error applying arrayPath:`, err);
+    }
+  }
+
+  // Extract pagination info from the appropriate source
+  let nextCursor: string | undefined;
+  let hasMore = false;
+
+  if (config.pagination) {
+    // Try to extract cursor from paginationSource using configured path
+    if (config.pagination.cursorPath) {
+      try {
+        const extractedCursor = JSONPath({
+          path: config.pagination.cursorPath,
+          json: paginationSource,
+          wrap: false,
+        });
+        nextCursor = extractedCursor;
+        console.log(
+          `[fetchPage] Extracted cursor from path "${config.pagination.cursorPath}":`,
+          nextCursor
+        );
+      } catch (err) {
+        console.warn(
+          `[fetchPage] Failed to extract cursor using path "${config.pagination.cursorPath}":`,
+          err
+        );
+      }
+    }
+
+    // Determine if there are more pages
+    if (nextCursor !== undefined && nextCursor !== null) {
+      hasMore = true;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return {
+    records: finalRecords,
+    nextCursor,
+    hasMore,
+    rawResponse: response,
+  };
+}
+
+/**
+ * Add pagination parameters to request
+ */
+function addPaginationParams(
+  params: Record<string, any>,
+  cursor: string | undefined,
+  config: FetcherConfig["pagination"]
+): void {
+  if (!config) return;
+
+  switch (config.type) {
+    case "cursor":
+      if (config.limitParam) {
+        params[config.limitParam] = 100; // Default page size
+      }
+      if (cursor && config.cursorParam) {
+        params[config.cursorParam] = cursor;
+      }
+      break;
+
+    case "offset":
+      if (config.limitParam) {
+        params[config.limitParam] = 100;
+      }
+      if (config.offsetParam) {
+        const currentOffset = params[config.offsetParam] || 0;
+        params[config.offsetParam] = currentOffset + 100;
+      }
+      break;
+
+    case "none":
+    default:
+      break;
+  }
+}
+
+/**
+ * Helper function for delays
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}

@@ -1,6 +1,7 @@
-import { MCPServerConfigModel } from "../../models/mcp-config.model.js";
+import { DataSourceModel } from "../../models/data-source.model.js";
 import { mcpClientManager } from "../../mcp/client.js";
 import { RecordModel } from "../../models/record.model.js";
+import { MCPSyncStateModel } from "../../models/mcp-sync-state.model.js";
 import { CacheStore } from "../../stores/cache.store.js";
 import { GraphStore } from "../../stores/graph.store.js";
 import { RecordStore } from "../../stores/record.store.js";
@@ -48,7 +49,7 @@ export class StatsService {
         totalVectors: vectorStats.totalPoints,
         totalGraphNodes: graphStats.totalNodes,
         totalGraphRelationships: graphStats.totalRelationships,
-        mcpServers: mcpStats,
+        dataSources: mcpStats,
         bySource: recordsBySource,
       };
     });
@@ -209,24 +210,50 @@ export class StatsService {
   }
 
   /**
-   * Get records count by source with last sync time
+   * Get records count by source with last sync time, embedded count, and graph indexed count
    */
   private async getRecordsBySource(): Promise<{
-    [source: string]: { records: number; lastSync?: Date };
+    [source: string]: {
+      records: number;
+      embedded: number;
+      graphIndexed: number;
+      lastSync?: Date;
+    };
   }> {
     try {
       // Get all unique sources
       const sources = await RecordModel.distinct("source").exec();
 
-      const result: { [source: string]: { records: number; lastSync?: Date } } =
-        {};
+      const result: {
+        [source: string]: {
+          records: number;
+          embedded: number;
+          graphIndexed: number;
+          lastSync?: Date;
+        };
+      } = {};
 
       await Promise.all(
         sources.map(async (source: string) => {
+          // Total records count
           const count = await this.recordStore.countBySource(
             source as SourceType,
             true
           );
+
+          // Count embedded records (have lastEmbeddedAt set)
+          const embeddedCount = await RecordModel.countDocuments({
+            source,
+            deletedAt: { $exists: false },
+            lastEmbeddedAt: { $exists: true },
+          }).exec();
+
+          // Count graph-indexed records (have lastGraphIndexAt set)
+          const graphIndexedCount = await RecordModel.countDocuments({
+            source,
+            deletedAt: { $exists: false },
+            lastGraphIndexAt: { $exists: true },
+          }).exec();
 
           // Get the most recent sync time for this source
           const recentRecord = await RecordModel.findOne({
@@ -239,6 +266,8 @@ export class StatsService {
 
           result[source] = {
             records: count,
+            embedded: embeddedCount,
+            graphIndexed: graphIndexedCount,
             lastSync: recentRecord?.syncedAt,
           };
         })
@@ -290,16 +319,109 @@ export class StatsService {
   }
 
   /**
-   * Get MCP server statistics
+   * Get recent sync activity for dashboard
+   */
+  async getRecentActivity(): Promise<ActivityItem[]> {
+    return this.getCached("stats:activity", async () => {
+      try {
+        const activities: ActivityItem[] = [];
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+        // Get all sync states with recent activity
+        const syncStates = await MCPSyncStateModel.find({
+          $or: [
+            { lastFullSyncAt: { $gte: oneDayAgo } },
+            { lastIncrementalSyncAt: { $gte: oneDayAgo } },
+          ],
+        })
+          .sort({ updatedAt: -1 })
+          .limit(10)
+          .exec();
+
+        for (const state of syncStates) {
+          const syncTime = state.lastIncrementalSyncAt || state.lastFullSyncAt;
+          if (!syncTime) continue;
+
+          // Count records synced in this sync session (within 5 minutes of sync time)
+          const syncWindowStart = new Date(syncTime.getTime() - 5 * 60 * 1000);
+          const syncWindowEnd = new Date(syncTime.getTime() + 5 * 60 * 1000);
+
+          const recordStats = await RecordModel.aggregate([
+            {
+              $match: {
+                source: state.serverName,
+                syncedAt: {
+                  $gte: syncWindowStart,
+                  $lte: syncWindowEnd,
+                },
+              },
+            },
+            {
+              $group: {
+                _id: "$recordType",
+                count: { $sum: 1 },
+              },
+            },
+          ]).exec();
+
+          if (recordStats.length > 0) {
+            // Build description from record types
+            const descriptions = recordStats.map((stat) => {
+              const count = stat.count;
+              const type = stat._id || "items";
+              return `${count} ${type}${count !== 1 ? "s" : ""}`;
+            });
+
+            const description =
+              state.status === "syncing"
+                ? `Syncing ${descriptions.join(", ")}`
+                : `Indexed ${descriptions.join(", ")}`;
+
+            activities.push({
+              service: this.capitalizeFirst(state.serverName),
+              time: this.formatRelativeTime(syncTime),
+              description,
+              isNew: Date.now() - syncTime.getTime() < 5 * 60 * 1000, // New if within 5 minutes
+            });
+          }
+        }
+
+        // If no recent activity, show a placeholder
+        if (activities.length === 0) {
+          activities.push({
+            service: "System",
+            time: "No recent activity",
+            description: "No syncs in the last 24 hours",
+            isNew: false,
+          });
+        }
+
+        return activities;
+      } catch (err) {
+        logger.error({ err }, "Error fetching recent activity");
+        return [
+          {
+            service: "System",
+            time: "Error",
+            description: "Failed to load activity",
+            isNew: false,
+          },
+        ];
+      }
+    });
+  }
+
+  /**
+   * Get MCP server statistics (using DataSourceModel)
    */
   private async getMCPServerStats(): Promise<MCPServerStats> {
     try {
-      const configs = await MCPServerConfigModel.find().exec();
-      const total = configs.length;
+      const dataSources = await DataSourceModel.find().exec();
+      const total = dataSources.length;
       let connected = 0;
 
-      configs.forEach((config) => {
-        if (mcpClientManager.isConnected(config.name)) {
+      dataSources.forEach((source) => {
+        if (mcpClientManager.isConnected(source.name)) {
           connected++;
         }
       });
@@ -310,13 +432,38 @@ export class StatsService {
         disconnected: total - connected,
       };
     } catch (err) {
-      logger.error({ err }, "Error fetching MCP server stats");
+      logger.error({ err }, "Error fetching data source stats");
       return {
         total: 0,
         connected: 0,
         disconnected: 0,
       };
     }
+  }
+
+  /**
+   * Helper: Capitalize first letter
+   */
+  private capitalizeFirst(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  /**
+   * Helper: Format relative time
+   */
+  private formatRelativeTime(date: Date): string {
+    const now = Date.now();
+    const diffMs = now - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60)
+      return `${diffMins} minute${diffMins !== 1 ? "s" : ""} ago`;
+    if (diffHours < 24)
+      return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
+    return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`;
   }
 
   /**
@@ -384,10 +531,12 @@ export interface OverviewStats {
   totalVectors: number;
   totalGraphNodes: number;
   totalGraphRelationships: number;
-  mcpServers: MCPServerStats;
+  dataSources: MCPServerStats;
   bySource: {
     [source: string]: {
       records: number;
+      embedded: number;
+      graphIndexed: number;
       lastSync?: Date;
     };
   };
@@ -420,4 +569,11 @@ interface MCPServerStats {
   total: number;
   connected: number;
   disconnected: number;
+}
+
+export interface ActivityItem {
+  service: string;
+  time: string;
+  description: string;
+  isNew: boolean;
 }

@@ -1,26 +1,32 @@
-import { MCPServerConfigModel } from "../models/mcp-config.model.js";
-import { MCPServerConfig } from "./client.js";
+import { DataSourceModel } from "../models/data-source.model.js";
 import logger from "../utils/logger.js";
+import type { DataSource } from "../models/data-source.model.js";
 
 /**
  * Load MCP proxy configuration from a file or environment variable
  */
-export async function loadProxyConfig() {
-  const remoteServerConfigs = await MCPServerConfigModel.find({
+export async function loadProxyConfig(): Promise<
+  Array<DataSource & { _id: any }>
+> {
+  const remoteServerConfigs = await DataSourceModel.find({
     isDisabled: false,
   });
 
-  const validConfigs = remoteServerConfigs.filter((config) => {
-    const error = validateConfig(config);
-    if (error) {
-      logger.error(
-        { configName: config.name, error },
-        `Invalid config for ${config.name}: ${error}`
-      );
-      return false;
-    }
-    return true;
-  });
+  const validConfigs = remoteServerConfigs
+    .filter((config) => {
+      const error = validateConfig(config);
+      if (error) {
+        logger.error(
+          { configName: config.name, error },
+          `Invalid config for ${config.name}: ${error}`
+        );
+        return false;
+      }
+      return true;
+    })
+    .map((doc) => {
+      return doc;
+    });
 
   return validConfigs;
 }
@@ -29,7 +35,7 @@ export async function loadProxyConfig() {
  * Validate MCP server configuration
  */
 export function validateConfig(
-  config: Pick<MCPServerConfig, "name" | "type" | "command" | "url">
+  config: Pick<DataSource, "name" | "type" | "command" | "url">
 ): string | null {
   if (!config.name) {
     return "Server name is required";

@@ -1,5 +1,4 @@
 import mongoose, { InferSchemaType } from "mongoose";
-import { SourceType } from "../types/index.js";
 
 /**
  * Unified entity model for multi-source synchronization
@@ -12,22 +11,16 @@ const RecordSchema = new mongoose.Schema(
       type: String,
       required: true,
       index: true,
-      enum: [
-        "notion",
-        "slack",
-        "calendar",
-        "jira",
-        "fathom",
-        "whatsapp",
-        "codebase",
-        "asana",
-        "google_drive",
-        "github",
-      ] satisfies SourceType[],
+      // No enum constraint - allow any source name for custom MCP servers
     },
     sourceId: { type: String, required: true, index: true }, // Original ID from source
     recordType: { type: String, required: true, index: true }, // 'page' | 'message' | 'event' | 'task' | 'issue' | etc.
     parentId: { type: String, index: true }, // Parent record ID (for threads, conversations, etc.)
+
+    // Grouping support (for parent-child relationships)
+    childIds: [{ type: String }], // Array of child record IDs (for parent records created by grouping)
+    groupId: { type: String, index: true }, // Group identifier for debugging/tracking
+    isParentRecord: { type: Boolean, default: false }, // Flag indicating this is a generated parent record
 
     // Universal searchable fields (indexed for fast queries)
     title: { type: String, required: true, index: true },

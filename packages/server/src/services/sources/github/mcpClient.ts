@@ -59,8 +59,8 @@ export class GitHubMCPClient {
       } else if (textContent && textContent.text) {
         try {
           return JSON.parse(textContent.text) as T;
-        } catch (error) {
-          logger.error({ error }, "Failed to parse MCP response:");
+        } catch (err) {
+          logger.error({ err }, "Failed to parse MCP response:");
           throw new Error(
             `Invalid JSON in MCP response: ${textContent.text.substring(
               0,

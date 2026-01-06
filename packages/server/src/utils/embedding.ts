@@ -1,7 +1,7 @@
 import pRetry from "p-retry";
 import { env } from "../env.js";
 import logger from "./logger.js";
-import { createLLMClient } from "../services/llm/providers.js";
+import { llm } from "../services/llm/llm.js";
 
 /**
  * Embedder service - Generates vector embeddings using any OpenAI-compatible API
@@ -14,8 +14,6 @@ export async function embed(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) {
     return [];
   }
-
-  const llm = createLLMClient();
 
   try {
     const response = await pRetry(

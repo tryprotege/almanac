@@ -12,12 +12,6 @@ services:
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=admin123
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     restart: unless-stopped
     networks:
       - ebee-network
@@ -30,12 +24,6 @@ services:
       - "6334:6334"
     volumes:
       - ./.data/qdrant:/qdrant/storage
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/readyz"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     restart: unless-stopped
     networks:
       - ebee-network
@@ -50,12 +38,6 @@ services:
       - ./.data/memgraph:/var/lib/memgraph
     environment:
       - MEMGRAPH_LOG_LEVEL=WARNING
-    healthcheck:
-      test: ["CMD-SHELL", "echo 'RETURN 1;' | mgconsole || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     restart: unless-stopped
     networks:
       - ebee-network
@@ -68,12 +50,6 @@ services:
     volumes:
       - ./.data/redis:/data
     command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 5s
     restart: unless-stopped
     networks:
       - ebee-network
@@ -111,14 +87,10 @@ services:
     env_file:
       - packages/server/.env
     depends_on:
-      mongodb:
-        condition: service_healthy
-      qdrant:
-        condition: service_healthy
-      memgraph:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - mongodb
+      - qdrant
+      - memgraph
+      - redis
     restart: unless-stopped
     networks:
       - ebee-network

@@ -39,7 +39,7 @@ function App() {
 
   const checkSetupStatus = async () => {
     try {
-      const response = await api.get("http://localhost:3000/api/config/env");
+      const response = await api.get("/config/env");
       if (response.data.success && response.data.data) {
         const { setupComplete, missing, configured } = response.data.data;
         setSetupComplete(setupComplete);

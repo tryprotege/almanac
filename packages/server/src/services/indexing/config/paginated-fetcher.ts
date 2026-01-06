@@ -5,7 +5,10 @@ import {
   applyRateLimit,
   handleRateLimitError,
   notifySuccess,
+  notifyRateLimitError,
+  rateLimiterManager,
 } from "./rate-limiter.js";
+import { detectRateLimitError } from "./mcp-error-parser.js";
 
 export interface PageResult {
   records: any[];
@@ -89,6 +92,16 @@ export async function* fetchWithForEach(
       let lastError: Error | null = null;
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
+          // Apply rate limiting before each attempt (including retries)
+          if (attempt > 0) {
+            console.log(
+              `[forEach] Applying rate limit before retry attempt ${
+                attempt + 1
+              }...`
+            );
+            await applyRateLimit(config.rateLimit, serverName);
+          }
+
           // Create a minimal config for the tool call (without arrayPath since forEach doesn't need it)
           const callConfig: FetcherConfig = {
             tool: config.tool,
@@ -423,42 +436,98 @@ async function fetchPage(
   params: Record<string, any>,
   rateLimitConfig?: RateLimitConfig
 ): Promise<PageResult> {
+  // Use server-level scope so all tools share the same rate limiter
+  // This is important for APIs like Fathom that have a global rate limit
+  const scopeId = serverName;
+
   console.log(
-    `[fetchPage] Calling tool: ${config.tool}, params:`,
+    `[Fetcher] About to call ${config.tool} with params:`,
     JSON.stringify(params, null, 2)
   );
 
   // Apply rate limiting before making the call
-  const scopeId = `${serverName}:${config.tool}`;
-  await applyRateLimit(rateLimitConfig, scopeId);
+  console.log(`[Fetcher] Applying rate limit for ${scopeId}...`);
+  const delayMs = await applyRateLimit(rateLimitConfig, scopeId);
+  if (delayMs > 0) {
+    console.log(`[Fetcher] Rate limit applied - waited ${delayMs}ms`);
+  }
+
+  console.log(`[Fetcher] Making API call to ${config.tool}...`);
+  const callStartTime = Date.now();
+
+  // Check if server is paused due to rate limiting
+  await rateLimiterManager.waitIfPaused(serverName);
 
   let response: any;
+  let caughtError: Error | undefined;
+
   try {
     response = await mcpClientManager.callTool(serverName, config.tool, params);
 
-    // Notify success for exponential backoff strategy
-    notifySuccess(rateLimitConfig, scopeId);
+    const callDuration = Date.now() - callStartTime;
+    console.log(
+      `[Fetcher] API call to ${config.tool} succeeded in ${callDuration}ms`
+    );
   } catch (err: any) {
-    // Check if this is a rate limit error (429)
-    if (err.status === 429 || err.message?.includes("rate limit")) {
-      // Extract Retry-After header if available
-      const retryAfter = err.headers?.["retry-after"] || err.retryAfter;
+    const callDuration = Date.now() - callStartTime;
+    console.error(
+      `[Fetcher] API call to ${config.tool} failed after ${callDuration}ms:`,
+      err.message
+    );
+    caughtError = err;
+    response = err.response; // MCP errors may have response attached
+  }
 
-      // Handle rate limit and wait
-      await handleRateLimitError(rateLimitConfig, scopeId, retryAfter);
+  // Check for rate limit in response or error
+  const rateLimitInfo = detectRateLimitError(response, caughtError);
 
-      // Retry the request
+  if (rateLimitInfo.isRateLimit) {
+    console.warn(
+      `[Fetcher] Rate limit detected for ${config.tool}:`,
+      rateLimitInfo.errorMessage?.substring(0, 200)
+    );
+
+    // Notify rate limiter to adjust
+    notifyRateLimitError(
+      rateLimitConfig,
+      scopeId,
+      serverName,
+      rateLimitInfo.retryAfter
+    );
+
+    // Handle rate limit and wait
+    await handleRateLimitError(
+      rateLimitConfig,
+      scopeId,
+      rateLimitInfo.retryAfter
+    );
+
+    // Apply rate limit again before retry
+    console.log(`[Fetcher] Applying rate limit before retry...`);
+    await applyRateLimit(rateLimitConfig, scopeId);
+
+    // Retry the request
+    try {
       response = await mcpClientManager.callTool(
         serverName,
         config.tool,
         params
       );
-
+      console.log(`[Fetcher] Retry succeeded for ${config.tool}`);
       notifySuccess(rateLimitConfig, scopeId);
-    } else {
-      // Re-throw non-rate-limit errors
-      throw err;
+    } catch (retryErr: any) {
+      console.error(
+        `[Fetcher] Retry failed for ${config.tool}:`,
+        retryErr.message
+      );
+      throw retryErr;
     }
+  } else if (caughtError) {
+    // Non-rate-limit error, re-throw
+    throw caughtError;
+  } else {
+    // Success on first try
+    notifySuccess(rateLimitConfig, scopeId);
   }
 
   console.log(

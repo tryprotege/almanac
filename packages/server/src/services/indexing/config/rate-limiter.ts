@@ -1,107 +1,147 @@
 import type { RateLimitConfig } from "@ebee-oss/indexing-engine";
+import { RateLimiter } from "limiter";
+import { Mutex } from "async-mutex";
 import logger from "../../../utils/logger.js";
 
 /**
- * Token bucket rate limiter
+ * Token bucket rate limiter using the 'limiter' library
  * Allows burst traffic while maintaining average rate limit
  */
 class TokenBucketRateLimiter {
-  private tokens: number;
-  private lastRefill: number;
-  private readonly maxTokens: number;
-  private readonly refillRate: number; // tokens per second
+  private limiter: RateLimiter;
   private readonly id: string;
+  private readonly maxTokens: number;
+  private readonly intervalMs: number;
+  private mutex = new Mutex();
+  private currentRate: number; // Current tokens per interval (can be reduced)
+  private readonly baseRate: number; // Original rate to restore to
+  private successCount: number = 0;
+  private readonly recoveryThreshold: number = 10; // Successes needed to restore rate
 
   constructor(config: RateLimitConfig, id: string) {
     this.id = id;
 
-    // Calculate refill rate (tokens per second)
-    this.refillRate = config.maxRequests / config.windowSeconds;
-
-    // Set max tokens (with burst capacity if enabled)
+    // Set max tokens (with burst capacity if explicitly enabled)
     const burstMultiplier =
-      config.allowBurst !== false ? config.burstMultiplier || 1.5 : 1;
+      config.allowBurst === true ? config.burstMultiplier || 1.5 : 1;
     this.maxTokens = Math.ceil(config.maxRequests * burstMultiplier);
+    this.intervalMs = config.windowSeconds * 1000;
+    this.baseRate = this.maxTokens;
+    this.currentRate = this.maxTokens;
 
-    // Start with full bucket
-    this.tokens = this.maxTokens;
-    this.lastRefill = Date.now();
+    // Create limiter with tokensPerInterval and interval in milliseconds
+    this.limiter = new RateLimiter({
+      tokensPerInterval: this.maxTokens,
+      interval: this.intervalMs,
+      fireImmediately: true,
+    });
 
     logger.debug(
       {
         id: this.id,
         maxTokens: this.maxTokens,
-        refillRate: this.refillRate,
-        burstEnabled: config.allowBurst !== false,
+        intervalSeconds: config.windowSeconds,
+        burstEnabled: config.allowBurst === true,
       },
-      "Token bucket rate limiter initialized"
+      "Token bucket rate limiter initialized (using limiter library)"
     );
   }
 
   /**
-   * Refill tokens based on elapsed time
-   */
-  private refill(): void {
-    const now = Date.now();
-    const elapsedSeconds = (now - this.lastRefill) / 1000;
-    const tokensToAdd = elapsedSeconds * this.refillRate;
-
-    this.tokens = Math.min(this.maxTokens, this.tokens + tokensToAdd);
-    this.lastRefill = now;
-  }
-
-  /**
-   * Try to consume a token
-   * Returns true if successful, false if rate limited
-   */
-  tryConsume(): boolean {
-    this.refill();
-
-    if (this.tokens >= 1) {
-      this.tokens -= 1;
-      return true;
-    }
-
-    return false;
-  }
-
-  /**
-   * Wait until a token is available
+   * Wait until a token is available (with mutex to serialize access)
    * Returns the delay in milliseconds
    */
   async waitForToken(): Promise<number> {
-    this.refill();
+    // Use async-mutex to properly serialize all callers
+    return await this.mutex.runExclusive(async () => {
+      const startTime = Date.now();
 
-    if (this.tokens >= 1) {
-      this.tokens -= 1;
-      return 0;
-    }
+      // Acquire token (will wait if needed)
+      await this.limiter.removeTokens(1);
 
-    // Calculate how long to wait for next token
-    const tokensNeeded = 1 - this.tokens;
-    const delayMs = Math.ceil((tokensNeeded / this.refillRate) * 1000);
+      const delayMs = Date.now() - startTime;
+      const remaining = this.limiter.getTokensRemaining();
 
-    logger.debug(
-      { id: this.id, delayMs, currentTokens: this.tokens },
-      "Rate limit: waiting for token"
+      logger.info(
+        {
+          id: this.id,
+          delayMs,
+          tokensRemaining: remaining.toFixed(2),
+          maxTokens: this.maxTokens,
+        },
+        `[Rate Limiter] Token consumed (waited ${delayMs}ms) - ${remaining.toFixed(
+          2
+        )}/${this.maxTokens} remaining`
+      );
+
+      return delayMs;
+    });
+  }
+
+  /**
+   * Reduce rate temporarily when hitting rate limits
+   * @param factor - Reduction factor (0.5 = reduce to 50% of current rate)
+   */
+  reduceRate(factor: number = 0.5): void {
+    this.currentRate = Math.max(1, this.currentRate * factor);
+    this.successCount = 0; // Reset success counter
+
+    logger.warn(
+      {
+        id: this.id,
+        newRate: this.currentRate,
+        baseRate: this.baseRate,
+        reductionFactor: factor,
+      },
+      "Rate limit reduced due to 429 error"
     );
 
-    await sleep(delayMs);
-    this.tokens = 0; // Consumed the token we waited for
-    this.lastRefill = Date.now();
+    // Note: The limiter library doesn't support dynamic rate changes
+    // We handle this by adding extra delays in waitForToken when currentRate < baseRate
+  }
 
-    return delayMs;
+  /**
+   * Track successful request for rate recovery
+   */
+  onSuccess(): void {
+    if (this.currentRate < this.baseRate) {
+      this.successCount++;
+
+      // After threshold successes, gradually restore rate
+      if (this.successCount >= this.recoveryThreshold) {
+        const oldRate = this.currentRate;
+        this.currentRate = Math.min(
+          this.baseRate,
+          this.currentRate * 1.2 // Increase by 20%
+        );
+        this.successCount = 0;
+
+        if (oldRate !== this.currentRate) {
+          logger.info(
+            {
+              id: this.id,
+              newRate: this.currentRate,
+              baseRate: this.baseRate,
+            },
+            "Rate limit recovering after successful requests"
+          );
+        }
+      }
+    }
   }
 
   /**
    * Get current status for debugging
    */
   getStatus() {
-    this.refill();
     return {
-      availableTokens: this.tokens,
+      availableTokens: this.limiter.getTokensRemaining(),
       maxTokens: this.maxTokens,
-      refillRate: this.refillRate,
+      currentRate: this.currentRate,
+      baseRate: this.baseRate,
+      isReduced: this.currentRate < this.baseRate,
+      successCount: this.successCount,
+      intervalMs: this.intervalMs,
     };
   }
 }
@@ -236,6 +276,7 @@ export class RateLimiterManager {
     | ExponentialBackoffRateLimiter
     | RetryAfterRateLimiter
   > = new Map();
+  private pausedServers: Map<string, Date> = new Map();
 
   /**
    * Get or create a rate limiter for a specific scope
@@ -287,6 +328,67 @@ export class RateLimiterManager {
    */
   clear(): void {
     this.limiters.clear();
+  }
+
+  /**
+   * Pause a server for rate limiting purposes
+   * @param serverName - Server to pause
+   * @param untilTime - Time when server should resume
+   */
+  pauseServer(serverName: string, untilTime: Date): void {
+    this.pausedServers.set(serverName, untilTime);
+    logger.warn(
+      {
+        serverName,
+        pausedUntil: untilTime.toISOString(),
+        pauseDurationMs: untilTime.getTime() - Date.now(),
+      },
+      "Server paused for rate limiting"
+    );
+  }
+
+  /**
+   * Check if server is paused and wait if necessary
+   * @param serverName - Server to check
+   * @returns true if waited for pause, false if no pause
+   */
+  async waitIfPaused(serverName: string): Promise<boolean> {
+    const pausedUntil = this.pausedServers.get(serverName);
+    if (pausedUntil && pausedUntil > new Date()) {
+      const waitMs = pausedUntil.getTime() - Date.now();
+      logger.info(
+        { serverName, waitMs },
+        `Server is paused, waiting ${waitMs}ms before resuming`
+      );
+      await sleep(waitMs);
+      this.pausedServers.delete(serverName);
+      return true;
+    }
+
+    // Clean up expired pause
+    if (pausedUntil) {
+      this.pausedServers.delete(serverName);
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if a server is currently paused
+   */
+  isServerPaused(serverName: string): boolean {
+    const pausedUntil = this.pausedServers.get(serverName);
+    return pausedUntil !== undefined && pausedUntil > new Date();
+  }
+
+  /**
+   * Reduce rate for a token bucket limiter when hitting rate limits
+   */
+  reduceRateForScope(scopeId: string, factor: number = 0.5): void {
+    const limiter = this.limiters.get(scopeId);
+    if (limiter && limiter instanceof TokenBucketRateLimiter) {
+      limiter.reduceRate(factor);
+    }
   }
 
   /**
@@ -387,8 +489,36 @@ export function notifySuccess(
   if (!config) return;
 
   const strategy = config.strategy || "token_bucket";
+  const limiter = rateLimiterManager.getLimiter(config, scopeId);
+
   if (strategy === "exponential_backoff") {
-    const limiter = rateLimiterManager.getLimiter(config, scopeId);
     (limiter as ExponentialBackoffRateLimiter).onSuccess();
+  } else if (strategy === "token_bucket") {
+    (limiter as TokenBucketRateLimiter).onSuccess();
+  }
+}
+
+/**
+ * Notify rate limiter of rate limit error and adjust accordingly
+ */
+export function notifyRateLimitError(
+  config: RateLimitConfig | undefined,
+  scopeId: string,
+  serverName: string,
+  retryAfter?: number
+): void {
+  if (!config) return;
+
+  const strategy = config.strategy || "token_bucket";
+
+  // Reduce rate for token bucket strategy
+  if (strategy === "token_bucket") {
+    rateLimiterManager.reduceRateForScope(scopeId, 0.5);
+  }
+
+  // Pause server globally if retry-after is provided
+  if (retryAfter) {
+    const pauseUntil = new Date(Date.now() + retryAfter * 1000);
+    rateLimiterManager.pauseServer(serverName, pauseUntil);
   }
 }

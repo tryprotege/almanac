@@ -263,7 +263,8 @@ function resolveTemplateMapping(
 ): any {
   return mapping.template.replace(/\$\{([^}]+)\}/g, (_, expr) => {
     try {
-      const result = JSONPath({ path: expr, json: context.record });
+      // Use full context to support both record.* and enrichments.* paths
+      const result = JSONPath({ path: expr, json: context });
       return Array.isArray(result) && result.length > 0 ? result[0] : "";
     } catch {
       return "";

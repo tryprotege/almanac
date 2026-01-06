@@ -233,7 +233,7 @@ When you receive a record from a fetcher, it is passed as an INDIVIDUAL OBJECT:
 
 ## Enrichments
 
-Define additional fetches per record:
+Define additional fetches per record to gather supplementary data:
 
 \`\`\`json
 {
@@ -245,10 +245,200 @@ Define additional fetches per record:
         "page_id": "$.id"
       },
       "resultPath": "$.results"
+    },
+    {
+      "name": "summary",
+      "tool": "get_summary",
+      "paramMapping": {
+        "recording_id": "$.recording_id"
+      },
+      "resultPath": "$.content[0].text"
     }
   ]
 }
 \`\`\`
+
+### Using Enrichments in Field Mappings
+
+Enrichments are stored in the \`enrichments\` object and can be accessed in any field mapping type using the path \`enrichments.{name}\`.
+
+**Single enrichment with processor:**
+\`\`\`json
+{
+  "content": {
+    "type": "processor",
+    "processor": "transcript-to-markdown",
+    "input": "enrichments.transcript"
+  }
+}
+\`\`\`
+
+**Multiple enrichments with template:**
+\`\`\`json
+{
+  "content": {
+    "type": "template",
+    "template": "## Summary\\n\\n\${enrichments.summary}\\n\\n## Full Transcript\\n\\n\${enrichments.transcript}"
+  }
+}
+\`\`\`
+
+**Combining enrichments with record data:**
+\`\`\`json
+{
+  "content": {
+    "type": "template",
+    "template": "# \${record.title}\\n\\nDate: \${record.created_at}\\n\\n## Summary\\n\${enrichments.summary}\\n\\n## Details\\n\${enrichments.details}"
+  }
+}
+\`\`\`
+
+**Complex processing with code:**
+\`\`\`json
+{
+  "content": {
+    "type": "code",
+    "code": "const summary = enrichments.summary || 'No summary available';\\nconst transcript = enrichments.transcript || '';\\nreturn \`## Summary\\n\\n\${summary}\\n\\n## Transcript\\n\\n\${transcript}\`;"
+  }
+}
+\`\`\`
+
+**When to use enrichments:**
+- ✅ Fetching related content (page blocks, issue comments, meeting transcripts)
+- ✅ Getting additional details not included in the main fetch
+- ✅ Retrieving computed data (summaries, analyses, aggregations)
+- ❌ Don't use for simple field extraction from the main record (use path mapping instead)
+- ❌ Don't create enrichments for data that's already in the fetcher response
+
+## Enrichment Storage Patterns
+
+⚠️ **CRITICAL**: Any enrichment NOT mapped to a field is NOT searchable or queryable! Enrichments are stored in the database but only as \`rawData\`. To make enrichment data accessible, you MUST map it to at least one field.
+
+## 🎯 RECOMMENDED: Pattern C - Separate Record Types (Best for Graph RAG)
+
+**THIS SHOULD BE YOUR DEFAULT CHOICE** for LightGraph RAG systems. Only fall back to Pattern A/B for trivial metadata.
+
+### Pattern C: Create Separate Record Types (Optimal for Graph RAG)
+**Use when**: Building a Graph RAG system (which is almost always). This pattern creates independent nodes with relationships, enabling:
+- **Independent semantic search** - Each content type gets its own vector embedding
+- **Graph traversal** - Multi-hop queries across relationships (e.g., "transcripts mentioning X from meetings with Y")
+- **Fine-grained retrieval** - Fetch only the content type needed (summary vs full transcript)
+- **Entity linking** - Each record can link to different entities (transcript mentions people, summary discusses projects)
+- **Better RAG context** - Pull in the most relevant content type for answering questions
+
+\`\`\`json
+{
+  "syncOrder": ["list_meetings", "get_transcripts", "get_summaries"],
+  "fetchers": {
+    "list_meetings": {
+      "tool": "list_meetings",
+      "resultPath": "$.content[0].text",
+      "arrayPath": "$.items[*]"
+    },
+    "get_transcripts": {
+      "tool": "get_transcript",
+      "forEach": {
+        "source": "list_meetings",
+        "path": "$[*]",
+        "paramMapping": { "recording_id": "$.recording_id" }
+      },
+      "resultPath": "$.content[0].text"
+    },
+    "get_summaries": {
+      "tool": "get_summary",
+      "forEach": {
+        "source": "list_meetings",
+        "path": "$[*]",
+        "paramMapping": { "recording_id": "$.recording_id" }
+      },
+      "resultPath": "$.content[0].text"
+    }
+  },
+  "recordTypes": {
+    "meeting": {
+      "fetcher": "list_meetings",
+      "fields": { "title": { "path": "$.title" }, "content": { "path": "$.description" } }
+    },
+    "transcript": {
+      "fetcher": "get_transcripts",
+      "fields": {
+        "title": { "template": "Transcript for \${record.recording_id}" },
+        "content": { "processor": "transcript-to-markdown", "input": "$.transcript" }
+      },
+      "relationships": [
+        { "name": "transcript_of", "type": "TRANSCRIPT_OF", "targetType": "meeting", "targetIdPath": "$.recording_id" }
+      ]
+    },
+    "summary": {
+      "fetcher": "get_summaries",
+      "fields": {
+        "title": { "template": "Summary for \${record.recording_id}" },
+        "content": { "path": "$.summary" }
+      },
+      "relationships": [
+        { "name": "summary_of", "type": "SUMMARY_OF", "targetType": "meeting", "targetIdPath": "$.recording_id" }
+      ]
+    }
+  }
+}
+\`\`\`
+
+This creates three separate, linked records in the graph database:
+- \`fathom_meeting_123\` → meeting metadata
+- \`fathom_transcript_123\` → full transcript content
+- \`fathom_summary_123\` → summary content
+- Relationships: \`transcript --TRANSCRIPT_OF--> meeting\`, \`summary --SUMMARY_OF--> meeting\`
+
+### Pattern A: Combine in Content (Simple, Not Recommended for Graph RAG)
+**Use when**: Enrichments are trivial metadata (<100 characters, like status labels) with no independent search value.
+
+\`\`\`json
+{
+  "enrichments": [
+    { "name": "summary", "tool": "get_summary", "paramMapping": { "recording_id": "$.recording_id" } }
+  ],
+  "fields": {
+    "title": { "type": "path", "path": "$.title" },
+    "content": { "type": "template", "template": "\${record.description}\\n\\n## Summary\\n\${enrichments.summary}" }
+  }
+}
+\`\`\`
+
+### Pattern B: Separate Custom Fields (Structured, Limited)
+**Use when**: Multiple enrichments need individual storage but relationships aren't critical.
+
+\`\`\`json
+{
+  "enrichments": [
+    { "name": "summary", "tool": "get_summary", ... },
+    { "name": "notes", "tool": "get_notes", ... }
+  ],
+  "fields": {
+    "title": { "type": "path", "path": "$.title" },
+    "content": { "type": "path", "path": "$.description" },
+    "summary": { "type": "path", "path": "enrichments.summary" },
+    "notes": { "type": "path", "path": "enrichments.notes" }
+  }
+}
+\`\`\`
+
+### Decision Guide for LightGraph RAG
+
+**DEFAULT: Use Pattern C** unless enrichment is trivial metadata
+
+| Consideration | Pattern A | Pattern B | Pattern C ✅ |
+|---------------|-----------|-----------|-------------|
+| Independent search | ❌ | ✅ | ✅✅ |
+| Graph traversal | ❌ | ❌ | ✅✅ |
+| Entity linking | ❌ | Limited | ✅✅ |
+| Multi-hop queries | ❌ | ❌ | ✅✅ |
+| Separate embeddings | ❌ | Partial | ✅✅ |
+| Best for Graph RAG | ❌ | ⚠️ | ✅✅✅ |
+
+**When to use each pattern:**
+- **Pattern C (Recommended)**: Almost always for substantive enrichments (transcripts, summaries, comments, details)
+- **Pattern B**: Only when relationships don't matter but you need filtering
+- **Pattern A**: Only for trivial metadata (<100 chars) that adds context to the main record
 
 ## Dynamic Parameters with forEach
 
@@ -803,6 +993,43 @@ This creates duplicate processing and causes errors when enrichment tools are ca
   }
 }
 \`\`\`
+
+### 8. Unused Enrichments (Data Loss!)
+❌ **NEVER** fetch enrichments without mapping them to fields:
+\`\`\`json
+{
+  "enrichments": [
+    { "name": "summary", "tool": "get_summary", "paramMapping": { "id": "$.id" } },
+    { "name": "transcript", "tool": "get_transcript", "paramMapping": { "id": "$.id" } },
+    { "name": "details", "tool": "get_details", "paramMapping": { "id": "$.id" } }
+  ],
+  "fields": {
+    "title": { "type": "path", "path": "$.title" },
+    "content": { "type": "path", "path": "$.description" }  // ❌ enrichments NEVER used!
+  }
+}
+\`\`\`
+
+This fetches 3 enrichments but NONE are stored in searchable fields - they're lost!
+
+✅ **ALWAYS** map every enrichment to at least one field:
+\`\`\`json
+{
+  "enrichments": [
+    { "name": "summary", "tool": "get_summary", ... },
+    { "name": "transcript", "tool": "get_transcript", ... }
+  ],
+  "fields": {
+    "title": { "type": "path", "path": "$.title" },
+    "content": {
+      "type": "template",
+      "template": "\${record.description}\\n\\n## Summary\\n\${enrichments.summary}\\n\\n## Transcript\\n\${enrichments.transcript}"
+    }
+  }
+}
+\`\`\`
+
+Or use Pattern C (separate record types) if enrichments are substantial.
 
 ## Validation Checklist
 

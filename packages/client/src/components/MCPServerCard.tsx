@@ -20,11 +20,13 @@ import {
   useDataSourceStatus,
   useSyncDataSource,
 } from "../hooks/useDataSources";
-import { DataSourceConfig } from "../lib/api";
+import { DataSourceConfig, SyncConfigSummary } from "../lib/api";
 import { OAuthConnectButton } from "./OAuthConnectButton";
+import { IconDisplay } from "./ui/IconDisplay";
 
 interface MCPServerCardProps {
   server: DataSourceConfig;
+  syncConfig?: SyncConfigSummary;
   onEdit: (server: DataSourceConfig) => void;
 }
 
@@ -62,7 +64,11 @@ function getConnectionDetails(server: DataSourceConfig): string {
   return parts.join(" • ");
 }
 
-export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
+export function MCPServerCard({
+  server,
+  syncConfig,
+  onEdit,
+}: MCPServerCardProps) {
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [_syncJobId, setSyncJobId] = useState<string | null>(null);
@@ -126,7 +132,11 @@ export function MCPServerCard({ server, onEdit }: MCPServerCardProps) {
       {/* Compact Header */}
       <div className="flex items-start gap-3 mb-3">
         <div className="p-2 rounded-lg text-brand-purple bg-brand-purple/10 flex-shrink-0">
-          <ServiceIcon className="w-5 h-5" />
+          <IconDisplay
+            icon={syncConfig?.icon}
+            fallbackIcon={ServiceIcon}
+            size="md"
+          />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">

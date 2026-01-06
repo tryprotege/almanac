@@ -14,14 +14,19 @@ interface ModalProps {
   disableClose?: boolean;
   hideHeader?: boolean;
   className?: string;
+  // New props for explicit control
+  width?: string;
+  minWidth?: string;
+  maxWidth?: string;
 }
 
-const sizeClasses: Record<ModalSize, string> = {
-  sm: "max-w-md",
-  md: "max-w-lg",
-  lg: "max-w-2xl",
-  xl: "max-w-4xl",
-  full: "max-w-6xl",
+// Size to width mapping with explicit values
+const sizeToWidth: Record<ModalSize, { default: string; max: string }> = {
+  sm: { default: "100%", max: "28rem" }, // 448px
+  md: { default: "100%", max: "32rem" }, // 512px
+  lg: { default: "100%", max: "42rem" }, // 672px
+  xl: { default: "100%", max: "56rem" }, // 896px
+  full: { default: "100%", max: "72rem" }, // 1152px
 };
 
 export function Modal({
@@ -34,9 +39,16 @@ export function Modal({
   disableClose = false,
   hideHeader = false,
   className = "",
+  width,
+  minWidth = "320px",
+  maxWidth,
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
+
+  // Get width values from size or use custom width
+  const widthStyle = width || sizeToWidth[size].default;
+  const maxWidthStyle = maxWidth || sizeToWidth[size].max;
 
   // Handle Escape key
   useEffect(() => {
@@ -92,30 +104,46 @@ export function Modal({
 
   const modal = (
     <div
-      className="modal-backdrop"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? "modal-title" : undefined}
       aria-describedby={subtitle ? "modal-subtitle" : undefined}
+      style={{
+        animation: "fadeIn 0.2s ease-out",
+      }}
     >
       <div
         ref={modalRef}
-        className={`modal-container ${sizeClasses[size]} ${className}`}
+        className={`bg-bg-primary rounded-lg shadow-2xl border border-border-secondary flex flex-col ${className}`}
         onClick={(e) => e.stopPropagation()}
         tabIndex={-1}
+        style={{
+          width: widthStyle,
+          minWidth: minWidth,
+          maxWidth: maxWidthStyle,
+          maxHeight: "90vh",
+          animation: "scaleIn 0.2s ease-out",
+        }}
       >
         {/* Header */}
         {!hideHeader && (title || subtitle) && (
-          <div className="modal-header">
-            <div className="modal-header-content">
+          <div className="flex items-start justify-between p-6 border-b border-border-secondary flex-shrink-0">
+            <div className="flex-1 min-w-0 pr-4">
               {title && (
-                <h2 id="modal-title" className="modal-title">
+                <h2
+                  id="modal-title"
+                  className="text-xl font-semibold text-text-primary"
+                >
                   {title}
                 </h2>
               )}
               {subtitle && (
-                <p id="modal-subtitle" className="modal-subtitle">
+                <p
+                  id="modal-subtitle"
+                  className="text-sm text-text-tertiary mt-1"
+                >
                   {subtitle}
                 </p>
               )}
@@ -123,7 +151,7 @@ export function Modal({
             {!disableClose && (
               <button
                 onClick={onClose}
-                className="modal-close-button"
+                className="text-text-quaternary hover:text-text-secondary transition-colors flex-shrink-0"
                 aria-label="Close modal"
               >
                 <X className="w-5 h-5" />
@@ -132,8 +160,15 @@ export function Modal({
           </div>
         )}
 
-        {/* Content */}
-        <div className="modal-body">{children}</div>
+        {/* Content - scrollable */}
+        <div
+          className="overflow-y-auto flex-1"
+          style={{
+            scrollbarWidth: "thin",
+          }}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -141,7 +176,7 @@ export function Modal({
   return createPortal(modal, document.body);
 }
 
-// Optional: Modal Header component for custom headers
+// Modal Header component for custom headers
 interface ModalHeaderProps {
   title: string;
   subtitle?: string;
@@ -156,15 +191,17 @@ export function ModalHeader({
   disableClose = false,
 }: ModalHeaderProps) {
   return (
-    <div className="modal-header">
-      <div className="modal-header-content">
-        <h2 className="modal-title">{title}</h2>
-        {subtitle && <p className="modal-subtitle">{subtitle}</p>}
+    <div className="flex items-start justify-between p-6 border-b border-border-secondary flex-shrink-0">
+      <div className="flex-1 min-w-0 pr-4">
+        <h2 className="text-xl font-semibold text-text-primary">{title}</h2>
+        {subtitle && (
+          <p className="text-sm text-text-tertiary mt-1">{subtitle}</p>
+        )}
       </div>
       {onClose && !disableClose && (
         <button
           onClick={onClose}
-          className="modal-close-button"
+          className="text-text-quaternary hover:text-text-secondary transition-colors flex-shrink-0"
           aria-label="Close modal"
         >
           <X className="w-5 h-5" />
@@ -174,12 +211,62 @@ export function ModalHeader({
   );
 }
 
-// Optional: Modal Footer component for consistent button layouts
+// Modal Footer component with flexible layout
 interface ModalFooterProps {
   children: ReactNode;
   className?: string;
+  leftContent?: ReactNode;
+  rightContent?: ReactNode;
 }
 
-export function ModalFooter({ children, className = "" }: ModalFooterProps) {
-  return <div className={`modal-footer ${className}`}>{children}</div>;
+export function ModalFooter({
+  children,
+  className = "",
+  leftContent,
+  rightContent,
+}: ModalFooterProps) {
+  // If leftContent and rightContent are provided, use justify-between
+  // Otherwise, if only children provided, use justify-end
+  const justifyClass =
+    leftContent || rightContent ? "justify-between" : "justify-end";
+
+  return (
+    <div
+      className={`flex items-center gap-3 p-6 border-t border-border-secondary flex-shrink-0 ${justifyClass} ${className}`}
+    >
+      {leftContent && (
+        <div className="flex items-center gap-3">{leftContent}</div>
+      )}
+      {children && <div className="flex items-center gap-3">{children}</div>}
+      {rightContent && (
+        <div className="flex items-center gap-3">{rightContent}</div>
+      )}
+    </div>
+  );
+}
+
+// Add keyframe animations to document if not already present
+if (typeof document !== "undefined") {
+  const styleId = "modal-animations";
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes scaleIn {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
 }

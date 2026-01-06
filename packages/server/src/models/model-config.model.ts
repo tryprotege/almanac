@@ -26,7 +26,7 @@ const ModelConfigSchema = new mongoose.Schema(
     llmIndexingConfigModel: {
       type: String,
       required: false,
-      default: "openai/gpt-oss-120b",
+      default: "GPT_OSS",
     },
     // Reranker Configuration
     rerankerEnabled: { type: Boolean, default: false },

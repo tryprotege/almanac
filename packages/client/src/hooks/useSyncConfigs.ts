@@ -108,3 +108,13 @@ export function usePreviewTransform() {
     },
   });
 }
+
+// Hook to reset sync state
+export function useResetSyncState() {
+  return useMutation({
+    mutationFn: async (serverName: string) => {
+      const response = await syncConfigApi.resetSync(serverName);
+      return response.data.data;
+    },
+  });
+}

@@ -1,4 +1,10 @@
-import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle,
+  Info,
+} from "lucide-react";
 import { GeneratedSyncConfigResult } from "../../lib/api";
 
 interface IndexingStepProps {
@@ -14,7 +20,33 @@ export function IndexingStep({
   onNext,
   isLoading,
 }: IndexingStepProps) {
-  const { config, validation, toolsUsed } = generatedConfig;
+  const { config, validation, toolsUsed, toolClassifications } =
+    generatedConfig;
+
+  // Calculate tool classification breakdown
+  const readTools = toolsUsed || [];
+  const searchTools: string[] = [];
+  const writeTools: string[] = [];
+
+  if (toolClassifications) {
+    Object.entries(toolClassifications).forEach(
+      ([toolName, classification]) => {
+        if (
+          classification.category === "search" &&
+          !readTools.includes(toolName)
+        ) {
+          searchTools.push(toolName);
+        } else if (
+          classification.category === "write" &&
+          !readTools.includes(toolName)
+        ) {
+          writeTools.push(toolName);
+        }
+      }
+    );
+  }
+
+  const skippedTools = [...searchTools, ...writeTools];
 
   return (
     <div className="p-6 space-y-6">
@@ -134,24 +166,82 @@ export function IndexingStep({
             ([name, fetcher]: [string, any]) => (
               <div
                 key={name}
-                className="flex items-center justify-between p-2 bg-bg-secondary rounded"
+                className="flex items-center justify-between p-3 bg-bg-secondary rounded"
               >
-                <div>
-                  <div className="text-sm font-medium text-text-primary">
-                    {name}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-text-primary">
+                      {name}
+                    </span>
+                    <span className="text-xs px-2 py-0.5 bg-brand-success/10 text-brand-success rounded">
+                      READ
+                    </span>
                   </div>
-                  <div className="text-xs text-text-tertiary">
-                    Tool: {fetcher.toolName}
-                  </div>
+                  {fetcher.tool && fetcher.tool !== name && (
+                    <div className="text-xs text-text-tertiary mt-1">
+                      Tool: {fetcher.tool}
+                    </div>
+                  )}
                 </div>
-                <span className="text-xs px-2 py-1 bg-brand-success/10 text-brand-success rounded">
-                  READ
-                </span>
               </div>
             )
           )}
         </div>
       </div>
+
+      {/* Skipped Tools */}
+      {skippedTools.length > 0 && (
+        <div className="border border-border-secondary rounded-lg p-4">
+          <div className="flex items-start gap-2 mb-3">
+            <Info className="w-4 h-4 text-text-tertiary flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-sm font-medium text-text-primary">
+                Skipped Tools
+              </h4>
+              <p className="text-xs text-text-tertiary mt-1">
+                These tools were excluded from indexing because they perform
+                write or search operations
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {searchTools.length > 0 && (
+              <div>
+                <div className="text-xs font-medium text-text-secondary mb-1">
+                  Search Tools ({searchTools.length})
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {searchTools.map((toolName) => (
+                    <span
+                      key={toolName}
+                      className="text-xs px-2 py-1 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 rounded border border-yellow-200 dark:border-yellow-800"
+                    >
+                      {toolName}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {writeTools.length > 0 && (
+              <div>
+                <div className="text-xs font-medium text-text-secondary mb-1">
+                  Write Tools ({writeTools.length})
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {writeTools.map((toolName) => (
+                    <span
+                      key={toolName}
+                      className="text-xs px-2 py-1 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded border border-red-200 dark:border-red-800"
+                    >
+                      {toolName}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex items-center justify-between pt-4 border-t border-border-secondary">

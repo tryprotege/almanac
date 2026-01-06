@@ -254,6 +254,9 @@ importers:
       '@slack/web-api':
         specifier: ^7.13.0
         version: 7.13.0
+      async-mutex:
+        specifier: ^0.5.0
+        version: 0.5.0
       bullmq:
         specifier: 5.66.1
         version: 5.66.1
@@ -278,6 +281,9 @@ importers:
       jsonpath-plus:
         specifier: ^8.0.0
         version: 8.1.0
+      limiter:
+        specifier: ^3.0.0
+        version: 3.0.0
       mongodb:
         specifier: ^7.0.0
         version: 7.0.0
@@ -1378,8 +1384,8 @@ packages:
     resolution: {integrity: sha512-058GAcqHd3I7oYLnLIMhcZMdg8i6hCvD4K3s5PY8RuSXp7QAl9/+usOIxrDSfNMGK4cfya94LqHj+txwIe3wUQ==}
     engines: {node: '>=18'}
 
-  '@sourcegraph/amp@0.0.1767386223-g46ed64':
-    resolution: {integrity: sha512-tLqr3k7GpqEjIg974Nc28yYPbqlgBvFaMzH4teIR0zfI8cBAvIPKMY+4AkCWl9vFNONR2iC9DnHj4022H0RGlA==}
+  '@sourcegraph/amp@0.0.1767643295-g73c392':
+    resolution: {integrity: sha512-vnGGPKHehU2DkVRZajD0lb46cIxNe2P4PW97IzmjB5QfSBvJFfXmEkOzLhSr+BfXpuvkwbYBFlU6vRuv15StdA==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -1806,6 +1812,9 @@ packages:
 
   argparse@1.0.10:
     resolution: {integrity: sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg==}
+
+  async-mutex@0.5.0:
+    resolution: {integrity: sha512-1A94B18jkJ3DYq284ohPxoXbfTA5HsQ7/Mf4DEhcyLx3Bz27Rh59iScbB6EPiP+B+joue6YCxcMXSbFC1tZKwA==}
 
   asynckit@0.4.0:
     resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}
@@ -2786,6 +2795,9 @@ packages:
   lightningcss@1.30.2:
     resolution: {integrity: sha512-utfs7Pr5uJyyvDETitgsaqSyjCb2qNRAtuqUeWIAKztsOYdcACf2KtARYXg2pSvhkt+9NfoaNY7fxjl6nuMjIQ==}
     engines: {node: '>= 12.0.0'}
+
+  limiter@3.0.0:
+    resolution: {integrity: sha512-hev7DuXojsTFl2YwyzUJMDnZ/qBDd3yZQLSH3aD4tdL1cqfc3TMnoecEJtWFaQFdErZsKoFMBTxF/FBSkgDbEg==}
 
   lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
@@ -4732,10 +4744,10 @@ snapshots:
 
   '@sourcegraph/amp-sdk@0.1.0-20251217003600-gcd4203a':
     dependencies:
-      '@sourcegraph/amp': 0.0.1767386223-g46ed64
+      '@sourcegraph/amp': 0.0.1767643295-g73c392
       zod: 3.25.76
 
-  '@sourcegraph/amp@0.0.1767386223-g46ed64':
+  '@sourcegraph/amp@0.0.1767643295-g73c392':
     dependencies:
       '@napi-rs/keyring': 1.1.9
 
@@ -5157,6 +5169,10 @@ snapshots:
   argparse@1.0.10:
     dependencies:
       sprintf-js: 1.0.3
+
+  async-mutex@0.5.0:
+    dependencies:
+      tslib: 2.8.1
 
   asynckit@0.4.0: {}
 
@@ -6404,6 +6420,8 @@ snapshots:
       lightningcss-linux-x64-musl: 1.30.2
       lightningcss-win32-arm64-msvc: 1.30.2
       lightningcss-win32-x64-msvc: 1.30.2
+
+  limiter@3.0.0: {}
 
   lines-and-columns@1.2.4: {}
 

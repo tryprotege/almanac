@@ -3,7 +3,7 @@ import type {
   RecordTypeConfig,
   TransformedRecord,
 } from "@ebee-oss/indexing-engine";
-import { RecordTransformer } from "@ebee-oss/indexing-engine";
+import { transformRecord } from "@ebee-oss/indexing-engine";
 import {
   fetchAll as fetchPaginated,
   fetchWithForEach,
@@ -13,6 +13,7 @@ import { enrich as enrichRecord } from "./enrichment-executor.js";
 import { extractEntities, extractRelationships } from "./entity-extractor.js";
 import { MCPSyncStateModel } from "../../../models/mcp-sync-state.model.js";
 import { mcpClientManager } from "../../../mcp/client.js";
+import { rateLimiterManager } from "./rate-limiter.js";
 import logger from "../../../utils/logger.js";
 
 export interface IndexProgress {
@@ -22,7 +23,19 @@ export interface IndexProgress {
   totalRecords: number;
   status: "fetching" | "enriching" | "transforming" | "complete" | "error";
   error?: string;
+  queueSize?: number;
+  isBackpressure?: boolean;
 }
+
+// Configuration for backpressure
+const BACKPRESSURE_CONFIG = {
+  // Maximum number of records in flight before applying backpressure
+  MAX_QUEUE_SIZE: 100,
+  // Time to wait when backpressure is applied (ms)
+  BACKPRESSURE_DELAY: 1000,
+  // Check backpressure every N records
+  CHECK_INTERVAL: 10,
+};
 
 /**
  * Index all records from all fetchers
@@ -93,12 +106,75 @@ export async function* indexAll(
 
     // Fetch pages
     for await (const pageResult of pageGenerator) {
+      // Check if server is paused due to rate limiting before processing page
+      const wasPaused = await rateLimiterManager.waitIfPaused(serverName);
+      if (wasPaused) {
+        logger.info(
+          { fetcherName, serverName },
+          "Resumed after server pause due to rate limiting"
+        );
+      }
+
       // Store raw records for forEach references
       allFetcherRecords.push(...pageResult.records);
       const transformedBatch: TransformedRecord[] = [];
 
+      // Check backpressure: if we have too many records in the current batch waiting
+      // This helps prevent overwhelming the system with too many in-flight operations
+      if (pageResult.records.length > BACKPRESSURE_CONFIG.MAX_QUEUE_SIZE) {
+        logger.warn(
+          {
+            fetcherName,
+            queueSize: pageResult.records.length,
+            maxQueueSize: BACKPRESSURE_CONFIG.MAX_QUEUE_SIZE,
+          },
+          "Large page detected - processing with backpressure"
+        );
+      }
+
       // Process each record
-      for (const rawRecord of pageResult.records) {
+      for (let i = 0; i < pageResult.records.length; i++) {
+        const rawRecord = pageResult.records[i];
+
+        // Apply backpressure check periodically
+        if (i > 0 && i % BACKPRESSURE_CONFIG.CHECK_INTERVAL === 0) {
+          // Check if we should pause due to queue size
+          const currentQueueSize = transformedBatch.length;
+          if (currentQueueSize >= BACKPRESSURE_CONFIG.MAX_QUEUE_SIZE) {
+            logger.info(
+              {
+                fetcherName,
+                queueSize: currentQueueSize,
+                recordsProcessed: i,
+                totalInPage: pageResult.records.length,
+              },
+              "Backpressure: pausing to allow queue to drain"
+            );
+
+            // Yield current batch to allow downstream processing
+            if (transformedBatch.length > 0) {
+              yield {
+                records: transformedBatch.splice(0), // Remove all items
+                progress: {
+                  fetcherName,
+                  recordType: recordTypes.map((rt) => rt.name).join(", "),
+                  recordsProcessed,
+                  totalRecords: recordsProcessed,
+                  status: "transforming",
+                  queueSize: currentQueueSize,
+                  isBackpressure: true,
+                },
+              };
+            }
+
+            // Wait before continuing
+            await sleep(BACKPRESSURE_CONFIG.BACKPRESSURE_DELAY);
+
+            // Check if server is paused again
+            await rateLimiterManager.waitIfPaused(serverName);
+          }
+        }
+
         // Match record to type
         const recordType = matchRecordType(rawRecord, recordTypes);
 
@@ -117,16 +193,20 @@ export async function* indexAll(
             enrichments = await enrichRecord(
               serverName,
               rawRecord,
-              recordType.enrichments
+              recordType.enrichments,
+              config.rateLimit
             );
           }
 
           // Transform
-          const transformer = new RecordTransformer(recordType, serverName);
-          const transformed = await transformer.transform({
-            record: rawRecord,
-            enrichments,
-          });
+          const transformed = await transformRecord(
+            {
+              record: rawRecord,
+              enrichments,
+            },
+            recordType,
+            serverName
+          );
 
           // Extract entities and relationships (NEW)
           if (recordType.entities && recordType.entities.length > 0) {
@@ -157,17 +237,20 @@ export async function* indexAll(
         }
       }
 
-      // Yield batch
-      yield {
-        records: transformedBatch,
-        progress: {
-          fetcherName,
-          recordType: recordTypes.map((rt) => rt.name).join(", "),
-          recordsProcessed,
-          totalRecords: recordsProcessed, // Unknown total
-          status: "transforming",
-        },
-      };
+      // Yield final batch for this page
+      if (transformedBatch.length > 0) {
+        yield {
+          records: transformedBatch,
+          progress: {
+            fetcherName,
+            recordType: recordTypes.map((rt) => rt.name).join(", "),
+            recordsProcessed,
+            totalRecords: recordsProcessed, // Unknown total
+            status: "transforming",
+            queueSize: transformedBatch.length,
+          },
+        };
+      }
     }
 
     // Save results for future fetchers to reference
@@ -261,15 +344,19 @@ export async function* runIncrementalSync(
             enrichments = await enrichRecord(
               serverName,
               rawRecord,
-              recordType.enrichments
+              recordType.enrichments,
+              config.rateLimit
             );
           }
 
-          const transformer = new RecordTransformer(recordType, serverName);
-          const transformed = await transformer.transform({
-            record: rawRecord,
-            enrichments,
-          });
+          const transformed = await transformRecord(
+            {
+              record: rawRecord,
+              enrichments,
+            },
+            recordType,
+            serverName
+          );
 
           // Extract entities and relationships
           if (recordType.entities && recordType.entities.length > 0) {
@@ -332,6 +419,15 @@ function matchRecordType(
   recordTypes: RecordTypeConfig[]
 ): RecordTypeConfig | null {
   for (const recordType of recordTypes) {
+    // Handle missing detection config - default to matching
+    if (!recordType.detection) {
+      logger.warn(
+        { recordType: recordType.name },
+        "Record type missing detection config, defaulting to match"
+      );
+      return recordType;
+    }
+
     if (recordType.detection.always) {
       return recordType;
     }
@@ -374,6 +470,13 @@ function formatSinceValue(
     default:
       return date.toISOString();
   }
+}
+
+/**
+ * Helper function for delays
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**

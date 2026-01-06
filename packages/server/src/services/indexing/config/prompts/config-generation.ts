@@ -7,500 +7,283 @@ export interface ConfigPromptInput {
     inputSchema: any;
   }>;
   samples: Record<string, any>;
-  classifications?: Record<string, any>; // Optional tool classifications
-  userGuidance?: string; // Optional user-provided guidance
+  classifications?: Record<string, any>;
+  userGuidance?: string;
+  failureReasons?: Record<string, string>;
 }
 
 /**
  * Generate prompt for LLM to create an IndexingConfig
  */
 export function generateConfigPrompt(input: ConfigPromptInput): string {
-  const { serverName, displayName, tools, samples, userGuidance } = input;
+  const {
+    serverName,
+    displayName,
+    tools,
+    samples,
+    userGuidance,
+    failureReasons = {},
+  } = input;
+
+  // Build tool catalog with samples
+  const toolCatalog = tools.map((tool) => {
+    const sample = samples[tool.name];
+    const hasValidSample = sample && !sample.error;
+
+    return {
+      tool,
+      hasValidSample,
+      sample: hasValidSample ? sample : null,
+    };
+  });
+
+  const withSamples = toolCatalog.filter((t) => t.hasValidSample).length;
+  const withoutSamples = toolCatalog.length - withSamples;
+
+  console.log(
+    `Tool catalog: ${withSamples} tools with samples, ${withoutSamples} without samples`
+  );
 
   // Build user guidance section if provided
   const guidanceSection = userGuidance
     ? `
 ## ⚠️ USER-PROVIDED GUIDANCE (CRITICAL - FOLLOW THESE INSTRUCTIONS)
 
-The user has provided specific guidance for generating this configuration. Please carefully follow these instructions and incorporate them into the generated config:
-
----
 ${userGuidance}
----
 
-Make sure to incorporate these requirements into the generated config.
+---
 
 `
     : "";
 
-  return `# Generate IndexingConfig for "${displayName}"
+  return `# IndexingConfig Generation for "${displayName}"
 
-You are an expert at creating IndexingConfig files for MCP servers. Your task is to generate a valid IndexingConfig in JSON format that will enable automated data indexing from the "${displayName}" MCP server.
+You are an expert at building data indexing configurations. Your goal is to **collect the PRIMARY searchable content** from the "${displayName}" platform and make it available for semantic search and RAG queries.
+
 ${guidanceSection}
-## Important: Read-Only Indexing
 
-The tools listed below have been pre-filtered to include ONLY READ operations.
-- Write operations (create, update, delete) are automatically passed through to the upstream MCP server
-- Search tools are skipped unless explicitly needed for pagination
-- You should only use these READ tools for creating fetchers and enrichments
+# STEP 1: IDENTIFY PRIMARY CONTENT
 
-## Available Tools (Read-Only)
+Before examining tools, determine what users would want to search for on this platform:
 
-${tools
-  .map(
-    (tool) => `### ${tool.name}
+## Platform Type Quick Reference
+
+| Platform Type | Primary Content | Secondary Content | Example |
+|--------------|-----------------|-------------------|---------|
+| **Document/Wiki** | Pages, articles, docs | Comments, attachments | Notion, Confluence, Coda |
+| **Issue Tracker** | Issues, tasks, tickets | Comments, status updates | Linear, Jira, GitHub Issues |
+| **Chat/Messaging** | Messages, threads | Channel metadata, reactions | Slack, Discord, Teams |
+| **Call Recording** | Meeting recordings | Transcripts, summaries, highlights | Fathom, Gong, Fireflies |
+| **Code Repository** | Pull requests, issues | Commits, files, discussions | GitHub, GitLab, Bitbucket |
+| **CRM** | Contacts, deals, companies | Activities, notes, emails | Salesforce, HubSpot |
+| **Project Management** | Projects, tasks, milestones | Updates, dependencies | Asana, Monday, ClickUp |
+
+**For "${displayName}":**
+1. What is the PRIMARY content users search for?
+2. What makes each item unique and discoverable?
+3. What relationships connect content pieces?
+
+# STEP 2: ANALYZE AVAILABLE TOOLS
+
+The tools below are READ-ONLY operations (write operations are handled separately).
+
+## Tool Catalog
+
+${toolCatalog
+  .map((entry) => {
+    const { tool, hasValidSample, sample } = entry;
+
+    let sampleSection = "";
+    if (hasValidSample) {
+      sampleSection = `
+**Sample Response:**
+\`\`\`json
+${JSON.stringify(sample, null, 2)}
+\`\`\``;
+    }
+
+    return `### ${tool.name}
 ${tool.description || "No description"}
 
 **Input Schema:**
 \`\`\`json
 ${JSON.stringify(tool.inputSchema, null, 2)}
-\`\`\`
-
-**Sample Response:**
-\`\`\`json
-${JSON.stringify(samples[tool.name], null, 2)}
-\`\`\``
-  )
+\`\`\`${sampleSection}`;
+  })
   .join("\n\n")}
 
-## Target Schema
+# STEP 3: SELECT DISCOVERY & ENRICHMENT TOOLS
 
-Map the data to these unified fields:
+## Discovery Tools (PRIMARY FETCHERS)
 
-- **title** (required): Short, human-readable title
-- **content** (required): Main text content (use format processors for rich content)
-- **people** (optional): Names or IDs of people involved
-- **primaryDate** (optional): Main timestamp (created, published, etc.)
-- **tags** (optional): Categories, labels, or tags
-- **parentId** (optional): Reference to parent record
+These tools DISCOVER records without requiring specific IDs. They become primary fetchers:
 
-## Entity Extraction (Graph RAG)
+**Patterns to look for:**
+- \`list_*\` - Lists all items of a type
+- \`search_*\` - Searches for items (often with filters)
+- \`query_*\` - Queries with conditions
+- \`get_all_*\` - Retrieves all items
 
-Analyze the sample data for embedded objects that should become graph entities. Common patterns:
+**✅ USE AS PRIMARY FETCHERS when:**
+- Tool can be called with empty or minimal params
+- Returns MULTIPLE items (array/list)
+- Supports pagination (look for cursor/page params)
 
-1. **Status Objects**: \`{ id, name, color }\` - workflow states (e.g., Backlog, In Progress, Done)
-2. **User References**: \`{ id, name, email }\` - people involved (assignees, creators, etc.)
-3. **Team/Group Objects**: \`{ id, name }\` - organizational units
-4. **Labels/Tags**: \`{ id, name, color }\` - shared classifications across records
-5. **Projects/Containers**: \`{ id, name }\` - parent groupings for records
+**❌ DO NOT use as primary fetchers:**
+- Tools requiring specific IDs (page_id, issue_id, etc.)
+- Tools with "get_" prefix that fetch single items
+- Admin/metadata tools (unless that's the primary content)
 
-For each entity found, add to the \`entities\` array:
+## Enrichment Tools (DETAIL FETCHERS)
 
-\`\`\`json
-"entities": [
-  {
-    "name": "status",
-    "type": "Status",
-    "idPath": "$.status.id",
-    "titlePath": "$.status.name",
-    "condition": "record.status && record.status.id",
-    "properties": {
-      "color": "$.status.color"
-    }
-  },
-  {
-    "name": "assignee",
-    "type": "User",
-    "idPath": "$.assignee.id",
-    "titlePath": "$.assignee.name",
-    "condition": "record.assignee && record.assignee.id"
-  }
-]
-\`\`\`
+These fetch additional details for discovered records:
 
-## Relationship Extraction (Graph Edges)
+**Patterns to look for:**
+- \`get_*\` or \`retrieve_*\` with ID parameter
+- \`fetch_*_details\` or \`get_*_content\`
+- Tools that expand/detail primary records
 
-Define relationships between the document and extracted entities:
+**✅ USE AS ENRICHMENTS when:**
+- Tool requires an ID from a primary record
+- Provides rich content (full text, blocks, transcript)
+- Returns data that should be searchable
 
-\`\`\`json
-"relationships": [
-  {
-    "name": "issue_status",
-    "type": "HAS_STATUS",
-    "targetType": "Status",
-    "targetIdPath": "$.status.id",
-    "condition": "record.status && record.status.id"
-  },
-  {
-    "name": "issue_assignee",
-    "type": "ASSIGNED_TO",
-    "targetType": "User",
-    "targetIdPath": "$.assignee.id",
-    "condition": "record.assignee && record.assignee.id"
-  },
-  {
-    "name": "issue_project",
-    "type": "BELONGS_TO",
-    "targetType": "Project",
-    "targetIdPath": "$.project.id",
-    "condition": "record.project && record.project.id"
-  }
-]
-\`\`\`
+**When to use enrichments:**
+- ✅ Full page content (Notion blocks, document body)
+- ✅ Meeting transcripts or call summaries
+- ✅ Issue comments or discussion threads
+- ❌ Simple metadata already in primary fetch
+- ❌ Redundant data that adds no search value
 
-## Format Processors
+# STEP 4: PLATFORM-SPECIFIC PATTERNS
 
-Use these built-in processors for rich content (all support options for customization):
-
-- **rich-text-to-markdown**: Convert rich text arrays to Markdown
-  - Default: Works with Notion-style rich text (text.content, plain_text, annotations)
-  - Options: textPath, plainTextPath, hrefPath, annotationsPath
-  - Use for: Notion properties, custom rich text APIs
-
-- **blocks-to-markdown**: Convert block arrays to Markdown documents
-  - Default: Works with Notion blocks (type, rich_text field)
-  - Options: typePath, contentPath, richTextField, maxDepth, blockTypeMap
-  - Use for: Notion pages, custom block-based content
-
-- **markup-to-markdown**: Convert custom markup to standard Markdown
-  - Default: Converts Slack mrkdwn syntax
-  - Options: rules (regex patterns), userMap, channelMap
-  - Use for: Slack messages, Discord, custom markup formats
-
-- **transcript-to-markdown**: Format transcript segments with speakers and timestamps
-  - Default: Works with Fathom transcripts (speaker, text, start_time)
-  - Options: speakerPath, textPath, timestampPath, timeFormat
-  - Use for: Fathom, Zoom, custom meeting transcripts
-
-- **html-to-markdown**: Convert HTML to Markdown (no options)
-
-- **extract-text**: Extract plain text from any format (no options)
-
-## Field Mapping Types
-
-**⚠️ CRITICAL: Records are Individual Objects, NOT Arrays!**
-
-When you receive a record from a fetcher, it is passed as an INDIVIDUAL OBJECT:
-- ✅ **Correct:** \`$.name\` - extracts from the individual record
-- ✅ **Correct:** \`$.assignee.email\` - nested field access  
-- ✅ **Correct:** \`$.labels[*].name\` - array inside the record
-- ❌ **WRONG:** \`$[0].name\` - assumes record is an array (IT'S NOT!)
-- ❌ **WRONG:** \`$[0].assignee.email\` - DO NOT use array index on root
-
-1. **path**: Simple JSONPath extraction
-   \`\`\`json
-   {
-     "title": {
-       "type": "path",
-       "path": "$.properties.Name.title[0].text.content"
-     }
-   }
-   \`\`\`
-
-2. **paths**: Combine multiple paths
-   \`\`\`json
-   {
-     "tags": {
-       "type": "paths",
-       "paths": [
-         "$.properties.Tags.multi_select[*].name",
-         "$.properties.Status.status.name"
-       ]
-     }
-   }
-   \`\`\`
-
-3. **template**: String template
-   \`\`\`json
-   {
-     "title": {
-       "type": "template",
-       "template": "\${record.name} - \${record.id}"
-     }
-   }
-   \`\`\`
-
-4. **processor**: Use format processor
-   \`\`\`json
-   {
-     "content": {
-       "type": "processor",
-       "processor": "notion-blocks",
-       "input": "$.blocks"
-     }
-   }
-   \`\`\`
-
-5. **code**: TypeScript code for complex transformations
-   \`\`\`json
-   {
-     "content": {
-       "type": "code",
-       "code": "// Access: record, enrichments\\nreturn enrichments.blocks\\n  .map(b => b.text)\\n  .join('\\\\n');"
-     }
-   }
-   \`\`\`
-
-## Enrichments
-
-Define additional fetches per record:
+## Document/Wiki Platform Pattern
+**Primary Goal:** Index all pages/documents with full content
 
 \`\`\`json
 {
-  "enrichments": [
-    {
-      "name": "blocks",
-      "tool": "get_page_blocks",
-      "paramMapping": {
-        "page_id": "$.id"
-      },
-      "resultPath": "$.results"
-    }
-  ]
-}
-\`\`\`
-
-## Dynamic Parameters with forEach
-
-**Use forEach when a tool requires parameters that come from a previous fetcher's results.**
-
-When a tool needs data from earlier in the sync pipeline (e.g., team names from list_teams), use the forEach config to iterate over source records and call the tool once per item.
-
-**Example: Fetching status per team**
-
-If \`list_issue_statuses\` requires a team name parameter, and teams come from \`list_teams\`:
-
-\`\`\`json
-{
-  "fetchers": {
-    "list_teams": {
-      "tool": "list_teams",
-      "resultPath": "$.content[0].text"
-    },
-    "list_issue_statuses": {
-      "tool": "list_issue_statuses",
-      "forEach": {
-        "source": "list_teams",
-        "path": "$[*]",
-        "paramMapping": {
-          "team": "$.name"
-        },
-        "concurrency": 3,
-        "continueOnError": true,
-        "retries": 2
-      },
-      "resultPath": "$.content[0].text"
-    }
-  }
-}
-\`\`\`
-
-**forEach Config Fields:**
-- \`source\`: Name of fetcher that runs earlier (per syncOrder)
-- \`path\`: JSONPath to iterate over source records (usually "$[*]" for all)
-- \`paramMapping\`: Map source record fields to tool params using JSONPath
-- \`concurrency\`: Max parallel calls (default: 3)
-- \`continueOnError\`: Continue with partial results on errors (default: true)
-- \`retries\`: Retry count per failed call (default: 2)
-
-**Multi-level chaining example:**
-
-For deep hierarchies like teams → projects → issues:
-
-\`\`\`json
-{
-  "syncOrder": ["list_teams", "list_team_projects", "list_project_issues"],
-  "fetchers": {
-    "list_teams": {
-      "tool": "list_teams",
-      "resultPath": "$.content[0].text"
-    },
-    "list_team_projects": {
-      "tool": "list_projects",
-      "forEach": {
-        "source": "list_teams",
-        "path": "$[*]",
-        "paramMapping": {
-          "teamId": "$.id"
-        }
-      },
-      "resultPath": "$.content[0].text"
-    },
-    "list_project_issues": {
-      "tool": "list_issues",
-      "forEach": {
-        "source": "list_team_projects",
-        "path": "$[*]",
-        "paramMapping": {
-          "projectId": "$.id"
-        }
-      },
-      "resultPath": "$.content[0].text"
-    }
-  }
-}
-\`\`\`
-
-**When to use forEach:**
-- Tool requires params that vary per entity (team, project, workspace, etc.)
-- Can't pass all values at once (API requires one call per entity)
-- Source data comes from an earlier fetcher in syncOrder
-
-**Batch Mode (Efficiency Optimization):**
-
-When a tool accepts an **array parameter** (e.g., teams: string[]), use **batchMode** instead of making one call per item:
-
-\`\`\`json
-{
-  "forEach": {
-    "source": "list_teams",
-    "path": "$[*]",
-    "batchMode": {
-      "batchParam": "teams",
-      "valueMapping": "$.name",
-      "batchSize": 100
-    }
-  }
-}
-\`\`\`
-
-This makes **1 call** with {teams: ["Team1", "Team2", ...]} instead of N individual calls.
-
-**How to detect batch mode support:**
-1. Check the tool's input schema for array-type parameters
-2. Look for descriptions mentioning "list of", "multiple", "array"
-3. If the param type is "array", use batchMode instead of paramMapping
-
-**When to use batch mode:**
-- Tool schema shows array parameter (e.g., teams: { type: "array", items: { type: "string" } })
-- Large datasets where individual calls would be too slow
-- The tool explicitly supports batch operations
-
-**When NOT to use batch mode:**
-- Tool doesn't accept array parameters (use regular forEach with paramMapping)
-- Very small datasets (< 10 items) where individual calls are fine
-- Tool documentation indicates batch limits that are too small
-
-## Instructions
-
-1. **Analyze the tools** and sample data to understand the data structure
-2. **Create fetchers** for each tool that retrieves records
-3. **Define record types** with detection logic
-4. **Map fields** to the target schema using appropriate mapping types
-5. **Add enrichments** if additional data is needed per record
-6. **Use format processors** for rich content (Notion blocks, Slack messages, etc.)
-
-## Sync Order (Critical for Data Dependencies)
-
-Analyze the data relationships and define a \`syncOrder\` array that specifies the order in which fetchers should execute. This is critical to avoid dependency errors.
-
-**Ordering Principles:**
-1. **Reference/lookup data first**: Users, Teams, Statuses, Labels, Priorities (entities that other records reference)
-2. **Parent containers second**: Projects, Workspaces, Repositories, Folders (grouping structures)
-3. **Main content last**: Issues, Tasks, Documents, Comments (records that depend on the above)
-
-**Example:**
-- ✅ Correct: ["list_users", "list_teams", "list_statuses", "list_projects", "list_issues"]
-- ❌ Wrong: ["list_issues", "list_projects", "list_users"] (issues need users/projects to exist first)
-
-If a fetcher retrieves data that references entities from another fetcher, the referenced fetcher must come first in the sync order.
-
-## Output Format
-
-Return ONLY valid JSON with this structure:
-
-\`\`\`json
-{
-  "version": "1.0",
-  "source": "${serverName}",
-  "displayName": "${displayName}",
-  "syncOrder": [
-    "list_users",
-    "list_teams",
-    "list_statuses",
-    "list_projects",
-    "list_issues"
-  ],
   "fetchers": {
     "list_pages": {
       "tool": "search_pages",
-      "description": "Fetch all pages",
-      "params": {
-        "filter": {
-          "property": "object",
-          "value": "page"
-        }
-      },
+      "params": {},
       "pagination": {
         "type": "cursor",
-        "limitParam": "page_size",
         "cursorParam": "start_cursor",
         "cursorPath": "$.next_cursor"
       },
-      "resultPath": "$.results"
+      "resultPath": "$.content[0].text",
+      "arrayPath": "$.results[*]"
     }
   },
   "recordTypes": {
     "page": {
-      "name": "page",
       "fetcher": "list_pages",
-      "detection": {
-        "condition": "record.object === 'page'"
-      },
       "enrichments": [
         {
           "name": "blocks",
           "tool": "get_page_blocks",
-          "paramMapping": {
-            "page_id": "$.id"
-          },
-          "resultPath": "$.results"
-        }
-      ],
-      "entities": [
-        {
-          "name": "status",
-          "type": "Status",
-          "idPath": "$.properties.Status.status.id",
-          "titlePath": "$.properties.Status.status.name",
-          "condition": "record.properties?.Status?.status?.id",
-          "properties": {
-            "color": "$.properties.Status.status.color"
-          }
-        },
-        {
-          "name": "assignee",
-          "type": "User",
-          "idPath": "$.properties.Assignee.people[0].id",
-          "titlePath": "$.properties.Assignee.people[0].name",
-          "condition": "record.properties?.Assignee?.people?.[0]?.id"
-        }
-      ],
-      "relationships": [
-        {
-          "name": "page_status",
-          "type": "HAS_STATUS",
-          "targetType": "Status",
-          "targetIdPath": "$.properties.Status.status.id",
-          "condition": "record.properties?.Status?.status?.id"
-        },
-        {
-          "name": "page_assignee",
-          "type": "ASSIGNED_TO",
-          "targetType": "User",
-          "targetIdPath": "$.properties.Assignee.people[0].id",
-          "condition": "record.properties?.Assignee?.people?.[0]?.id"
+          "paramMapping": { "page_id": "$.id" },
+          "resultPath": "$.content[0].text"
         }
       ],
       "fields": {
-        "title": {
-          "type": "path",
-          "path": "$.properties.title.title[0].plain_text"
-        },
+        "title": { "type": "path", "path": "$.properties.title.title[0].plain_text" },
         "content": {
           "type": "processor",
-          "processor": "notion-blocks",
+          "processor": "blocks-to-markdown",
           "input": "enrichments.blocks"
         },
-        "primaryDate": {
-          "type": "path",
-          "path": "$.created_time"
+        "primaryDate": { "type": "path", "path": "$.created_time" }
+      }
+    }
+  }
+}
+\`\`\`
+
+## Issue Tracker Pattern
+**Primary Goal:** Index all issues/tasks with descriptions
+
+\`\`\`json
+{
+  "fetchers": {
+    "list_issues": {
+      "tool": "list_issues",
+      "params": {},
+      "pagination": { "type": "cursor", "cursorParam": "after", "cursorPath": "$.pageInfo.endCursor" },
+      "resultPath": "$.data.issues.nodes"
+    }
+  },
+  "recordTypes": {
+    "issue": {
+      "fetcher": "list_issues",
+      "fields": {
+        "title": { "type": "path", "path": "$.title" },
+        "content": { "type": "path", "path": "$.description" },
+        "people": { "type": "paths", "paths": ["$.assignee.name", "$.creator.name"] },
+        "tags": { "type": "paths", "paths": ["$.labels[*].name", "$.state.name"] },
+        "primaryDate": { "type": "path", "path": "$.createdAt" }
+      },
+      "entities": [
+        {
+          "name": "assignee",
+          "type": "User",
+          "idPath": "$.assignee.id",
+          "titlePath": "$.assignee.name",
+          "condition": "record.assignee && record.assignee.id"
         },
-        "tags": {
-          "type": "paths",
-          "paths": [
-            "$.properties.Tags.multi_select[*].name"
-          ]
+        {
+          "name": "status",
+          "type": "Status",
+          "idPath": "$.state.id",
+          "titlePath": "$.state.name",
+          "condition": "record.state && record.state.id"
+        }
+      ]
+    }
+  }
+}
+\`\`\`
+
+## Chat/Messaging Platform Pattern
+**Primary Goal:** Index messages, optionally group into threads/conversations
+
+\`\`\`json
+{
+  "fetchers": {
+    "list_channels": {
+      "tool": "list_channels",
+      "params": {},
+      "resultPath": "$.channels"
+    },
+    "list_messages": {
+      "tool": "list_messages",
+      "forEach": {
+        "source": "list_channels",
+        "path": "$[*]",
+        "paramMapping": { "channel_id": "$.id" }
+      },
+      "pagination": { "type": "cursor", "cursorParam": "cursor", "cursorPath": "$.next_cursor" },
+      "resultPath": "$.messages"
+    }
+  },
+  "recordTypes": {
+    "message": {
+      "fetcher": "list_messages",
+      "fields": {
+        "title": { "type": "template", "template": "Message from \${record.user.name} in \${record.channel.name}" },
+        "content": {
+          "type": "processor",
+          "processor": "markup-to-markdown",
+          "input": "$.text"
+        },
+        "people": { "type": "path", "path": "$.user.name" },
+        "primaryDate": { "type": "path", "path": "$.timestamp" }
+      },
+      "grouping": {
+        "strategy": "thread",
+        "config": {
+          "threadIdPath": "$.thread_ts",
+          "parentIndicatorPath": "$.thread_ts"
         }
       }
     }
@@ -508,14 +291,285 @@ Return ONLY valid JSON with this structure:
 }
 \`\`\`
 
-## Important Rules
+## Call Recording Platform Pattern
+**Primary Goal:** Index meetings with transcripts and summaries
 
-- Use **processors** for rich content (Notion blocks, Slack mrkdwn, etc.)
-- Use **enrichments** only when necessary (e.g., fetching blocks for pages)
-- Use **JSONPath** syntax: \`$.\` for root, \`[*]\` for arrays
-- Set **pagination** if the tool supports it
-- Add **incrementalSync** if the tool supports time-based filtering
-- Ensure **detection** logic correctly identifies record types
+\`\`\`json
+{
+  "syncOrder": ["list_meetings", "get_transcripts", "get_summaries"],
+  "fetchers": {
+    "list_meetings": {
+      "tool": "list_meetings",
+      "params": {},
+      "pagination": { "type": "cursor", "cursorParam": "cursor", "cursorPath": "$.next_cursor" },
+      "resultPath": "$.content[0].text",
+      "arrayPath": "$.items[*]"
+    },
+    "get_transcripts": {
+      "tool": "get_transcript",
+      "forEach": {
+        "source": "list_meetings",
+        "path": "$[*]",
+        "paramMapping": { "recording_id": "$.recording_id" }
+      },
+      "resultPath": "$.content[0].text"
+    },
+    "get_summaries": {
+      "tool": "get_summary",
+      "forEach": {
+        "source": "list_meetings",
+        "path": "$[*]",
+        "paramMapping": { "recording_id": "$.recording_id" }
+      },
+      "resultPath": "$.content[0].text"
+    }
+  },
+  "recordTypes": {
+    "meeting": {
+      "fetcher": "list_meetings",
+      "fields": {
+        "title": { "type": "path", "path": "$.title" },
+        "content": { "type": "path", "path": "$.description" },
+        "people": { "type": "paths", "paths": ["$.participants[*].name"] },
+        "primaryDate": { "type": "path", "path": "$.start_time" }
+      }
+    },
+    "transcript": {
+      "fetcher": "get_transcripts",
+      "fields": {
+        "title": { "type": "template", "template": "Transcript: \${record.title}" },
+        "content": {
+          "type": "processor",
+          "processor": "transcript-to-markdown",
+          "input": "$.transcript"
+        },
+        "primaryDate": { "type": "path", "path": "$.start_time" }
+      },
+      "relationships": [
+        {
+          "name": "transcript_of",
+          "type": "TRANSCRIPT_OF",
+          "targetType": "meeting",
+          "targetIdPath": "$.recording_id"
+        }
+      ]
+    },
+    "summary": {
+      "fetcher": "get_summaries",
+      "fields": {
+        "title": { "type": "template", "template": "Summary: \${record.title}" },
+        "content": { "type": "path", "path": "$.summary" },
+        "primaryDate": { "type": "path", "path": "$.start_time" }
+      },
+      "relationships": [
+        {
+          "name": "summary_of",
+          "type": "SUMMARY_OF",
+          "targetType": "meeting",
+          "targetIdPath": "$.recording_id"
+        }
+      ]
+    }
+  }
+}
+\`\`\`
+
+# STEP 5: BUILD YOUR CONFIG
+
+Using the patterns above as guidance, create a config for "${displayName}":
+
+1. **Identify discovery tools** from the tool catalog (tools that list/search without IDs)
+2. **Select enrichment tools** that provide full content for discovered items
+3. **Map fields** to the standard schema (title, content, people, primaryDate, tags)
+4. **Extract entities** from sample data (users, statuses, projects, etc.)
+5. **Define relationships** between records and entities
+
+## Standard Field Schema
+
+Map discovered data to these unified fields:
+
+- **title** (required): Short, human-readable title/summary
+- **content** (required): Main searchable text content
+- **people** (optional): Names or IDs of people involved
+- **primaryDate** (optional): Main timestamp (created, modified, published)
+- **tags** (optional): Categories, labels, statuses
+- **parentId** (optional): Reference to parent record
+
+## Config Structure
+
+\`\`\`json
+{
+  "version": "1.0",
+  "source": "${serverName}",
+  "displayName": "${displayName}",
+  "syncOrder": ["discovery_fetcher_1", "discovery_fetcher_2", "enrichment_fetcher_1"],
+  "fetchers": {
+    "discovery_fetcher_1": {
+      "tool": "list_something",
+      "params": {},
+      "pagination": { "type": "cursor", "cursorParam": "cursor", "cursorPath": "$.next" },
+      "resultPath": "$.items"
+    }
+  },
+  "recordTypes": {
+    "primary_type": {
+      "fetcher": "discovery_fetcher_1",
+      "enrichments": [
+        {
+          "name": "details",
+          "tool": "get_details",
+          "paramMapping": { "id": "$.id" },
+          "resultPath": "$.content"
+        }
+      ],
+      "fields": {
+        "title": { "type": "path", "path": "$.name" },
+        "content": { "type": "path", "path": "enrichments.details" },
+        "primaryDate": { "type": "path", "path": "$.created_at" }
+      },
+      "entities": [
+        {
+          "name": "creator",
+          "type": "User",
+          "idPath": "$.creator.id",
+          "titlePath": "$.creator.name",
+          "condition": "record.creator && record.creator.id"
+        }
+      ],
+      "relationships": [
+        {
+          "name": "created_by",
+          "type": "CREATED_BY",
+          "targetType": "User",
+          "targetIdPath": "$.creator.id",
+          "condition": "record.creator && record.creator.id"
+        }
+      ]
+    }
+  }
+}
+\`\`\`
+
+---
+
+# TECHNICAL REFERENCE
+
+## Field Mapping Types
+
+**⚠️ Records are passed as INDIVIDUAL OBJECTS, not arrays!**
+
+1. **path**: Simple JSONPath extraction
+   \`{ "type": "path", "path": "$.field.nested" }\`
+
+2. **paths**: Combine multiple paths into array
+   \`{ "type": "paths", "paths": ["$.field1", "$.field2[*]"] }\`
+
+3. **template**: String template with record data
+   \`{ "type": "template", "template": "\${record.name} - \${record.id}" }\`
+
+4. **processor**: Use format processor for rich content
+   \`{ "type": "processor", "processor": "blocks-to-markdown", "input": "$.blocks" }\`
+
+5. **code**: TypeScript for complex transformations
+   \`{ "type": "code", "code": "return record.items.map(i => i.name).join(', ');" }\`
+
+## Format Processors
+
+- **blocks-to-markdown**: Notion blocks → Markdown
+- **rich-text-to-markdown**: Rich text arrays → Markdown  
+- **markup-to-markdown**: Slack mrkdwn → Markdown
+- **transcript-to-markdown**: Transcript segments → formatted Markdown
+- **html-to-markdown**: HTML → Markdown
+- **extract-text**: Any format → plain text
+
+## forEach (Dynamic Parameters)
+
+When a tool needs parameters from a previous fetcher:
+
+\`\`\`json
+{
+  "fetchers": {
+    "list_teams": { "tool": "list_teams", "resultPath": "$.teams" },
+    "list_projects": {
+      "tool": "list_projects",
+      "forEach": {
+        "source": "list_teams",
+        "path": "$[*]",
+        "paramMapping": { "team_id": "$.id" },
+        "concurrency": 3
+      },
+      "resultPath": "$.projects"
+    }
+  }
+}
+\`\`\`
+
+## Pagination
+
+\`\`\`json
+{
+  "pagination": {
+    "type": "cursor",          // or "offset"
+    "cursorParam": "cursor",   // param name for cursor
+    "cursorPath": "$.next_cursor",  // path to next cursor in response
+    "limitParam": "limit"      // optional: page size param
+  }
+}
+\`\`\`
+
+## Entities & Relationships
+
+Extract embedded objects as graph entities:
+
+\`\`\`json
+{
+  "entities": [
+    {
+      "name": "assignee",
+      "type": "User",
+      "idPath": "$.assignee.id",
+      "titlePath": "$.assignee.name",
+      "condition": "record.assignee && record.assignee.id",
+      "properties": { "email": "$.assignee.email" }
+    }
+  ],
+  "relationships": [
+    {
+      "name": "assigned_to",
+      "type": "ASSIGNED_TO",
+      "targetType": "User",
+      "targetIdPath": "$.assignee.id",
+      "condition": "record.assignee && record.assignee.id"
+    }
+  ]
+}
+\`\`\`
+
+## Sync Order
+
+Define execution order for dependent fetchers:
+
+1. **Reference data first** (users, teams, statuses)
+2. **Parent containers** (projects, workspaces)
+3. **Main content** (issues, documents, messages)
+4. **Enrichments last** (comments, details)
+
+Example: \`["list_users", "list_projects", "list_issues", "get_issue_comments"]\`
+
+---
+
+# CRITICAL RULES
+
+1. **arrayPath is REQUIRED** when resultPath returns \`{"items": [...]}\` or similar array-wrapped responses
+2. **DO NOT create record types** for enrichment-only tools (tools with ID parameters)
+3. **NO placeholder values** in params (no "example", "your-", "test-123")
+4. **Pagination MUST be included** for discovery tools that support it
+5. **Enrichments MUST be mapped to fields** - unused enrichments are wasted API calls
+6. **Use JSONPath correctly** - \`$.field\` not \`$[0].field\` (records are objects, not arrays)
+
+# OUTPUT FORMAT
+
+Return ONLY valid JSON following the structure above. No markdown code fences, no explanations - just the JSON config.
 
 Generate the IndexingConfig now:`;
 }

@@ -35,6 +35,12 @@ const DataSourceSchema = new mongoose.Schema(
       required: true,
       enum: ["stdio", "sse", "streamable-http"],
     },
+    presetId: {
+      type: String,
+      required: false,
+      // If set, indicates this data source was created from a preset
+      // This helps identify preset-based sources and potentially lock certain fields
+    },
     command: { type: String },
     args: { type: [String], required: false },
     env: { type: Map, of: String },

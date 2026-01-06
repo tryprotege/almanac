@@ -1,6 +1,14 @@
-import type { FetcherConfig } from "@ebee-oss/indexing-engine";
+import type { FetcherConfig, RateLimitConfig } from "@ebee-oss/indexing-engine";
 import { mcpClientManager } from "../../../mcp/client.js";
 import { JSONPath } from "jsonpath-plus";
+import {
+  applyRateLimit,
+  handleRateLimitError,
+  notifySuccess,
+  notifyRateLimitError,
+  rateLimiterManager,
+} from "./rate-limiter.js";
+import { detectRateLimitError } from "./mcp-error-parser.js";
 
 export interface PageResult {
   records: any[];
@@ -84,7 +92,29 @@ export async function* fetchWithForEach(
       let lastError: Error | null = null;
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          const result = await fetchPage(serverName, config.tool, params);
+          // Apply rate limiting before each attempt (including retries)
+          if (attempt > 0) {
+            console.log(
+              `[forEach] Applying rate limit before retry attempt ${
+                attempt + 1
+              }...`
+            );
+            await applyRateLimit(config.rateLimit, serverName);
+          }
+
+          // Create a minimal config for the tool call (without arrayPath since forEach doesn't need it)
+          const callConfig: FetcherConfig = {
+            tool: config.tool,
+            resultPath: config.resultPath,
+            params,
+            rateLimit: config.rateLimit,
+          };
+          const result = await fetchPage(
+            serverName,
+            callConfig,
+            params,
+            config.rateLimit
+          );
           return result.records;
         } catch (err) {
           lastError = err as Error;
@@ -208,7 +238,19 @@ async function* fetchWithBatchMode(
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const result = await fetchPage(serverName, config.tool, params);
+        // Create a minimal config for the tool call (without arrayPath since forEach doesn't need it)
+        const callConfig: FetcherConfig = {
+          tool: config.tool,
+          resultPath: config.resultPath,
+          params,
+          rateLimit: config.rateLimit,
+        };
+        const result = await fetchPage(
+          serverName,
+          callConfig,
+          params,
+          config.rateLimit
+        );
         allResults.push(...result.records);
         break; // Success
       } catch (err) {
@@ -265,8 +307,13 @@ export async function* fetchAll(
       addPaginationParams(params, cursor, config.pagination);
     }
 
-    // Fetch page
-    const result = await fetchPage(serverName, config.tool, params);
+    // Fetch page with rate limiting
+    const result = await fetchPage(
+      serverName,
+      config,
+      params,
+      config.rateLimit
+    );
 
     // Always yield result (even if 0 records) so we can access raw response
     yield result;
@@ -385,17 +432,115 @@ function extractRecordsFromMCPResponse(response: any): {
  */
 async function fetchPage(
   serverName: string,
-  toolName: string,
-  params: Record<string, any>
+  config: FetcherConfig,
+  params: Record<string, any>,
+  rateLimitConfig?: RateLimitConfig
 ): Promise<PageResult> {
-  const response = await mcpClientManager.callTool(
-    serverName,
-    toolName,
-    params
+  // Use server-level scope so all tools share the same rate limiter
+  // This is important for APIs like Fathom that have a global rate limit
+  const scopeId = serverName;
+
+  console.log(
+    `[Fetcher] About to call ${config.tool} with params:`,
+    JSON.stringify(params, null, 2)
+  );
+
+  // Apply rate limiting before making the call
+  console.log(`[Fetcher] Applying rate limit for ${scopeId}...`);
+  const delayMs = await applyRateLimit(rateLimitConfig, scopeId);
+  if (delayMs > 0) {
+    console.log(`[Fetcher] Rate limit applied - waited ${delayMs}ms`);
+  }
+
+  console.log(`[Fetcher] Making API call to ${config.tool}...`);
+  const callStartTime = Date.now();
+
+  // Check if server is paused due to rate limiting
+  await rateLimiterManager.waitIfPaused(serverName);
+
+  let response: any;
+  let caughtError: Error | undefined;
+
+  try {
+    response = await mcpClientManager.callTool(serverName, config.tool, params);
+
+    const callDuration = Date.now() - callStartTime;
+    console.log(
+      `[Fetcher] API call to ${config.tool} succeeded in ${callDuration}ms`
+    );
+  } catch (err: any) {
+    const callDuration = Date.now() - callStartTime;
+    console.error(
+      `[Fetcher] API call to ${config.tool} failed after ${callDuration}ms:`,
+      err.message
+    );
+    caughtError = err;
+    response = err.response; // MCP errors may have response attached
+  }
+
+  // Check for rate limit in response or error
+  const rateLimitInfo = detectRateLimitError(response, caughtError);
+
+  if (rateLimitInfo.isRateLimit) {
+    console.warn(
+      `[Fetcher] Rate limit detected for ${config.tool}:`,
+      rateLimitInfo.errorMessage?.substring(0, 200)
+    );
+
+    // Notify rate limiter to adjust
+    notifyRateLimitError(
+      rateLimitConfig,
+      scopeId,
+      serverName,
+      rateLimitInfo.retryAfter
+    );
+
+    // Handle rate limit and wait
+    await handleRateLimitError(
+      rateLimitConfig,
+      scopeId,
+      rateLimitInfo.retryAfter
+    );
+
+    // Apply rate limit again before retry
+    console.log(`[Fetcher] Applying rate limit before retry...`);
+    await applyRateLimit(rateLimitConfig, scopeId);
+
+    // Retry the request
+    try {
+      response = await mcpClientManager.callTool(
+        serverName,
+        config.tool,
+        params
+      );
+      console.log(`[Fetcher] Retry succeeded for ${config.tool}`);
+      notifySuccess(rateLimitConfig, scopeId);
+    } catch (retryErr: any) {
+      console.error(
+        `[Fetcher] Retry failed for ${config.tool}:`,
+        retryErr.message
+      );
+      throw retryErr;
+    }
+  } else if (caughtError) {
+    // Non-rate-limit error, re-throw
+    throw caughtError;
+  } else {
+    // Success on first try
+    notifySuccess(rateLimitConfig, scopeId);
+  }
+
+  console.log(
+    `[fetchPage] Raw MCP response structure:`,
+    JSON.stringify(response, null, 2).substring(0, 500)
   );
 
   // Extract records from MCP response format
   const parseResult = extractRecordsFromMCPResponse(response);
+
+  console.log(
+    `[fetchPage] Extracted ${parseResult.records.length} records before arrayPath`
+  );
 
   // Check if MCP returned an error
   if (parseResult.error) {
@@ -404,7 +549,7 @@ async function fetchPage(
       nextCursor: undefined,
       hasMore: false,
       mcpError: parseResult.error,
-      rawResponse: response, // Include raw response for debugging
+      rawResponse: response,
     };
   }
 
@@ -422,11 +567,106 @@ async function fetchPage(
     };
   }
 
+  let finalRecords = parseResult.records;
+  let paginationSource = finalRecords;
+
+  // Apply arrayPath if configured to extract nested records
+  if (config.arrayPath) {
+    console.log(
+      `[fetchPage] Applying arrayPath: ${config.arrayPath} to extract nested records`
+    );
+    console.log(
+      `[fetchPage] Records before arrayPath:`,
+      JSON.stringify(finalRecords, null, 2).substring(0, 300)
+    );
+
+    try {
+      // If we have a single wrapper object in an array, apply arrayPath to that object
+      // This handles cases like [{items: [...], next_cursor: "..."}] from extractRecordsFromMCPResponse
+      let target = finalRecords;
+      if (
+        finalRecords.length === 1 &&
+        typeof finalRecords[0] === "object" &&
+        finalRecords[0] !== null &&
+        !Array.isArray(finalRecords[0])
+      ) {
+        console.log(
+          `[fetchPage] Detected single wrapper object, applying arrayPath to object directly`
+        );
+        target = finalRecords[0];
+        paginationSource = target; // Use the wrapper object for pagination info
+      }
+
+      const extractedRecords = JSONPath({
+        path: config.arrayPath,
+        json: target,
+      });
+
+      if (Array.isArray(extractedRecords)) {
+        finalRecords = extractedRecords;
+        if (extractedRecords.length > 0) {
+          console.log(
+            `[fetchPage] Successfully extracted ${finalRecords.length} records using arrayPath`
+          );
+          console.log(
+            `[fetchPage] First record after arrayPath:`,
+            JSON.stringify(finalRecords[0], null, 2).substring(0, 300)
+          );
+        } else {
+          console.log(
+            `[fetchPage] arrayPath "${config.arrayPath}" extracted 0 records (empty array)`
+          );
+        }
+      } else {
+        console.warn(
+          `[fetchPage] arrayPath "${config.arrayPath}" returned non-array:`,
+          extractedRecords
+        );
+      }
+    } catch (err) {
+      console.error(`[fetchPage] Error applying arrayPath:`, err);
+    }
+  }
+
+  // Extract pagination info from the appropriate source
+  let nextCursor: string | undefined;
+  let hasMore = false;
+
+  if (config.pagination) {
+    // Try to extract cursor from paginationSource using configured path
+    if (config.pagination.cursorPath) {
+      try {
+        const extractedCursor = JSONPath({
+          path: config.pagination.cursorPath,
+          json: paginationSource,
+          wrap: false,
+        });
+        nextCursor = extractedCursor;
+        console.log(
+          `[fetchPage] Extracted cursor from path "${config.pagination.cursorPath}":`,
+          nextCursor
+        );
+      } catch (err) {
+        console.warn(
+          `[fetchPage] Failed to extract cursor using path "${config.pagination.cursorPath}":`,
+          err
+        );
+      }
+    }
+
+    // Determine if there are more pages
+    if (nextCursor !== undefined && nextCursor !== null) {
+      hasMore = true;
+    } else {
+      hasMore = false;
+    }
+  }
+
   return {
-    records: parseResult.records,
-    nextCursor: response.next_cursor || response.nextCursor,
-    hasMore: response.has_more ?? response.hasMore ?? false,
-    rawResponse: response, // Include raw response for debugging
+    records: finalRecords,
+    nextCursor,
+    hasMore,
+    rawResponse: response,
   };
 }
 

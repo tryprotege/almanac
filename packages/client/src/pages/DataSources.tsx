@@ -1,8 +1,9 @@
-import { AlertCircle, Database, Loader2, Plus } from "lucide-react";
+import { AlertCircle, Database, Loader2, Plus, Store } from "lucide-react";
 import { useState } from "react";
 import { useDataSources } from "../hooks/useDataSources";
 import { useSyncConfigs } from "../hooks/useSyncConfigs";
 import { DataSourceWizard } from "../components/DataSourceWizard";
+import { MarketplaceModal } from "../components/MarketplaceModal";
 import { MCPServerCard } from "../components/MCPServerCard";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Badge } from "../components/ui/Badge";
@@ -21,6 +22,8 @@ export default function DataSources() {
   } = useSyncConfigs();
 
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [editingSource, setEditingSource] = useState<DataSourceConfig | null>(
     null
   );
@@ -58,6 +61,12 @@ export default function DataSources() {
   const handleCloseWizard = () => {
     setIsWizardOpen(false);
     setEditingSource(null);
+    setSelectedPresetId(null);
+  };
+
+  const handleSelectPreset = (presetId: string) => {
+    setSelectedPresetId(presetId);
+    setIsWizardOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -81,13 +90,22 @@ export default function DataSources() {
           title="Data Sources"
           subtitle="Connect and index data from MCP servers"
         />
-        <button
-          onClick={() => setIsWizardOpen(true)}
-          className="btn btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          Add Source
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsMarketplaceOpen(true)}
+            className="btn btn-primary flex items-center gap-2"
+          >
+            <Store className="w-5 h-5" />
+            Add from Marketplace
+          </button>
+          <button
+            onClick={() => setIsWizardOpen(true)}
+            className="btn btn-secondary flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Add Custom Source
+          </button>
+        </div>
       </div>
 
       {/* Stats Summary */}
@@ -171,13 +189,22 @@ export default function DataSources() {
           <p className="text-text-tertiary mb-6">
             Connect your first data source to start indexing
           </p>
-          <button
-            onClick={() => setIsWizardOpen(true)}
-            className="btn btn-primary inline-flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Add Your First Source
-          </button>
+          <div className="flex items-center gap-3 justify-center">
+            <button
+              onClick={() => setIsMarketplaceOpen(true)}
+              className="btn btn-primary inline-flex items-center gap-2"
+            >
+              <Store className="w-5 h-5" />
+              Browse Marketplace
+            </button>
+            <button
+              onClick={() => setIsWizardOpen(true)}
+              className="btn btn-secondary inline-flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Add Custom Source
+            </button>
+          </div>
         </div>
       )}
 
@@ -192,6 +219,7 @@ export default function DataSources() {
               <MCPServerCard
                 key={source.id}
                 server={source.server}
+                syncConfig={source.config}
                 onEdit={handleEdit}
               />
             ))}
@@ -199,11 +227,19 @@ export default function DataSources() {
         </div>
       )}
 
+      {/* Marketplace Modal */}
+      <MarketplaceModal
+        isOpen={isMarketplaceOpen}
+        onClose={() => setIsMarketplaceOpen(false)}
+        onSelectPreset={handleSelectPreset}
+      />
+
       {/* Data Source Wizard */}
       <DataSourceWizard
         isOpen={isWizardOpen}
         onClose={handleCloseWizard}
         existingSource={editingSource}
+        presetId={selectedPresetId}
       />
     </div>
   );

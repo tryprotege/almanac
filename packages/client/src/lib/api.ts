@@ -191,6 +191,41 @@ export const graphApi = {
     }),
 };
 
+// Preset Types
+export interface PresetVariable {
+  key: string;
+  label: string;
+  type: "text" | "password";
+  required: boolean;
+  helpText?: string;
+}
+
+export interface PresetSummary {
+  id: string;
+  displayName: string;
+  description: string;
+  icon: string;
+  category: string;
+  connectionType: string;
+  authType?: string;
+  variables: PresetVariable[];
+  hasIndexingConfig: boolean;
+}
+
+export interface DataSourcePreset extends PresetSummary {
+  connection: {
+    type: "stdio" | "sse" | "streamable-http";
+    command?: string;
+    args?: string[];
+    url?: string;
+    auth?: {
+      type: "oauth" | "api-key";
+      provider?: string;
+    };
+  };
+  indexingConfig: any; // Full indexing config from preset
+}
+
 // Data Sources API
 export interface DataSourceConfig {
   _id?: string;
@@ -212,6 +247,7 @@ export interface DataSourceConfig {
     redirectUri?: string;
     scopes?: string[];
   };
+  presetId?: string; // If created from a preset
   isDisabled?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -265,6 +301,13 @@ export const dataSourcesApi = {
     ),
   sync: (configId: string) =>
     api.post<ApiResponse<{ jobId: string }>>(`/sync`, { configId }),
+};
+
+// Presets API
+export const presetsApi = {
+  list: () => api.get<PresetSummary[]>("/presets"),
+  get: (id: string) =>
+    api.get<DataSourcePreset>(`/presets/${encodeURIComponent(id)}`),
 };
 
 // OAuth API
@@ -422,8 +465,8 @@ export const modelConfigApi = {
 export interface ToolClassification {
   toolName: string;
   category: "read" | "search" | "write";
-  confidence: number;
-  reasoning: string;
+  confidence?: number;
+  reasoning?: string;
 }
 
 export interface SyncConfigData {
@@ -447,6 +490,7 @@ export interface SyncConfigSummary {
   id: string;
   serverName: string;
   displayName: string;
+  icon?: string;
   status: "draft" | "active" | "disabled";
   updatedAt: string;
   fetcherCount: number;
@@ -462,6 +506,7 @@ export interface GeneratedSyncConfigResult {
   };
   samples: Record<string, any>;
   toolsUsed: string[];
+  toolClassifications?: Record<string, ToolClassification>;
 }
 
 export interface PreviewResult {
@@ -523,4 +568,13 @@ export const syncConfigApi = {
     api.delete<ApiResponse<{ success: boolean }>>(
       `/indexing-config/${encodeURIComponent(serverName)}`
     ),
+
+  resetSync: (serverName: string) =>
+    api.post<
+      ApiResponse<{
+        success: boolean;
+        serverName: string;
+        stateCleared: boolean;
+      }>
+    >("/indexing-config/reset-sync", { serverName }),
 };

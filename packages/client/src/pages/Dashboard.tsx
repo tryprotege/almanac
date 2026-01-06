@@ -11,8 +11,10 @@ import { Badge } from "../components/ui/Badge";
 import { DataTable } from "../components/ui/DataTable";
 import { MetricCard } from "../components/ui/MetricCard";
 import { PageHeader } from "../components/ui/PageHeader";
+import { IconDisplay } from "../components/ui/IconDisplay";
 import { useStats } from "../hooks/useStats";
 import { useDataSources } from "../hooks/useDataSources";
+import { useSyncConfigs } from "../hooks/useSyncConfigs";
 import { statsApi, ActivityItem } from "../lib/api";
 import { capitalCase } from "change-case";
 import { useEffect, useState } from "react";
@@ -39,6 +41,7 @@ function formatRelativeTime(date: Date | string | undefined): string {
 export default function Dashboard() {
   const { stats, isLoading, error } = useStats();
   const { servers, isLoading: sourcesLoading } = useDataSources();
+  const { data: configs, isLoading: configsLoading } = useSyncConfigs();
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
 
@@ -79,10 +82,12 @@ export default function Dashboard() {
   const dataSourcesList =
     servers?.map((server) => {
       const sourceData = stats?.bySource?.[server.name];
+      const config = configs?.find((c) => c.serverName === server.name);
       const hasData = sourceData && sourceData.records > 0;
 
       return {
         name: capitalCase(server.name),
+        icon: config?.icon,
         records: sourceData?.records || 0,
         embedded: sourceData?.embedded || 0,
         graphIndexed: sourceData?.graphIndexed || 0,
@@ -162,7 +167,16 @@ export default function Dashboard() {
           <DataTable
             title="Data Sources"
             columns={[
-              { key: "name", header: "Source Name" },
+              {
+                key: "name",
+                header: "Source Name",
+                render: (item) => (
+                  <div className="flex items-center gap-2">
+                    {item.icon && <IconDisplay icon={item.icon} size="sm" />}
+                    <span>{item.name}</span>
+                  </div>
+                ),
+              },
               { key: "records", header: "Records" },
               { key: "embedded", header: "Embedded" },
               { key: "graphIndexed", header: "Graph" },
@@ -181,7 +195,7 @@ export default function Dashboard() {
               { key: "lastSync", header: "Last Sync" },
             ]}
             data={dataSourcesList}
-            loading={isLoading || sourcesLoading}
+            loading={isLoading || sourcesLoading || configsLoading}
             showAll={() => {
               // Navigate to data sources page
               window.location.href = "/data-sources";

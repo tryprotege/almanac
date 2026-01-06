@@ -91,11 +91,22 @@ class MCPClientManager {
    */
   async connect(dataSource: DataSource): Promise<void> {
     if (this.clients.has(dataSource.name)) {
-      logger.error(
+      logger.info(
         { clientName: dataSource.name },
-        `Client ${dataSource.name} already connected`
+        `Client ${dataSource.name} already connected, disconnecting and reconnecting...`
       );
-      return;
+      try {
+        await this.disconnect(dataSource.name);
+      } catch (disconnectErr) {
+        logger.warn(
+          { err: disconnectErr, clientName: dataSource.name },
+          "Failed to disconnect before reconnecting, continuing anyway"
+        );
+        // Force cleanup even if disconnect failed
+        this.clients.delete(dataSource.name);
+        this.transports.delete(dataSource.name);
+        this.toolCache.delete(dataSource.name);
+      }
     }
 
     // Pre-flight OAuth discovery for SSE servers

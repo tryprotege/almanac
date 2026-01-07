@@ -47,7 +47,9 @@ export const syncMcpServer = async (
     const syncGenerator = indexAll(
       syncConfig.config,
       dataSource.name,
-      undefined
+      syncConfig.startingPointValues
+        ? Object.fromEntries(syncConfig.startingPointValues)
+        : undefined
     );
 
     for await (const { records } of syncGenerator) {

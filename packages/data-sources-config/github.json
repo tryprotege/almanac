@@ -21,6 +21,15 @@
     "version": "1.0",
     "source": "github",
     "displayName": "GitHub",
+    "startingPoints": [
+      {
+        "name": "query",
+        "type": "manual",
+        "description": "GitHub search query to find repositories. Use GitHub search syntax: 'user:username' for user repos, 'org:orgname' for organization repos, 'topic:topicname' for topics, or combine criteria. Examples: 'user:facebook', 'org:microsoft', 'topic:machine-learning', 'user:vercel topic:nextjs', 'org:kubernetes language:go'",
+        "userProvided": true,
+        "required": true
+      }
+    ],
     "rateLimit": {
       "maxRequests": 3600,
       "windowSeconds": 3600,
@@ -38,6 +47,15 @@
     "fetchers": {
       "search_repositories": {
         "tool": "search_repositories",
+        "seedFrom": {
+          "startingPoint": "query",
+          "paramMapping": {
+            "query": "$"
+          }
+        },
+        "params": {
+          "minimal_output": false
+        },
         "resultPath": "$.content[0].text",
         "arrayPath": "$.items[*]",
         "pagination": {
@@ -89,7 +107,7 @@
           "retries": 2
         },
         "resultPath": "$.content[0].text",
-        "arrayPath": "$.pull_requests[*]",
+        "arrayPath": "$[*]",
         "pagination": {
           "type": "offset",
           "pageParam": "page",
@@ -113,7 +131,7 @@
           "retries": 2
         },
         "resultPath": "$.content[0].text",
-        "arrayPath": "$.releases[*]",
+        "arrayPath": "$[*]",
         "pagination": {
           "type": "offset",
           "pageParam": "page",
@@ -518,360 +536,6 @@
         "toolName": "list_discussions",
         "category": "read"
       }
-    }
-  },
-  "toolClassifications": {
-    "actions_get": {
-      "toolName": "actions_get",
-      "category": "read"
-    },
-    "actions_list": {
-      "toolName": "actions_list",
-      "category": "read"
-    },
-    "actions_run_trigger": {
-      "toolName": "actions_run_trigger",
-      "category": "write"
-    },
-    "add_comment_to_pending_review": {
-      "toolName": "add_comment_to_pending_review",
-      "category": "write"
-    },
-    "add_issue_comment": {
-      "toolName": "add_issue_comment",
-      "category": "write"
-    },
-    "add_project_item": {
-      "toolName": "add_project_item",
-      "category": "write"
-    },
-    "assign_copilot_to_issue": {
-      "toolName": "assign_copilot_to_issue",
-      "category": "write"
-    },
-    "create_branch": {
-      "toolName": "create_branch",
-      "category": "write"
-    },
-    "create_gist": {
-      "toolName": "create_gist",
-      "category": "write"
-    },
-    "create_or_update_file": {
-      "toolName": "create_or_update_file",
-      "category": "write"
-    },
-    "create_pull_request": {
-      "toolName": "create_pull_request",
-      "category": "write"
-    },
-    "create_pull_request_with_copilot": {
-      "toolName": "create_pull_request_with_copilot",
-      "category": "write"
-    },
-    "create_repository": {
-      "toolName": "create_repository",
-      "category": "write"
-    },
-    "delete_file": {
-      "toolName": "delete_file",
-      "category": "write"
-    },
-    "delete_project_item": {
-      "toolName": "delete_project_item",
-      "category": "write"
-    },
-    "dismiss_notification": {
-      "toolName": "dismiss_notification",
-      "category": "write"
-    },
-    "fork_repository": {
-      "toolName": "fork_repository",
-      "category": "write"
-    },
-    "get_code_scanning_alert": {
-      "toolName": "get_code_scanning_alert",
-      "category": "read"
-    },
-    "get_commit": {
-      "toolName": "get_commit",
-      "category": "read"
-    },
-    "get_copilot_space": {
-      "toolName": "get_copilot_space",
-      "category": "read"
-    },
-    "get_dependabot_alert": {
-      "toolName": "get_dependabot_alert",
-      "category": "read"
-    },
-    "get_discussion": {
-      "toolName": "get_discussion",
-      "category": "read"
-    },
-    "get_discussion_comments": {
-      "toolName": "get_discussion_comments",
-      "category": "read"
-    },
-    "get_file_contents": {
-      "toolName": "get_file_contents",
-      "category": "read"
-    },
-    "get_gist": {
-      "toolName": "get_gist",
-      "category": "read"
-    },
-    "get_global_security_advisory": {
-      "toolName": "get_global_security_advisory",
-      "category": "read"
-    },
-    "get_job_logs": {
-      "toolName": "get_job_logs",
-      "category": "read"
-    },
-    "get_label": {
-      "toolName": "get_label",
-      "category": "read"
-    },
-    "get_latest_release": {
-      "toolName": "get_latest_release",
-      "category": "read"
-    },
-    "get_me": {
-      "toolName": "get_me",
-      "category": "read"
-    },
-    "get_notification_details": {
-      "toolName": "get_notification_details",
-      "category": "read"
-    },
-    "get_project": {
-      "toolName": "get_project",
-      "category": "read"
-    },
-    "get_project_field": {
-      "toolName": "get_project_field",
-      "category": "read"
-    },
-    "get_project_item": {
-      "toolName": "get_project_item",
-      "category": "read"
-    },
-    "get_release_by_tag": {
-      "toolName": "get_release_by_tag",
-      "category": "read"
-    },
-    "get_repository_tree": {
-      "toolName": "get_repository_tree",
-      "category": "read"
-    },
-    "get_secret_scanning_alert": {
-      "toolName": "get_secret_scanning_alert",
-      "category": "read"
-    },
-    "get_tag": {
-      "toolName": "get_tag",
-      "category": "read"
-    },
-    "get_team_members": {
-      "toolName": "get_team_members",
-      "category": "read"
-    },
-    "get_teams": {
-      "toolName": "get_teams",
-      "category": "read"
-    },
-    "github_support_docs_search": {
-      "toolName": "github_support_docs_search",
-      "category": "search"
-    },
-    "issue_read": {
-      "toolName": "issue_read",
-      "category": "read"
-    },
-    "issue_write": {
-      "toolName": "issue_write",
-      "category": "write"
-    },
-    "label_write": {
-      "toolName": "label_write",
-      "category": "write"
-    },
-    "list_branches": {
-      "toolName": "list_branches",
-      "category": "read"
-    },
-    "list_code_scanning_alerts": {
-      "toolName": "list_code_scanning_alerts",
-      "category": "read"
-    },
-    "list_commits": {
-      "toolName": "list_commits",
-      "category": "read"
-    },
-    "list_copilot_spaces": {
-      "toolName": "list_copilot_spaces",
-      "category": "read"
-    },
-    "list_dependabot_alerts": {
-      "toolName": "list_dependabot_alerts",
-      "category": "read"
-    },
-    "list_discussion_categories": {
-      "toolName": "list_discussion_categories",
-      "category": "read"
-    },
-    "list_discussions": {
-      "toolName": "list_discussions",
-      "category": "read"
-    },
-    "list_gists": {
-      "toolName": "list_gists",
-      "category": "read"
-    },
-    "list_global_security_advisories": {
-      "toolName": "list_global_security_advisories",
-      "category": "read"
-    },
-    "list_issue_types": {
-      "toolName": "list_issue_types",
-      "category": "read"
-    },
-    "list_issues": {
-      "toolName": "list_issues",
-      "category": "read"
-    },
-    "list_label": {
-      "toolName": "list_label",
-      "category": "read"
-    },
-    "list_notifications": {
-      "toolName": "list_notifications",
-      "category": "read"
-    },
-    "list_org_repository_security_advisories": {
-      "toolName": "list_org_repository_security_advisories",
-      "category": "read"
-    },
-    "list_project_fields": {
-      "toolName": "list_project_fields",
-      "category": "read"
-    },
-    "list_project_items": {
-      "toolName": "list_project_items",
-      "category": "search"
-    },
-    "list_projects": {
-      "toolName": "list_projects",
-      "category": "read"
-    },
-    "list_pull_requests": {
-      "toolName": "list_pull_requests",
-      "category": "read"
-    },
-    "list_releases": {
-      "toolName": "list_releases",
-      "category": "read"
-    },
-    "list_repository_security_advisories": {
-      "toolName": "list_repository_security_advisories",
-      "category": "read"
-    },
-    "list_secret_scanning_alerts": {
-      "toolName": "list_secret_scanning_alerts",
-      "category": "read"
-    },
-    "list_starred_repositories": {
-      "toolName": "list_starred_repositories",
-      "category": "read"
-    },
-    "list_tags": {
-      "toolName": "list_tags",
-      "category": "read"
-    },
-    "manage_notification_subscription": {
-      "toolName": "manage_notification_subscription",
-      "category": "write"
-    },
-    "manage_repository_notification_subscription": {
-      "toolName": "manage_repository_notification_subscription",
-      "category": "write"
-    },
-    "mark_all_notifications_read": {
-      "toolName": "mark_all_notifications_read",
-      "category": "write"
-    },
-    "merge_pull_request": {
-      "toolName": "merge_pull_request",
-      "category": "write"
-    },
-    "pull_request_read": {
-      "toolName": "pull_request_read",
-      "category": "read"
-    },
-    "pull_request_review_write": {
-      "toolName": "pull_request_review_write",
-      "category": "write"
-    },
-    "push_files": {
-      "toolName": "push_files",
-      "category": "write"
-    },
-    "request_copilot_review": {
-      "toolName": "request_copilot_review",
-      "category": "write"
-    },
-    "search_code": {
-      "toolName": "search_code",
-      "category": "search"
-    },
-    "search_issues": {
-      "toolName": "search_issues",
-      "category": "search"
-    },
-    "search_orgs": {
-      "toolName": "search_orgs",
-      "category": "search"
-    },
-    "search_pull_requests": {
-      "toolName": "search_pull_requests",
-      "category": "search"
-    },
-    "search_repositories": {
-      "toolName": "search_repositories",
-      "category": "search"
-    },
-    "search_users": {
-      "toolName": "search_users",
-      "category": "search"
-    },
-    "star_repository": {
-      "toolName": "star_repository",
-      "category": "write"
-    },
-    "sub_issue_write": {
-      "toolName": "sub_issue_write",
-      "category": "write"
-    },
-    "unstar_repository": {
-      "toolName": "unstar_repository",
-      "category": "write"
-    },
-    "update_gist": {
-      "toolName": "update_gist",
-      "category": "write"
-    },
-    "update_project_item": {
-      "toolName": "update_project_item",
-      "category": "write"
-    },
-    "update_pull_request": {
-      "toolName": "update_pull_request",
-      "category": "write"
-    },
-    "update_pull_request_branch": {
-      "toolName": "update_pull_request_branch",
-      "category": "write"
     }
   }
 }

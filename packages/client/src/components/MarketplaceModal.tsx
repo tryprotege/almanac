@@ -21,7 +21,7 @@ export function MarketplaceModal({
 
   // Check if a preset is already connected
   const isPresetConnected = (presetId: string): boolean => {
-    return servers.some((server) => server.name === presetId);
+    return servers.some((server) => server.presetId === presetId);
   };
 
   const handleSelectPreset = (presetId: string) => {

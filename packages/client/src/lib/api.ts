@@ -537,4 +537,32 @@ export const syncConfigApi = {
         stateCleared: boolean;
       }>
     >("/indexing-config/reset-sync", { serverName }),
+
+  getStartingPoints: (serverName: string) =>
+    api.get<
+      ApiResponse<{
+        serverName: string;
+        startingPoints: Array<{
+          name: string;
+          description: string;
+          required: boolean;
+          userProvided: boolean;
+          currentValue: string;
+          hasValue: boolean;
+        }>;
+        allRequired: number;
+        allProvided: number;
+      }>
+    >(`/indexing-config/${encodeURIComponent(serverName)}/starting-points`),
+
+  updateStartingPoints: (serverName: string, values: Record<string, string>) =>
+    api.put<
+      ApiResponse<{
+        success: boolean;
+        serverName: string;
+        values: Record<string, string[]>;
+      }>
+    >(`/indexing-config/${encodeURIComponent(serverName)}/starting-points`, {
+      values,
+    }),
 };

@@ -7,6 +7,14 @@ export interface IIndexingConfig extends Document {
   status: "draft" | "active" | "disabled";
   configVersion: number;
   config: IndexingConfig;
+
+  /**
+   * User-provided starting point values
+   * Maps starting point name to array of values
+   * Example: { "root_pages": ["abc123", "def456"] }
+   */
+  startingPointValues?: Record<string, string[]>;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,6 +44,11 @@ const IndexingConfigSchema = new Schema<IIndexingConfig>(
     config: {
       type: Schema.Types.Mixed,
       required: true,
+    },
+    startingPointValues: {
+      type: Map,
+      of: [String],
+      required: false,
     },
   },
   {

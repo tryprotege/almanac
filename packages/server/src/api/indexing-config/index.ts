@@ -257,18 +257,10 @@ router.post("/sync", async (req, res) => {
     // Load starting point values from MongoDB if not provided in request
     let startingPointsToUse: Record<string, string[]> = startingPoints || {};
     if (!startingPoints && configDoc.startingPointValues) {
+      startingPointsToUse = Object.entries(
+        configDoc.startingPointValues
+      ) as unknown as Record<string, string[]>;
       // Convert Mongoose Map to plain object
-      if (configDoc.startingPointValues instanceof Map) {
-        configDoc.startingPointValues.forEach((value, key) => {
-          startingPointsToUse[key] = value;
-        });
-      } else {
-        // Already an object (shouldn't happen but handle gracefully)
-        startingPointsToUse = configDoc.startingPointValues as Record<
-          string,
-          string[]
-        >;
-      }
       logger.info(
         { serverName, startingPoints: startingPointsToUse },
         "Loaded starting point values from database"

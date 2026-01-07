@@ -4,12 +4,10 @@ import { IndexingConfigModel } from "../../models/indexing-config.model.js";
 import { RecordStore } from "../../stores/record.store.js";
 import logger from "../../utils/logger.js";
 import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
-import { GitHubMCPClient } from "../sources/github/mcpClient.js";
 import { NotionMCPClient } from "../sources/notion/mcpClient.js";
 import { SlackMCPClient } from "../sources/slack/mcpClient.js";
 import { BaseRecordAdapter } from "./adapters/base-adapter.js";
 import { FathomAdapter } from "./adapters/fathom-adapter.js";
-import { GitHubAdapter } from "./adapters/github-adapter.js";
 import { NotionAdapter } from "./adapters/notion-adapter.js";
 import { SlackAdapter } from "./adapters/slack-adapter.js";
 import { syncAllRecords } from "./record-sync.service.js";
@@ -49,7 +47,9 @@ export const syncMcpServer = async (
     const syncGenerator = indexAll(
       syncConfig.config,
       dataSource.name,
-      undefined
+      syncConfig.startingPointValues
+        ? Object.fromEntries(syncConfig.startingPointValues)
+        : undefined
     );
 
     for await (const { records } of syncGenerator) {
@@ -137,13 +137,6 @@ export const syncMcpServer = async (
   if (dataSource.name === "notion") {
     const notionClient = new NotionMCPClient();
     adapter = new NotionAdapter(notionClient);
-  } else if (dataSource.name === "github") {
-    const githubClient = new GitHubMCPClient();
-    adapter = new GitHubAdapter(githubClient, {
-      includeArchived: false,
-      includeForks: true,
-      includePrivate: true,
-    });
   } else if (dataSource.name === "fathom") {
     const fathomClient = new FathomMCPClient();
     adapter = new FathomAdapter(fathomClient, {

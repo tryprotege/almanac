@@ -9,6 +9,9 @@ import { cleanupOrphanedEmbeddings } from "../src/services/cleanup/embedding-cle
 import * as readline from "readline";
 import logger from "../src/utils/logger.js";
 import { DataSourceModel } from "../src/models/data-source.model.js";
+import { IndexingConfigModel } from "../src/models/indexing-config.model.js";
+import { MCPSyncStateModel } from "../src/models/mcp-sync-state.model.js";
+import { OAuthTokenModel } from "../src/models/oauth-token.model.js";
 
 /**
  * Script to wipe all data from MongoDB, Memgraph, and Qdrant
@@ -186,8 +189,20 @@ async function wipeMongoDB(
   // Optionally delete MCP configs
   if (!keepMcpConfig) {
     const mcpFilter = source ? { name: source } : {};
+
+    const dataSource = source
+      ? await DataSourceModel.findOne(mcpFilter)
+      : undefined;
     const mcpResult = await DataSourceModel.deleteMany(mcpFilter);
     logger.info(`   ✓ Deleted ${mcpResult.deletedCount} MCP server configs`);
+
+    await IndexingConfigModel.deleteMany(source ? { serverName: source } : {});
+
+    await MCPSyncStateModel.deleteMany(source ? { serverName: source } : {});
+
+    await OAuthTokenModel.deleteMany(
+      dataSource ? { mcpServerConfigId: dataSource._id } : {}
+    );
   } else {
     logger.info(`   ⊘ Kept MCP server configs (--keep-mcp-config)`);
   }

@@ -16,8 +16,6 @@ import { NotionAdapter } from "../src/services/sync/adapters/notion-adapter.ts";
 import { SourceType } from "../src/types/index.js";
 import { env } from "../src/env.js";
 import logger from "../src/utils/logger.js";
-import { GitHubMCPClient } from "../src/services/sources/github/mcpClient.ts";
-import { GitHubAdapter } from "../src/services/sync/adapters/github-adapter.ts";
 import { SlackMCPClient } from "../src/services/sources/slack/mcpClient.ts";
 import { SlackAdapter } from "../src/services/sync/adapters/slack-adapter.ts";
 import { FathomMCPClient } from "../src/services/sources/fathom/mcpClient.ts";
@@ -118,16 +116,6 @@ async function indexGraphRecords() {
       const notionClient = new NotionMCPClient();
       const notionAdapter = new NotionAdapter(notionClient);
       adapters.set("notion", notionAdapter);
-    }
-
-    if (config.name === "github") {
-      const githubClient = new GitHubMCPClient();
-      const githubAdapter = new GitHubAdapter(githubClient, {
-        includeArchived: false,
-        includeForks: true,
-        includePrivate: true,
-      });
-      adapters.set("github", githubAdapter);
     }
 
     if (config.name === "slack") {

@@ -1,25 +1,7 @@
-import mongoose, { Schema, Document } from "mongoose";
-import type { IndexingConfig } from "@ebee-oss/indexing-engine";
+import mongoose, { Schema, InferSchemaType } from "mongoose";
+import type { IndexingConfig as Config } from "@ebee-oss/indexing-engine";
 
-export interface IIndexingConfig extends Document {
-  serverName: string;
-  displayName: string;
-  status: "draft" | "active" | "disabled";
-  configVersion: number;
-  config: IndexingConfig;
-
-  /**
-   * User-provided starting point values
-   * Maps starting point name to array of values
-   * Example: { "root_pages": ["abc123", "def456"] }
-   */
-  startingPointValues?: Record<string, string[]>;
-
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const IndexingConfigSchema = new Schema<IIndexingConfig>(
+const IndexingConfigSchema = new Schema(
   {
     serverName: {
       type: String,
@@ -60,7 +42,14 @@ const IndexingConfigSchema = new Schema<IIndexingConfig>(
 // Indexes
 IndexingConfigSchema.index({ serverName: 1, status: 1 });
 
-export const IndexingConfigModel = mongoose.model<IIndexingConfig>(
+type IndexingConfig = Omit<
+  InferSchemaType<typeof IndexingConfigSchema>,
+  "config"
+> & {
+  config: Config;
+};
+
+export const IndexingConfigModel = mongoose.model<IndexingConfig>(
   "IndexingConfig",
   IndexingConfigSchema
 );

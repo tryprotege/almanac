@@ -12,11 +12,9 @@ import {
   indexRelationshipEmbeddings,
 } from "../indexing/graph/graph-embeddings.js";
 import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
-import { GitHubMCPClient } from "../sources/github/mcpClient.js";
 import { NotionMCPClient } from "../sources/notion/mcpClient.js";
 import { BaseRecordAdapter } from "../sync/adapters/base-adapter.js";
 import { FathomAdapter } from "../sync/adapters/fathom-adapter.js";
-import { GitHubAdapter } from "../sync/adapters/github-adapter.js";
 import { NotionAdapter } from "../sync/adapters/notion-adapter.js";
 import { SlackAdapter } from "../sync/adapters/slack-adapter.js";
 import { createRedisConnection, QUEUE_NAME } from "./config.js";
@@ -45,18 +43,6 @@ const processor: Processor<
   } else if (source === "slack") {
     const slackClient = new SlackMCPClient();
     adapters.set("slack", new SlackAdapter(slackClient));
-  }
-
-  if (source === "github") {
-    const githubClient = new GitHubMCPClient();
-    adapters.set(
-      "github",
-      new GitHubAdapter(githubClient, {
-        includeArchived: false,
-        includeForks: true,
-        includePrivate: true,
-      })
-    );
   }
 
   if (source === "fathom") {

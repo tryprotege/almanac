@@ -275,6 +275,7 @@ export async function* fetchWithForEach(
             resultPath: config.resultPath,
             params,
             rateLimit: config.rateLimit,
+            arrayPath: config.arrayPath, // Include arrayPath if present
           };
           const result = await fetchPage(
             serverName,
@@ -405,12 +406,13 @@ async function* fetchWithBatchMode(
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        // Create a minimal config for the tool call (without arrayPath since forEach doesn't need it)
+        // Create a minimal config for the tool call
         const callConfig: FetcherConfig = {
           tool: config.tool,
           resultPath: config.resultPath,
           params,
           rateLimit: config.rateLimit,
+          arrayPath: config.arrayPath, // Include arrayPath if present
         };
         const result = await fetchPage(
           serverName,

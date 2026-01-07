@@ -57,6 +57,7 @@ export function useSaveSyncConfig() {
     mutationFn: async (params: {
       config: any;
       status?: "draft" | "active" | "disabled";
+      startingPointValues?: Record<string, string[]>;
     }) => {
       const response = await syncConfigApi.save(params);
       return response.data.data;
@@ -115,6 +116,25 @@ export function useResetSyncState() {
     mutationFn: async (serverName: string) => {
       const response = await syncConfigApi.resetSync(serverName);
       return response.data.data;
+    },
+  });
+}
+
+// Hook to reload config from marketplace
+export function useReloadFromMarketplace() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (serverName: string) => {
+      const response = await syncConfigApi.reloadFromMarketplace(serverName);
+      return response.data.data;
+    },
+    onSuccess: (data, serverName) => {
+      // Invalidate the specific config and the list
+      queryClient.invalidateQueries({
+        queryKey: ["indexing-config", serverName],
+      });
+      queryClient.invalidateQueries({ queryKey: ["indexing-configs"] });
     },
   });
 }

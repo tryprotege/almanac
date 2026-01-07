@@ -64,8 +64,8 @@
     ],
     "syncOrder": [
       "fetchRootPage",
-      "fetchChildPages",
       "fetchPageBlocks",
+      "fetchChildPages",
       "fetchDatabases",
       "fetchDatabaseItems"
     ],
@@ -119,7 +119,7 @@
         "description": "Fetch child pages referenced in blocks",
         "forEach": {
           "source": "fetchPageBlocks",
-          "path": "$[?type == 'child_page']",
+          "path": "$[?(@.type == 'child_page')]",
           "paramMapping": {
             "page_id": "$.id",
             "format": "json"
@@ -172,7 +172,7 @@
         "description": "Fetch databases referenced in blocks",
         "forEach": {
           "source": "fetchPageBlocks",
-          "path": "$[?type == 'child_database']",
+          "path": "$[?(@.type == 'child_database')]",
           "paramMapping": {
             "database_id": "$.id",
             "format": "json"

@@ -29,6 +29,11 @@ const graphEmbeddingMetadataSchema = new Schema(
     },
 
     // Entity fields
+    entityId: {
+      type: String,
+      index: true,
+      sparse: true,
+    },
     entityType: {
       type: String,
       sparse: true,

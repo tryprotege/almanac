@@ -9,6 +9,7 @@ import {
   rateLimiterManager,
 } from "./rate-limiter.js";
 import { detectRateLimitError } from "./mcp-error-parser.js";
+import logger from "../../../utils/logger.js";
 
 export interface PageResult {
   records: any[];
@@ -699,10 +700,11 @@ async function fetchPage(
     notifySuccess(rateLimitConfig, scopeId);
   }
 
-  console.log(
-    `[fetchPage] Raw MCP response structure:`,
-    JSON.stringify(response, null, 2).substring(0, 500)
-  );
+  logger.debug({
+    msg: "[fetchPage] Raw MCP response structure",
+    response: JSON.stringify(response, null, 2),
+    toolName: config.tool,
+  });
 
   // Extract records from MCP response format
   const parseResult = extractRecordsFromMCPResponse(response);

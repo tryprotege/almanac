@@ -40,30 +40,74 @@ export async function initializeRemoteServers(
         const tools = mcpClientManager.getServerTools(dataSource.name);
 
         tools.forEach((tool) => {
-          mcpSever.registerTool(
-            `${dataSource.name}__${tool.name}`,
-            {
-              description: `[${dataSource.name}] ${tool.description}`,
-              title: tool.title,
-              _meta: tool._meta,
-              annotations: tool.annotations,
-              inputSchema: resolveSerializedZodOutput(
-                jsonSchemaToZod(tool.inputSchema)
-              ) as {},
-              outputSchema: tool.outputSchema
-                ? (resolveSerializedZodOutput(
-                    jsonSchemaToZod(tool.outputSchema, { module: "esm" })
-                  ) as {})
-                : undefined,
-            },
-            async (args, _extra) => {
-              return await mcpClientManager.callTool(
-                dataSource.name,
-                tool.name,
-                args
+          try {
+            let inputSchema: any;
+            let outputSchema: any;
+
+            try {
+              const inputSchemaStr = jsonSchemaToZod(tool.inputSchema);
+              inputSchema = resolveSerializedZodOutput(inputSchemaStr) as {};
+            } catch (err) {
+              logger.warn(
+                {
+                  err,
+                  toolName: tool.name,
+                  serverName: dataSource.name,
+                },
+                `Failed to parse inputSchema for tool ${tool.name}, using raw schema`
               );
+              inputSchema = tool.inputSchema;
             }
-          );
+
+            if (tool.outputSchema) {
+              try {
+                const outputSchemaStr = jsonSchemaToZod(tool.outputSchema, {
+                  module: "esm",
+                });
+                outputSchema = resolveSerializedZodOutput(
+                  outputSchemaStr
+                ) as {};
+              } catch (err) {
+                logger.warn(
+                  {
+                    err,
+                    toolName: tool.name,
+                    serverName: dataSource.name,
+                  },
+                  `Failed to parse outputSchema for tool ${tool.name}, using raw schema`
+                );
+                outputSchema = tool.outputSchema;
+              }
+            }
+
+            mcpSever.registerTool(
+              `${dataSource.name}__${tool.name}`,
+              {
+                description: `[${dataSource.name}] ${tool.description}`,
+                title: tool.title,
+                _meta: tool._meta,
+                annotations: tool.annotations,
+                inputSchema,
+                outputSchema,
+              },
+              async (args: any, _extra: any) => {
+                return await mcpClientManager.callTool(
+                  dataSource.name,
+                  tool.name,
+                  args
+                );
+              }
+            );
+          } catch (err) {
+            logger.error(
+              {
+                err,
+                toolName: tool.name,
+                serverName: dataSource.name,
+              },
+              `Failed to register tool ${tool.name}`
+            );
+          }
         });
       } catch (err) {
         logger.error(

@@ -384,19 +384,11 @@ class MCPClientManager {
       arguments: args,
     });
 
-    // Log response (truncated if too large)
-    const responseStr = JSON.stringify(response);
-    const truncatedResponse =
-      responseStr.length > 500
-        ? responseStr.substring(0, 500) +
-          `... (${responseStr.length} chars total)`
-        : responseStr;
-
     logger.info(
       {
         serverName,
         toolName: actualToolName,
-        responsePreview: truncatedResponse,
+        responsePreview: JSON.stringify(response, null, 2),
       },
       `[MCP RESPONSE] ${serverName}.${actualToolName}`
     );

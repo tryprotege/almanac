@@ -189,10 +189,34 @@ router.post("/preview", async (req, res) => {
  */
 router.post("/save", async (req, res) => {
   try {
-    const { config, status = "active" } = req.body;
+    const { config, status = "active", startingPointValues } = req.body;
 
     if (!config || !config.source) {
       return res.status(400).json({ error: "Valid config is required" });
+    }
+
+    // Validate required starting points if values are provided
+    if (startingPointValues && config.startingPoints) {
+      const errors: string[] = [];
+      for (const sp of config.startingPoints) {
+        if (sp.required && sp.userProvided) {
+          const values = startingPointValues[sp.name];
+          if (
+            !values ||
+            values.length === 0 ||
+            !values.some((v: string) => v.trim().length > 0)
+          ) {
+            errors.push(`Required starting point '${sp.name}' has no values`);
+          }
+        }
+      }
+
+      if (errors.length > 0) {
+        return res.status(400).json({
+          error: "Starting point validation failed",
+          details: errors,
+        });
+      }
     }
 
     // Upsert config
@@ -202,12 +226,16 @@ router.post("/save", async (req, res) => {
         serverName: config.source,
         config,
         status,
+        startingPointValues: startingPointValues || {},
         updatedAt: new Date(),
       },
       { upsert: true, new: true }
     );
 
-    logger.info(`Saved IndexingConfig for ${config.source}`);
+    logger.info(
+      { serverName: config.source, startingPointValues },
+      `Saved IndexingConfig for ${config.source}`
+    );
 
     res.json({
       data: {
@@ -257,10 +285,15 @@ router.post("/sync", async (req, res) => {
     // Load starting point values from MongoDB if not provided in request
     let startingPointsToUse: Record<string, string[]> = startingPoints || {};
     if (!startingPoints && configDoc.startingPointValues) {
-      startingPointsToUse = Object.entries(
-        configDoc.startingPointValues
-      ) as unknown as Record<string, string[]>;
-      // Convert Mongoose Map to plain object
+      // Convert Mongoose Map or object to plain object
+      if (configDoc.startingPointValues instanceof Map) {
+        configDoc.startingPointValues.forEach((value, key) => {
+          startingPointsToUse[key] = value;
+        });
+      } else {
+        // Already a plain object
+        Object.assign(startingPointsToUse, configDoc.startingPointValues);
+      }
       logger.info(
         { serverName, startingPoints: startingPointsToUse },
         "Loaded starting point values from database"
@@ -662,6 +695,65 @@ router.put("/:serverName/starting-points", async (req, res) => {
   } catch (err) {
     logger.error({ err }, "Failed to update starting points");
     res.status(500).json({ error: "Failed to update starting points" });
+  }
+});
+
+/**
+ * POST /api/indexing-config/:serverName/reload-from-marketplace
+ * Reload config from marketplace file and update the database
+ */
+router.post("/:serverName/reload-from-marketplace", async (req, res) => {
+  try {
+    const { serverName } = req.params;
+
+    // Load marketplace config from preset loader
+    const { presetLoader } = await import(
+      "../../services/presets/preset-loader.service.js"
+    );
+
+    const preset = presetLoader.getPreset(serverName);
+
+    if (!preset || !preset.indexingConfig) {
+      return res.status(404).json({
+        error: `No marketplace config found for ${serverName}`,
+      });
+    }
+
+    // Get existing config to preserve starting point values and status
+    const existingConfig = await IndexingConfigModel.findOne({ serverName });
+
+    const startingPointValues = existingConfig?.startingPointValues || {};
+    const status = existingConfig?.status || "active";
+
+    // Update config in database
+    const configDoc = await IndexingConfigModel.findOneAndUpdate(
+      { serverName },
+      {
+        serverName,
+        config: preset.indexingConfig,
+        status,
+        startingPointValues,
+        updatedAt: new Date(),
+      },
+      { upsert: true, new: true }
+    );
+
+    logger.info(
+      { serverName },
+      `Reloaded config from marketplace for ${serverName}`
+    );
+
+    res.json({
+      success: true,
+      data: configDoc,
+      message: "Config successfully reloaded from marketplace",
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to reload config from marketplace");
+    res.status(500).json({
+      error: "Failed to reload config from marketplace",
+      message: err instanceof Error ? err.message : "Unknown error",
+    });
   }
 });
 

@@ -255,7 +255,7 @@ export async function* indexAll(
           // Aggregate content if configured for this fetcher
           let recordWithAggregation = rawRecord;
           if (fetcherConfig.aggregateContent) {
-            logger.info(
+            logger.debug(
               {
                 fetcherName,
                 aggregationFields: Object.keys(fetcherConfig.aggregateContent),

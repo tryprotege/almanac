@@ -4,6 +4,7 @@ import type {
   FetcherConfig,
 } from "@ebee-oss/indexing-engine";
 import { mcpClientManager } from "../../../mcp/client.js";
+import logger from "../../../utils/logger.js";
 
 /**
  * ContentAggregatorService
@@ -74,10 +75,10 @@ export class ContentAggregatorService {
     // Resolve parameters from parent context
     const params = this.resolveParamsFromParent(fetcherConfig, parentData);
 
-    console.log(
-      `[ContentAggregator] Executing fetcher '${fetcherName}' for aggregation with params:`,
-      JSON.stringify(params).substring(0, 200)
-    );
+    logger.debug({
+      msg: `[ContentAggregator] Executing fetcher '${fetcherName}' for aggregation with params:`,
+      params,
+    });
 
     // Execute the tool
     const result = await mcpClientManager.callTool(

@@ -149,7 +149,7 @@
         "description": "Fetch blocks from all pages (root and children)",
         "forEach": {
           "source": "fetchRootPage",
-          "path": "$",
+          "path": "$[*]",
           "paramMapping": {
             "block_id": "$.id",
             "format": "json",

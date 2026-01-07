@@ -384,7 +384,7 @@ class MCPClientManager {
       arguments: args,
     });
 
-    logger.info(
+    logger.debug(
       {
         serverName,
         toolName: actualToolName,

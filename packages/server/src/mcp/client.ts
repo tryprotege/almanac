@@ -367,10 +367,39 @@ class MCPClientManager {
       throw new Error(`Client ${serverName} not connected`);
     }
 
+    const actualToolName = toolName.replace(`${serverName}__`, "");
+
+    // Log the MCP call with parameters
+    logger.info(
+      {
+        serverName,
+        toolName: actualToolName,
+        parameters: args,
+      },
+      `[MCP CALL] ${serverName}.${actualToolName}`
+    );
+
     const response = await client.callTool({
-      name: toolName.replace(`${serverName}__`, ""),
+      name: actualToolName,
       arguments: args,
     });
+
+    // Log response (truncated if too large)
+    const responseStr = JSON.stringify(response);
+    const truncatedResponse =
+      responseStr.length > 500
+        ? responseStr.substring(0, 500) +
+          `... (${responseStr.length} chars total)`
+        : responseStr;
+
+    logger.info(
+      {
+        serverName,
+        toolName: actualToolName,
+        responsePreview: truncatedResponse,
+      },
+      `[MCP RESPONSE] ${serverName}.${actualToolName}`
+    );
 
     return response;
   }

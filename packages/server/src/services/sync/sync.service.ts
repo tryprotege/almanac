@@ -43,8 +43,12 @@ export const syncMcpServer = async (
 
     let recordsProcessed = 0;
 
-    // Run config-based sync
-    const syncGenerator = indexAll(syncConfig.config, dataSource.name);
+    // Run config-based sync (no user-provided starting points in background sync)
+    const syncGenerator = indexAll(
+      syncConfig.config,
+      dataSource.name,
+      undefined
+    );
 
     for await (const { records } of syncGenerator) {
       // 1. Save to MongoDB

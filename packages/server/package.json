@@ -37,6 +37,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "ioredis": "^5.8.2",
+    "jmespath": "^0.16.0",
     "json-schema-to-zod": "^2.7.0",
     "jsonpath-plus": "^8.0.0",
     "limiter": "^3.0.0",

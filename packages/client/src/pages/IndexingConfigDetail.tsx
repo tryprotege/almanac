@@ -12,6 +12,7 @@ import {
   GitBranch,
   Code,
   BarChart3,
+  PlayCircle,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -28,6 +29,7 @@ import { useState, useEffect } from "react";
 import ConfigTabs from "../components/SyncConfig/ConfigTabs";
 import DataMappingTab from "../components/SyncConfig/DataMappingTab";
 import EntitiesTab from "../components/SyncConfig/EntitiesTab";
+import StartingPointsTab from "../components/SyncConfig/StartingPointsTab";
 
 type GenerationStep = "idle" | "generating" | "result";
 
@@ -870,6 +872,49 @@ export default function IndexingConfigDetail() {
           </div>
         </div>
 
+        {/* Post-Processing Info */}
+        {(config.config as any).postProcessing?.enabled && (
+          <div className="mb-6 bg-gradient-to-r from-brand-purple/5 to-brand-blue/5 border border-brand-purple/30 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-brand-purple/10 rounded-lg flex-shrink-0">
+                <RefreshCw className="w-5 h-5 text-brand-purple" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-text-primary mb-1">
+                  Post-Processing Enabled
+                </h3>
+                <p className="text-sm text-text-secondary mb-3">
+                  {(config.config as any).postProcessing.description ||
+                    "Additional processing will run after initial indexing"}
+                </p>
+                <div className="flex flex-wrap gap-4 text-xs text-text-tertiary">
+                  {(config.config as any).postProcessing
+                    .followRelationships && (
+                    <div className="flex items-center gap-1">
+                      <GitBranch className="w-3.5 h-3.5" />
+                      <span>
+                        Follows:{" "}
+                        {(
+                          config.config as any
+                        ).postProcessing.followRelationships.join(", ")}
+                      </span>
+                    </div>
+                  )}
+                  {(config.config as any).postProcessing.maxIterations && (
+                    <div className="flex items-center gap-1">
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>
+                        Max iterations:{" "}
+                        {(config.config as any).postProcessing.maxIterations}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-bg-primary border border-border-secondary rounded-lg p-4">
@@ -978,6 +1023,11 @@ export default function IndexingConfigDetail() {
           <ConfigTabs
             tabs={[
               {
+                id: "startingPoints",
+                label: "Starting Points",
+                icon: <PlayCircle className="w-4 h-4" />,
+              },
+              {
                 id: "dataMapping",
                 label: "Data Mapping",
                 icon: <Database className="w-4 h-4" />,
@@ -995,6 +1045,9 @@ export default function IndexingConfigDetail() {
             ]}
           >
             {(activeTab) => {
+              if (activeTab === "startingPoints") {
+                return <StartingPointsTab serverName={config.serverName} />;
+              }
               if (activeTab === "dataMapping") {
                 return <DataMappingTab config={config.config} />;
               }

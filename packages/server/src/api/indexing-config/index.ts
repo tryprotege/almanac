@@ -225,10 +225,15 @@ router.post("/save", async (req, res) => {
 /**
  * POST /api/indexing-config/sync
  * Trigger sync using a saved IndexingConfig
+ *
+ * Request body:
+ * - serverName: string (required)
+ * - incremental: boolean (optional, default: false)
+ * - startingPoints: Record<string, string[]> (optional) - User-provided starting point values
  */
 router.post("/sync", async (req, res) => {
   try {
-    const { serverName, incremental = false } = req.body;
+    const { serverName, incremental = false, startingPoints } = req.body;
 
     if (!serverName) {
       return res.status(400).json({ error: "serverName is required" });
@@ -249,10 +254,31 @@ router.post("/sync", async (req, res) => {
     // Start sync in background
     let recordsProcessed = 0;
 
+    // Load starting point values from MongoDB if not provided in request
+    let startingPointsToUse: Record<string, string[]> = startingPoints || {};
+    if (!startingPoints && configDoc.startingPointValues) {
+      // Convert Mongoose Map to plain object
+      if (configDoc.startingPointValues instanceof Map) {
+        configDoc.startingPointValues.forEach((value, key) => {
+          startingPointsToUse[key] = value;
+        });
+      } else {
+        // Already an object (shouldn't happen but handle gracefully)
+        startingPointsToUse = configDoc.startingPointValues as Record<
+          string,
+          string[]
+        >;
+      }
+      logger.info(
+        { serverName, startingPoints: startingPointsToUse },
+        "Loaded starting point values from database"
+      );
+    }
+
     // Use incremental or full sync
     const syncGenerator = incremental
       ? runIncrementalSync(configDoc.config, serverName)
-      : indexAll(configDoc.config, serverName);
+      : indexAll(configDoc.config, serverName, startingPointsToUse);
 
     // Initialize stores for persistence
     const recordStore = new RecordStore();
@@ -473,6 +499,177 @@ router.post("/reset-sync", async (req, res) => {
       error: "Failed to reset sync state",
       message: err instanceof Error ? err.message : "Unknown error",
     });
+  }
+});
+
+/**
+ * GET /api/indexing-config/:serverName/starting-points
+ * Get required starting points for a config
+ */
+router.get("/:serverName/starting-points", async (req, res) => {
+  try {
+    const { serverName } = req.params;
+
+    const configDoc = await IndexingConfigModel.findOne({
+      serverName,
+      status: "active",
+    });
+
+    if (!configDoc) {
+      return res.status(404).json({
+        error: `No active config found for ${serverName}`,
+      });
+    }
+
+    const startingPoints = configDoc.config.startingPoints || [];
+
+    // Convert Mongoose Map to plain object
+    const userProvidedValues: Record<string, string[]> = {};
+    if (configDoc.startingPointValues) {
+      // Mongoose Map - need to convert to object
+      if (configDoc.startingPointValues instanceof Map) {
+        configDoc.startingPointValues.forEach((value, key) => {
+          userProvidedValues[key] = value;
+        });
+      } else {
+        // Already an object (shouldn't happen but handle gracefully)
+        Object.assign(userProvidedValues, configDoc.startingPointValues);
+      }
+    }
+
+    // Format response with current values
+    const formattedStartingPoints = startingPoints.map((sp) => ({
+      name: sp.name,
+      description: sp.description,
+      required: sp.required ?? false,
+      userProvided: sp.userProvided ?? false,
+      currentValue: userProvidedValues[sp.name]?.join(", ") || "",
+      hasValue: !!userProvidedValues[sp.name]?.length,
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        serverName,
+        startingPoints: formattedStartingPoints,
+        allRequired: startingPoints.filter((sp) => sp.required).length,
+        allProvided: formattedStartingPoints.filter(
+          (sp) => sp.required && sp.hasValue
+        ).length,
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to get starting points");
+    res.status(500).json({ error: "Failed to get starting points" });
+  }
+});
+
+/**
+ * PUT /api/indexing-config/:serverName/starting-points
+ * Update user-provided starting point values
+ *
+ * Request body:
+ * {
+ *   values: {
+ *     [name: string]: string  // comma-separated values
+ *   }
+ * }
+ */
+router.put("/:serverName/starting-points", async (req, res) => {
+  try {
+    const { serverName } = req.params;
+    const { values } = req.body;
+
+    if (!values || typeof values !== "object") {
+      return res.status(400).json({
+        error: "values object is required",
+      });
+    }
+
+    const configDoc = await IndexingConfigModel.findOne({
+      serverName,
+      status: "active",
+    });
+
+    if (!configDoc) {
+      return res.status(404).json({
+        error: `No active config found for ${serverName}`,
+      });
+    }
+
+    const startingPoints = configDoc.config.startingPoints || [];
+
+    // Parse and validate input
+    const parsedValues: Record<string, string[]> = {};
+    const errors: string[] = [];
+
+    for (const [name, value] of Object.entries(values)) {
+      const spConfig = startingPoints.find((sp) => sp.name === name);
+
+      if (!spConfig) {
+        errors.push(`Unknown starting point: ${name}`);
+        continue;
+      }
+
+      // Parse comma-separated values
+      const valueStr = typeof value === "string" ? value : String(value);
+      const parsed = valueStr
+        .split(",")
+        .map((v: string) => v.trim())
+        .filter((v: string) => v.length > 0);
+
+      parsedValues[name] = parsed;
+
+      // Validate required fields
+      if ((spConfig.required ?? false) && parsed.length === 0) {
+        errors.push(`Required starting point '${name}' cannot be empty`);
+      }
+    }
+
+    // Check all required starting points are provided
+    for (const sp of startingPoints) {
+      if (
+        (sp.required ?? false) &&
+        (sp.userProvided ?? false) &&
+        !parsedValues[sp.name]
+      ) {
+        errors.push(`Required starting point '${sp.name}' is missing`);
+      }
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({
+        error: "Validation failed",
+        details: errors,
+      });
+    }
+
+    // Update document
+    await IndexingConfigModel.updateOne(
+      { serverName, status: "active" },
+      {
+        $set: {
+          startingPointValues: parsedValues,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    logger.info(
+      { serverName, values: parsedValues },
+      "Updated starting point values"
+    );
+
+    res.json({
+      success: true,
+      data: {
+        serverName,
+        values: parsedValues,
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to update starting points");
+    res.status(500).json({ error: "Failed to update starting points" });
   }
 });
 

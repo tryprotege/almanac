@@ -22,6 +22,173 @@ export interface ForEachContext {
   [fetcherName: string]: any[];
 }
 
+export interface StartingPointContext {
+  [startingPointName: string]: Array<string | Record<string, any>>;
+}
+
+/**
+ * Fetch records by iterating over starting point values
+ * Similar to forEach but sources values from starting points instead of previous fetchers
+ */
+export async function* fetchWithSeedFrom(
+  serverName: string,
+  config: FetcherConfig,
+  startingPointValues: StartingPointContext
+): AsyncGenerator<PageResult> {
+  const { seedFrom } = config;
+
+  if (!seedFrom) {
+    throw new Error(`fetchWithSeedFrom called but seedFrom config is missing`);
+  }
+
+  // Get starting point values
+  const values = startingPointValues[seedFrom.startingPoint];
+  if (!values || values.length === 0) {
+    console.warn(
+      `seedFrom starting point "${seedFrom.startingPoint}" has no values`
+    );
+    yield { records: [], hasMore: false };
+    return;
+  }
+
+  console.log(
+    `[seedFrom] Processing ${values.length} values from starting point "${seedFrom.startingPoint}"`
+  );
+
+  const concurrency = seedFrom.concurrency ?? 3;
+  const continueOnError = seedFrom.continueOnError ?? true;
+  const maxRetries = seedFrom.retries ?? 2;
+
+  const allResults: any[] = [];
+  const errors: Array<{ value: any; error: Error }> = [];
+
+  // Process in batches for concurrency control
+  for (let i = 0; i < values.length; i += concurrency) {
+    const batch = values.slice(i, i + concurrency);
+
+    console.log(
+      `[seedFrom] Processing batch ${
+        Math.floor(i / concurrency) + 1
+      }/${Math.ceil(values.length / concurrency)} (${batch.length} items)`
+    );
+
+    const batchPromises = batch.map(async (value: any) => {
+      // Build params from static params + mapped params
+      const params = { ...config.params };
+
+      // Map starting point value to tool parameters
+      for (const [paramName, jsonPath] of Object.entries(
+        seedFrom.paramMapping
+      )) {
+        // If jsonPath starts with $, treat as JSONPath expression
+        // Otherwise, use as literal value
+        if (typeof jsonPath === "string" && jsonPath.startsWith("$")) {
+          // For simple string values, wrap in object for JSONPath
+          const source = typeof value === "string" ? { value } : value;
+          const extractedValue = JSONPath({
+            path: jsonPath === "$" ? "$.value" : jsonPath,
+            json: source,
+            wrap: false,
+          });
+          if (extractedValue !== undefined) {
+            params[paramName] = extractedValue;
+          }
+        } else {
+          // Literal value
+          params[paramName] = jsonPath;
+        }
+      }
+
+      console.log(
+        `[seedFrom] Calling ${config.tool} with params:`,
+        JSON.stringify(params).substring(0, 200)
+      );
+
+      // Call with retries
+      let lastError: Error | null = null;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          // Apply rate limiting before each attempt (including retries)
+          if (attempt > 0) {
+            console.log(
+              `[seedFrom] Applying rate limit before retry attempt ${
+                attempt + 1
+              }...`
+            );
+            await applyRateLimit(config.rateLimit, serverName);
+          }
+
+          // Create a minimal config for the tool call
+          const callConfig: FetcherConfig = {
+            tool: config.tool,
+            resultPath: config.resultPath,
+            params,
+            rateLimit: config.rateLimit,
+            arrayPath: config.arrayPath, // Include arrayPath if present
+          };
+          const result = await fetchPage(
+            serverName,
+            callConfig,
+            params,
+            config.rateLimit
+          );
+
+          console.log(
+            `[seedFrom] Call succeeded, got ${result.records.length} records`
+          );
+          return result.records;
+        } catch (err) {
+          lastError = err as Error;
+          if (attempt < maxRetries) {
+            console.warn(
+              `[seedFrom] Call failed (attempt ${
+                attempt + 1
+              }/${maxRetries}), retrying...`
+            );
+            await sleep(1000 * (attempt + 1)); // Exponential backoff
+          }
+        }
+      }
+
+      throw lastError;
+    });
+
+    const results = await Promise.allSettled(batchPromises);
+
+    for (let j = 0; j < results.length; j++) {
+      const result = results[j];
+      if (result.status === "fulfilled") {
+        allResults.push(...(result.value || []));
+      } else {
+        errors.push({ value: batch[j], error: result.reason });
+        console.error(
+          `[seedFrom] Error processing value:`,
+          batch[j],
+          result.reason.message
+        );
+        if (!continueOnError) {
+          throw result.reason;
+        }
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    console.warn(
+      `[seedFrom] Completed with ${errors.length} errors out of ${values.length} values`
+    );
+  } else {
+    console.log(
+      `[seedFrom] Successfully processed all ${values.length} values, got ${allResults.length} total records`
+    );
+  }
+
+  yield {
+    records: allResults,
+    hasMore: false,
+  };
+}
+
 /**
  * Fetch records by iterating over results from a previous fetcher
  * Calls the tool once per item from the source, with mapped params

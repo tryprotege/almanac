@@ -275,6 +275,9 @@ importers:
       ioredis:
         specifier: ^5.8.2
         version: 5.8.2
+      jmespath:
+        specifier: ^0.16.0
+        version: 0.16.0
       json-schema-to-zod:
         specifier: ^2.7.0
         version: 2.7.0
@@ -1384,8 +1387,8 @@ packages:
     resolution: {integrity: sha512-058GAcqHd3I7oYLnLIMhcZMdg8i6hCvD4K3s5PY8RuSXp7QAl9/+usOIxrDSfNMGK4cfya94LqHj+txwIe3wUQ==}
     engines: {node: '>=18'}
 
-  '@sourcegraph/amp@0.0.1767643295-g73c392':
-    resolution: {integrity: sha512-vnGGPKHehU2DkVRZajD0lb46cIxNe2P4PW97IzmjB5QfSBvJFfXmEkOzLhSr+BfXpuvkwbYBFlU6vRuv15StdA==}
+  '@sourcegraph/amp@0.0.1767756503-g633fb2':
+    resolution: {integrity: sha512-Ee67SS/HAIaBh3N+FQ42VBhJWH+DtuF+47dTr5dwWng9+ohapwcsace/gEWmWoi8ygzRWo9d7OKKoJhwzSSsqA==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -2666,6 +2669,10 @@ packages:
   jiti@2.6.1:
     resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
     hasBin: true
+
+  jmespath@0.16.0:
+    resolution: {integrity: sha512-9FzQjJ7MATs1tSpnco1K6ayiYE3figslrXA72G2HQ/n76RzvYlofyi5QM+iX4YRs/pu3yzxlVQSST23+dMDknw==}
+    engines: {node: '>= 0.6.0'}
 
   jose@6.1.3:
     resolution: {integrity: sha512-0TpaTfihd4QMNwrz/ob2Bp7X04yuxJkjRGi4aKmOqwhov54i6u79oCv7T+C7lo70MKH6BesI3vscD1yb/yzKXQ==}
@@ -4744,10 +4751,10 @@ snapshots:
 
   '@sourcegraph/amp-sdk@0.1.0-20251217003600-gcd4203a':
     dependencies:
-      '@sourcegraph/amp': 0.0.1767643295-g73c392
+      '@sourcegraph/amp': 0.0.1767756503-g633fb2
       zod: 3.25.76
 
-  '@sourcegraph/amp@0.0.1767643295-g73c392':
+  '@sourcegraph/amp@0.0.1767756503-g633fb2':
     dependencies:
       '@napi-rs/keyring': 1.1.9
 
@@ -6334,6 +6341,8 @@ snapshots:
       - ts-node
 
   jiti@2.6.1: {}
+
+  jmespath@0.16.0: {}
 
   jose@6.1.3: {}
 

@@ -11,17 +11,11 @@ import {
 } from "../src/services/indexing/graph/graph-embeddings.js";
 import { createLLMClient } from "../src/services/llm/providers.js";
 import { loadProxyConfig } from "../src/mcp/config-loader.js";
-import { NotionMCPClient } from "../src/services/sources/notion/mcpClient.js";
-import { NotionAdapter } from "../src/services/sync/adapters/notion-adapter.ts";
 import { SourceType } from "../src/types/index.js";
 import { env } from "../src/env.js";
 import logger from "../src/utils/logger.js";
-import { GitHubMCPClient } from "../src/services/sources/github/mcpClient.ts";
-import { GitHubAdapter } from "../src/services/sync/adapters/github-adapter.ts";
 import { SlackMCPClient } from "../src/services/sources/slack/mcpClient.ts";
 import { SlackAdapter } from "../src/services/sync/adapters/slack-adapter.ts";
-import { FathomMCPClient } from "../src/services/sources/fathom/mcpClient.ts";
-import { FathomAdapter } from "../src/services/sync/adapters/fathom-adapter.ts";
 
 /**
  * Script to index unindexed records to the graph database
@@ -114,37 +108,9 @@ async function indexGraphRecords() {
     // Set up adapters
     const adapters = new Map<SourceType, any>();
 
-    if (config.name === "notion") {
-      const notionClient = new NotionMCPClient();
-      const notionAdapter = new NotionAdapter(notionClient);
-      adapters.set("notion", notionAdapter);
-    }
-
-    if (config.name === "github") {
-      const githubClient = new GitHubMCPClient();
-      const githubAdapter = new GitHubAdapter(githubClient, {
-        includeArchived: false,
-        includeForks: true,
-        includePrivate: true,
-      });
-      adapters.set("github", githubAdapter);
-    }
-
     if (config.name === "slack") {
       const slackClient = new SlackMCPClient();
       adapters.set("slack", new SlackAdapter(slackClient));
-    }
-
-    if (config.name === "fathom") {
-      const fathomClient = new FathomMCPClient();
-      adapters.set(
-        "fathom",
-        new FathomAdapter(fathomClient, {
-          includeActionItems: false,
-          includeSummaries: true,
-          includeTranscripts: true,
-        })
-      );
     }
 
     // 1. Cleanup deleted records first (if requested)

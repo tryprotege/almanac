@@ -19,6 +19,7 @@ export const infrastructureSchema = z.object({
   LOG_LEVEL: z
     .enum(["trace", "debug", "info", "warn", "error", "fatal"])
     .default("info"),
+  MCP_DEBUG_LOGS: z.boolean().default(false),
 
   // MongoDB Configuration
   MONGO_HOST: z.string().default("localhost"),
@@ -94,6 +95,7 @@ export const applicationSchema = z.object({
 
 const processEnv = {
   ...process.env,
+  MCP_DEBUG_LOGS: process.env.MCP_DEBUG_LOGS?.toLowerCase().trim() === "true",
   RERANKER_ENABLED:
     process.env.RERANKER_ENABLED?.toLowerCase().trim() === "true",
   ENABLE_TOXIC_DOCUMENT_FILTER:

@@ -12,6 +12,7 @@ import {
   GitBranch,
   Code,
   BarChart3,
+  PlayCircle,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -22,12 +23,15 @@ import {
   useSaveSyncConfig,
   useResetSyncState,
   useSyncWithConfig,
+  useReloadFromMarketplace,
 } from "../hooks/useSyncConfigs";
 import { useDataSources } from "../hooks/useDataSources";
 import { useState, useEffect } from "react";
 import ConfigTabs from "../components/SyncConfig/ConfigTabs";
 import DataMappingTab from "../components/SyncConfig/DataMappingTab";
 import EntitiesTab from "../components/SyncConfig/EntitiesTab";
+import StartingPointsTab from "../components/SyncConfig/StartingPointsTab";
+import { StartingPointsCollector } from "../components/StartingPointsCollector";
 
 type GenerationStep = "idle" | "generating" | "result";
 
@@ -36,6 +40,11 @@ export default function IndexingConfigDetail() {
   const navigate = useNavigate();
   const [generationStep, setGenerationStep] = useState<GenerationStep>("idle");
   const [generatedResult, setGeneratedResult] = useState<any>(null);
+
+  // Starting points state for generation result
+  const [startingPointValues, setStartingPointValues] = useState<
+    Record<string, string[]>
+  >({});
 
   // JSON editor state
   const [isEditing, setIsEditing] = useState(false);
@@ -56,10 +65,27 @@ export default function IndexingConfigDetail() {
   const saveConfig = useSaveSyncConfig();
   const resetSyncState = useResetSyncState();
   const syncWithConfig = useSyncWithConfig();
+  const reloadFromMarketplace = useReloadFromMarketplace();
 
   // Check if this data source is from a preset
   const dataSource = servers.find((s) => s.name === serverName);
   const isPresetBased = !!dataSource?.presetId;
+
+  // Helper to check if all required starting points are configured
+  const areRequiredStartingPointsFilled = (
+    startingPoints: any[],
+    values: Record<string, string[]>
+  ): boolean => {
+    const requiredPoints = startingPoints.filter(
+      (sp) => sp.required && sp.userProvided
+    );
+    if (requiredPoints.length === 0) return true;
+
+    return requiredPoints.every((sp) => {
+      const vals = values[sp.name] || [];
+      return vals.some((v) => v.trim().length > 0);
+    });
+  };
 
   // Debug logging
   useEffect(() => {
@@ -133,8 +159,8 @@ export default function IndexingConfigDetail() {
                       serverName: serverName!,
                     });
                     console.log(
-                      "Config generation completed successfully:",
-                      result
+                      "Config generation completed successfully:\n",
+                      JSON.stringify(result, null, 2)
                     );
                     setGeneratedResult(result);
                     setGenerationStep("result");
@@ -393,6 +419,17 @@ export default function IndexingConfigDetail() {
                 </ConfigTabs>
               </div>
 
+              {/* Starting Points Collection */}
+              {generatedResult.config.startingPoints &&
+                generatedResult.config.startingPoints.length > 0 && (
+                  <div className="card">
+                    <StartingPointsCollector
+                      startingPoints={generatedResult.config.startingPoints}
+                      onChange={setStartingPointValues}
+                    />
+                  </div>
+                )}
+
               {/* Action Buttons */}
               <div className="flex items-center justify-end gap-3">
                 <button
@@ -424,11 +461,22 @@ export default function IndexingConfigDetail() {
                 <button
                   onClick={async () => {
                     console.log("Save & Activate clicked");
-                    console.log("Config to save:", generatedResult.config);
+                    console.log(
+                      "Config to save:\n",
+                      JSON.stringify(generatedResult.config, null, 2)
+                    );
+                    console.log(
+                      "Starting point values:\n",
+                      JSON.stringify(startingPointValues, null, 2)
+                    );
                     try {
                       const result = await saveConfig.mutateAsync({
                         config: generatedResult.config,
                         status: "active",
+                        startingPointValues:
+                          Object.keys(startingPointValues).length > 0
+                            ? startingPointValues
+                            : undefined,
                       });
                       console.log("Save successful:", result);
                       // Wait a moment before reloading to ensure save completes
@@ -443,7 +491,12 @@ export default function IndexingConfigDetail() {
                     }
                   }}
                   disabled={
-                    saveConfig.isPending || !generatedResult?.validation.valid
+                    saveConfig.isPending ||
+                    !generatedResult?.validation.valid ||
+                    !areRequiredStartingPointsFilled(
+                      generatedResult?.config.startingPoints || [],
+                      startingPointValues
+                    )
                   }
                   className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -818,7 +871,10 @@ export default function IndexingConfigDetail() {
                         const result = await generateConfig.mutateAsync({
                           serverName: config.serverName,
                         });
-                        console.log("Config regeneration completed:", result);
+                        console.log(
+                          "Config regeneration completed:\n",
+                          JSON.stringify(result, null, 2)
+                        );
                         setGeneratedResult(result);
                         setGenerationStep("result");
                       } catch (error) {
@@ -869,6 +925,49 @@ export default function IndexingConfigDetail() {
             </div>
           </div>
         </div>
+
+        {/* Post-Processing Info */}
+        {(config.config as any).postProcessing?.enabled && (
+          <div className="mb-6 bg-gradient-to-r from-brand-purple/5 to-brand-blue/5 border border-brand-purple/30 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-brand-purple/10 rounded-lg flex-shrink-0">
+                <RefreshCw className="w-5 h-5 text-brand-purple" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-text-primary mb-1">
+                  Post-Processing Enabled
+                </h3>
+                <p className="text-sm text-text-secondary mb-3">
+                  {(config.config as any).postProcessing.description ||
+                    "Additional processing will run after initial indexing"}
+                </p>
+                <div className="flex flex-wrap gap-4 text-xs text-text-tertiary">
+                  {(config.config as any).postProcessing
+                    .followRelationships && (
+                    <div className="flex items-center gap-1">
+                      <GitBranch className="w-3.5 h-3.5" />
+                      <span>
+                        Follows:{" "}
+                        {(
+                          config.config as any
+                        ).postProcessing.followRelationships.join(", ")}
+                      </span>
+                    </div>
+                  )}
+                  {(config.config as any).postProcessing.maxIterations && (
+                    <div className="flex items-center gap-1">
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>
+                        Max iterations:{" "}
+                        {(config.config as any).postProcessing.maxIterations}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -978,6 +1077,11 @@ export default function IndexingConfigDetail() {
           <ConfigTabs
             tabs={[
               {
+                id: "startingPoints",
+                label: "Starting Points",
+                icon: <PlayCircle className="w-4 h-4" />,
+              },
+              {
                 id: "dataMapping",
                 label: "Data Mapping",
                 icon: <Database className="w-4 h-4" />,
@@ -995,6 +1099,9 @@ export default function IndexingConfigDetail() {
             ]}
           >
             {(activeTab) => {
+              if (activeTab === "startingPoints") {
+                return <StartingPointsTab serverName={config.serverName} />;
+              }
               if (activeTab === "dataMapping") {
                 return <DataMappingTab config={config.config} />;
               }
@@ -1011,6 +1118,45 @@ export default function IndexingConfigDetail() {
                       <div className="flex items-center gap-2">
                         {!isEditing && (
                           <>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await reloadFromMarketplace.mutateAsync(
+                                    config.serverName
+                                  );
+                                  toast.success(
+                                    "Config reloaded from marketplace successfully!"
+                                  );
+                                  setTimeout(
+                                    () => window.location.reload(),
+                                    500
+                                  );
+                                } catch (error) {
+                                  console.error(
+                                    "Failed to reload config:",
+                                    error
+                                  );
+                                  toast.error(
+                                    error instanceof Error
+                                      ? error.message
+                                      : "Failed to reload config from marketplace"
+                                  );
+                                }
+                              }}
+                              disabled={reloadFromMarketplace.isPending}
+                              className="btn btn-secondary text-sm inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <RefreshCw
+                                className={`w-4 h-4 ${
+                                  reloadFromMarketplace.isPending
+                                    ? "animate-spin"
+                                    : ""
+                                }`}
+                              />
+                              {reloadFromMarketplace.isPending
+                                ? "Reloading..."
+                                : "Reload from Marketplace"}
+                            </button>
                             <button
                               onClick={() => {
                                 navigator.clipboard.writeText(

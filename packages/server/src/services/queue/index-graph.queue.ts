@@ -11,13 +11,7 @@ import {
   indexEntityEmbeddings,
   indexRelationshipEmbeddings,
 } from "../indexing/graph/graph-embeddings.js";
-import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
-import { GitHubMCPClient } from "../sources/github/mcpClient.js";
-import { NotionMCPClient } from "../sources/notion/mcpClient.js";
 import { BaseRecordAdapter } from "../sync/adapters/base-adapter.js";
-import { FathomAdapter } from "../sync/adapters/fathom-adapter.js";
-import { GitHubAdapter } from "../sync/adapters/github-adapter.js";
-import { NotionAdapter } from "../sync/adapters/notion-adapter.js";
 import { SlackAdapter } from "../sync/adapters/slack-adapter.js";
 import { createRedisConnection, QUEUE_NAME } from "./config.js";
 import { env } from "../../env.js";
@@ -39,36 +33,9 @@ const processor: Processor<
 
   const adapters = new Map<SourceType, BaseRecordAdapter>();
 
-  if (source === "notion") {
-    const notionClient = new NotionMCPClient();
-    adapters.set("notion", new NotionAdapter(notionClient));
-  } else if (source === "slack") {
+  if (source === "slack") {
     const slackClient = new SlackMCPClient();
     adapters.set("slack", new SlackAdapter(slackClient));
-  }
-
-  if (source === "github") {
-    const githubClient = new GitHubMCPClient();
-    adapters.set(
-      "github",
-      new GitHubAdapter(githubClient, {
-        includeArchived: false,
-        includeForks: true,
-        includePrivate: true,
-      })
-    );
-  }
-
-  if (source === "fathom") {
-    const fathomClient = new FathomMCPClient();
-    adapters.set(
-      "fathom",
-      new FathomAdapter(fathomClient, {
-        includeActionItems: false,
-        includeSummaries: true,
-        includeTranscripts: true,
-      })
-    );
   }
 
   // Use functional approach for indexing

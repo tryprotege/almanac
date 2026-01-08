@@ -29,6 +29,13 @@ export interface SyncConfig {
    */
   icon?: string;
 
+  /**
+   * Starting points for indexing
+   * Define entry points that seed the indexing process
+   * Users can provide specific IDs/values to start crawling from
+   */
+  startingPoints?: StartingPointConfig[];
+
   fetchers: Record<string, FetcherConfig>;
   recordTypes: Record<string, RecordTypeConfig>;
 
@@ -50,6 +57,55 @@ export interface SyncConfig {
    * Can be overridden per-fetcher
    */
   rateLimit?: RateLimitConfig;
+
+  /**
+   * Post-processing configuration
+   * Run after initial indexing to discover additional records
+   */
+  postProcessing?: PostProcessingConfig;
+}
+
+/**
+ * StartingPointConfig - Defines a starting point for indexing
+ * Starting points are entry points that users provide to seed the indexing process
+ */
+export interface StartingPointConfig {
+  /** Unique name for this starting point (e.g., "teamIds", "pageIds") */
+  name: string;
+
+  /** Human-readable description */
+  description: string;
+
+  /** Whether this starting point is required (must have values) */
+  required?: boolean;
+
+  /** Whether user must provide values for this starting point */
+  userProvided?: boolean;
+
+  /** Example values to help users understand what to provide */
+  examples?: string[];
+}
+
+/**
+ * SeedFromConfig - Seed a fetcher from starting point values
+ * Alternative to forEach - used when you want to iterate over user-provided starting values
+ * instead of results from another fetcher
+ */
+export interface SeedFromConfig {
+  /** Name of the starting point to use */
+  startingPoint: string;
+
+  /** Map starting point fields to tool parameters */
+  paramMapping: Record<string, string>; // e.g., { "page_id": "$.id", "format": "markdown" }
+
+  /** Max concurrent calls (default: 3) */
+  concurrency?: number;
+
+  /** Continue with partial results if some calls fail (default: true) */
+  continueOnError?: boolean;
+
+  /** Number of retries per failed call (default: 2) */
+  retries?: number;
 }
 
 /**
@@ -58,7 +114,14 @@ export interface SyncConfig {
 export interface FetcherConfig {
   tool: string; // MCP tool name
   description?: string; // For GUI display
-  params?: Record<string, any>; // Static params
+  params?: Record<string, any>; // Static params (can include "${startingPoint:name.field}" template syntax)
+
+  /**
+   * Seed this fetcher from a starting point
+   * Alternative to forEach - used when you want to iterate over user-provided starting values
+   * instead of results from another fetcher
+   */
+  seedFrom?: SeedFromConfig;
 
   /**
    * Dynamic iteration over previous fetcher results
@@ -66,6 +129,34 @@ export interface FetcherConfig {
    * Results from all calls are aggregated
    */
   forEach?: ForEachConfig;
+
+  /**
+   * Aggregate content from other fetchers into the parent record
+   * Enables merging data from child tool calls before creating the record
+   * Useful for including related data inline (e.g., page blocks within a page)
+   */
+  aggregateContent?: Record<string, AggregationConfig>;
+
+  /**
+   * Extract specific fields from aggregated data
+   * Applied after content aggregation to pull out specific values
+   * Maps field name -> JMESPath expression
+   */
+  extractFromAggregation?: Record<string, string>;
+
+  /**
+   * Parameters that reference the parent record in aggregation scenarios
+   * Used when this fetcher is called as part of content aggregation
+   * Example: { "block_id": "$parent.id" }
+   */
+  paramsFromParent?: Record<string, string>;
+
+  /**
+   * Transform the result using JMESPath expressions
+   * Maps field name -> JMESPath expression to extract/transform data
+   * Applied after tool call but before record creation
+   */
+  transformResult?: Record<string, string>;
 
   pagination?: PaginationConfig;
   incrementalSync?: IncrementalSyncConfig;
@@ -333,22 +424,6 @@ export interface GroupingConfig {
     | LLMGroupingConfig
     | TimeWindowGroupingConfig
     | SessionGroupingConfig;
-
-  /**
-   * Parent record to create for each group
-   */
-  parentRecord: ParentRecordConfig;
-
-  /**
-   * Minimum group size to create a parent (default: 2)
-   * Groups smaller than this remain as standalone records
-   */
-  minGroupSize?: number;
-
-  /**
-   * Maximum group size before splitting (optional)
-   */
-  maxGroupSize?: number;
 }
 
 /**
@@ -579,6 +654,58 @@ export interface ValidationWarning {
   path: string;
   message: string;
   suggestion?: string;
+}
+
+/**
+ * AggregationConfig - Configuration for aggregating content from another fetcher
+ */
+export interface AggregationConfig {
+  /** Name of the fetcher to execute for aggregation */
+  fetcher: string;
+
+  /**
+   * How to merge the aggregated data with the parent record
+   * - "replace": Replace parent field entirely
+   * - "merge": Deep merge objects/arrays
+   * - "append": Append to parent field (for arrays)
+   */
+  mergeStrategy?: "replace" | "merge" | "append";
+
+  /** Whether this aggregation is required (fail if it fails) */
+  required?: boolean;
+}
+
+/**
+ * PostProcessingConfig - Configuration for post-processing after initial indexing
+ * Enables discovering and fetching additional records based on relationships
+ */
+export interface PostProcessingConfig {
+  /** Whether post-processing is enabled */
+  enabled: boolean;
+
+  /**
+   * Relationship types to follow for discovering new records
+   * Example: ["CHILD_OF", "PARENT_OF", "REFERENCES"]
+   */
+  followRelationships: string[];
+
+  /**
+   * Maximum iterations of relationship following
+   * Prevents infinite loops in circular references
+   * Default: 5
+   */
+  maxIterations?: number;
+
+  /**
+   * Continue processing even if some records fail to fetch
+   * Default: true
+   */
+  continueOnError?: boolean;
+
+  /**
+   * Description for documentation/UI purposes
+   */
+  description?: string;
 }
 
 /**

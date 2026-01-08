@@ -1,6 +1,18 @@
 #!/bin/bash
 set -e
 
+# Cleanup function to kill processes on ports
+cleanup() {
+  echo "Cleaning up ports..."
+  kill -9 `lsof -t -i:4000` 2>/dev/null || true
+  kill -9 `lsof -t -i:5173` 2>/dev/null || true
+  kill -9 `lsof -t -i:3000` 2>/dev/null || true
+  echo "Cleanup complete."
+}
+
+# Set trap to run cleanup on script exit (normal or interrupted)
+trap cleanup EXIT INT TERM
+
 # Parse command-line arguments
 MCP_SERVERS=""
 SKIP_BENCHMARK=false
@@ -56,8 +68,12 @@ cd packages/server && echo "yes" | npx tsx ./scripts/wipe-data.ts
 # Start dev server
 cd ../.. && pnpm dev & sleep 5
 
+
 # Register MCP servers based on arguments
 if should_enable_server "github"; then
+  # Read GitHub indexingConfig from config file
+  GITHUB_CONFIG=$(jq '.indexingConfig' ../data-sources-config/github.json)
+
   echo "Enabling GitHub MCP server..."
   curl --request POST --url http://localhost:3000/api/data-sources --header 'Content-Type: application/json' --data '
   {
@@ -66,9 +82,24 @@ if should_enable_server "github"; then
     "url": "http://localhost:4000/mcp/github"
   }
   '
+
+  curl --request POST --url http://localhost:3000/api/indexing-config/save --header 'Content-Type: application/json' --data "
+  {
+    \"config\": ${GITHUB_CONFIG},
+    \"status\": \"active\",
+    \"startingPointValues\": {
+      \"query\": [
+        \"TODO:\"
+      ]
+    }
+  }
+  "
 fi
 
 if should_enable_server "notion"; then
+  # Read Notion indexingConfig from config file
+  NOTION_CONFIG=$(jq '.indexingConfig' ../data-sources-config/notion.json)
+
   echo "Enabling Notion MCP server..."
   curl --request POST --url http://localhost:3000/api/data-sources --header 'Content-Type: application/json' --data '
   {
@@ -77,9 +108,24 @@ if should_enable_server "notion"; then
     "url": "http://localhost:4000/mcp/notion"
   }
   '
+
+  curl --request POST --url http://localhost:3000/api/indexing-config/save --header 'Content-Type: application/json' --data "
+  {
+    \"config\": ${NOTION_CONFIG},
+    \"status\": \"active\",
+    \"startingPointValues\": {
+      \"teamWorkspaceId\": [
+        \"TODO:\"
+      ]
+    }
+  }
+  "
 fi
 
 if should_enable_server "fathom"; then
+  # Read Notion indexingConfig from config file
+  fathom_CONFIG=$(jq '.indexingConfig' ../data-sources-config/fathom.json)
+
   echo "Enabling Fathom MCP server..."
   curl --request POST --url http://localhost:3000/api/data-sources --header 'Content-Type: application/json' --data '
   {
@@ -88,6 +134,13 @@ if should_enable_server "fathom"; then
     "url": "http://localhost:4000/mcp/fathom"
   }
   '
+
+  curl --request POST --url http://localhost:3000/api/indexing-config/save --header 'Content-Type: application/json' --data "
+  {
+    \"config\": ${NOTION_CONFIG},
+    \"status\": \"active\"
+  }
+  "
 fi
 
 if should_enable_server "slack"; then
@@ -128,8 +181,4 @@ else
   echo "Skipping benchmark tests..."
 fi
 
-# TODO: hardcode the ports for now. Find a better way to clean up ports
-# clean up ports 
-kill -9 `lsof -t -i:4000`
-kill -9 `lsof -t -i:5173`
-kill -9 `lsof -t -i:3000`
+# Cleanup will be handled by the trap on EXIT

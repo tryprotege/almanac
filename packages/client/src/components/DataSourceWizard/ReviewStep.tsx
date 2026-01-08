@@ -1,12 +1,15 @@
 import { ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
 import { DataSourceConfig, GeneratedSyncConfigResult } from "../../lib/api";
 import { ServicePreset } from "../DataSourceForm/presets";
+import { StartingPointsCollector } from "../StartingPointsCollector";
 
 interface ReviewStepProps {
   serverConfig: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt">;
   preset: ServicePreset | null;
   generatedConfig?: GeneratedSyncConfigResult;
   importedConfig?: any;
+  startingPointValues: Record<string, string[]>;
+  onStartingPointValuesChange: (values: Record<string, string[]>) => void;
   onBack: () => void;
   onSubmit: () => void;
   isLoading: boolean;
@@ -17,6 +20,8 @@ export function ReviewStep({
   preset,
   generatedConfig,
   importedConfig,
+  startingPointValues,
+  onStartingPointValuesChange,
   onBack,
   onSubmit,
   isLoading,
@@ -24,6 +29,19 @@ export function ReviewStep({
   // Determine which config to display
   const displayConfig = importedConfig || generatedConfig?.config;
   const isImported = !!importedConfig;
+
+  // Check if all required starting points have values
+  const areRequiredStartingPointsFilled = () => {
+    if (!displayConfig?.startingPoints) return true;
+
+    return displayConfig.startingPoints.every((sp: any) => {
+      if (!sp.required) return true;
+      const values = startingPointValues[sp.name] || [];
+      return values.length > 0 && values.some((v: string) => v.trim() !== "");
+    });
+  };
+
+  const isSubmitDisabled = isLoading || !areRequiredStartingPointsFilled();
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -120,6 +138,18 @@ export function ReviewStep({
         </ol>
       </div>
 
+      {/* Starting Points Configuration */}
+      {displayConfig?.startingPoints &&
+        displayConfig.startingPoints.length > 0 && (
+          <div className="border border-border-secondary rounded-lg p-4">
+            <StartingPointsCollector
+              startingPoints={displayConfig.startingPoints}
+              initialValues={startingPointValues}
+              onChange={onStartingPointValuesChange}
+            />
+          </div>
+        )}
+
       {/* Success Indicator */}
       <div className="bg-brand-success/10 border border-brand-success/30 rounded-lg p-4">
         <div className="flex items-start gap-2">
@@ -147,7 +177,7 @@ export function ReviewStep({
         </button>
         <button
           onClick={onSubmit}
-          disabled={isLoading}
+          disabled={isSubmitDisabled}
           className="btn btn-primary flex items-center gap-2"
         >
           {isLoading ? (

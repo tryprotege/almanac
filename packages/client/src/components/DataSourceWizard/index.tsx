@@ -87,6 +87,9 @@ export function DataSourceWizard({
   const [oauthCompleted, setOauthCompleted] = useState(false);
   const [savingStatus, setSavingStatus] = useState<SavingStepStatus>(null);
   const [savingError, setSavingError] = useState<string | null>(null);
+  const [startingPointValues, setStartingPointValues] = useState<
+    Record<string, string[]>
+  >({});
 
   useEffect(() => {
     if (isOpen && existingSource) {
@@ -384,13 +387,14 @@ export function DataSourceWizard({
         await createMutation.mutateAsync(configWithPreset);
       }
 
-      // 2. Save sync config if custom
+      // 2. Save sync config (custom servers or preset servers with imported configs)
       const configToSave = importedConfig || generateConfig.data?.config;
-      if (selectedPreset?.id === "custom" && configToSave) {
+      if (configToSave) {
         setSavingStatus("activating");
         await saveConfig.mutateAsync({
           config: configToSave,
           status: "active",
+          startingPointValues: startingPointValues,
         });
       }
 
@@ -575,6 +579,8 @@ export function DataSourceWizard({
           preset={selectedPreset}
           generatedConfig={generateConfig.data}
           importedConfig={importedConfig}
+          startingPointValues={startingPointValues}
+          onStartingPointValuesChange={setStartingPointValues}
           onBack={handleBack}
           onSubmit={handleFinalSubmit}
           isLoading={isLoading}

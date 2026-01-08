@@ -12,10 +12,6 @@ import { InferSchemaType, Schema, model } from "mongoose";
 
 const graphEmbeddingMetadataSchema = new Schema(
   {
-    _id: {
-      type: String,
-      required: true,
-    },
     qdrantId: {
       type: String,
       index: true,
@@ -33,6 +29,11 @@ const graphEmbeddingMetadataSchema = new Schema(
     },
 
     // Entity fields
+    entityId: {
+      type: String,
+      index: true,
+      sparse: true,
+    },
     entityType: {
       type: String,
       sparse: true,

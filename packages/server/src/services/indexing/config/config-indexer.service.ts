@@ -7,13 +7,18 @@ import { transformRecord } from "@ebee-oss/indexing-engine";
 import {
   fetchAll as fetchPaginated,
   fetchWithForEach,
+  fetchWithSeedFrom,
   type ForEachContext,
+  type StartingPointContext,
 } from "./paginated-fetcher.js";
+import { StartingPointResolver } from "./starting-point-resolver.service.js";
 import { enrich as enrichRecord } from "./enrichment-executor.js";
 import { extractEntities, extractRelationships } from "./entity-extractor.js";
 import { MCPSyncStateModel } from "../../../models/mcp-sync-state.model.js";
+import { DataSourceModel } from "../../../models/data-source.model.js";
 import { mcpClientManager } from "../../../mcp/client.js";
 import { rateLimiterManager } from "./rate-limiter.js";
+import { ContentAggregatorService } from "./content-aggregator.service.js";
 import logger from "../../../utils/logger.js";
 
 export interface IndexProgress {
@@ -42,11 +47,85 @@ const BACKPRESSURE_CONFIG = {
  */
 export async function* indexAll(
   config: IndexingConfig,
-  serverName: string
+  serverName: string,
+  userProvidedStartingPoints?: Record<string, string[]>
 ): AsyncGenerator<{
   records: TransformedRecord[];
   progress: IndexProgress;
 }> {
+  // Ensure MCP client is connected before indexing
+  if (!mcpClientManager.isConnected(serverName)) {
+    logger.info(
+      { serverName },
+      "MCP client not connected, attempting to connect before indexing"
+    );
+
+    try {
+      const dataSource = await DataSourceModel.findOne({ name: serverName });
+      if (!dataSource) {
+        throw new Error(`Data source '${serverName}' not found`);
+      }
+
+      if (dataSource.isDisabled) {
+        throw new Error(`Data source '${serverName}' is disabled`);
+      }
+
+      // Validate config
+      const validationError = dataSource.validateMCPConfig();
+      if (validationError) {
+        throw new Error(
+          `Invalid MCP config for '${serverName}': ${validationError}`
+        );
+      }
+
+      // Connect to MCP server
+      await mcpClientManager.connect(dataSource);
+      logger.info(
+        { serverName },
+        "Successfully connected to MCP server before indexing"
+      );
+    } catch (connectError) {
+      logger.error(
+        { err: connectError, serverName },
+        "Failed to connect to MCP server before indexing"
+      );
+      throw new Error(
+        `Cannot start indexing: Failed to connect to MCP server '${serverName}': ${
+          connectError instanceof Error
+            ? connectError.message
+            : String(connectError)
+        }`
+      );
+    }
+  }
+
+  // Resolve starting points if configured
+  let startingPointValues: StartingPointContext = {};
+  if (config.startingPoints && config.startingPoints.length > 0) {
+    try {
+      startingPointValues = StartingPointResolver.resolve(
+        config.startingPoints,
+        userProvidedStartingPoints
+      );
+      logger.info(
+        {
+          serverName,
+          startingPointCount: Object.keys(startingPointValues).length,
+          totalValues: Object.values(startingPointValues).reduce(
+            (sum, vals) => sum + vals.length,
+            0
+          ),
+        },
+        "Starting points resolved for indexing"
+      );
+    } catch (error) {
+      logger.error(
+        { err: error, serverName },
+        "Failed to resolve starting points"
+      );
+      throw error;
+    }
+  }
   // Load tool classifications if available
   if (config.toolClassifications) {
     mcpClientManager.setToolClassifications(
@@ -62,10 +141,26 @@ export async function* indexAll(
   // Track fetcher results for forEach references
   const fetcherResults: ForEachContext = {};
 
+  // Initialize content aggregator service
+  const contentAggregator = new ContentAggregatorService(config.fetchers);
+
   // Get fetchers in the correct order
   const orderedFetchers = getOrderedFetchers(config);
 
   for (const [fetcherName, fetcherConfig] of orderedFetchers) {
+    // Skip aggregation-only fetchers (have paramsFromParent but no seedFrom/forEach)
+    if (
+      fetcherConfig.paramsFromParent &&
+      !fetcherConfig.seedFrom &&
+      !fetcherConfig.forEach
+    ) {
+      logger.debug(
+        { fetcherName },
+        "Skipping aggregation-only fetcher (no seedFrom/forEach)"
+      );
+      continue;
+    }
+
     // Skip if this fetcher uses a write or search tool
     if (config.toolClassifications) {
       const classification = config.toolClassifications[fetcherConfig.tool];
@@ -99,10 +194,27 @@ export async function* indexAll(
     // Store all records from this fetcher for forEach references
     const allFetcherRecords: any[] = [];
 
-    // Determine which fetch method to use
-    const pageGenerator = fetcherConfig.forEach
-      ? fetchWithForEach(serverName, fetcherConfig, fetcherResults)
-      : fetchPaginated(serverName, fetcherConfig);
+    // Determine which fetch method to use based on config
+    let pageGenerator: AsyncGenerator<any>;
+
+    if (fetcherConfig.seedFrom) {
+      // Use seedFrom to iterate over starting point values
+      pageGenerator = fetchWithSeedFrom(
+        serverName,
+        fetcherConfig,
+        startingPointValues
+      );
+    } else if (fetcherConfig.forEach) {
+      // Use forEach to iterate over previous fetcher results
+      pageGenerator = fetchWithForEach(
+        serverName,
+        fetcherConfig,
+        fetcherResults
+      );
+    } else {
+      // Standard pagination
+      pageGenerator = fetchPaginated(serverName, fetcherConfig);
+    }
 
     // Fetch pages
     for await (const pageResult of pageGenerator) {
@@ -187,12 +299,76 @@ export async function* indexAll(
         }
 
         try {
+          // Aggregate content if configured for this fetcher
+          let recordWithAggregation = rawRecord;
+          if (fetcherConfig.aggregateContent) {
+            logger.debug(
+              {
+                fetcherName,
+                aggregationFields: Object.keys(fetcherConfig.aggregateContent),
+              },
+              "Aggregating content from child fetchers"
+            );
+
+            try {
+              const aggregatedData = await contentAggregator.aggregateContent(
+                rawRecord,
+                fetcherConfig.aggregateContent,
+                {
+                  dataSourceId: serverName,
+                  syncConfigId: config.source,
+                }
+              );
+
+              // Merge aggregated data with raw record
+              for (const [fieldName, data] of Object.entries(aggregatedData)) {
+                const aggConfig = fetcherConfig.aggregateContent[fieldName];
+                const mergeStrategy = aggConfig.mergeStrategy || "merge";
+
+                if (recordWithAggregation[fieldName] !== undefined) {
+                  recordWithAggregation[fieldName] =
+                    contentAggregator.mergeData(
+                      recordWithAggregation[fieldName],
+                      data,
+                      mergeStrategy
+                    );
+                } else {
+                  recordWithAggregation[fieldName] = data;
+                }
+              }
+
+              // Extract fields if configured
+              if (fetcherConfig.extractFromAggregation) {
+                const extractedFields = contentAggregator.extractFields(
+                  aggregatedData,
+                  fetcherConfig.extractFromAggregation
+                );
+                Object.assign(recordWithAggregation, extractedFields);
+              }
+
+              logger.debug(
+                {
+                  fetcherName,
+                  originalSize: JSON.stringify(rawRecord).length,
+                  aggregatedSize: JSON.stringify(recordWithAggregation).length,
+                },
+                "Content aggregation completed"
+              );
+            } catch (aggError) {
+              logger.error(
+                { err: aggError, fetcherName },
+                "Failed to aggregate content, using original record"
+              );
+              // Continue with original record if aggregation fails
+            }
+          }
+
           // Enrich if needed
           let enrichments = {};
           if (recordType.enrichments && recordType.enrichments.length > 0) {
             enrichments = await enrichRecord(
               serverName,
-              rawRecord,
+              recordWithAggregation,
               recordType.enrichments,
               config.rateLimit
             );
@@ -201,7 +377,7 @@ export async function* indexAll(
           // Transform
           const transformed = await transformRecord(
             {
-              record: rawRecord,
+              record: recordWithAggregation,
               enrichments,
             },
             recordType,

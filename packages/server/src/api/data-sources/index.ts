@@ -1,6 +1,9 @@
 import { Request, Response, Router } from "express";
 import { DataSourceModel } from "../../models/data-source.model.js";
+import { IndexingConfigModel } from "../../models/indexing-config.model.js";
+import { MCPSyncStateModel } from "../../models/mcp-sync-state.model.js";
 import { mcpClientManager } from "../../mcp/client.js";
+import { presetLoader } from "../../services/presets/preset-loader.service.js";
 import logger from "../../utils/logger.js";
 
 const dataSourcesRouter: Router = Router();
@@ -136,6 +139,32 @@ dataSourcesRouter.post("/", async (req: Request, res: Response) => {
     await dataSource.save();
 
     logger.info({ name: config.name }, "Data source created");
+
+    // Auto-create indexing config from preset if presetId is provided
+    if (config.presetId) {
+      try {
+        const preset = presetLoader.getPreset(config.presetId);
+        if (preset?.indexingConfig) {
+          const indexingConfig = new IndexingConfigModel({
+            serverName: config.name,
+            displayName: preset.displayName,
+            status: "active",
+            configVersion: 1,
+            config: preset.indexingConfig,
+          });
+          await indexingConfig.save();
+          logger.info(
+            { name: config.name, presetId: config.presetId },
+            "Auto-created indexing config from preset"
+          );
+        }
+      } catch (presetErr) {
+        logger.warn(
+          { err: presetErr, name: config.name, presetId: config.presetId },
+          "Failed to auto-create indexing config from preset"
+        );
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -275,9 +304,24 @@ dataSourcesRouter.delete("/:name", async (req: Request, res: Response) => {
       await mcpClientManager.disconnect(name);
     }
 
+    // Cascade delete: Remove associated indexing config and sync state
+    const indexingConfigResult = await IndexingConfigModel.deleteOne({
+      serverName: name,
+    });
+    const syncStateResult = await MCPSyncStateModel.deleteOne({
+      serverName: name,
+    });
+
     await DataSourceModel.deleteOne({ name });
 
-    logger.info({ name }, "Data source deleted");
+    logger.info(
+      {
+        name,
+        indexingConfigDeleted: indexingConfigResult.deletedCount > 0,
+        syncStateDeleted: syncStateResult.deletedCount > 0,
+      },
+      "Data source and associated resources deleted"
+    );
 
     res.json({
       success: true,

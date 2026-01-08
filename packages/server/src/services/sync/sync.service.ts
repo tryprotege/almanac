@@ -3,15 +3,8 @@ import type { DataSource } from "../../models/data-source.model.js";
 import { IndexingConfigModel } from "../../models/indexing-config.model.js";
 import { RecordStore } from "../../stores/record.store.js";
 import logger from "../../utils/logger.js";
-import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
-import { GitHubMCPClient } from "../sources/github/mcpClient.js";
-import { NotionMCPClient } from "../sources/notion/mcpClient.js";
 import { SlackMCPClient } from "../sources/slack/mcpClient.js";
 import { BaseRecordAdapter } from "./adapters/base-adapter.js";
-import { FathomAdapter } from "./adapters/fathom-adapter.js";
-import { GitHubAdapter } from "./adapters/github-adapter.js";
-import { NotionAdapter } from "./adapters/notion-adapter.js";
-import { SlackAdapter } from "./adapters/slack-adapter.js";
 import { syncAllRecords } from "./record-sync.service.js";
 import { indexAll } from "../indexing/config/config-indexer.service.js";
 import { RecordModel } from "../../models/record.model.js";
@@ -19,6 +12,7 @@ import { VectorStore } from "../../stores/vector.store.js";
 import { insertRecordToVectorDB } from "../indexing/embeddings/vector-indexer.service.js";
 import { connectQdrant } from "../../connections/qdrant.js";
 import { createHash } from "crypto";
+import { SlackAdapter } from "./adapters/slack-adapter.js";
 
 export const syncMcpServer = async (
   dataSource: DataSource & { _id: any },
@@ -45,8 +39,14 @@ export const syncMcpServer = async (
 
     let recordsProcessed = 0;
 
-    // Run config-based sync
-    const syncGenerator = indexAll(syncConfig.config, dataSource.name);
+    // Run config-based sync (no user-provided starting points in background sync)
+    const syncGenerator = indexAll(
+      syncConfig.config,
+      dataSource.name,
+      syncConfig.startingPointValues
+        ? Object.fromEntries(syncConfig.startingPointValues)
+        : undefined
+    );
 
     for await (const { records } of syncGenerator) {
       // 1. Save to MongoDB
@@ -130,27 +130,7 @@ export const syncMcpServer = async (
   let adapter: BaseRecordAdapter;
 
   // Create adapter based on source type
-  if (dataSource.name === "notion") {
-    const notionClient = new NotionMCPClient();
-    adapter = new NotionAdapter(notionClient);
-  } else if (dataSource.name === "github") {
-    const githubClient = new GitHubMCPClient();
-    adapter = new GitHubAdapter(githubClient, {
-      includeArchived: false,
-      includeForks: true,
-      includePrivate: true,
-    });
-  } else if (dataSource.name === "fathom") {
-    const fathomClient = new FathomMCPClient();
-    adapter = new FathomAdapter(fathomClient, {
-      includeActionItems: true,
-      includeNotes: true,
-      includeHighlights: true,
-      includeTeamMembers: true,
-      includeTeams: true,
-      includeTranscripts: true,
-    });
-  } else if (dataSource.name === "slack") {
+  if (dataSource.name === "slack") {
     const slackClient = new SlackMCPClient();
     adapter = new SlackAdapter(slackClient);
   } else {

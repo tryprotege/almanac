@@ -11,6 +11,7 @@ import logger from "../utils/logger.js";
 import { oauthProviderFactory } from "../oauth/mcp-oauth-provider.js";
 import { discoverSseOAuth } from "../oauth/sse-oauth.js";
 import type { DataSource } from "../models/data-source.model.js";
+import { env } from "../env.js";
 
 class MCPClientManager {
   private clients: Map<string, Client> = new Map();
@@ -384,22 +385,27 @@ class MCPClientManager {
       arguments: args,
     });
 
-    // Log response (truncated if too large)
-    const responseStr = JSON.stringify(response);
-    const truncatedResponse =
-      responseStr.length > 500
-        ? responseStr.substring(0, 500) +
-          `... (${responseStr.length} chars total)`
-        : responseStr;
-
-    logger.info(
-      {
-        serverName,
-        toolName: actualToolName,
-        responsePreview: truncatedResponse,
-      },
-      `[MCP RESPONSE] ${serverName}.${actualToolName}`
-    );
+    // Conditionally log full response or just length based on DEBUG_MCP_LOGS
+    if (env.MCP_DEBUG_LOGS) {
+      logger.debug(
+        {
+          serverName,
+          toolName: actualToolName,
+          responsePreview: JSON.stringify(response, null, 2),
+        },
+        `[MCP RESPONSE] ${serverName}.${actualToolName}`
+      );
+    } else {
+      const responseLength = JSON.stringify(response).length;
+      logger.debug(
+        {
+          serverName,
+          toolName: actualToolName,
+          responseLength,
+        },
+        `[MCP RESPONSE] ${serverName}.${actualToolName} - ${responseLength} chars`
+      );
+    }
 
     return response;
   }

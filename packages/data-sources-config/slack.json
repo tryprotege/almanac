@@ -1,0 +1,314 @@
+{
+  "id": "slack",
+  "displayName": "Slack",
+  "description": "Connect to your Slack workspace to index channels, messages, threads, and conversations for comprehensive team communication knowledge",
+  "icon": "slack",
+  "category": "communication",
+  "connection": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "slack-mcp-server@latest", "--transport", "stdio"]
+  },
+  "variables": [
+    {
+      "key": "SLACK_MCP_XOXB_TOKEN",
+      "label": "Slack Token (Bot or User)",
+      "type": "password",
+      "required": true,
+      "helpText": "Your Slack token - accepts Bot Token (xoxb-...) or User Token (xoxp-...). Bot tokens access channels the bot is invited to. User tokens access channels/DMs you're personally in (more powerful but requires user OAuth). Required scopes: channels:read, groups:read, channels:history, groups:history, users:read (add im:read, im:history, mpim:read, mpim:history for DM access with user tokens)."
+    }
+  ],
+  "indexingConfig": {
+    "source": "slack",
+    "version": "1.0",
+    "displayName": "Slack",
+    "icon": "slack",
+    "toolClassifications": {
+      "channels_list": {
+        "toolName": "channels_list",
+        "category": "read"
+      },
+      "conversations_history": {
+        "toolName": "conversations_history",
+        "category": "read"
+      },
+      "conversations_replies": {
+        "toolName": "conversations_replies",
+        "category": "read"
+      },
+      "conversations_add_message": {
+        "toolName": "conversations_add_message",
+        "category": "write"
+      }
+    },
+    "startingPoints": [
+      {
+        "name": "channelTypes",
+        "description": "Types of channels to index (comma-separated). Options: public_channel, private_channel, im, mpim",
+        "required": true,
+        "userProvided": true,
+        "default": "public_channel,private_channel",
+        "examples": ["public_channel,private_channel", "public_channel", "public_channel,private_channel,im"]
+      },
+      {
+        "name": "messageHistoryLimit",
+        "description": "How far back to fetch message history (e.g., 7d, 30d, 90d, or a number like 100)",
+        "required": false,
+        "userProvided": true,
+        "default": "30d",
+        "examples": ["7d", "30d", "90d", "100"]
+      }
+    ],
+    "syncOrder": [
+      "fetchChannels",
+      "fetchMessages",
+      "fetchThreadReplies"
+    ],
+    "fetchers": {
+      "fetchChannels": {
+        "tool": "channels_list",
+        "description": "Fetch all channels in the workspace",
+        "seedFrom": {
+          "startingPoint": "channelTypes",
+          "paramMapping": {
+            "channel_types": "$",
+            "limit": 100
+          }
+        },
+        "pagination": {
+          "type": "cursor",
+          "cursorParam": "cursor",
+          "cursorPath": "$.Cursor",
+          "limitParam": "limit"
+        },
+        "resultPath": "$",
+        "arrayPath": "$[*]",
+        "rateLimit": {
+          "maxRequests": 20,
+          "windowSeconds": 60,
+          "strategy": "token_bucket",
+          "allowBurst": true
+        }
+      },
+      "fetchMessages": {
+        "tool": "conversations_history",
+        "description": "Fetch messages from each channel",
+        "forEach": {
+          "source": "fetchChannels",
+          "path": "$[*]",
+          "paramMapping": {
+            "channel_id": "$.ID",
+            "limit": "$.limit"
+          },
+          "concurrency": 3,
+          "continueOnError": true,
+          "retries": 2
+        },
+        "params": {
+          "include_activity_messages": false
+        },
+        "paramsFromStartingPoints": {
+          "limit": "messageHistoryLimit"
+        },
+        "pagination": {
+          "type": "cursor",
+          "cursorParam": "cursor",
+          "cursorPath": "$.Cursor"
+        },
+        "resultPath": "$",
+        "arrayPath": "$[*]",
+        "rateLimit": {
+          "maxRequests": 50,
+          "windowSeconds": 60,
+          "strategy": "token_bucket",
+          "allowBurst": true
+        }
+      },
+      "fetchThreadReplies": {
+        "tool": "conversations_replies",
+        "description": "Fetch replies for threaded messages",
+        "forEach": {
+          "source": "fetchMessages",
+          "path": "$[?(@.ThreadTs && @.ThreadTs != '')]",
+          "paramMapping": {
+            "channel_id": "$.Channel",
+            "thread_ts": "$.ThreadTs",
+            "limit": "100"
+          },
+          "concurrency": 2,
+          "continueOnError": true,
+          "retries": 2
+        },
+        "params": {
+          "include_activity_messages": false
+        },
+        "pagination": {
+          "type": "cursor",
+          "cursorParam": "cursor",
+          "cursorPath": "$.Cursor"
+        },
+        "resultPath": "$",
+        "arrayPath": "$[*]",
+        "rateLimit": {
+          "maxRequests": 50,
+          "windowSeconds": 60,
+          "strategy": "token_bucket",
+          "allowBurst": true
+        }
+      }
+    },
+    "recordTypes": {
+      "slackChannel": {
+        "name": "slackChannel",
+        "fetcher": "fetchChannels",
+        "detection": {
+          "always": true
+        },
+        "fields": {
+          "title": {
+            "type": "path",
+            "path": "Name"
+          },
+          "content": {
+            "type": "template",
+            "template": "${record.Topic || record.Purpose || ''}"
+          },
+          "primaryDate": {
+            "type": "code",
+            "code": "return new Date().toISOString();"
+          },
+          "tags": {
+            "type": "code",
+            "code": "const tags = []; if (record.Name.startsWith('#')) tags.push('public_channel'); if (record.MemberCount) tags.push(`members:${record.MemberCount}`); return tags;"
+          },
+          "metadata": {
+            "type": "code",
+            "code": "return { channelId: record.ID, memberCount: record.MemberCount, topic: record.Topic, purpose: record.Purpose };"
+          }
+        },
+        "relationships": []
+      },
+      "slackMessage": {
+        "name": "slackMessage",
+        "fetcher": "fetchMessages",
+        "detection": {
+          "condition": "record.Text && record.Text.length > 0"
+        },
+        "fields": {
+          "title": {
+            "type": "template",
+            "template": "Message in ${record.Channel}"
+          },
+          "content": {
+            "type": "path",
+            "path": "Text"
+          },
+          "people": {
+            "type": "paths",
+            "paths": ["UserID"]
+          },
+          "primaryDate": {
+            "type": "code",
+            "code": "const ts = parseFloat(record.Time || record.MsgID); return new Date(ts * 1000).toISOString();"
+          },
+          "tags": {
+            "type": "code",
+            "code": "const tags = []; if (record.ThreadTs && record.ThreadTs !== '') tags.push('threaded'); if (record.Reactions && record.Reactions !== '') tags.push('has_reactions'); return tags;"
+          },
+          "metadata": {
+            "type": "code",
+            "code": "return { messageId: record.MsgID, channelId: record.Channel, threadTs: record.ThreadTs, reactions: record.Reactions, userName: record.UserName, realName: record.RealName };"
+          }
+        },
+        "entities": [
+          {
+            "name": "author",
+            "type": "Person",
+            "idPath": "$.UserID",
+            "titlePath": "$.RealName"
+          }
+        ],
+        "relationships": [
+          {
+            "name": "posted_in_channel",
+            "type": "POSTED_IN",
+            "targetType": "slackChannel",
+            "targetIdPath": "$.Channel",
+            "confidence": 1.0
+          },
+          {
+            "name": "thread_parent",
+            "type": "REPLY_TO",
+            "condition": "record.ThreadTs && record.ThreadTs !== '' && record.ThreadTs !== record.MsgID",
+            "targetType": "slackMessage",
+            "targetIdPath": "$.ThreadTs",
+            "confidence": 0.9
+          }
+        ]
+      },
+      "slackThreadReply": {
+        "name": "slackThreadReply",
+        "fetcher": "fetchThreadReplies",
+        "detection": {
+          "condition": "record.Text && record.Text.length > 0 && record.ThreadTs && record.ThreadTs !== ''"
+        },
+        "fields": {
+          "title": {
+            "type": "template",
+            "template": "Thread reply in ${record.Channel}"
+          },
+          "content": {
+            "type": "path",
+            "path": "Text"
+          },
+          "people": {
+            "type": "paths",
+            "paths": ["UserID"]
+          },
+          "primaryDate": {
+            "type": "code",
+            "code": "const ts = parseFloat(record.Time || record.MsgID); return new Date(ts * 1000).toISOString();"
+          },
+          "tags": {
+            "type": "code",
+            "code": "const tags = ['thread_reply']; if (record.Reactions && record.Reactions !== '') tags.push('has_reactions'); return tags;"
+          },
+          "metadata": {
+            "type": "code",
+            "code": "return { messageId: record.MsgID, channelId: record.Channel, threadTs: record.ThreadTs, reactions: record.Reactions, userName: record.UserName, realName: record.RealName };"
+          }
+        },
+        "entities": [
+          {
+            "name": "author",
+            "type": "Person",
+            "idPath": "$.UserID",
+            "titlePath": "$.RealName"
+          }
+        ],
+        "relationships": [
+          {
+            "name": "reply_in_thread",
+            "type": "REPLY_IN_THREAD",
+            "targetType": "slackMessage",
+            "targetIdPath": "$.ThreadTs",
+            "confidence": 1.0
+          },
+          {
+            "name": "posted_in_channel",
+            "type": "POSTED_IN",
+            "targetType": "slackChannel",
+            "targetIdPath": "$.Channel",
+            "confidence": 1.0
+          }
+        ]
+      }
+    },
+    "rateLimit": {
+      "maxRequests": 50,
+      "windowSeconds": 60,
+      "strategy": "token_bucket",
+      "allowBurst": true
+    }
+  }
+}

@@ -49,7 +49,7 @@ export async function indexConfigEntities(
     // 2. Link entities to document (MENTIONED_IN)
     const entityLinks = extractedEntities.map((entity) => ({
       entityId: entity.id,
-      documentId: documentId,
+      recordId: documentId,
       confidence: 1.0,
     }));
 
@@ -77,7 +77,7 @@ export async function indexConfigEntities(
 
       return {
         updateOne: {
-          filter: { _id: entity.id },
+          filter: { entityId: entity.id },
           update: {
             $set: {
               itemType: "entity",
@@ -144,7 +144,11 @@ export async function indexConfigEntities(
 
       return {
         updateOne: {
-          filter: { _id: relId },
+          filter: {
+            sourceId: rel.sourceId,
+            targetId: rel.targetId,
+            relType: rel.type,
+          },
           update: {
             $set: {
               itemType: "relationship",

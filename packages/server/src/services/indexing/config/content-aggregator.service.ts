@@ -4,6 +4,7 @@ import type {
   FetcherConfig,
 } from "@ebee-oss/indexing-engine";
 import { mcpClientManager } from "../../../mcp/client.js";
+import logger from "../../../utils/logger.js";
 
 /**
  * ContentAggregatorService
@@ -74,24 +75,40 @@ export class ContentAggregatorService {
     // Resolve parameters from parent context
     const params = this.resolveParamsFromParent(fetcherConfig, parentData);
 
-    console.log(
-      `[ContentAggregator] Executing fetcher '${fetcherName}' for aggregation with params:`,
-      JSON.stringify(params).substring(0, 200)
-    );
+    logger.debug({
+      msg: `[ContentAggregator] Executing fetcher '${fetcherName}' for aggregation with params:`,
+      params,
+    });
 
-    // Execute the tool
-    const result = await mcpClientManager.callTool(
+    // Use fetchPage to get properly extracted records with resultPath applied
+    const { fetchPage } = await import("./paginated-fetcher.js");
+
+    // Create a minimal config for the tool call
+    const callConfig: FetcherConfig = {
+      tool: fetcherConfig.tool,
+      resultPath: fetcherConfig.resultPath,
+      pagination: fetcherConfig.pagination,
+      params,
+      rateLimit: fetcherConfig.rateLimit,
+    };
+
+    const result = await fetchPage(
       context.dataSourceId,
-      fetcherConfig.tool,
-      params
+      callConfig,
+      params,
+      fetcherConfig.rateLimit
     );
 
+    // Return just the records array, not the full PageResult
     // Apply transformResult if configured
     if (fetcherConfig.transformResult) {
-      return this.transformResult(result, fetcherConfig.transformResult);
+      return this.transformResult(
+        result.records,
+        fetcherConfig.transformResult
+      );
     }
 
-    return result;
+    return result.records;
   }
 
   /**

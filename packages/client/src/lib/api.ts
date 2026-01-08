@@ -516,7 +516,11 @@ export const syncConfigApi = {
   }) =>
     api.post<ApiResponse<PreviewResult>>("/indexing-config/preview", params),
 
-  save: (params: { config: any; status?: "draft" | "active" | "disabled" }) =>
+  save: (params: {
+    config: any;
+    status?: "draft" | "active" | "disabled";
+    startingPointValues?: Record<string, string[]>;
+  }) =>
     api.post<
       ApiResponse<{ success: boolean; configId: string; serverName: string }>
     >("/indexing-config/save", params),
@@ -565,4 +569,17 @@ export const syncConfigApi = {
     >(`/indexing-config/${encodeURIComponent(serverName)}/starting-points`, {
       values,
     }),
+
+  reloadFromMarketplace: (serverName: string) =>
+    api.post<
+      ApiResponse<{
+        success: boolean;
+        data: SyncConfigData;
+        message: string;
+      }>
+    >(
+      `/indexing-config/${encodeURIComponent(
+        serverName
+      )}/reload-from-marketplace`
+    ),
 };

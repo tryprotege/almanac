@@ -15,6 +15,7 @@ import { StartingPointResolver } from "./starting-point-resolver.service.js";
 import { enrich as enrichRecord } from "./enrichment-executor.js";
 import { extractEntities, extractRelationships } from "./entity-extractor.js";
 import { MCPSyncStateModel } from "../../../models/mcp-sync-state.model.js";
+import { DataSourceModel } from "../../../models/data-source.model.js";
 import { mcpClientManager } from "../../../mcp/client.js";
 import { rateLimiterManager } from "./rate-limiter.js";
 import { ContentAggregatorService } from "./content-aggregator.service.js";
@@ -52,6 +53,52 @@ export async function* indexAll(
   records: TransformedRecord[];
   progress: IndexProgress;
 }> {
+  // Ensure MCP client is connected before indexing
+  if (!mcpClientManager.isConnected(serverName)) {
+    logger.info(
+      { serverName },
+      "MCP client not connected, attempting to connect before indexing"
+    );
+
+    try {
+      const dataSource = await DataSourceModel.findOne({ name: serverName });
+      if (!dataSource) {
+        throw new Error(`Data source '${serverName}' not found`);
+      }
+
+      if (dataSource.isDisabled) {
+        throw new Error(`Data source '${serverName}' is disabled`);
+      }
+
+      // Validate config
+      const validationError = dataSource.validateMCPConfig();
+      if (validationError) {
+        throw new Error(
+          `Invalid MCP config for '${serverName}': ${validationError}`
+        );
+      }
+
+      // Connect to MCP server
+      await mcpClientManager.connect(dataSource);
+      logger.info(
+        { serverName },
+        "Successfully connected to MCP server before indexing"
+      );
+    } catch (connectError) {
+      logger.error(
+        { err: connectError, serverName },
+        "Failed to connect to MCP server before indexing"
+      );
+      throw new Error(
+        `Cannot start indexing: Failed to connect to MCP server '${serverName}': ${
+          connectError instanceof Error
+            ? connectError.message
+            : String(connectError)
+        }`
+      );
+    }
+  }
+
   // Resolve starting points if configured
   let startingPointValues: StartingPointContext = {};
   if (config.startingPoints && config.startingPoints.length > 0) {

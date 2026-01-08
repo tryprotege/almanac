@@ -12,10 +12,10 @@
   "variables": [
     {
       "key": "SLACK_MCP_XOXB_TOKEN",
-      "label": "Slack Bot Token",
+      "label": "Slack Token (Bot or User)",
       "type": "password",
       "required": true,
-      "helpText": "Your Slack bot token (xoxb-...) with required scopes: channels:read, groups:read, channels:history, groups:history, users:read"
+      "helpText": "Your Slack token - accepts Bot Token (xoxb-...) or User Token (xoxp-...). Bot tokens access channels the bot is invited to. User tokens access channels/DMs you're personally in (more powerful but requires user OAuth). Required scopes: channels:read, groups:read, channels:history, groups:history, users:read (add im:read, im:history, mpim:read, mpim:history for DM access with user tokens)."
     }
   ],
   "indexingConfig": {

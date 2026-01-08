@@ -80,19 +80,35 @@ export class ContentAggregatorService {
       params,
     });
 
-    // Execute the tool
-    const result = await mcpClientManager.callTool(
+    // Use fetchPage to get properly extracted records with resultPath applied
+    const { fetchPage } = await import("./paginated-fetcher.js");
+
+    // Create a minimal config for the tool call
+    const callConfig: FetcherConfig = {
+      tool: fetcherConfig.tool,
+      resultPath: fetcherConfig.resultPath,
+      pagination: fetcherConfig.pagination,
+      params,
+      rateLimit: fetcherConfig.rateLimit,
+    };
+
+    const result = await fetchPage(
       context.dataSourceId,
-      fetcherConfig.tool,
-      params
+      callConfig,
+      params,
+      fetcherConfig.rateLimit
     );
 
+    // Return just the records array, not the full PageResult
     // Apply transformResult if configured
     if (fetcherConfig.transformResult) {
-      return this.transformResult(result, fetcherConfig.transformResult);
+      return this.transformResult(
+        result.records,
+        fetcherConfig.transformResult
+      );
     }
 
-    return result;
+    return result.records;
   }
 
   /**

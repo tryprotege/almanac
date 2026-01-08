@@ -234,8 +234,8 @@
             "path": "properties.title.title[0].plain_text"
           },
           "content": {
-            "type": "template",
-            "template": "${record.properties.title.title[0].plain_text || 'Untitled'}"
+            "type": "code",
+            "code": "const title = record.properties?.title?.title?.[0]?.plain_text || 'Untitled'; const blocks = record.blocks || []; const blockText = blocks.map(block => { const blockType = block.type; const blockData = block[blockType]; if (!blockData || !blockData.rich_text) return ''; return blockData.rich_text.map(rt => rt.plain_text).join(''); }).filter(text => text.length > 0).join('\\n\\n'); return title + (blockText ? '\\n\\n' + blockText : '');"
           },
           "people": {
             "type": "paths",
@@ -269,13 +269,6 @@
           }
         ],
         "relationships": [
-          {
-            "name": "contains_blocks",
-            "type": "CONTAINS",
-            "targetType": "notionBlock",
-            "targetIdPath": "$.blocks[*].id",
-            "confidence": 1.0
-          },
           {
             "name": "parent_page",
             "type": "PARENT_OF",
@@ -298,8 +291,8 @@
             "path": "properties.title.title[0].plain_text"
           },
           "content": {
-            "type": "template",
-            "template": "${record.properties.title.title[0].plain_text || 'Untitled'}"
+            "type": "code",
+            "code": "const title = record.properties?.title?.title?.[0]?.plain_text || 'Untitled'; const blocks = record.blocks || []; const blockText = blocks.map(block => { const blockType = block.type; const blockData = block[blockType]; if (!blockData || !blockData.rich_text) return ''; return blockData.rich_text.map(rt => rt.plain_text).join(''); }).filter(text => text.length > 0).join('\\n\\n'); return title + (blockText ? '\\n\\n' + blockText : '');"
           },
           "people": {
             "type": "paths",
@@ -334,61 +327,11 @@
         ],
         "relationships": [
           {
-            "name": "contains_blocks",
-            "type": "CONTAINS",
-            "targetType": "notionBlock",
-            "targetIdPath": "$.blocks[*].id",
-            "confidence": 1.0
-          },
-          {
             "name": "child_of_page",
             "type": "CHILD_OF",
             "condition": "record.parent && record.parent.type === 'page_id'",
             "targetType": "notionPage",
             "targetIdPath": "$.parent.page_id",
-            "confidence": 1.0
-          }
-        ]
-      },
-      "notionBlock": {
-        "name": "notionBlock",
-        "fetcher": "fetchPageBlocks",
-        "detection": {
-          "always": true
-        },
-        "fields": {
-          "title": {
-            "type": "template",
-            "template": "${record.type} block"
-          },
-          "content": {
-            "type": "code",
-            "code": "const blockType = record.type; const blockData = record[blockType]; if (!blockData || !blockData.rich_text) return ''; return blockData.rich_text.map(rt => rt.plain_text).join('');"
-          },
-          "primaryDate": {
-            "type": "path",
-            "path": "last_edited_time"
-          },
-          "parentId": {
-            "type": "path",
-            "path": "parent.page_id"
-          }
-        },
-        "relationships": [
-          {
-            "name": "belongs_to_page",
-            "type": "BELONGS_TO",
-            "condition": "record.parent && record.parent.type === 'page_id'",
-            "targetType": "notionPage",
-            "targetIdPath": "$.parent.page_id",
-            "confidence": 1.0
-          },
-          {
-            "name": "child_block",
-            "type": "CHILD_BLOCK_OF",
-            "condition": "record.parent && record.parent.type === 'block_id'",
-            "targetType": "notionBlock",
-            "targetIdPath": "$.parent.block_id",
             "confidence": 1.0
           }
         ]
@@ -442,7 +385,7 @@
           },
           "content": {
             "type": "code",
-            "code": "const props = record.properties; let content = []; for (const key in props) { const prop = props[key]; if (prop.type === 'rich_text' && prop.rich_text) { content.push(prop.rich_text.map(rt => rt.plain_text).join('')); } } return content.join(' ');"
+            "code": "const props = record.properties; let content = []; let title = ''; for (const key in props) { const prop = props[key]; if (prop.type === 'title' && prop.title && prop.title[0]) { title = prop.title[0].plain_text; } else if (prop.type === 'rich_text' && prop.rich_text) { content.push(prop.rich_text.map(rt => rt.plain_text).join('')); } } const pageContent = record.pageContent || []; const blockText = pageContent.map(block => { const blockType = block.type; const blockData = block[blockType]; if (!blockData || !blockData.rich_text) return ''; return blockData.rich_text.map(rt => rt.plain_text).join(''); }).filter(text => text.length > 0).join('\\n\\n'); const propertyText = content.join(' '); const parts = [title]; if (propertyText) parts.push(propertyText); if (blockText) parts.push(blockText); return parts.join('\\n\\n');"
           },
           "primaryDate": {
             "type": "path",
@@ -460,14 +403,6 @@
             "condition": "record.parent && record.parent.type === 'database_id'",
             "targetType": "notionDatabase",
             "targetIdPath": "$.parent.database_id",
-            "confidence": 1.0
-          },
-          {
-            "name": "contains_blocks",
-            "type": "CONTAINS",
-            "condition": "record.pageContent && record.pageContent.length > 0",
-            "targetType": "notionBlock",
-            "targetIdPath": "$.pageContent[*].id",
             "confidence": 1.0
           }
         ]

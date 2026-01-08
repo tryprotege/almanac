@@ -1723,7 +1723,7 @@ githubMcpServer.registerTool(
         pr.base?.repo?.name === args.repo &&
         (state === "all" || pr.state === state)
     );
-    const result = { pull_requests: prs };
+    const result = prs;
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };
@@ -1804,7 +1804,7 @@ githubMcpServer.registerTool(
     const releases = (mockData.github.releases || []).filter((r) =>
       r.html_url?.includes(`${args.owner}/${args.repo}`)
     );
-    const result = { releases };
+    const result = releases;
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };

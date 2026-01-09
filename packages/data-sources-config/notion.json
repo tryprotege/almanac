@@ -57,12 +57,19 @@
       {
         "name": "teamWorkspaceId",
         "description": "The ID of your root team workspace page in Notion (e.g., a team home page or documentation hub)",
-        "required": true,
+        "required": false,
         "userProvided": true,
-        "examples": ["13d8a5b0-a4d3-4e8e-9a2f-1234567890ab"]
+        "examples": ["13d8a5b0-a4d3-4e8e-9a2f-1234567890ab"],
+        "discovery": {
+          "fetcher": "discoverRootPages",
+          "valuePath": "$[*].id",
+          "filter": "record.parent && record.parent.type === 'workspace'",
+          "description": "Auto-discover root workspace pages via search"
+        }
       }
     ],
     "syncOrder": [
+      "discoverRootPages",
       "fetchRootPage",
       "fetchPageBlocks",
       "fetchChildPages",
@@ -70,6 +77,21 @@
       "fetchDatabaseItems"
     ],
     "fetchers": {
+      "discoverRootPages": {
+        "tool": "notion_search",
+        "description": "Discover all accessible pages for starting point discovery",
+        "params": {
+          "page_size": 100,
+          "format": "json"
+        },
+        "pagination": {
+          "type": "cursor",
+          "cursorParam": "start_cursor",
+          "cursorPath": "next_cursor",
+          "hasMorePath": "has_more"
+        },
+        "resultPath": "results"
+      },
       "fetchRootPage": {
         "tool": "notion_retrieve_page",
         "description": "Fetch the root team workspace page using the starting point",
@@ -191,7 +213,7 @@
         "description": "Fetch items from databases",
         "forEach": {
           "source": "fetchDatabases",
-          "path": "$",
+          "path": "$[*]",
           "paramMapping": {
             "database_id": "$.id",
             "format": "json",

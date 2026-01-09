@@ -7,7 +7,7 @@
   "connection": {
     "type": "stdio",
     "command": "npx",
-    "args": ["-y", "slack-mcp-server@latest", "--transport", "stdio"]
+    "args": ["-y", "slack-mcp-server@1.1.26", "--transport", "stdio"]
   },
   "variables": [
     {

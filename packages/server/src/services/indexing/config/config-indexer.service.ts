@@ -103,9 +103,11 @@ export async function* indexAll(
   let startingPointValues: StartingPointContext = {};
   if (config.startingPoints && config.startingPoints.length > 0) {
     try {
-      startingPointValues = StartingPointResolver.resolve(
+      startingPointValues = await StartingPointResolver.resolve(
         config.startingPoints,
-        userProvidedStartingPoints
+        userProvidedStartingPoints,
+        serverName,
+        config.fetchers
       );
       logger.info(
         {

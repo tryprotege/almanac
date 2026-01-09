@@ -84,6 +84,30 @@ export interface StartingPointConfig {
 
   /** Example values to help users understand what to provide */
   examples?: string[];
+
+  /** Discovery configuration for auto-populating starting points */
+  discovery?: StartingPointDiscoveryConfig;
+}
+
+/**
+ * StartingPointDiscoveryConfig - Configuration for discovering starting point values
+ * Enables automatic discovery of starting points when user doesn't provide them
+ */
+export interface StartingPointDiscoveryConfig {
+  /** Fetcher to run for discovery (must not require starting points itself) */
+  fetcher: string;
+
+  /** JSONPath to extract starting point values from discovery results */
+  valuePath: string;
+
+  /** Optional: Filter condition to identify valid starting points */
+  filter?: string; // JS expression, e.g., "record.parent?.type === 'workspace'"
+
+  /** Optional: Transform discovered values before using */
+  transform?: string; // JSONPath or template, e.g., "$.id"
+
+  /** Description of what's being discovered */
+  description?: string;
 }
 
 /**

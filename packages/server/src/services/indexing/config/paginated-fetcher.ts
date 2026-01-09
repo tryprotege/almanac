@@ -550,6 +550,17 @@ function extractRecordsFromMCPResponse(response: any): {
       try {
         const parsed = JSON.parse(text);
 
+        // Check if parsed JSON is an error object
+        if (parsed.error && typeof parsed.error === "string") {
+          logger.warn(
+            `MCP response contains error object: ${parsed.error.substring(
+              0,
+              100
+            )}`
+          );
+          return { records: [], error: parsed.error };
+        }
+
         // Could be an array or an object
         if (Array.isArray(parsed)) {
           return { records: parsed };

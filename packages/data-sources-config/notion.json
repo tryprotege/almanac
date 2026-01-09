@@ -7,7 +7,10 @@
   "connection": {
     "type": "stdio",
     "command": "npx",
-    "args": ["-y", "@suekou/mcp-notion-server"]
+    "args": [
+      "-y",
+      "@suekou/mcp-notion-server"
+    ]
   },
   "variables": [
     {
@@ -59,7 +62,9 @@
         "description": "The ID of your root team workspace page in Notion (e.g., a team home page or documentation hub)",
         "required": false,
         "userProvided": true,
-        "examples": ["13d8a5b0-a4d3-4e8e-9a2f-1234567890ab"],
+        "examples": [
+          "13d8a5b0-a4d3-4e8e-9a2f-1234567890ab"
+        ],
         "discovery": {
           "fetcher": "discoverRootPages",
           "valuePath": "$[*].id",
@@ -82,7 +87,11 @@
         "description": "Discover all accessible pages for starting point discovery",
         "params": {
           "page_size": 100,
-          "format": "json"
+          "format": "json",
+          "filter": {
+            "property": "object",
+            "value": "page"
+          }
         },
         "pagination": {
           "type": "cursor",
@@ -261,7 +270,10 @@
           },
           "people": {
             "type": "paths",
-            "paths": ["created_by.id", "last_edited_by.id"]
+            "paths": [
+              "created_by.id",
+              "last_edited_by.id"
+            ]
           },
           "primaryDate": {
             "type": "path",
@@ -318,7 +330,10 @@
           },
           "people": {
             "type": "paths",
-            "paths": ["created_by.id", "last_edited_by.id"]
+            "paths": [
+              "created_by.id",
+              "last_edited_by.id"
+            ]
           },
           "primaryDate": {
             "type": "path",
@@ -371,7 +386,9 @@
           },
           "content": {
             "type": "paths",
-            "paths": ["description[*].plain_text"],
+            "paths": [
+              "description[*].plain_text"
+            ],
             "join": " "
           },
           "primaryDate": {
@@ -438,7 +455,10 @@
     },
     "postProcessing": {
       "enabled": true,
-      "followRelationships": ["CHILD_OF", "PARENT_OF"],
+      "followRelationships": [
+        "CHILD_OF",
+        "PARENT_OF"
+      ],
       "maxIterations": 10,
       "description": "After initial indexing, follow page relationships to discover and fetch any referenced pages that weren't captured in the first pass"
     }

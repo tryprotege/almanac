@@ -125,6 +125,10 @@
         "extractFromAggregation": {
           "blockCount": "blocks.length",
           "hasContent": "blocks && blocks.length > `0`"
+        },
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.last_edited_time"
         }
       },
       "fetchBlocksForAggregation": {
@@ -173,6 +177,10 @@
         "extractFromAggregation": {
           "blockCount": "blocks.length",
           "contentPreview": "blocks[0:3]"
+        },
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.last_edited_time"
         }
       },
       "fetchPageBlocks": {
@@ -215,7 +223,11 @@
         "pagination": {
           "type": "none"
         },
-        "resultPath": "."
+        "resultPath": ".",
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.last_edited_time"
+        }
       },
       "fetchDatabaseItems": {
         "tool": "notion_query_database",
@@ -249,6 +261,10 @@
         "extractFromAggregation": {
           "contentLength": "pageContent.length",
           "hasBlocks": "pageContent && pageContent.length > `0`"
+        },
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.last_edited_time"
         }
       }
     },

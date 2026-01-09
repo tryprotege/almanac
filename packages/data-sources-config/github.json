@@ -90,6 +90,12 @@
         },
         "detection": {
           "type": "always"
+        },
+        "cutoffDate": {
+          "strategy": "both",
+          "apiParam": "since",
+          "apiFormat": "iso8601",
+          "dateFieldPath": "$.created_at"
         }
       },
       "list_pull_requests": {
@@ -115,6 +121,10 @@
         },
         "detection": {
           "type": "always"
+        },
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.created_at"
         }
       },
       "list_releases": {
@@ -139,6 +149,10 @@
         },
         "detection": {
           "type": "always"
+        },
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.published_at"
         }
       },
       "list_discussions": {
@@ -164,6 +178,10 @@
         },
         "detection": {
           "type": "always"
+        },
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.created_at"
         }
       }
     },

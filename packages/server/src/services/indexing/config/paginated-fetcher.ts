@@ -9,6 +9,7 @@ import {
   rateLimiterManager,
 } from "./rate-limiter.js";
 import { detectRateLimitError } from "./mcp-error-parser.js";
+import { applyCutoffDateToParams } from "./config-indexer.service.js";
 import logger from "../../../utils/logger.js";
 import { env } from "../../../env.js";
 
@@ -77,6 +78,9 @@ export async function* fetchWithSeedFrom(
     const batchPromises = batch.map(async (value: any) => {
       // Build params from static params + mapped params
       const params = { ...config.params };
+
+      // Apply cutoff date parameters if configured
+      applyCutoffDateToParams(params, config);
 
       // Map starting point value to tool parameters
       for (const [paramName, jsonPath] of Object.entries(
@@ -248,6 +252,9 @@ export async function* fetchWithForEach(
       // Build params from static params + mapped params
       const params = { ...config.params };
 
+      // Apply cutoff date parameters if configured
+      applyCutoffDateToParams(params, config);
+
       for (const [paramName, jsonPath] of Object.entries(
         forEach.paramMapping
       )) {
@@ -404,6 +411,9 @@ async function* fetchWithBatchMode(
       [forEach.batchMode.batchParam]: batch,
     };
 
+    // Apply cutoff date parameters if configured
+    applyCutoffDateToParams(params, config);
+
     // Call with retries
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -475,6 +485,9 @@ export async function* fetchAll(
 
   while (hasMore) {
     const params = { ...config.params, ...initialParams };
+
+    // Apply cutoff date parameters if configured
+    applyCutoffDateToParams(params, config);
 
     // Add pagination parameters
     if (config.pagination) {

@@ -122,6 +122,12 @@
           "windowSeconds": 60,
           "strategy": "token_bucket",
           "allowBurst": true
+        },
+        "cutoffDate": {
+          "strategy": "both",
+          "apiParam": "oldest",
+          "apiFormat": "unix",
+          "dateFieldPath": "$.Time"
         }
       },
       "fetchThreadReplies": {
@@ -154,6 +160,12 @@
           "windowSeconds": 60,
           "strategy": "token_bucket",
           "allowBurst": true
+        },
+        "cutoffDate": {
+          "strategy": "both",
+          "apiParam": "oldest",
+          "apiFormat": "unix",
+          "dateFieldPath": "$.Time"
         }
       }
     },

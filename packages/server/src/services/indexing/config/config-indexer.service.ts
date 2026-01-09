@@ -20,7 +20,9 @@ import { DataSourceModel } from "../../../models/data-source.model.js";
 import { mcpClientManager } from "../../../mcp/client.js";
 import { rateLimiterManager } from "./rate-limiter.js";
 import { ContentAggregatorService } from "./content-aggregator.service.js";
+import { env } from "../../../env.js";
 import logger from "../../../utils/logger.js";
+import { JSONPath } from "jsonpath-plus";
 
 export interface IndexProgress {
   fetcherName: string;
@@ -31,6 +33,96 @@ export interface IndexProgress {
   error?: string;
   queueSize?: number;
   isBackpressure?: boolean;
+}
+
+/**
+ * Check if record should be filtered by cutoff date
+ */
+function shouldFilterByCutoffDate(fetcherConfig: FetcherConfig): boolean {
+  if (!fetcherConfig.cutoffDate) return false;
+  if (!env.SYNC_CUTOFF_DATE) return false;
+
+  const strategy = fetcherConfig.cutoffDate.strategy;
+  return strategy === "post_fetch" || strategy === "both";
+}
+
+/**
+ * Extract date from record for cutoff comparison
+ */
+function extractRecordDate(
+  record: any,
+  fetcherConfig: FetcherConfig
+): Date | null {
+  if (!fetcherConfig.cutoffDate?.dateFieldPath) return null;
+
+  try {
+    const dateValue = JSONPath({
+      path: fetcherConfig.cutoffDate.dateFieldPath,
+      json: record,
+      wrap: false,
+    });
+
+    if (!dateValue) return null;
+
+    // Handle different date formats
+    if (typeof dateValue === "number") {
+      // Unix timestamp (seconds or milliseconds)
+      return dateValue > 10000000000
+        ? new Date(dateValue)
+        : new Date(dateValue * 1000);
+    }
+
+    return new Date(dateValue);
+  } catch (error) {
+    logger.error(
+      { err: error, path: fetcherConfig.cutoffDate.dateFieldPath },
+      "Failed to extract date from record"
+    );
+    return null;
+  }
+}
+
+/**
+ * Add cutoff date parameter to API call if configured
+ */
+export function applyCutoffDateToParams(
+  params: Record<string, any>,
+  fetcherConfig: FetcherConfig
+): void {
+  if (!env.SYNC_CUTOFF_DATE) return;
+  if (!fetcherConfig.cutoffDate) return;
+
+  const config = fetcherConfig.cutoffDate;
+  const strategy = config.strategy;
+
+  if ((strategy === "api" || strategy === "both") && config.apiParam) {
+    const cutoffDate = new Date(env.SYNC_CUTOFF_DATE);
+
+    // Format based on API requirements
+    switch (config.apiFormat) {
+      case "unix":
+        params[config.apiParam] = Math.floor(
+          cutoffDate.getTime() / 1000
+        ).toString();
+        break;
+      case "unix_ms":
+        params[config.apiParam] = cutoffDate.getTime().toString();
+        break;
+      case "iso8601":
+      default:
+        params[config.apiParam] = cutoffDate.toISOString();
+    }
+
+    logger.info(
+      {
+        param: config.apiParam,
+        value: params[config.apiParam],
+        cutoffDate: env.SYNC_CUTOFF_DATE,
+        strategy: config.strategy,
+      },
+      "Applied SYNC_CUTOFF_DATE to API params"
+    );
+  }
 }
 
 // Configuration for backpressure
@@ -230,17 +322,49 @@ export async function* indexAll(
         );
       }
 
-      // Store raw records for forEach references
-      allFetcherRecords.push(...pageResult.records);
+      // Apply cutoff date filtering if configured
+      let filteredRecords = pageResult.records;
+      if (shouldFilterByCutoffDate(fetcherConfig) && env.SYNC_CUTOFF_DATE) {
+        const cutoffDate = new Date(env.SYNC_CUTOFF_DATE);
+        const beforeFiltering = filteredRecords.length;
+
+        filteredRecords = filteredRecords.filter((record: any) => {
+          const recordDate = extractRecordDate(record, fetcherConfig);
+          if (!recordDate) {
+            logger.warn(
+              { fetcherName, recordId: record.id || "unknown" },
+              "Could not extract date from record for cutoff filtering, including record"
+            );
+            return true;
+          }
+          return recordDate >= cutoffDate;
+        });
+
+        const filtered = beforeFiltering - filteredRecords.length;
+        if (filtered > 0) {
+          logger.info(
+            {
+              fetcherName,
+              filtered,
+              remaining: filteredRecords.length,
+              cutoffDate: env.SYNC_CUTOFF_DATE,
+            },
+            "Filtered records by SYNC_CUTOFF_DATE (post-fetch)"
+          );
+        }
+      }
+
+      // Store raw records for forEach references (after filtering)
+      allFetcherRecords.push(...filteredRecords);
       const transformedBatch: TransformedRecord[] = [];
 
       // Check backpressure: if we have too many records in the current batch waiting
       // This helps prevent overwhelming the system with too many in-flight operations
-      if (pageResult.records.length > BACKPRESSURE_CONFIG.MAX_QUEUE_SIZE) {
+      if (filteredRecords.length > BACKPRESSURE_CONFIG.MAX_QUEUE_SIZE) {
         logger.warn(
           {
             fetcherName,
-            queueSize: pageResult.records.length,
+            queueSize: filteredRecords.length,
             maxQueueSize: BACKPRESSURE_CONFIG.MAX_QUEUE_SIZE,
           },
           "Large page detected - processing with backpressure"
@@ -248,8 +372,8 @@ export async function* indexAll(
       }
 
       // Process each record
-      for (let i = 0; i < pageResult.records.length; i++) {
-        const rawRecord = pageResult.records[i];
+      for (let i = 0; i < filteredRecords.length; i++) {
+        const rawRecord = filteredRecords[i];
 
         // Apply backpressure check periodically
         if (i > 0 && i % BACKPRESSURE_CONFIG.CHECK_INTERVAL === 0) {

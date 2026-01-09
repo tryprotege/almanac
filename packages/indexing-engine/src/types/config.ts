@@ -199,6 +199,12 @@ export interface FetcherConfig {
    * Overrides global rateLimit config if specified
    */
   rateLimit?: RateLimitConfig;
+
+  /**
+   * Cutoff date configuration for filtering records by date
+   * When SYNC_CUTOFF_DATE environment variable is set, records older than this date will be filtered
+   */
+  cutoffDate?: CutoffDateConfig;
 }
 
 export interface PaginationConfig {
@@ -213,6 +219,43 @@ export interface PaginationConfig {
 export interface IncrementalSyncConfig {
   sinceParam?: string; // e.g., "last_edited_time"
   sinceFormat?: "iso8601" | "unix" | "unix_ms";
+}
+
+/**
+ * CutoffDateConfig - Configuration for filtering records by cutoff date
+ * Enables filtering of old records using SYNC_CUTOFF_DATE environment variable
+ */
+export interface CutoffDateConfig {
+  /**
+   * Where to apply the cutoff filter
+   * - "api": Use API parameter (preferred, most efficient)
+   * - "post_fetch": Filter after fetching (fallback)
+   * - "both": Use API param + validate after fetching (safest)
+   */
+  strategy: "api" | "post_fetch" | "both";
+
+  /**
+   * For API strategy: parameter name in the tool
+   * Example: "oldest" for Slack, "since" for GitHub
+   */
+  apiParam?: string;
+
+  /**
+   * For API strategy: date format required by API
+   */
+  apiFormat?: "unix" | "unix_ms" | "iso8601";
+
+  /**
+   * For post_fetch strategy: JSONPath to date field in record
+   * Example: "$.last_edited_time" for Notion, "$.ts" for Slack
+   */
+  dateFieldPath: string;
+
+  /**
+   * Whether to use SYNC_CUTOFF_DATE from env by default
+   * Default: true
+   */
+  useEnvDefault?: boolean;
 }
 
 /**

@@ -75,7 +75,7 @@ export class StartingPointResolver {
     fetchers?: Record<string, FetcherConfig>
   ): Promise<string[]> {
     // First, try to get user-provided values
-    const userValues = userProvidedValues?.[startingPoint.name];
+    const userValues = userProvidedValues?.[startingPoint.name].filter(Boolean);
 
     if (userValues && userValues.length > 0) {
       logger.info(

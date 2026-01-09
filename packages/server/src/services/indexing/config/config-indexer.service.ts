@@ -1,4 +1,5 @@
 import type {
+  FetcherConfig,
   IndexingConfig,
   RecordTypeConfig,
   TransformedRecord,
@@ -661,7 +662,9 @@ function sleep(ms: number): Promise<void> {
  * Get fetchers in the correct execution order based on syncOrder
  * Falls back to Object.entries() order if syncOrder is not specified
  */
-function getOrderedFetchers(config: IndexingConfig): Array<[string, any]> {
+function getOrderedFetchers(
+  config: IndexingConfig
+): Array<[string, FetcherConfig]> {
   if (config.syncOrder && config.syncOrder.length > 0) {
     logger.info(
       { syncOrder: config.syncOrder },

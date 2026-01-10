@@ -12,10 +12,31 @@
   "variables": [
     {
       "key": "SLACK_MCP_XOXB_TOKEN",
-      "label": "Slack Token (Bot or User)",
+      "label": "Bot Token (xoxb-...)",
       "type": "password",
-      "required": true,
-      "helpText": "Your Slack token - accepts Bot Token (xoxb-...) or User Token (xoxp-...). Bot tokens access channels the bot is invited to. User tokens access channels/DMs you're personally in (more powerful but requires user OAuth). Required scopes: channels:read, groups:read, channels:history, groups:history, users:read (add im:read, im:history, mpim:read, mpim:history for DM access with user tokens)."
+      "required": false,
+      "helpText": "Bot token - Limited to channels where bot is invited. Suitable for team-wide integrations. Leave empty if using a different token type."
+    },
+    {
+      "key": "SLACK_MCP_XOXP_TOKEN",
+      "label": "User OAuth Token (xoxp-...)",
+      "type": "password",
+      "required": false,
+      "helpText": "User token - Access all channels/DMs you're in. More powerful than bot tokens. Required scopes: channels:read, groups:read, channels:history, groups:history, users:read, im:read, im:history, mpim:read, mpim:history."
+    },
+    {
+      "key": "SLACK_MCP_XOXC_TOKEN",
+      "label": "Browser Token (xoxc-...) - Advanced",
+      "type": "password",
+      "required": false,
+      "helpText": "Browser session token from Slack web app cookies. Must be used together with xoxd token. Extract from browser DevTools > Application > Cookies. Provides full web app access."
+    },
+    {
+      "key": "SLACK_MCP_XOXD_TOKEN",
+      "label": "Browser Cookie (xoxd-...) - Advanced",
+      "type": "password",
+      "required": false,
+      "helpText": "Browser session cookie from Slack web app. Must be used together with xoxc token. Extract from browser DevTools > Application > Cookies."
     }
   ],
   "indexingConfig": {

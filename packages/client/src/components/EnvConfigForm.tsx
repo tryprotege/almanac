@@ -99,9 +99,13 @@ export function EnvConfigForm({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <code className="text-sm font-mono font-semibold">{key}</code>
-              {schema.required && (
+              {schema.required ? (
                 <span className="text-xs text-red-500 font-medium">
                   Required
+                </span>
+              ) : (
+                <span className="text-xs text-text-tertiary font-medium">
+                  Optional
                 </span>
               )}
               {isInvalid && (
@@ -118,6 +122,11 @@ export function EnvConfigForm({
                 </span>
               )}
             </div>
+            {schema.description && (
+              <p className="text-xs text-text-secondary mt-1.5 leading-relaxed">
+                {schema.description}
+              </p>
+            )}
           </div>
           <div className="w-64 shrink-0">
             {isBoolean ? (

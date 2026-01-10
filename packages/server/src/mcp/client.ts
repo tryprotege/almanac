@@ -13,6 +13,197 @@ import { discoverSseOAuth } from "../oauth/sse-oauth.js";
 import type { DataSource } from "../models/data-source.model.js";
 import { env } from "../env.js";
 
+/**
+ * Retry configuration for MCP tool calls
+ */
+interface RetryConfig {
+  maxRetries: number;
+  initialDelayMs: number;
+  maxDelayMs: number;
+  backoffMultiplier: number;
+  jitter: boolean;
+}
+
+const DEFAULT_RETRY_CONFIG: RetryConfig = {
+  maxRetries: 5,
+  initialDelayMs: 100,
+  maxDelayMs: 5000,
+  backoffMultiplier: 2,
+  jitter: true,
+};
+
+/**
+ * Check if an error is retryable based on MCP error codes and error patterns
+ *
+ * MCP Error Code Reference: https://www.mcpevals.io/blog/mcp-error-codes
+ *
+ * Common retryable scenarios:
+ * - -32603 (Internal Error): Server initialization, cache not ready, sync in progress
+ * - Network timeouts and temporary connection issues
+ * - 429 (Rate Limit): Too many requests
+ * - 502/503: Bad Gateway / Service Unavailable
+ */
+function isRetryableError(error: any): boolean {
+  // MCP error -32603: Internal error - check for transient messages
+  if (error.code === -32603) {
+    const message = error.message?.toLowerCase() || "";
+    const retryableKeywords = [
+      "not ready",
+      "please wait",
+      "cache",
+      "sync",
+      "initializing",
+      "starting",
+      "loading",
+      "processing",
+      "warming up",
+      "indexing",
+    ];
+
+    return retryableKeywords.some((keyword) => message.includes(keyword));
+  }
+
+  // Network/timeout errors
+  if (error.name === "TimeoutError" || error.code === "ETIMEDOUT") {
+    return true;
+  }
+
+  // HTTP status codes for temporary failures
+  if (error.status === 503 || error.status === 502 || error.status === 429) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if an error should NOT be retried
+ *
+ * MCP Error Code Reference: https://www.mcpevals.io/blog/mcp-error-codes
+ *
+ * Non-retryable errors:
+ * - -32600 (Invalid Request): Malformed JSON-RPC
+ * - -32601 (Method Not Found): Tool doesn't exist
+ * - -32602 (Invalid Params): Wrong parameters for tool
+ * - -32700 (Parse Error): Invalid JSON
+ * - 400: Bad Request
+ * - 401/403: Authentication/Authorization errors
+ * - 404: Not Found
+ */
+function isNonRetryableError(error: any): boolean {
+  // MCP protocol errors that indicate client-side issues
+  const nonRetryableMcpCodes = [-32600, -32601, -32602, -32700];
+  if (nonRetryableMcpCodes.includes(error.code)) {
+    return true;
+  }
+
+  // Auth errors - don't retry
+  if (
+    error.code === 401 ||
+    error.code === 403 ||
+    error.status === 401 ||
+    error.status === 403 ||
+    error.name === "UnauthorizedError"
+  ) {
+    return true;
+  }
+
+  // Not found - don't retry
+  if (error.code === 404 || error.status === 404) {
+    return true;
+  }
+
+  // Bad request - don't retry
+  if (error.code === 400 || error.status === 400) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Retry a function with exponential backoff
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  config: RetryConfig,
+  context: { serverName: string; toolName: string }
+): Promise<T> {
+  let lastError: any;
+
+  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+    try {
+      if (attempt > 0) {
+        logger.debug(
+          { ...context, attempt, maxRetries: config.maxRetries },
+          `Retry attempt ${attempt}/${config.maxRetries}`
+        );
+      }
+
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+
+      // Don't retry non-retryable errors
+      if (isNonRetryableError(error)) {
+        logger.debug(
+          { ...context, errorCode: error.code, errorMessage: error.message },
+          "Non-retryable error, failing immediately"
+        );
+        throw error;
+      }
+
+      // Check if retryable
+      if (!isRetryableError(error)) {
+        logger.debug(
+          { ...context, errorCode: error.code, errorMessage: error.message },
+          "Error not retryable, failing"
+        );
+        throw error;
+      }
+
+      // Last attempt - don't wait
+      if (attempt === config.maxRetries) {
+        logger.warn(
+          {
+            ...context,
+            attempts: attempt + 1,
+            errorCode: error.code,
+            errorMessage: error.message,
+          },
+          "Max retries reached, failing"
+        );
+        throw error;
+      }
+
+      // Calculate delay with exponential backoff
+      const baseDelay =
+        config.initialDelayMs * Math.pow(config.backoffMultiplier, attempt);
+      const cappedDelay = Math.min(baseDelay, config.maxDelayMs);
+
+      // Add jitter if enabled (±25%)
+      const delay = config.jitter
+        ? cappedDelay * (0.75 + Math.random() * 0.5)
+        : cappedDelay;
+
+      logger.info(
+        {
+          ...context,
+          attempt: attempt + 1,
+          delayMs: Math.round(delay),
+          errorCode: error.code,
+          errorMessage: error.message,
+        },
+        `Retryable error, waiting ${Math.round(delay)}ms before retry`
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+}
+
 class MCPClientManager {
   private clients: Map<string, Client> = new Map();
   private transports: Map<string, Transport> = new Map();
@@ -356,12 +547,13 @@ class MCPClientManager {
   }
 
   /**
-   * Call a tool on a remote MCP server
+   * Call a tool on a remote MCP server with automatic retry on transient errors
    */
   async callTool(
     serverName: string,
     toolName: string,
-    args: Record<string, unknown>
+    args: Record<string, unknown>,
+    retryConfig?: Partial<RetryConfig>
   ): Promise<any> {
     const client = this.clients.get(serverName);
     if (!client) {
@@ -380,10 +572,17 @@ class MCPClientManager {
       `[MCP CALL] ${serverName}.${actualToolName}`
     );
 
-    const response = await client.callTool({
-      name: actualToolName,
-      arguments: args,
-    });
+    // Wrap the tool call with retry logic
+    const response = await retryWithBackoff(
+      async () => {
+        return await client.callTool({
+          name: actualToolName,
+          arguments: args,
+        });
+      },
+      { ...DEFAULT_RETRY_CONFIG, ...retryConfig },
+      { serverName, toolName: actualToolName }
+    );
 
     // Conditionally log full response or just length based on DEBUG_MCP_LOGS
     if (env.MCP_DEBUG_LOGS) {

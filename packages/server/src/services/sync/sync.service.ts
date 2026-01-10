@@ -90,7 +90,7 @@ async function indexToVectors(
  */
 export const syncMcpServer = async (
   dataSource: DataSource & { _id: any },
-  options?: { limit?: number }
+  _options?: { limit?: number }
 ) => {
   // 1. Get IndexingConfig (required - no fallback)
   const syncConfig = await IndexingConfigModel.findOne({

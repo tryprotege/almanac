@@ -137,6 +137,27 @@ const BACKPRESSURE_CONFIG = {
 };
 
 /**
+ * Get all fetcher names that are referenced as forEach sources by other fetchers
+ */
+function getReferencedSources(config: IndexingConfig): Set<string> {
+  const referencedSources = new Set<string>();
+
+  for (const fetcherConfig of Object.values(config.fetchers)) {
+    if (fetcherConfig.forEach?.source) {
+      const sources = Array.isArray(fetcherConfig.forEach.source)
+        ? fetcherConfig.forEach.source
+        : [fetcherConfig.forEach.source];
+
+      for (const source of sources) {
+        referencedSources.add(source);
+      }
+    }
+  }
+
+  return referencedSources;
+}
+
+/**
  * Index all records from all fetchers
  */
 export async function* indexAll(
@@ -237,6 +258,9 @@ export async function* indexAll(
   // Track fetcher results for forEach references
   const fetcherResults: ForEachContext = {};
 
+  // Get fetchers that are referenced as sources by other fetchers
+  const referencedSources = getReferencedSources(config);
+
   // Initialize content aggregator service
   const contentAggregator = new ContentAggregatorService(config.fetchers);
 
@@ -270,11 +294,21 @@ export async function* indexAll(
       }
 
       if (classification?.category === "search") {
-        logger.info(
-          { fetcherName, toolName: fetcherConfig.tool },
-          "Skipping fetcher that uses SEARCH tool"
-        );
-        continue;
+        // Check if this search tool is referenced by other fetchers as a source
+        if (referencedSources.has(fetcherName)) {
+          logger.info(
+            { fetcherName, toolName: fetcherConfig.tool },
+            "Running search tool because it is referenced as source by other fetchers"
+          );
+          // Continue to run it - we'll store results for forEach references
+          // but won't yield records since search results shouldn't be indexed directly
+        } else {
+          logger.info(
+            { fetcherName, toolName: fetcherConfig.tool },
+            "Skipping fetcher that uses SEARCH tool"
+          );
+          continue;
+        }
       }
     }
 
@@ -623,7 +657,10 @@ export async function* indexAll(
     // Save results for future fetchers to reference
     fetcherResults[fetcherName] = allFetcherRecords;
 
-    logger.info(`Completed fetch: ${fetcherName}`);
+    logger.info(
+      { fetcherName, recordCount: allFetcherRecords.length },
+      "Completed fetch"
+    );
   }
 }
 

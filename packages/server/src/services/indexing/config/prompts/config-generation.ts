@@ -16,14 +16,7 @@ export interface ConfigPromptInput {
  * Generate prompt for LLM to create an IndexingConfig
  */
 export function generateConfigPrompt(input: ConfigPromptInput): string {
-  const {
-    serverName,
-    displayName,
-    tools,
-    samples,
-    userGuidance,
-    failureReasons = {},
-  } = input;
+  const { serverName, displayName, tools, samples, userGuidance } = input;
 
   // Build tool catalog with samples
   const toolCatalog = tools.map((tool) => {

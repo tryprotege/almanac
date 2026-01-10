@@ -5,7 +5,6 @@ import express, { NextFunction, Request, Response } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import { router } from "./api/index.js";
-import { configRouter } from "./api/config/index.js";
 import { mcpClientManager } from "./mcp/client.js";
 import {
   initializeServices,

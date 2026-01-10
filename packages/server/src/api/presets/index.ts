@@ -8,14 +8,14 @@ const router: Router = Router();
  * GET /api/presets
  * List all available presets (summaries without full indexing configs)
  */
-router.get("/", async (req, res) => {
+router.get("/", async (_req, res) => {
   try {
     const summaries = presetLoader.getPresetSummaries();
     logger.info({ count: summaries.length }, "Retrieved preset summaries");
-    res.json(summaries);
+    return res.json(summaries);
   } catch (error) {
     logger.error({ error }, "Failed to get preset summaries");
-    res.status(500).json({ error: "Failed to load presets" });
+    return res.status(500).json({ error: "Failed to load presets" });
   }
 });
 
@@ -34,10 +34,10 @@ router.get("/:id", async (req, res) => {
     }
 
     logger.info({ presetId: id }, "Retrieved preset details");
-    res.json(preset);
+    return res.json(preset);
   } catch (error) {
     logger.error({ error, presetId: req.params.id }, "Failed to get preset");
-    res.status(500).json({ error: "Failed to load preset" });
+    return res.status(500).json({ error: "Failed to load preset" });
   }
 });
 

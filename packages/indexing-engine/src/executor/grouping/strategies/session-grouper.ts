@@ -3,8 +3,8 @@ import {
   RecordGroup,
   TransformedRecord,
   SessionGroupingConfig,
-} from "../types";
-import { extractValue } from "../engine";
+} from "../types.js";
+import { extractValue } from "../engine.js";
 
 /**
  * User session grouping strategy

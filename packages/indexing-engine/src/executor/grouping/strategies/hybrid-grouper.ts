@@ -3,9 +3,9 @@ import {
   RecordGroup,
   TransformedRecord,
   HybridGroupingConfig,
-} from "../types";
-import { ThreadGrouper } from "./thread-grouper";
-import { LLMConversationGrouper } from "./llm-grouper";
+} from "../types.js";
+import { ThreadGrouper } from "./thread-grouper.js";
+import { LLMConversationGrouper } from "./llm-grouper.js";
 
 /**
  * Hybrid grouping strategy

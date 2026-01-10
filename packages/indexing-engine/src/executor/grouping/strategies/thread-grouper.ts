@@ -3,8 +3,8 @@ import {
   RecordGroup,
   TransformedRecord,
   ThreadGroupingConfig,
-} from "../types";
-import { extractValue } from "../engine";
+} from "../types.js";
+import { extractValue } from "../engine.js";
 
 /**
  * Thread-based grouping strategy

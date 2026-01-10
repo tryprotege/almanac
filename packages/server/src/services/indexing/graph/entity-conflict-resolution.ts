@@ -79,7 +79,7 @@ export async function shouldReembedEntity(
  */
 export async function shouldReembedRelationship(
   relId: string,
-  contentChecksum: string
+  _contentChecksum: string
 ): Promise<boolean> {
   const metadata = await GraphEmbeddingMetadata.findById(relId);
 

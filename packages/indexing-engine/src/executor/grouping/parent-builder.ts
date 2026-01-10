@@ -1,7 +1,6 @@
 import { createHash } from "crypto";
-import { JSONPath } from "jsonpath-plus";
-import { RecordGroup, TransformedRecord, ParentRecordConfig } from "./types";
-import { extractValue } from "./engine";
+import { RecordGroup, TransformedRecord, ParentRecordConfig } from "./types.js";
+import { extractValue } from "./engine.js";
 import type {
   EntityExtractionConfig,
   RelationshipConfig,
@@ -321,7 +320,7 @@ export class ParentRecordBuilder {
   private async extractEntitiesFromChildren(
     children: TransformedRecord[],
     entityConfigs: EntityExtractionConfig[],
-    source: string
+    _source: string
   ): Promise<any[]> {
     const allEntities: any[] = [];
     const seenEntities = new Set<string>();

@@ -5,8 +5,8 @@ import {
   LLMGroupingConfig,
   Batch,
   BatchResult,
-} from "../types";
-import { extractValue } from "../engine";
+} from "../types.js";
+import { extractValue } from "../engine.js";
 
 /**
  * LLM-based conversation grouping strategy
@@ -131,7 +131,7 @@ export class LLMConversationGrouper implements IGroupingStrategy {
    */
   private createBatches(
     records: TransformedRecord[],
-    analysisData: Record<string, any>[],
+    _analysisData: Record<string, any>[],
     batchSize: number,
     overlap: number
   ): Batch[] {

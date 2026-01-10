@@ -30,9 +30,9 @@ export interface RerankOptions {
  * Works with any OpenAI-compatible reranker API
  */
 export class RerankerService {
-  private baseUrl: string;
+  private baseUrl: string | undefined;
   private apiKey: string;
-  private model: string;
+  private model: string | undefined;
 
   constructor() {
     this.baseUrl = env.RERANKER_BASE_URL;
@@ -70,6 +70,18 @@ export class RerankerService {
     if (!this.apiKey) {
       throw new Error(
         "RERANKER_API_KEY is required when RERANKER_ENABLED is true"
+      );
+    }
+
+    if (!this.baseUrl) {
+      throw new Error(
+        "RERANKER_BASE_URL is required when RERANKER_ENABLED is true"
+      );
+    }
+
+    if (!this.model) {
+      throw new Error(
+        "RERANKER_MODEL is required when RERANKER_ENABLED is true"
       );
     }
 

@@ -7,6 +7,7 @@ import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
 import type { ToolClassification } from "@ebee-oss/indexing-engine";
 import { EventEmitter } from "events";
+import pRetry, { AbortError } from "p-retry";
 import logger from "../utils/logger.js";
 import { oauthProviderFactory } from "../oauth/mcp-oauth-provider.js";
 import { discoverSseOAuth } from "../oauth/sse-oauth.js";
@@ -122,86 +123,64 @@ function isNonRetryableError(error: any): boolean {
 }
 
 /**
- * Retry a function with exponential backoff
+ * Retry a function with exponential backoff using p-retry
  */
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   config: RetryConfig,
   context: { serverName: string; toolName: string }
 ): Promise<T> {
-  let lastError: any;
+  return pRetry(
+    async () => {
+      try {
+        return await fn();
+      } catch (error: any) {
+        // Non-retryable errors - abort immediately
+        if (isNonRetryableError(error)) {
+          logger.debug(
+            { ...context, errorCode: error.code, errorMessage: error.message },
+            "Non-retryable error, aborting"
+          );
+          throw new AbortError(error);
+        }
 
-  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
-    try {
-      if (attempt > 0) {
-        logger.debug(
-          { ...context, attempt, maxRetries: config.maxRetries },
-          `Retry attempt ${attempt}/${config.maxRetries}`
-        );
-      }
+        // Not explicitly retryable - abort
+        if (!isRetryableError(error)) {
+          logger.debug(
+            { ...context, errorCode: error.code, errorMessage: error.message },
+            "Error not retryable, aborting"
+          );
+          throw new AbortError(error);
+        }
 
-      return await fn();
-    } catch (error: any) {
-      lastError = error;
-
-      // Don't retry non-retryable errors
-      if (isNonRetryableError(error)) {
-        logger.debug(
-          { ...context, errorCode: error.code, errorMessage: error.message },
-          "Non-retryable error, failing immediately"
-        );
+        // Retryable error - let p-retry handle it
         throw error;
       }
-
-      // Check if retryable
-      if (!isRetryableError(error)) {
-        logger.debug(
-          { ...context, errorCode: error.code, errorMessage: error.message },
-          "Error not retryable, failing"
-        );
-        throw error;
-      }
-
-      // Last attempt - don't wait
-      if (attempt === config.maxRetries) {
-        logger.warn(
+    },
+    {
+      retries: config.maxRetries,
+      factor: config.backoffMultiplier,
+      minTimeout: config.initialDelayMs,
+      maxTimeout: config.maxDelayMs,
+      randomize: config.jitter,
+      onFailedAttempt: (error) => {
+        // p-retry wraps the original error, access it via error itself (it's any type)
+        const err = error as any;
+        logger.info(
           {
             ...context,
-            attempts: attempt + 1,
-            errorCode: error.code,
-            errorMessage: error.message,
+            attempt: error.attemptNumber,
+            retriesLeft: error.retriesLeft,
+            errorCode: err.code,
+            errorMessage: err.message,
           },
-          "Max retries reached, failing"
+          `Retryable error, attempt ${error.attemptNumber}/${
+            config.maxRetries + 1
+          }, ${error.retriesLeft} retries left`
         );
-        throw error;
-      }
-
-      // Calculate delay with exponential backoff
-      const baseDelay =
-        config.initialDelayMs * Math.pow(config.backoffMultiplier, attempt);
-      const cappedDelay = Math.min(baseDelay, config.maxDelayMs);
-
-      // Add jitter if enabled (±25%)
-      const delay = config.jitter
-        ? cappedDelay * (0.75 + Math.random() * 0.5)
-        : cappedDelay;
-
-      logger.info(
-        {
-          ...context,
-          attempt: attempt + 1,
-          delayMs: Math.round(delay),
-          errorCode: error.code,
-          errorMessage: error.message,
-        },
-        `Retryable error, waiting ${Math.round(delay)}ms before retry`
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, delay));
+      },
     }
-  }
-
-  throw lastError;
+  );
 }
 
 class MCPClientManager {

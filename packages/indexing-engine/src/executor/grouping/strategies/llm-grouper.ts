@@ -25,7 +25,8 @@ export class LLMConversationGrouper implements IGroupingStrategy {
           }) => Promise<{ choices: Array<{ message: { content: string } }> }>;
         };
       };
-    }
+    },
+    private defaultModel?: string
   ) {}
 
   async group(
@@ -188,7 +189,7 @@ Where groupId identifies which conversation each message belongs to. Messages in
 
     try {
       const response = await this.llmClient.chat.completions.create({
-        model: model || "gpt-4o-mini",
+        model: model || this.defaultModel || "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

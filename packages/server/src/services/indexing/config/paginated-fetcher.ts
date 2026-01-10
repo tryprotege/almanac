@@ -12,6 +12,7 @@ import { detectRateLimitError } from "./mcp-error-parser.js";
 import { applyCutoffDateToParams } from "./config-indexer.service.js";
 import logger from "../../../utils/logger.js";
 import { env } from "../../../env.js";
+import { executeProcessor } from "@ebee-oss/indexing-engine";
 
 export interface PageResult {
   records: any[];
@@ -132,6 +133,7 @@ export async function* fetchWithSeedFrom(
             params,
             rateLimit: config.rateLimit,
             arrayPath: config.arrayPath, // Include arrayPath if present
+            formatProcessor: (config as any).formatProcessor, // Include formatProcessor if present
           };
           const result = await fetchPage(
             serverName,
@@ -260,7 +262,12 @@ export async function* fetchWithForEach(
       )) {
         const value = JSONPath({ path: jsonPath, json: item, wrap: false });
         if (value !== undefined) {
-          params[paramName] = value;
+          // Apply type coercion if specified
+          if ((forEach as any).paramTypes?.[paramName] === "string") {
+            params[paramName] = String(value);
+          } else {
+            params[paramName] = value;
+          }
         }
       }
 
@@ -285,6 +292,7 @@ export async function* fetchWithForEach(
             params,
             rateLimit: config.rateLimit,
             arrayPath: config.arrayPath, // Include arrayPath if present
+            formatProcessor: (config as any).formatProcessor, // Include formatProcessor if present
           };
           const result = await fetchPage(
             serverName,
@@ -425,6 +433,7 @@ async function* fetchWithBatchMode(
           params,
           rateLimit: config.rateLimit,
           arrayPath: config.arrayPath, // Include arrayPath if present
+          formatProcessor: (config as any).formatProcessor, // Include formatProcessor if present
         };
         const result = await fetchPage(
           serverName,
@@ -519,13 +528,16 @@ export async function* fetchAll(
 /**
  * Extract records from MCP response format
  * MCP responses come in format: {content: [{type: "text", text: "...JSON..."}]}
- * OR direct data arrays: {content: [{id: "...", ...}], pageInfo: {...}}
+ * OR direct data arrays: {content: [{id: "..., ...}], pageInfo: {...}}
  * OR pagination wrappers: {content: [...], pageInfo: {...}}
  */
-function extractRecordsFromMCPResponse(response: any): {
+async function extractRecordsFromMCPResponse(
+  response: any,
+  formatProcessor?: { name: string; options?: any }
+): Promise<{
   records: any[];
   error?: string;
-} {
+}> {
   // Check for pagination wrapper format first (e.g., Linear)
   // {content: [{id: "...", ...}], pageInfo: {...}}
   if (
@@ -544,20 +556,55 @@ function extractRecordsFromMCPResponse(response: any): {
     const textContent = response.content.find((c: any) => c.type === "text");
 
     if (textContent?.text) {
-      const text = textContent.text.trim();
+      let text = textContent.text.trim();
 
       // Check if it's an error message (not JSON)
       if (
         text.startsWith("Entity not") ||
         text.startsWith("Error") ||
         text.startsWith("Failed") ||
-        text.startsWith("MCP error") ||
-        (!text.startsWith("[") && !text.startsWith("{"))
+        text.startsWith("MCP error")
       ) {
         logger.warn(
           `MCP response contains error message: ${text.substring(0, 100)}`
         );
         return { records: [], error: text }; // Return error info
+      }
+
+      // Apply format processor if configured (e.g., CSV to JSON)
+      if (formatProcessor && formatProcessor.name === "csv-to-json") {
+        // Check if text looks like CSV (has comma-separated values and no JSON markers)
+        if (
+          !text.startsWith("[") &&
+          !text.startsWith("{") &&
+          text.includes(",")
+        ) {
+          logger.debug(`[fetchPage] Applying CSV-to-JSON format processor`);
+          try {
+            const processed = await executeProcessor(
+              formatProcessor.name,
+              text,
+              formatProcessor.options
+            );
+            // Return the result even if empty - this IS the expected format
+            if (Array.isArray(processed)) {
+              logger.debug(
+                `[fetchPage] CSV processor converted ${processed.length} rows to JSON`
+              );
+              return { records: processed };
+            }
+            logger.warn(
+              `[fetchPage] CSV processor returned non-array: ${typeof processed}`
+            );
+          } catch (err) {
+            logger.error(
+              { err },
+              `[fetchPage] CSV processor failed - this is unexpected for CSV data`
+            );
+            // For CSV data, if processor fails, return empty rather than trying JSON.parse
+            return { records: [], error: `CSV parsing failed: ${err}` };
+          }
+        }
       }
 
       try {
@@ -745,7 +792,10 @@ export async function fetchPage(
   }
 
   // Extract records from MCP response format
-  const parseResult = extractRecordsFromMCPResponse(response);
+  const parseResult = await extractRecordsFromMCPResponse(
+    response,
+    (config as any).formatProcessor
+  );
 
   logger.debug(
     `[fetchPage] Extracted ${parseResult.records.length} records before arrayPath`

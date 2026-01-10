@@ -8,8 +8,7 @@ import pLimit from "p-limit";
 import { Record } from "../../../models/record.model.js";
 import { RecordStore } from "../../../stores/record.store.js";
 import { GraphStore } from "../../../stores/graph.store.js";
-import { SourceType, DocumentRelationship } from "../../../types/index.js";
-import { BaseRecordAdapter } from "../../sync/adapters/base-adapter.js";
+import { SourceType } from "../../../types/index.js";
 import { extractGraphFromContent } from "./extraction/content-extractor.js";
 import { processRecordsToGraph } from "./processing/graph-builder.js";
 import {
@@ -50,11 +49,11 @@ import { sanitizeRelationshipType } from "../../../utils/cypher-escape.js";
 
 /**
  * Extract graph from a single record
- * Combines adapter relationships with LLM-extracted entities/relationships
+ * Extracts entities/relationships from content via LLM
+ * Document relationships come from config-driven extractedRelationships field
  */
 export const extractGraphFromRecord = async (
   record: Record,
-  adapter: BaseRecordAdapter | undefined,
   openaiClient: OpenAI,
   existingEntityTypes: string[],
   existingRelTypes: string[],
@@ -99,18 +98,16 @@ export const extractGraphFromRecord = async (
     };
   }
 
-  // Extract explicit relationships using adapter (document-to-document)
-  let adapterRelationships: DocumentRelationship[] = [];
-  if (adapter && record.rawData) {
-    try {
-      adapterRelationships = await adapter.extractRelationships(record.rawData);
-    } catch (err) {
-      logger.error(
-        { err, recordId: record._id },
-        `Error extracting adapter relationships for ${record._id}`
-      );
-    }
-  }
+  // Extract document relationships from record's extractedRelationships field
+  // These come from the config-driven transformation (e.g., slack threads, github PR links)
+  const adapterRelationships: GraphRelationship[] = (
+    record.rawData?.extractedRelationships || []
+  ).map((rel: any) => ({
+    sourceId: rel.sourceId,
+    targetId: rel.targetId,
+    type: rel.type,
+    confidence: rel.confidence || 1.0,
+  }));
 
   // Extract entities + relationships from FULL document (no chunking!)
   const { entities, relationships } = await extractGraphFromContent(
@@ -191,20 +188,10 @@ export const extractGraphFromRecord = async (
     maxEntities: env.MAX_ENTITIES_PER_DOCUMENT,
   });
 
-  // Convert adapter relationships to graph format
-  const graphAdapterRels: GraphRelationship[] = adapterRelationships.map(
-    (rel) => ({
-      sourceId: rel.sourceId,
-      targetId: rel.targetId,
-      type: rel.type,
-      confidence: rel.confidence,
-    })
-  );
-
   return {
     entities: truncatedEntities,
     relationships: filteredRelationships,
-    adapterRelationships: graphAdapterRels,
+    adapterRelationships: adapterRelationships,
     recordId: record._id,
     recordChecksum: record.checksum,
   };
@@ -212,12 +199,12 @@ export const extractGraphFromRecord = async (
 
 /**
  * Main indexer - processes all records with parallelization
+ * Relationships now come from config-driven extractedRelationships field
  */
 export const indexAllRecords = async (
   source: SourceType,
   recordStore: RecordStore,
   graphStore: GraphStore,
-  adapters: Map<SourceType, BaseRecordAdapter>,
   openaiClient: OpenAI,
   options: IndexingOptions = {}
 ): Promise<IndexingStats> => {
@@ -271,9 +258,6 @@ export const indexAllRecords = async (
     avgBatchTimeMs: 0,
     throughputDocsPerSec: 0,
   };
-
-  // Get adapter for this source
-  const adapter = adapters.get(source);
 
   // Get schema types (schema already ensured to exist above)
   const {
@@ -337,7 +321,6 @@ export const indexAllRecords = async (
         limit(() =>
           extractGraphFromRecord(
             record,
-            adapter,
             openaiClient,
             existingEntityTypes,
             existingRelTypes,
@@ -1231,7 +1214,6 @@ export const indexAllRecords = async (
  */
 export const indexSingleRecord = async (
   record: Record,
-  adapter: BaseRecordAdapter | undefined,
   graphStore: GraphStore,
   recordStore: RecordStore,
   openaiClient: OpenAI,
@@ -1259,7 +1241,6 @@ export const indexSingleRecord = async (
   // Extract from single record
   const extractionResult = await extractGraphFromRecord(
     record,
-    adapter,
     openaiClient,
     existingEntityTypes,
     existingRelTypes,

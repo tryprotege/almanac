@@ -90,6 +90,7 @@ export class ContentAggregatorService {
       pagination: fetcherConfig.pagination,
       params,
       rateLimit: fetcherConfig.rateLimit,
+      formatProcessor: (fetcherConfig as any).formatProcessor, // Include formatProcessor if present
     };
 
     const result = await fetchPage(

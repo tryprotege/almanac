@@ -4,7 +4,7 @@ import type {
   RecordTypeConfig,
   TransformedRecord,
 } from "@ebee-oss/indexing-engine";
-import { transformRecord } from "@ebee-oss/indexing-engine";
+import { transformRecord, GroupingEngine } from "@ebee-oss/indexing-engine";
 import {
   fetchAll as fetchPaginated,
   fetchWithForEach,
@@ -23,6 +23,7 @@ import { ContentAggregatorService } from "./content-aggregator.service.js";
 import { env } from "../../../env.js";
 import logger from "../../../utils/logger.js";
 import { JSONPath } from "jsonpath-plus";
+import { llm } from "../../llm/llm.js";
 
 export interface IndexProgress {
   fetcherName: string;
@@ -540,17 +541,80 @@ export async function* indexAll(
         }
       }
 
+      // Apply grouping if any record types have grouping configured
+      let finalBatch = transformedBatch;
+      const recordTypesWithGrouping = recordTypes.filter((rt) => rt.grouping);
+
+      if (recordTypesWithGrouping.length > 0 && transformedBatch.length > 0) {
+        // Group by record type since different types may have different grouping configs
+        const recordsByType = new Map<string, TransformedRecord[]>();
+        for (const record of transformedBatch) {
+          if (!recordsByType.has(record.recordType)) {
+            recordsByType.set(record.recordType, []);
+          }
+          recordsByType.get(record.recordType)!.push(record);
+        }
+
+        const groupedResults: TransformedRecord[] = [];
+        for (const recordType of recordTypesWithGrouping) {
+          const recordsForType = recordsByType.get(recordType.name) || [];
+          if (recordsForType.length === 0) continue;
+
+          try {
+            logger.info(
+              {
+                recordType: recordType.name,
+                count: recordsForType.length,
+                strategy: recordType.grouping!.strategy,
+              },
+              "Applying grouping to records"
+            );
+
+            const groupingEngine = new GroupingEngine(llm, env.LLM_CHAT_MODEL);
+            const groupingResult = await groupingEngine.group(
+              recordsForType,
+              recordType.grouping!
+            );
+
+            logger.info(
+              {
+                recordType: recordType.name,
+                statistics: groupingResult.statistics,
+              },
+              "Grouping completed"
+            );
+
+            groupedResults.push(...groupingResult.records);
+          } catch (err) {
+            logger.error(
+              { err, recordType: recordType.name },
+              "Error applying grouping, using ungrouped records"
+            );
+            groupedResults.push(...recordsForType);
+          }
+        }
+
+        // Add records from types without grouping
+        for (const [typeName, records] of recordsByType.entries()) {
+          if (!recordTypesWithGrouping.find((rt) => rt.name === typeName)) {
+            groupedResults.push(...records);
+          }
+        }
+
+        finalBatch = groupedResults;
+      }
+
       // Yield final batch for this page
-      if (transformedBatch.length > 0) {
+      if (finalBatch.length > 0) {
         yield {
-          records: transformedBatch,
+          records: finalBatch,
           progress: {
             fetcherName,
             recordType: recordTypes.map((rt) => rt.name).join(", "),
             recordsProcessed,
             totalRecords: recordsProcessed, // Unknown total
             status: "transforming",
-            queueSize: transformedBatch.length,
+            queueSize: finalBatch.length,
           },
         };
       }

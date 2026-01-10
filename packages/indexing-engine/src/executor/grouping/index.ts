@@ -8,6 +8,7 @@ export { ThreadGrouper } from "./strategies/thread-grouper";
 export { TimeWindowGrouper } from "./strategies/time-window-grouper";
 export { UserSessionGrouper } from "./strategies/session-grouper";
 export { LLMConversationGrouper } from "./strategies/llm-grouper";
+export { HybridGrouper } from "./strategies/hybrid-grouper";
 
 export type {
   GroupingConfig,
@@ -21,6 +22,7 @@ export type {
   LLMGroupingConfig,
   TimeWindowGroupingConfig,
   SessionGroupingConfig,
+  HybridGroupingConfig,
   ParentRecordConfig,
   Batch,
   BatchResult,

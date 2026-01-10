@@ -205,6 +205,15 @@ export interface FetcherConfig {
    * When SYNC_CUTOFF_DATE environment variable is set, records older than this date will be filtered
    */
   cutoffDate?: CutoffDateConfig;
+
+  /**
+   * Format processor configuration
+   * Transforms raw response data (e.g., CSV to JSON) before processing
+   */
+  formatProcessor?: {
+    name: string; // Processor name (e.g., "csv-to-json")
+    options?: Record<string, any>; // Processor-specific options
+  };
 }
 
 export interface PaginationConfig {
@@ -355,6 +364,13 @@ export interface RecordTypeConfig {
   name: string; // Record type name (e.g., "page", "task")
   fetcher: string; // Reference to fetcher name
 
+  /**
+   * JSONPath to the ID field in the record
+   * If not specified, falls back to common ID patterns: id, _id, sourceId, etc.
+   * Example: "$.ID" for uppercase ID field from CSV processors
+   */
+  idField?: string;
+
   detection: DetectionConfig;
   enrichments?: EnrichmentConfig[]; // Additional fetches per record
   entities?: EntityExtractionConfig[]; // Extract entities to build graph (NEW)
@@ -480,8 +496,14 @@ export interface GroupingConfig {
    * - "llm_conversation": Use LLM to analyze and group related messages
    * - "time_window": Group by time proximity
    * - "user_session": Group by user activity sessions
+   * - "hybrid": Combine thread and LLM grouping intelligently
    */
-  strategy: "thread" | "llm_conversation" | "time_window" | "user_session";
+  strategy:
+    | "thread"
+    | "llm_conversation"
+    | "time_window"
+    | "user_session"
+    | "hybrid";
 
   /**
    * Configuration specific to the strategy
@@ -490,7 +512,20 @@ export interface GroupingConfig {
     | ThreadGroupingConfig
     | LLMGroupingConfig
     | TimeWindowGroupingConfig
-    | SessionGroupingConfig;
+    | SessionGroupingConfig
+    | HybridGroupingConfig;
+
+  /**
+   * Minimum number of records required to form a group
+   * Groups with fewer records will be filtered out
+   */
+  minGroupSize?: number;
+
+  /**
+   * Configuration for creating parent records from groups
+   * If specified, parent records will be created for each group
+   */
+  parentRecord?: ParentRecordConfig;
 }
 
 /**
@@ -603,6 +638,28 @@ export interface SessionGroupingConfig {
 }
 
 /**
+ * HybridGroupingConfig - Combine thread and LLM grouping
+ * First groups by explicit threads, then applies LLM to ungrouped records
+ */
+export interface HybridGroupingConfig {
+  /**
+   * Configuration for thread-based grouping (Phase 1)
+   */
+  threadConfig: ThreadGroupingConfig;
+
+  /**
+   * Configuration for LLM-based grouping (Phase 2)
+   */
+  llmConfig: LLMGroupingConfig;
+
+  /**
+   * Minimum conversation size for LLM-grouped records
+   * Records in smaller groups become standalone
+   */
+  minConversationSize?: number;
+}
+
+/**
  * ParentRecordConfig - Configuration for creating parent records
  */
 export interface ParentRecordConfig {
@@ -641,6 +698,18 @@ export interface ParentRecordConfig {
    * Child ID field name in rawData (default: "childIds")
    */
   childIdsField?: string;
+
+  /**
+   * Entity extraction configurations for parent record
+   * Entities extracted from children will be aggregated (deduplicated)
+   */
+  entities?: EntityExtractionConfig[];
+
+  /**
+   * Relationship extraction configurations for parent record
+   * Relationships extracted from children will be aggregated
+   */
+  relationships?: RelationshipConfig[];
 }
 
 /**

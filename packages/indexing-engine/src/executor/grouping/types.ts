@@ -9,6 +9,7 @@ import type {
   LLMGroupingConfig,
   TimeWindowGroupingConfig,
   SessionGroupingConfig,
+  HybridGroupingConfig,
   ParentRecordConfig,
 } from "../../types/config.js";
 
@@ -19,6 +20,7 @@ export type {
   LLMGroupingConfig,
   TimeWindowGroupingConfig,
   SessionGroupingConfig,
+  HybridGroupingConfig,
   ParentRecordConfig,
   TransformedRecord,
 };
@@ -52,7 +54,8 @@ export type GroupingStrategy =
   | "thread"
   | "llm_conversation"
   | "time_window"
-  | "user_session";
+  | "user_session"
+  | "hybrid";
 
 /**
  * Base interface for grouping strategy implementations
@@ -71,6 +74,7 @@ export interface IGroupingStrategy {
       | LLMGroupingConfig
       | TimeWindowGroupingConfig
       | SessionGroupingConfig
+      | HybridGroupingConfig
   ): Promise<RecordGroup[]>;
 }
 

@@ -7,15 +7,36 @@
   "connection": {
     "type": "stdio",
     "command": "npx",
-    "args": ["-y", "slack-mcp-server@latest", "--transport", "stdio"]
+    "args": ["-y", "slack-mcp-server@1.1.26", "--transport", "stdio"]
   },
   "variables": [
     {
       "key": "SLACK_MCP_XOXB_TOKEN",
-      "label": "Slack Token (Bot or User)",
+      "label": "Bot Token (xoxb-...)",
       "type": "password",
-      "required": true,
-      "helpText": "Your Slack token - accepts Bot Token (xoxb-...) or User Token (xoxp-...). Bot tokens access channels the bot is invited to. User tokens access channels/DMs you're personally in (more powerful but requires user OAuth). Required scopes: channels:read, groups:read, channels:history, groups:history, users:read (add im:read, im:history, mpim:read, mpim:history for DM access with user tokens)."
+      "required": false,
+      "helpText": "Bot token - Limited to channels where bot is invited. Suitable for team-wide integrations. Leave empty if using a different token type."
+    },
+    {
+      "key": "SLACK_MCP_XOXP_TOKEN",
+      "label": "User OAuth Token (xoxp-...)",
+      "type": "password",
+      "required": false,
+      "helpText": "User token - Access all channels/DMs you're in. More powerful than bot tokens. Required scopes: channels:read, groups:read, channels:history, groups:history, users:read, im:read, im:history, mpim:read, mpim:history."
+    },
+    {
+      "key": "SLACK_MCP_XOXC_TOKEN",
+      "label": "Browser Token (xoxc-...) - Advanced",
+      "type": "password",
+      "required": false,
+      "helpText": "Browser session token from Slack web app cookies. Must be used together with xoxd token. Extract from browser DevTools > Application > Cookies. Provides full web app access."
+    },
+    {
+      "key": "SLACK_MCP_XOXD_TOKEN",
+      "label": "Browser Cookie (xoxd-...) - Advanced",
+      "type": "password",
+      "required": false,
+      "helpText": "Browser session cookie from Slack web app. Must be used together with xoxc token. Extract from browser DevTools > Application > Cookies."
     }
   ],
   "indexingConfig": {
@@ -68,6 +89,17 @@
       "fetchChannels": {
         "tool": "channels_list",
         "description": "Fetch all channels in the workspace",
+        "formatProcessor": {
+          "name": "csv-to-json",
+          "options": {}
+        },
+        "transformResult": {
+          "id": "$.ID",
+          "name": "$.Name",
+          "topic": "$.Topic",
+          "purpose": "$.Purpose",
+          "memberCount": "$.MemberCount"
+        },
         "seedFrom": {
           "startingPoint": "channelTypes",
           "paramMapping": {
@@ -93,12 +125,15 @@
       "fetchMessages": {
         "tool": "conversations_history",
         "description": "Fetch messages from each channel",
+        "formatProcessor": {
+          "name": "csv-to-json",
+          "options": {}
+        },
         "forEach": {
           "source": "fetchChannels",
           "path": "$[*]",
           "paramMapping": {
-            "channel_id": "$.ID",
-            "limit": "$.limit"
+            "channel_id": "$.ID"
           },
           "concurrency": 3,
           "continueOnError": true,
@@ -122,11 +157,21 @@
           "windowSeconds": 60,
           "strategy": "token_bucket",
           "allowBurst": true
+        },
+        "cutoffDate": {
+          "strategy": "both",
+          "apiParam": "oldest",
+          "apiFormat": "unix",
+          "dateFieldPath": "$.Time"
         }
       },
       "fetchThreadReplies": {
         "tool": "conversations_replies",
         "description": "Fetch replies for threaded messages",
+        "formatProcessor": {
+          "name": "csv-to-json",
+          "options": {}
+        },
         "forEach": {
           "source": "fetchMessages",
           "path": "$[?(@.ThreadTs && @.ThreadTs != '')]",
@@ -134,6 +179,9 @@
             "channel_id": "$.Channel",
             "thread_ts": "$.ThreadTs",
             "limit": "100"
+          },
+          "paramTypes": {
+            "thread_ts": "string"
           },
           "concurrency": 2,
           "continueOnError": true,
@@ -154,6 +202,12 @@
           "windowSeconds": 60,
           "strategy": "token_bucket",
           "allowBurst": true
+        },
+        "cutoffDate": {
+          "strategy": "both",
+          "apiParam": "oldest",
+          "apiFormat": "unix",
+          "dateFieldPath": "$.Time"
         }
       }
     },
@@ -161,17 +215,18 @@
       "slackChannel": {
         "name": "slackChannel",
         "fetcher": "fetchChannels",
+        "idField": "$.ID",
         "detection": {
           "always": true
         },
         "fields": {
           "title": {
             "type": "path",
-            "path": "Name"
+            "path": "name"
           },
           "content": {
             "type": "template",
-            "template": "${record.Topic || record.Purpose || ''}"
+            "template": "${record.topic || record.purpose || ''}"
           },
           "primaryDate": {
             "type": "code",
@@ -179,11 +234,11 @@
           },
           "tags": {
             "type": "code",
-            "code": "const tags = []; if (record.Name.startsWith('#')) tags.push('public_channel'); if (record.MemberCount) tags.push(`members:${record.MemberCount}`); return tags;"
+            "code": "const tags = []; if (record.name && record.name.startsWith('#')) tags.push('public_channel'); if (record.memberCount) tags.push(`members:${record.memberCount}`); return tags;"
           },
           "metadata": {
             "type": "code",
-            "code": "return { channelId: record.ID, memberCount: record.MemberCount, topic: record.Topic, purpose: record.Purpose };"
+            "code": "return { channelId: record.id, memberCount: record.memberCount, topic: record.topic, purpose: record.purpose };"
           }
         },
         "relationships": []
@@ -191,6 +246,7 @@
       "slackMessage": {
         "name": "slackMessage",
         "fetcher": "fetchMessages",
+        "idField": "$.MsgID",
         "detection": {
           "condition": "record.Text && record.Text.length > 0"
         },
@@ -220,35 +276,89 @@
             "code": "return { messageId: record.MsgID, channelId: record.Channel, threadTs: record.ThreadTs, reactions: record.Reactions, userName: record.UserName, realName: record.RealName };"
           }
         },
-        "entities": [
-          {
-            "name": "author",
-            "type": "Person",
-            "idPath": "$.UserID",
-            "titlePath": "$.RealName"
-          }
-        ],
-        "relationships": [
-          {
-            "name": "posted_in_channel",
-            "type": "POSTED_IN",
-            "targetType": "slackChannel",
-            "targetIdPath": "$.Channel",
-            "confidence": 1.0
+        "grouping": {
+          "strategy": "hybrid",
+          "config": {
+            "threadConfig": {
+              "threadIdPath": "$.ThreadTs",
+              "parentIndicatorPath": "$.ReplyCount"
+            },
+            "llmConfig": {
+              "systemPrompt": "You are an expert at analyzing Slack message patterns and grouping related messages into conversations based on topic continuity, temporal proximity, user interaction patterns, and contextual references.",
+              "analysisFields": ["$.Text", "$.UserID", "$.Time", "$.Channel"],
+              "sortBy": "$.Time",
+              "sortOrder": "asc",
+              "batchSize": 50,
+              "batchOverlap": 10,
+              "concurrency": 3
+            },
+            "minConversationSize": 2
           },
-          {
-            "name": "thread_parent",
-            "type": "REPLY_TO",
-            "condition": "record.ThreadTs && record.ThreadTs !== '' && record.ThreadTs !== record.MsgID",
-            "targetType": "slackMessage",
-            "targetIdPath": "$.ThreadTs",
-            "confidence": 0.9
-          }
-        ]
+          "parentRecord": {
+            "recordType": "slackThread",
+            "sourceIdStrategy": "first_child",
+            "sourceIdTemplate": "thread-${firstChild.ThreadTs}",
+            "storeChildIds": true,
+            "childIdsField": "childIds",
+            "entities": [
+              {
+                "name": "participants",
+                "type": "Person",
+                "idPath": "$.UserID",
+                "titlePath": "$.RealName",
+                "aggregate": "unique"
+              }
+            ],
+            "relationships": [
+              {
+                "name": "posted_in_channel",
+                "type": "POSTED_IN",
+                "sourceIdPath": "$._id",
+                "targetType": "slackChannel",
+                "targetIdPath": "$.Channel",
+                "confidence": 1.0
+              }
+            ],
+            "fields": {
+              "title": {
+                "type": "aggregate",
+                "function": "first",
+                "path": "$.Text"
+              },
+              "content": {
+                "type": "aggregate",
+                "function": "concat",
+                "path": "$.Text",
+                "separator": "\n",
+                "itemTemplate": "[${child.UserName || child.UserID}]: ${value}"
+              },
+              "people": {
+                "type": "aggregate",
+                "function": "unique",
+                "path": "$.UserID"
+              },
+              "primaryDate": {
+                "type": "aggregate",
+                "function": "first",
+                "path": "$.Time"
+              },
+              "tags": {
+                "type": "code",
+                "code": "return ['thread', 'conversation'];"
+              },
+              "metadata": {
+                "type": "code",
+                "code": "const firstChild = children[0]; return { threadTs: firstChild.ThreadTs, channelId: firstChild.Channel, messageCount: children.length, participants: [...new Set(children.map(c => c.UserID).filter(Boolean))] };"
+              }
+            }
+          },
+          "minGroupSize": 2
+        }
       },
       "slackThreadReply": {
         "name": "slackThreadReply",
         "fetcher": "fetchThreadReplies",
+        "idField": "$.MsgID",
         "detection": {
           "condition": "record.Text && record.Text.length > 0 && record.ThreadTs && record.ThreadTs !== ''"
         },
@@ -278,30 +388,71 @@
             "code": "return { messageId: record.MsgID, channelId: record.Channel, threadTs: record.ThreadTs, reactions: record.Reactions, userName: record.UserName, realName: record.RealName };"
           }
         },
-        "entities": [
-          {
-            "name": "author",
-            "type": "Person",
-            "idPath": "$.UserID",
-            "titlePath": "$.RealName"
-          }
-        ],
-        "relationships": [
-          {
-            "name": "reply_in_thread",
-            "type": "REPLY_IN_THREAD",
-            "targetType": "slackMessage",
-            "targetIdPath": "$.ThreadTs",
-            "confidence": 1.0
+        "grouping": {
+          "strategy": "thread",
+          "config": {
+            "threadIdPath": "$.ThreadTs"
           },
-          {
-            "name": "posted_in_channel",
-            "type": "POSTED_IN",
-            "targetType": "slackChannel",
-            "targetIdPath": "$.Channel",
-            "confidence": 1.0
-          }
-        ]
+          "parentRecord": {
+            "recordType": "slackThread",
+            "sourceIdStrategy": "first_child",
+            "sourceIdTemplate": "thread-${firstChild.ThreadTs}",
+            "storeChildIds": true,
+            "childIdsField": "childIds",
+            "entities": [
+              {
+                "name": "participants",
+                "type": "Person",
+                "idPath": "$.UserID",
+                "titlePath": "$.RealName",
+                "aggregate": "unique"
+              }
+            ],
+            "relationships": [
+              {
+                "name": "posted_in_channel",
+                "type": "POSTED_IN",
+                "sourceIdPath": "$._id",
+                "targetType": "slackChannel",
+                "targetIdPath": "$.Channel",
+                "confidence": 1.0
+              }
+            ],
+            "fields": {
+              "title": {
+                "type": "aggregate",
+                "function": "first",
+                "path": "$.Text"
+              },
+              "content": {
+                "type": "aggregate",
+                "function": "concat",
+                "path": "$.Text",
+                "separator": "\n",
+                "itemTemplate": "[${child.UserName || child.UserID}]: ${value}"
+              },
+              "people": {
+                "type": "aggregate",
+                "function": "unique",
+                "path": "$.UserID"
+              },
+              "primaryDate": {
+                "type": "aggregate",
+                "function": "first",
+                "path": "$.Time"
+              },
+              "tags": {
+                "type": "code",
+                "code": "return ['thread', 'conversation'];"
+              },
+              "metadata": {
+                "type": "code",
+                "code": "const firstChild = children[0]; return { threadTs: firstChild.ThreadTs, channelId: firstChild.Channel, messageCount: children.length, participants: [...new Set(children.map(c => c.UserID).filter(Boolean))] };"
+              }
+            }
+          },
+          "minGroupSize": 2
+        }
       }
     },
     "rateLimit": {

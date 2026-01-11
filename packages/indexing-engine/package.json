@@ -15,6 +15,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "csv-parse": "^6.1.0",
     "jsonpath-plus": "^10.2.0",
     "turndown": "^7.2.0",
     "zod": "^3.25.76"

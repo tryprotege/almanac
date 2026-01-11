@@ -66,6 +66,7 @@ export const applicationSchema = z.object({
   // Reranker Configuration (generic - works with any provider)
   RERANKER_ENABLED: z.boolean().default(false),
   RERANKER_BASE_URL: z.string().optional(),
+  RERANKER_API_KEY: z.string().optional(),
   RERANKER_MODEL: z.string().optional(),
 
   DB_INDEXING_CONCURRENCY: z.coerce.number().default(32),

@@ -20,6 +20,7 @@ interface PresetData {
     label: string;
     type: string;
     required: boolean;
+    helpText?: string;
   }>;
 }
 
@@ -459,56 +460,85 @@ export function AdvancedConfigForm({
                 </button>
               )}
             </div>
-            {formData.env.map((env, index) => (
-              <div key={index} className="flex gap-2 mb-2">
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    value={env.key}
-                    onChange={(e) => updateEnvVar(index, "key", e.target.value)}
-                    disabled={isLoading || isPreset}
-                    className={`input ${
-                      isPreset ? "bg-bg-secondary/50 cursor-not-allowed" : ""
-                    }`}
-                    placeholder="KEY"
-                  />
-                  {isPreset && (
-                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-quaternary pointer-events-none" />
+            {formData.env.map((env, index) => {
+              const presetVar = preset?.variables?.find(
+                (v) => v.key === env.key
+              );
+              return (
+                <div key={index} className="mb-3">
+                  <div className="flex gap-2 mb-1">
+                    <div className="flex-1 relative">
+                      <input
+                        type="text"
+                        value={env.key}
+                        onChange={(e) =>
+                          updateEnvVar(index, "key", e.target.value)
+                        }
+                        disabled={isLoading || isPreset}
+                        className={`input ${
+                          isPreset
+                            ? "bg-bg-secondary/50 cursor-not-allowed"
+                            : ""
+                        }`}
+                        placeholder="KEY"
+                      />
+                      {isPreset && (
+                        <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-quaternary pointer-events-none" />
+                      )}
+                    </div>
+                    <div className="flex-1 relative">
+                      <input
+                        type={env.showValue ? "text" : "password"}
+                        value={env.value}
+                        onChange={(e) =>
+                          updateEnvVar(index, "value", e.target.value)
+                        }
+                        disabled={isLoading}
+                        className="input w-full pr-10"
+                        placeholder="value"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => toggleEnvVisibility(index)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-text-quaternary hover:text-text-secondary"
+                      >
+                        {env.showValue ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeEnvVar(index)}
+                      disabled={isLoading || isPreset}
+                      className="text-brand-error hover:text-brand-error/80 disabled:opacity-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {presetVar && (
+                    <div className="flex items-start gap-1.5 ml-1">
+                      {presetVar.required ? (
+                        <span className="text-xs text-red-500 font-medium mt-0.5">
+                          Required
+                        </span>
+                      ) : (
+                        <span className="text-xs text-text-tertiary font-medium mt-0.5">
+                          Optional
+                        </span>
+                      )}
+                      {presetVar.helpText && (
+                        <p className="text-xs text-text-secondary leading-relaxed flex-1">
+                          {presetVar.helpText}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
-                <div className="flex-1 relative">
-                  <input
-                    type={env.showValue ? "text" : "password"}
-                    value={env.value}
-                    onChange={(e) =>
-                      updateEnvVar(index, "value", e.target.value)
-                    }
-                    disabled={isLoading}
-                    className="input w-full pr-10"
-                    placeholder="value"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => toggleEnvVisibility(index)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-quaternary hover:text-text-secondary"
-                  >
-                    {env.showValue ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeEnvVar(index)}
-                  disabled={isLoading}
-                  className="text-brand-error hover:text-brand-error/80"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}

@@ -214,6 +214,9 @@ importers:
 
   packages/indexing-engine:
     dependencies:
+      csv-parse:
+        specifier: ^6.1.0
+        version: 6.1.0
       jsonpath-plus:
         specifier: ^10.2.0
         version: 10.3.0
@@ -1387,8 +1390,8 @@ packages:
     resolution: {integrity: sha512-058GAcqHd3I7oYLnLIMhcZMdg8i6hCvD4K3s5PY8RuSXp7QAl9/+usOIxrDSfNMGK4cfya94LqHj+txwIe3wUQ==}
     engines: {node: '>=18'}
 
-  '@sourcegraph/amp@0.0.1767756503-g633fb2':
-    resolution: {integrity: sha512-Ee67SS/HAIaBh3N+FQ42VBhJWH+DtuF+47dTr5dwWng9+ohapwcsace/gEWmWoi8ygzRWo9d7OKKoJhwzSSsqA==}
+  '@sourcegraph/amp@0.0.1767988925-g511647':
+    resolution: {integrity: sha512-Up+PhCZ4iJ1ltrVOuKoyFfketMgdVCtUFA5sFOVmWyj18AcdBD1qqv33O8ze91VMu1zH7w7ZWM+M2EtzxaPWcg==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -4751,10 +4754,10 @@ snapshots:
 
   '@sourcegraph/amp-sdk@0.1.0-20251217003600-gcd4203a':
     dependencies:
-      '@sourcegraph/amp': 0.0.1767756503-g633fb2
+      '@sourcegraph/amp': 0.0.1767988925-g511647
       zod: 3.25.76
 
-  '@sourcegraph/amp@0.0.1767756503-g633fb2':
+  '@sourcegraph/amp@0.0.1767988925-g511647':
     dependencies:
       '@napi-rs/keyring': 1.1.9
 

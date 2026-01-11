@@ -13,11 +13,10 @@ export interface DebugPromptInput {
  * Generate a debug prompt for the LLM to fix config errors
  */
 export function generateDebugPrompt(input: DebugPromptInput): string {
-  const { originalConfig, testResult, samples, attemptNumber, maxAttempts } =
-    input;
+  const { originalConfig, testResult, attemptNumber, maxAttempts } = input;
 
   const errorSummary = summarizeErrors(testResult);
-  const sampleDataSection = formatRelevantSamples(testResult, samples);
+  const sampleDataSection = formatRelevantSamples(testResult);
 
   return `# Fix IndexingConfig Errors (Attempt ${attemptNumber}/${maxAttempts})
 
@@ -145,10 +144,7 @@ function summarizeErrors(result: TestRunResult): string {
 /**
  * Format relevant sample data and MCP responses for errors
  */
-function formatRelevantSamples(
-  result: TestRunResult,
-  samples: Record<string, any>
-): string {
+function formatRelevantSamples(result: TestRunResult): string {
   const lines: string[] = [];
   const relevantFetchers = new Set<string>();
 

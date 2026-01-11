@@ -7,7 +7,10 @@
   "connection": {
     "type": "stdio",
     "command": "npx",
-    "args": ["-y", "@suekou/mcp-notion-server"]
+    "args": [
+      "-y",
+      "@suekou/mcp-notion-server"
+    ]
   },
   "variables": [
     {
@@ -57,22 +60,45 @@
       {
         "name": "teamWorkspaceId",
         "description": "The ID of your root team workspace page in Notion (e.g., a team home page or documentation hub)",
-        "required": true,
+        "required": false,
         "userProvided": true,
-        "examples": ["13d8a5b0-a4d3-4e8e-9a2f-1234567890ab"]
+        "examples": [
+          "13d8a5b0-a4d3-4e8e-9a2f-1234567890ab"
+        ],
+        "discovery": {
+          "fetcher": "discoverRootPages",
+          "valuePath": "$[?(@.object == 'page' && @.parent && @.parent.type == 'workspace')].id",
+          "description": "Auto-discover root workspace pages via search"
+        }
       }
     ],
     "syncOrder": [
-      "fetchRootPage",
+      "discoverRootPages",
+      "fetchPages",
       "fetchPageBlocks",
       "fetchChildPages",
       "fetchDatabases",
       "fetchDatabaseItems"
     ],
     "fetchers": {
-      "fetchRootPage": {
+      "discoverRootPages": {
+        "tool": "notion_search",
+        "description": "Discover all accessible pages and databases for starting point discovery",
+        "params": {
+          "page_size": 100,
+          "format": "json"
+        },
+        "pagination": {
+          "type": "cursor",
+          "cursorParam": "start_cursor",
+          "cursorPath": "next_cursor",
+          "hasMorePath": "has_more"
+        },
+        "resultPath": "results"
+      },
+      "fetchPages": {
         "tool": "notion_retrieve_page",
-        "description": "Fetch the root team workspace page using the starting point",
+        "description": "Fetch pages using the starting point",
         "seedFrom": {
           "startingPoint": "teamWorkspaceId",
           "paramMapping": {
@@ -94,6 +120,10 @@
         "extractFromAggregation": {
           "blockCount": "blocks.length",
           "hasContent": "blocks && blocks.length > `0`"
+        },
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.last_edited_time"
         }
       },
       "fetchBlocksForAggregation": {
@@ -142,13 +172,17 @@
         "extractFromAggregation": {
           "blockCount": "blocks.length",
           "contentPreview": "blocks[0:3]"
+        },
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.last_edited_time"
         }
       },
       "fetchPageBlocks": {
         "tool": "notion_retrieve_block_children",
         "description": "Fetch blocks from all pages (root and children)",
         "forEach": {
-          "source": "fetchRootPage",
+          "source": "fetchPages",
           "path": "$[*]",
           "paramMapping": {
             "block_id": "$.id",
@@ -169,10 +203,13 @@
       },
       "fetchDatabases": {
         "tool": "notion_retrieve_database",
-        "description": "Fetch databases referenced in blocks",
+        "description": "Fetch databases from blocks and root-level discoveries",
         "forEach": {
-          "source": "fetchPageBlocks",
-          "path": "$[?(@.type == 'child_database')]",
+          "source": ["fetchPageBlocks", "discoverRootPages"],
+          "path": [
+            "$[?(@.type == 'child_database')]",
+            "$[?(@.object == 'database' && @.parent && @.parent.type == 'workspace')]"
+          ],
           "paramMapping": {
             "database_id": "$.id",
             "format": "json"
@@ -184,14 +221,18 @@
         "pagination": {
           "type": "none"
         },
-        "resultPath": "."
+        "resultPath": ".",
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.last_edited_time"
+        }
       },
       "fetchDatabaseItems": {
         "tool": "notion_query_database",
         "description": "Fetch items from databases",
         "forEach": {
           "source": "fetchDatabases",
-          "path": "$",
+          "path": "$[*]",
           "paramMapping": {
             "database_id": "$.id",
             "format": "json",
@@ -218,13 +259,17 @@
         "extractFromAggregation": {
           "contentLength": "pageContent.length",
           "hasBlocks": "pageContent && pageContent.length > `0`"
+        },
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.last_edited_time"
         }
       }
     },
     "recordTypes": {
       "notionPage": {
         "name": "notionPage",
-        "fetcher": "fetchRootPage",
+        "fetcher": "fetchPages",
         "detection": {
           "always": true
         },
@@ -239,7 +284,10 @@
           },
           "people": {
             "type": "paths",
-            "paths": ["created_by.id", "last_edited_by.id"]
+            "paths": [
+              "created_by.id",
+              "last_edited_by.id"
+            ]
           },
           "primaryDate": {
             "type": "path",
@@ -296,7 +344,10 @@
           },
           "people": {
             "type": "paths",
-            "paths": ["created_by.id", "last_edited_by.id"]
+            "paths": [
+              "created_by.id",
+              "last_edited_by.id"
+            ]
           },
           "primaryDate": {
             "type": "path",
@@ -349,7 +400,9 @@
           },
           "content": {
             "type": "paths",
-            "paths": ["description[*].plain_text"],
+            "paths": [
+              "description[*].plain_text"
+            ],
             "join": " "
           },
           "primaryDate": {
@@ -416,7 +469,10 @@
     },
     "postProcessing": {
       "enabled": true,
-      "followRelationships": ["CHILD_OF", "PARENT_OF"],
+      "followRelationships": [
+        "CHILD_OF",
+        "PARENT_OF"
+      ],
       "maxIterations": 10,
       "description": "After initial indexing, follow page relationships to discover and fetch any referenced pages that weren't captured in the first pass"
     }

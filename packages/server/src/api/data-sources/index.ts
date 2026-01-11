@@ -90,6 +90,36 @@ dataSourcesRouter.get("/:name", async (req: Request, res: Response) => {
   }
 });
 
+// Helper function to validate preset-specific requirements
+function validatePresetRequirements(
+  presetId: string,
+  env: Record<string, string> | undefined
+): string | null {
+  // Special validation for Slack - require at least one token type
+  if (presetId === "slack") {
+    if (!env) {
+      return "Slack requires at least one token (xoxb, xoxp, or xoxc+xoxd)";
+    }
+
+    const hasXoxb = env.SLACK_MCP_XOXB_TOKEN?.trim();
+    const hasXoxp = env.SLACK_MCP_XOXP_TOKEN?.trim();
+    const hasXoxc = env.SLACK_MCP_XOXC_TOKEN?.trim();
+    const hasXoxd = env.SLACK_MCP_XOXD_TOKEN?.trim();
+
+    // Check if at least one token type is provided
+    if (!hasXoxb && !hasXoxp && !hasXoxc && !hasXoxd) {
+      return "Slack requires at least one token. Please provide: Bot Token (xoxb), User Token (xoxp), or Browser Tokens (xoxc + xoxd)";
+    }
+
+    // If xoxc or xoxd is provided, both must be provided
+    if ((hasXoxc && !hasXoxd) || (!hasXoxc && hasXoxd)) {
+      return "Browser authentication requires both SLACK_MCP_XOXC_TOKEN and SLACK_MCP_XOXD_TOKEN";
+    }
+  }
+
+  return null;
+}
+
 // POST /api/data-sources - Create a new data source
 dataSourcesRouter.post("/", async (req: Request, res: Response) => {
   try {
@@ -113,6 +143,21 @@ dataSourcesRouter.post("/", async (req: Request, res: Response) => {
         error: "Server type must be 'stdio', 'sse', or 'streamable-http'",
       });
       return;
+    }
+
+    // Validate preset-specific requirements
+    if (config.presetId) {
+      const validationError = validatePresetRequirements(
+        config.presetId,
+        config.env
+      );
+      if (validationError) {
+        res.status(400).json({
+          success: false,
+          error: validationError,
+        });
+        return;
+      }
     }
 
     // Check if data source already exists

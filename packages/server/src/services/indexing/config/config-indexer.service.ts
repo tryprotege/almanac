@@ -1,9 +1,10 @@
 import type {
+  FetcherConfig,
   IndexingConfig,
   RecordTypeConfig,
   TransformedRecord,
 } from "@ebee-oss/indexing-engine";
-import { transformRecord } from "@ebee-oss/indexing-engine";
+import { transformRecord, GroupingEngine } from "@ebee-oss/indexing-engine";
 import {
   fetchAll as fetchPaginated,
   fetchWithForEach,
@@ -19,7 +20,10 @@ import { DataSourceModel } from "../../../models/data-source.model.js";
 import { mcpClientManager } from "../../../mcp/client.js";
 import { rateLimiterManager } from "./rate-limiter.js";
 import { ContentAggregatorService } from "./content-aggregator.service.js";
+import { env } from "../../../env.js";
 import logger from "../../../utils/logger.js";
+import { JSONPath } from "jsonpath-plus";
+import { llm } from "../../llm/llm.js";
 
 export interface IndexProgress {
   fetcherName: string;
@@ -32,6 +36,96 @@ export interface IndexProgress {
   isBackpressure?: boolean;
 }
 
+/**
+ * Check if record should be filtered by cutoff date
+ */
+function shouldFilterByCutoffDate(fetcherConfig: FetcherConfig): boolean {
+  if (!fetcherConfig.cutoffDate) return false;
+  if (!env.SYNC_CUTOFF_DATE) return false;
+
+  const strategy = fetcherConfig.cutoffDate.strategy;
+  return strategy === "post_fetch" || strategy === "both";
+}
+
+/**
+ * Extract date from record for cutoff comparison
+ */
+function extractRecordDate(
+  record: any,
+  fetcherConfig: FetcherConfig
+): Date | null {
+  if (!fetcherConfig.cutoffDate?.dateFieldPath) return null;
+
+  try {
+    const dateValue = JSONPath({
+      path: fetcherConfig.cutoffDate.dateFieldPath,
+      json: record,
+      wrap: false,
+    });
+
+    if (!dateValue) return null;
+
+    // Handle different date formats
+    if (typeof dateValue === "number") {
+      // Unix timestamp (seconds or milliseconds)
+      return dateValue > 10000000000
+        ? new Date(dateValue)
+        : new Date(dateValue * 1000);
+    }
+
+    return new Date(dateValue);
+  } catch (error) {
+    logger.error(
+      { err: error, path: fetcherConfig.cutoffDate.dateFieldPath },
+      "Failed to extract date from record"
+    );
+    return null;
+  }
+}
+
+/**
+ * Add cutoff date parameter to API call if configured
+ */
+export function applyCutoffDateToParams(
+  params: Record<string, any>,
+  fetcherConfig: FetcherConfig
+): void {
+  if (!env.SYNC_CUTOFF_DATE) return;
+  if (!fetcherConfig.cutoffDate) return;
+
+  const config = fetcherConfig.cutoffDate;
+  const strategy = config.strategy;
+
+  if ((strategy === "api" || strategy === "both") && config.apiParam) {
+    const cutoffDate = new Date(env.SYNC_CUTOFF_DATE);
+
+    // Format based on API requirements
+    switch (config.apiFormat) {
+      case "unix":
+        params[config.apiParam] = Math.floor(
+          cutoffDate.getTime() / 1000
+        ).toString();
+        break;
+      case "unix_ms":
+        params[config.apiParam] = cutoffDate.getTime().toString();
+        break;
+      case "iso8601":
+      default:
+        params[config.apiParam] = cutoffDate.toISOString();
+    }
+
+    logger.info(
+      {
+        param: config.apiParam,
+        value: params[config.apiParam],
+        cutoffDate: env.SYNC_CUTOFF_DATE,
+        strategy: config.strategy,
+      },
+      "Applied SYNC_CUTOFF_DATE to API params"
+    );
+  }
+}
+
 // Configuration for backpressure
 const BACKPRESSURE_CONFIG = {
   // Maximum number of records in flight before applying backpressure
@@ -41,6 +135,27 @@ const BACKPRESSURE_CONFIG = {
   // Check backpressure every N records
   CHECK_INTERVAL: 10,
 };
+
+/**
+ * Get all fetcher names that are referenced as forEach sources by other fetchers
+ */
+function getReferencedSources(config: IndexingConfig): Set<string> {
+  const referencedSources = new Set<string>();
+
+  for (const fetcherConfig of Object.values(config.fetchers)) {
+    if (fetcherConfig.forEach?.source) {
+      const sources = Array.isArray(fetcherConfig.forEach.source)
+        ? fetcherConfig.forEach.source
+        : [fetcherConfig.forEach.source];
+
+      for (const source of sources) {
+        referencedSources.add(source);
+      }
+    }
+  }
+
+  return referencedSources;
+}
 
 /**
  * Index all records from all fetchers
@@ -103,9 +218,11 @@ export async function* indexAll(
   let startingPointValues: StartingPointContext = {};
   if (config.startingPoints && config.startingPoints.length > 0) {
     try {
-      startingPointValues = StartingPointResolver.resolve(
+      startingPointValues = await StartingPointResolver.resolve(
         config.startingPoints,
-        userProvidedStartingPoints
+        userProvidedStartingPoints,
+        serverName,
+        config.fetchers
       );
       logger.info(
         {
@@ -141,6 +258,9 @@ export async function* indexAll(
   // Track fetcher results for forEach references
   const fetcherResults: ForEachContext = {};
 
+  // Get fetchers that are referenced as sources by other fetchers
+  const referencedSources = getReferencedSources(config);
+
   // Initialize content aggregator service
   const contentAggregator = new ContentAggregatorService(config.fetchers);
 
@@ -174,11 +294,21 @@ export async function* indexAll(
       }
 
       if (classification?.category === "search") {
-        logger.info(
-          { fetcherName, toolName: fetcherConfig.tool },
-          "Skipping fetcher that uses SEARCH tool"
-        );
-        continue;
+        // Check if this search tool is referenced by other fetchers as a source
+        if (referencedSources.has(fetcherName)) {
+          logger.info(
+            { fetcherName, toolName: fetcherConfig.tool },
+            "Running search tool because it is referenced as source by other fetchers"
+          );
+          // Continue to run it - we'll store results for forEach references
+          // but won't yield records since search results shouldn't be indexed directly
+        } else {
+          logger.info(
+            { fetcherName, toolName: fetcherConfig.tool },
+            "Skipping fetcher that uses SEARCH tool"
+          );
+          continue;
+        }
       }
     }
 
@@ -227,17 +357,49 @@ export async function* indexAll(
         );
       }
 
-      // Store raw records for forEach references
-      allFetcherRecords.push(...pageResult.records);
+      // Apply cutoff date filtering if configured
+      let filteredRecords = pageResult.records;
+      if (shouldFilterByCutoffDate(fetcherConfig) && env.SYNC_CUTOFF_DATE) {
+        const cutoffDate = new Date(env.SYNC_CUTOFF_DATE);
+        const beforeFiltering = filteredRecords.length;
+
+        filteredRecords = filteredRecords.filter((record: any) => {
+          const recordDate = extractRecordDate(record, fetcherConfig);
+          if (!recordDate) {
+            logger.warn(
+              { fetcherName, recordId: record.id || "unknown" },
+              "Could not extract date from record for cutoff filtering, including record"
+            );
+            return true;
+          }
+          return recordDate >= cutoffDate;
+        });
+
+        const filtered = beforeFiltering - filteredRecords.length;
+        if (filtered > 0) {
+          logger.info(
+            {
+              fetcherName,
+              filtered,
+              remaining: filteredRecords.length,
+              cutoffDate: env.SYNC_CUTOFF_DATE,
+            },
+            "Filtered records by SYNC_CUTOFF_DATE (post-fetch)"
+          );
+        }
+      }
+
+      // Store raw records for forEach references (after filtering)
+      allFetcherRecords.push(...filteredRecords);
       const transformedBatch: TransformedRecord[] = [];
 
       // Check backpressure: if we have too many records in the current batch waiting
       // This helps prevent overwhelming the system with too many in-flight operations
-      if (pageResult.records.length > BACKPRESSURE_CONFIG.MAX_QUEUE_SIZE) {
+      if (filteredRecords.length > BACKPRESSURE_CONFIG.MAX_QUEUE_SIZE) {
         logger.warn(
           {
             fetcherName,
-            queueSize: pageResult.records.length,
+            queueSize: filteredRecords.length,
             maxQueueSize: BACKPRESSURE_CONFIG.MAX_QUEUE_SIZE,
           },
           "Large page detected - processing with backpressure"
@@ -245,8 +407,8 @@ export async function* indexAll(
       }
 
       // Process each record
-      for (let i = 0; i < pageResult.records.length; i++) {
-        const rawRecord = pageResult.records[i];
+      for (let i = 0; i < filteredRecords.length; i++) {
+        const rawRecord = filteredRecords[i];
 
         // Apply backpressure check periodically
         if (i > 0 && i % BACKPRESSURE_CONFIG.CHECK_INTERVAL === 0) {
@@ -413,17 +575,80 @@ export async function* indexAll(
         }
       }
 
+      // Apply grouping if any record types have grouping configured
+      let finalBatch = transformedBatch;
+      const recordTypesWithGrouping = recordTypes.filter((rt) => rt.grouping);
+
+      if (recordTypesWithGrouping.length > 0 && transformedBatch.length > 0) {
+        // Group by record type since different types may have different grouping configs
+        const recordsByType = new Map<string, TransformedRecord[]>();
+        for (const record of transformedBatch) {
+          if (!recordsByType.has(record.recordType)) {
+            recordsByType.set(record.recordType, []);
+          }
+          recordsByType.get(record.recordType)!.push(record);
+        }
+
+        const groupedResults: TransformedRecord[] = [];
+        for (const recordType of recordTypesWithGrouping) {
+          const recordsForType = recordsByType.get(recordType.name) || [];
+          if (recordsForType.length === 0) continue;
+
+          try {
+            logger.info(
+              {
+                recordType: recordType.name,
+                count: recordsForType.length,
+                strategy: recordType.grouping!.strategy,
+              },
+              "Applying grouping to records"
+            );
+
+            const groupingEngine = new GroupingEngine(llm, env.LLM_CHAT_MODEL);
+            const groupingResult = await groupingEngine.group(
+              recordsForType,
+              recordType.grouping!
+            );
+
+            logger.info(
+              {
+                recordType: recordType.name,
+                statistics: groupingResult.statistics,
+              },
+              "Grouping completed"
+            );
+
+            groupedResults.push(...groupingResult.records);
+          } catch (err) {
+            logger.error(
+              { err, recordType: recordType.name },
+              "Error applying grouping, using ungrouped records"
+            );
+            groupedResults.push(...recordsForType);
+          }
+        }
+
+        // Add records from types without grouping
+        for (const [typeName, records] of recordsByType.entries()) {
+          if (!recordTypesWithGrouping.find((rt) => rt.name === typeName)) {
+            groupedResults.push(...records);
+          }
+        }
+
+        finalBatch = groupedResults;
+      }
+
       // Yield final batch for this page
-      if (transformedBatch.length > 0) {
+      if (finalBatch.length > 0) {
         yield {
-          records: transformedBatch,
+          records: finalBatch,
           progress: {
             fetcherName,
             recordType: recordTypes.map((rt) => rt.name).join(", "),
             recordsProcessed,
             totalRecords: recordsProcessed, // Unknown total
             status: "transforming",
-            queueSize: transformedBatch.length,
+            queueSize: finalBatch.length,
           },
         };
       }
@@ -432,7 +657,10 @@ export async function* indexAll(
     // Save results for future fetchers to reference
     fetcherResults[fetcherName] = allFetcherRecords;
 
-    logger.info(`Completed fetch: ${fetcherName}`);
+    logger.info(
+      { fetcherName, recordCount: allFetcherRecords.length },
+      "Completed fetch"
+    );
   }
 }
 
@@ -659,7 +887,9 @@ function sleep(ms: number): Promise<void> {
  * Get fetchers in the correct execution order based on syncOrder
  * Falls back to Object.entries() order if syncOrder is not specified
  */
-function getOrderedFetchers(config: IndexingConfig): Array<[string, any]> {
+function getOrderedFetchers(
+  config: IndexingConfig
+): Array<[string, FetcherConfig]> {
   if (config.syncOrder && config.syncOrder.length > 0) {
     logger.info(
       { syncOrder: config.syncOrder },

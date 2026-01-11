@@ -11,11 +11,8 @@ import {
   indexEntityEmbeddings,
   indexRelationshipEmbeddings,
 } from "../indexing/graph/graph-embeddings.js";
-import { BaseRecordAdapter } from "../sync/adapters/base-adapter.js";
-import { SlackAdapter } from "../sync/adapters/slack-adapter.js";
 import { createRedisConnection, QUEUE_NAME } from "./config.js";
 import { env } from "../../env.js";
-import { SlackMCPClient } from "../sources/slack/mcpClient.js";
 import { llm } from "../llm/llm.js";
 
 const processor: Processor<
@@ -31,28 +28,16 @@ const processor: Processor<
   const graphStore = new GraphStore(memgraph);
   const vectorStore = new VectorStore(qdrant);
 
-  const adapters = new Map<SourceType, BaseRecordAdapter>();
-
-  if (source === "slack") {
-    const slackClient = new SlackMCPClient();
-    adapters.set("slack", new SlackAdapter(slackClient));
-  }
-
   // Use functional approach for indexing
-  const result = await indexAllRecords(
-    source,
-    recordStore,
-    graphStore,
-    adapters,
-    llm,
-    {
-      batchSize: 100,
-      concurrency: env.GRAPH_EXTRACTION_CONCURRENCY,
-      enableToxicFilter: env.ENABLE_TOXIC_DOCUMENT_FILTER,
-      maxEntitiesPerDoc: env.MAX_ENTITIES_PER_DOCUMENT,
-      force: false,
-    }
-  );
+  // Note: Removed adapter dependency - relationships now come from
+  // config-driven extractedRelationships in transformed records
+  const result = await indexAllRecords(source, recordStore, graphStore, llm, {
+    batchSize: 100,
+    concurrency: env.GRAPH_EXTRACTION_CONCURRENCY,
+    enableToxicFilter: env.ENABLE_TOXIC_DOCUMENT_FILTER,
+    maxEntitiesPerDoc: env.MAX_ENTITIES_PER_DOCUMENT,
+    force: false,
+  });
 
   // Index entity and relationship embeddings after graph extraction
   if (result.nodes > 0 || result.relationships > 0) {

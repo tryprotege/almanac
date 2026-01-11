@@ -69,7 +69,11 @@
         "required": true,
         "userProvided": true,
         "default": "public_channel,private_channel",
-        "examples": ["public_channel,private_channel", "public_channel", "public_channel,private_channel,im"]
+        "examples": [
+          "public_channel,private_channel",
+          "public_channel",
+          "public_channel,private_channel,im"
+        ]
       },
       {
         "name": "messageHistoryLimit",
@@ -80,11 +84,7 @@
         "examples": ["7d", "30d", "90d", "100"]
       }
     ],
-    "syncOrder": [
-      "fetchChannels",
-      "fetchMessages",
-      "fetchThreadReplies"
-    ],
+    "syncOrder": ["fetchChannels", "fetchMessages", "fetchThreadReplies"],
     "fetchers": {
       "fetchChannels": {
         "tool": "channels_list",
@@ -222,7 +222,7 @@
         "fields": {
           "title": {
             "type": "path",
-            "path": "name"
+            "path": "Name"
           },
           "content": {
             "type": "template",

@@ -260,11 +260,12 @@ export class ParentRecordBuilder {
   }
 
   /**
+   * TODO: this is unsafe. We need a more secured way
    * Execute custom TypeScript code
    */
   private executeCode(code: string, context: any): any {
     try {
-      const func = new Function(...Object.keys(context), `return (${code});`);
+      const func = new Function(...Object.keys(context), code);
       return func(...Object.values(context));
     } catch (error) {
       console.error("Error executing code:", error);

@@ -1,7 +1,10 @@
 import { createHash } from "crypto";
-import { JSONPath } from "jsonpath-plus";
-import { RecordGroup, TransformedRecord, ParentRecordConfig } from "./types";
-import { extractValue } from "./engine";
+import { RecordGroup, TransformedRecord, ParentRecordConfig } from "./types.js";
+import { extractValue } from "./engine.js";
+import type {
+  EntityExtractionConfig,
+  RelationshipConfig,
+} from "../../types/config.js";
 
 /**
  * Builds parent records from grouped child records
@@ -107,6 +110,24 @@ export class ParentRecordBuilder {
       rawData[childIdsField] = group.records.map((r) => r.sourceId);
     }
 
+    // Extract entities from children if configured
+    const extractedEntities = config.entities
+      ? await this.extractEntitiesFromChildren(
+          group.records,
+          config.entities,
+          firstChild.source
+        )
+      : undefined;
+
+    // Extract relationships from children if configured
+    const extractedRelationships = config.relationships
+      ? await this.extractRelationshipsFromChildren(
+          group.records,
+          config.relationships,
+          `${firstChild.source}_${config.recordType}_${sourceId}`
+        )
+      : undefined;
+
     // Create parent record
     const _id = `${firstChild.source}_${config.recordType}_${sourceId}`;
 
@@ -125,6 +146,8 @@ export class ParentRecordBuilder {
       isParentRecord: true,
       groupId: group.groupId,
       childIds: group.records.map((r) => r._id),
+      extractedEntities,
+      extractedRelationships,
     };
   }
 
@@ -289,5 +312,129 @@ export class ParentRecordBuilder {
       default:
         throw new Error(`Unknown sourceIdStrategy: ${config.sourceIdStrategy}`);
     }
+  }
+
+  /**
+   * Extract entities from child records
+   */
+  private async extractEntitiesFromChildren(
+    children: TransformedRecord[],
+    entityConfigs: EntityExtractionConfig[],
+    _source: string
+  ): Promise<any[]> {
+    const allEntities: any[] = [];
+    const seenEntities = new Set<string>();
+
+    for (const entityConfig of entityConfigs) {
+      for (const child of children) {
+        // Check condition if specified
+        if (entityConfig.condition) {
+          try {
+            const func = new Function(
+              "record",
+              `return ${entityConfig.condition}`
+            );
+            if (!func(child.rawData)) {
+              continue;
+            }
+          } catch (error) {
+            console.warn(`Entity condition evaluation failed:`, error);
+            continue;
+          }
+        }
+
+        // Extract entity ID and title
+        const entityId = extractValue(child.rawData, entityConfig.idPath);
+        const entityTitle = extractValue(child.rawData, entityConfig.titlePath);
+
+        if (!entityId) continue;
+
+        // Create unique key for deduplication
+        const entityKey = `${entityConfig.type}:${entityId}`;
+        if (seenEntities.has(entityKey)) continue;
+
+        seenEntities.add(entityKey);
+
+        // Extract additional properties if configured
+        const properties: any = {};
+        if (entityConfig.properties) {
+          for (const [key, path] of Object.entries(entityConfig.properties)) {
+            const value = extractValue(child.rawData, path);
+            if (value !== undefined) {
+              properties[key] = value;
+            }
+          }
+        }
+
+        allEntities.push({
+          name: entityConfig.name,
+          type: entityConfig.type,
+          id: entityId,
+          title: entityTitle || entityId,
+          properties,
+        });
+      }
+    }
+
+    return allEntities;
+  }
+
+  /**
+   * Extract relationships from child records
+   */
+  private async extractRelationshipsFromChildren(
+    children: TransformedRecord[],
+    relationshipConfigs: RelationshipConfig[],
+    parentId: string
+  ): Promise<any[]> {
+    const allRelationships: any[] = [];
+    const seenRelationships = new Set<string>();
+
+    for (const relConfig of relationshipConfigs) {
+      for (const child of children) {
+        // Check condition if specified
+        if (relConfig.condition) {
+          try {
+            const func = new Function(
+              "record",
+              `return ${relConfig.condition}`
+            );
+            if (!func(child.rawData)) {
+              continue;
+            }
+          } catch (error) {
+            console.warn(`Relationship condition evaluation failed:`, error);
+            continue;
+          }
+        }
+
+        // Extract source and target IDs
+        const sourceId = relConfig.sourceIdPath
+          ? extractValue(child.rawData, relConfig.sourceIdPath)
+          : parentId;
+
+        const targetId = extractValue(child.rawData, relConfig.targetIdPath);
+
+        if (!sourceId || !targetId) continue;
+
+        // Create unique key for deduplication
+        const relKey = `${sourceId}:${relConfig.type}:${targetId}`;
+        if (seenRelationships.has(relKey)) continue;
+
+        seenRelationships.add(relKey);
+
+        allRelationships.push({
+          name: relConfig.name,
+          type: relConfig.type,
+          sourceType: relConfig.sourceType || child.recordType,
+          sourceId,
+          targetType: relConfig.targetType,
+          targetId,
+          confidence: relConfig.confidence || 1.0,
+        });
+      }
+    }
+
+    return allRelationships;
   }
 }

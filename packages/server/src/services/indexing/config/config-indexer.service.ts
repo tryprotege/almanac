@@ -4,7 +4,7 @@ import type {
   RecordTypeConfig,
   TransformedRecord,
 } from "@ebee-oss/indexing-engine";
-import { transformRecord } from "@ebee-oss/indexing-engine";
+import { transformRecord, GroupingEngine } from "@ebee-oss/indexing-engine";
 import {
   fetchAll as fetchPaginated,
   fetchWithForEach,
@@ -23,6 +23,7 @@ import { ContentAggregatorService } from "./content-aggregator.service.js";
 import { env } from "../../../env.js";
 import logger from "../../../utils/logger.js";
 import { JSONPath } from "jsonpath-plus";
+import { llm } from "../../llm/llm.js";
 
 export interface IndexProgress {
   fetcherName: string;
@@ -136,6 +137,27 @@ const BACKPRESSURE_CONFIG = {
 };
 
 /**
+ * Get all fetcher names that are referenced as forEach sources by other fetchers
+ */
+function getReferencedSources(config: IndexingConfig): Set<string> {
+  const referencedSources = new Set<string>();
+
+  for (const fetcherConfig of Object.values(config.fetchers)) {
+    if (fetcherConfig.forEach?.source) {
+      const sources = Array.isArray(fetcherConfig.forEach.source)
+        ? fetcherConfig.forEach.source
+        : [fetcherConfig.forEach.source];
+
+      for (const source of sources) {
+        referencedSources.add(source);
+      }
+    }
+  }
+
+  return referencedSources;
+}
+
+/**
  * Index all records from all fetchers
  */
 export async function* indexAll(
@@ -236,6 +258,9 @@ export async function* indexAll(
   // Track fetcher results for forEach references
   const fetcherResults: ForEachContext = {};
 
+  // Get fetchers that are referenced as sources by other fetchers
+  const referencedSources = getReferencedSources(config);
+
   // Initialize content aggregator service
   const contentAggregator = new ContentAggregatorService(config.fetchers);
 
@@ -269,11 +294,21 @@ export async function* indexAll(
       }
 
       if (classification?.category === "search") {
-        logger.info(
-          { fetcherName, toolName: fetcherConfig.tool },
-          "Skipping fetcher that uses SEARCH tool"
-        );
-        continue;
+        // Check if this search tool is referenced by other fetchers as a source
+        if (referencedSources.has(fetcherName)) {
+          logger.info(
+            { fetcherName, toolName: fetcherConfig.tool },
+            "Running search tool because it is referenced as source by other fetchers"
+          );
+          // Continue to run it - we'll store results for forEach references
+          // but won't yield records since search results shouldn't be indexed directly
+        } else {
+          logger.info(
+            { fetcherName, toolName: fetcherConfig.tool },
+            "Skipping fetcher that uses SEARCH tool"
+          );
+          continue;
+        }
       }
     }
 
@@ -540,17 +575,80 @@ export async function* indexAll(
         }
       }
 
+      // Apply grouping if any record types have grouping configured
+      let finalBatch = transformedBatch;
+      const recordTypesWithGrouping = recordTypes.filter((rt) => rt.grouping);
+
+      if (recordTypesWithGrouping.length > 0 && transformedBatch.length > 0) {
+        // Group by record type since different types may have different grouping configs
+        const recordsByType = new Map<string, TransformedRecord[]>();
+        for (const record of transformedBatch) {
+          if (!recordsByType.has(record.recordType)) {
+            recordsByType.set(record.recordType, []);
+          }
+          recordsByType.get(record.recordType)!.push(record);
+        }
+
+        const groupedResults: TransformedRecord[] = [];
+        for (const recordType of recordTypesWithGrouping) {
+          const recordsForType = recordsByType.get(recordType.name) || [];
+          if (recordsForType.length === 0) continue;
+
+          try {
+            logger.info(
+              {
+                recordType: recordType.name,
+                count: recordsForType.length,
+                strategy: recordType.grouping!.strategy,
+              },
+              "Applying grouping to records"
+            );
+
+            const groupingEngine = new GroupingEngine(llm, env.LLM_CHAT_MODEL);
+            const groupingResult = await groupingEngine.group(
+              recordsForType,
+              recordType.grouping!
+            );
+
+            logger.info(
+              {
+                recordType: recordType.name,
+                statistics: groupingResult.statistics,
+              },
+              "Grouping completed"
+            );
+
+            groupedResults.push(...groupingResult.records);
+          } catch (err) {
+            logger.error(
+              { err, recordType: recordType.name },
+              "Error applying grouping, using ungrouped records"
+            );
+            groupedResults.push(...recordsForType);
+          }
+        }
+
+        // Add records from types without grouping
+        for (const [typeName, records] of recordsByType.entries()) {
+          if (!recordTypesWithGrouping.find((rt) => rt.name === typeName)) {
+            groupedResults.push(...records);
+          }
+        }
+
+        finalBatch = groupedResults;
+      }
+
       // Yield final batch for this page
-      if (transformedBatch.length > 0) {
+      if (finalBatch.length > 0) {
         yield {
-          records: transformedBatch,
+          records: finalBatch,
           progress: {
             fetcherName,
             recordType: recordTypes.map((rt) => rt.name).join(", "),
             recordsProcessed,
             totalRecords: recordsProcessed, // Unknown total
             status: "transforming",
-            queueSize: transformedBatch.length,
+            queueSize: finalBatch.length,
           },
         };
       }
@@ -559,7 +657,10 @@ export async function* indexAll(
     // Save results for future fetchers to reference
     fetcherResults[fetcherName] = allFetcherRecords;
 
-    logger.info(`Completed fetch: ${fetcherName}`);
+    logger.info(
+      { fetcherName, recordCount: allFetcherRecords.length },
+      "Completed fetch"
+    );
   }
 }
 

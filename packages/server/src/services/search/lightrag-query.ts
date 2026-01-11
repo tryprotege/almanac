@@ -70,44 +70,31 @@ export async function lightragQuery(
 
   // Execute mode-specific retrieval
   let records: LightRAGRecord[];
-  let vectorMatches = 0;
-  let graphExpanded = 0;
-  let reranked = false;
 
   switch (mode) {
     case "naive": {
       const result = await naiveMode(params, deps);
       records = result.chunks;
-      vectorMatches = result.vectorMatches;
       break;
     }
     case "local": {
       const result = await localMode(params, keywords, deps);
       records = result.records;
-      vectorMatches = result.vectorMatches;
-      graphExpanded = result.graphExpanded;
       break;
     }
     case "global": {
       const result = await globalMode(params, keywords, deps);
       records = result.records;
-      vectorMatches = result.vectorMatches;
-      graphExpanded = result.graphExpanded;
       break;
     }
     case "hybrid": {
       const result = await hybridMode(params, keywords, deps);
       records = result.chunks;
-      vectorMatches = result.vectorMatches;
-      graphExpanded = result.graphExpanded;
       break;
     }
     case "mix": {
       const result = await mixMode(params, keywords, deps);
       records = result.chunks;
-      vectorMatches = result.vectorMatches;
-      graphExpanded = result.graphExpanded;
-      reranked = result.reranked;
       break;
     }
     default:
@@ -414,7 +401,7 @@ async function searchEntitiesByKeywords(
       name: record.title,
       type: record.recordType,
       description: record.content.substring(0, 200),
-      source: record.source,
+      source: record.source as import("../../types/index.js").SourceType,
       sourceId: record.sourceId,
       date: record.primaryDate?.toISOString(),
       relevanceScore,
@@ -507,7 +494,7 @@ async function getEntitiesByIds(
       description: record.content.substring(0, 200),
       degree,
       rank: calculateNodeRank(degree),
-      source: record.source,
+      source: record.source as import("../../types/index.js").SourceType,
       sourceId: record.sourceId,
       date: record.primaryDate?.toISOString(),
       relevanceScore: 0,
@@ -574,7 +561,7 @@ async function getRecordsForEntities(
       id: record._id,
       document_id: record._id,
       title: record.title,
-      source: record.source,
+      source: record.source as import("../../types/index.js").SourceType,
       source_id: record.sourceId,
       snippet: record.content.substring(0, 500),
       score: entities.find((e) => e.id === record._id)?.relevanceScore ?? 0,
@@ -605,7 +592,7 @@ async function resultsToChunks(
       id: record._id,
       document_id: record._id,
       title: record.title,
-      source: record.source,
+      source: record.source as import("../../types/index.js").SourceType,
       source_id: record.sourceId,
       snippet: record.content.substring(0, 500),
       score: result.score,

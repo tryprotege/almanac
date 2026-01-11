@@ -7,18 +7,19 @@ import {
   RecordGroup,
   GroupingResult,
   GroupingStatistics,
-} from "./types";
-import { ThreadGrouper } from "./strategies/thread-grouper";
-import { TimeWindowGrouper } from "./strategies/time-window-grouper";
-import { UserSessionGrouper } from "./strategies/session-grouper";
-import { LLMConversationGrouper } from "./strategies/llm-grouper";
-import { ParentRecordBuilder } from "./parent-builder";
+} from "./types.js";
+import { ThreadGrouper } from "./strategies/thread-grouper.js";
+import { TimeWindowGrouper } from "./strategies/time-window-grouper.js";
+import { UserSessionGrouper } from "./strategies/session-grouper.js";
+import { LLMConversationGrouper } from "./strategies/llm-grouper.js";
+import { HybridGrouper } from "./strategies/hybrid-grouper.js";
+import { ParentRecordBuilder } from "./parent-builder.js";
 
 /**
  * Main grouping engine that orchestrates record grouping
  */
 export class GroupingEngine {
-  constructor(private llmClient?: any) {}
+  constructor(private llmClient?: any, private defaultModel?: string) {}
 
   /**
    * Group records according to the provided configuration
@@ -82,7 +83,14 @@ export class GroupingEngine {
             "LLM conversation grouper requires an LLM client to be provided"
           );
         }
-        return new LLMConversationGrouper(this.llmClient);
+        return new LLMConversationGrouper(this.llmClient, this.defaultModel);
+      case "hybrid":
+        if (!this.llmClient) {
+          throw new Error(
+            "Hybrid grouper requires an LLM client to be provided"
+          );
+        }
+        return new HybridGrouper(this.llmClient, this.defaultModel);
       default:
         throw new Error(`Unknown grouping strategy: ${strategyType}`);
     }

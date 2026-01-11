@@ -47,14 +47,14 @@ router.post("/discover-sse", async (req, res) => {
       "SSE OAuth discovery successful"
     );
 
-    res.json({
+    return res.json({
       success: true,
       requiresAuth: true,
       metadata: result.oauthMetadata,
     });
   } catch (err) {
     logger.error({ err }, "Failed to discover SSE OAuth metadata");
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to discover SSE OAuth metadata",
       message: err instanceof Error ? err.message : String(err),
     });
@@ -92,14 +92,14 @@ router.post("/discover", async (req, res) => {
       "OAuth discovery successful"
     );
 
-    res.json({
+    return res.json({
       success: true,
       metadata: result.metadata,
       source: result.source,
     });
   } catch (err) {
     logger.error({ err }, "Failed to discover OAuth metadata");
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to discover OAuth metadata",
       message: err instanceof Error ? err.message : String(err),
     });
@@ -248,7 +248,7 @@ router.post("/start-remote/:mcpServerId", async (req, res) => {
 
     logger.info({ mcpServerId, state }, "Remote OAuth flow started");
 
-    res.json({
+    return res.json({
       requiresAuth: true,
       authorizationUrl,
       state,
@@ -256,7 +256,7 @@ router.post("/start-remote/:mcpServerId", async (req, res) => {
     });
   } catch (err) {
     logger.error({ err }, "Failed to start remote OAuth flow");
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to start remote OAuth flow",
       message: err instanceof Error ? err.message : String(err),
     });
@@ -299,13 +299,13 @@ router.get("/start/:mcpServerId", async (req, res) => {
 
     logger.info({ mcpServerId, state }, "OAuth flow started");
 
-    res.json({
+    return res.json({
       authorizationUrl,
       state,
     });
   } catch (err) {
     logger.error({ err }, "Failed to start OAuth flow");
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to start OAuth flow",
       message: err instanceof Error ? err.message : String(err),
     });
@@ -319,7 +319,7 @@ router.get("/start/:mcpServerId", async (req, res) => {
  */
 router.post("/code", async (req, res) => {
   try {
-    const { serverId, code, state } = req.body;
+    const { serverId, code } = req.body;
 
     if (!serverId || !code) {
       return res.status(400).json({
@@ -333,10 +333,10 @@ router.post("/code", async (req, res) => {
     // Pass code to MCP client manager
     mcpClientManager.receiveOAuthCallback(serverId, code);
 
-    res.json({ success: true });
+    return res.json({ success: true });
   } catch (err) {
     logger.error({ err }, "Failed to process OAuth code");
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to process OAuth code",
       message: err instanceof Error ? err.message : String(err),
     });
@@ -370,18 +370,15 @@ router.get("/callback", async (req, res) => {
     }
 
     // Exchange code for tokens
-    const tokens = await oauthFlowManager.handleCallback(
-      code as string,
-      state as string
-    );
+    await oauthFlowManager.handleCallback(code as string, state as string);
 
     logger.info({ state }, "OAuth callback handled successfully");
 
     // Redirect to success page on client (frontend will handle popup messaging)
-    res.redirect(`${env.OAUTH_CLIENT_URL}/oauth/callback?success=true`);
+    return res.redirect(`${env.OAUTH_CLIENT_URL}/oauth/callback?success=true`);
   } catch (err) {
     logger.error({ err }, "Failed to handle OAuth callback");
-    res.redirect(
+    return res.redirect(
       `${
         env.OAUTH_CLIENT_URL
       }/oauth/callback?error=callback_failed&description=${encodeURIComponent(
@@ -400,17 +397,16 @@ router.post("/refresh/:mcpServerId", async (req, res) => {
     const { mcpServerId } = req.params;
 
     // Refresh tokens
-    const tokens = await oauthFlowManager.refreshTokens(mcpServerId);
+    await oauthFlowManager.refreshTokens(mcpServerId);
 
     logger.info({ mcpServerId }, "OAuth tokens refreshed");
 
-    res.json({
+    return res.json({
       success: true,
-      expiresIn: tokens.expiresIn,
     });
   } catch (err) {
     logger.error({ err }, "Failed to refresh OAuth tokens");
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to refresh tokens",
       message: err instanceof Error ? err.message : String(err),
     });
@@ -430,12 +426,12 @@ router.delete("/revoke/:mcpServerId", async (req, res) => {
 
     logger.info({ mcpServerId }, "OAuth tokens revoked");
 
-    res.json({
+    return res.json({
       success: true,
     });
   } catch (err) {
     logger.error({ err }, "Failed to revoke OAuth tokens");
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to revoke tokens",
       message: err instanceof Error ? err.message : String(err),
     });
@@ -453,10 +449,10 @@ router.get("/status/:mcpServerId", async (req, res) => {
     // Get OAuth status
     const status = await oauthFlowManager.getStatus(mcpServerId);
 
-    res.json(status);
+    return res.json(status);
   } catch (err) {
     logger.error({ err }, "Failed to get OAuth status");
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to get OAuth status",
       message: err instanceof Error ? err.message : String(err),
     });

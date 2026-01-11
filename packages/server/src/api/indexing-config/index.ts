@@ -86,10 +86,10 @@ router.post("/generate", async (req, res) => {
       toolClassifications: result.config.toolClassifications || {},
     };
 
-    res.json({ data: response });
+    return res.json({ data: response });
   } catch (err) {
     logger.error({ err, msg: "Failed to generate indexing config" });
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to generate config",
       message: err instanceof Error ? err.message : "Unknown error",
     });
@@ -125,14 +125,14 @@ router.post("/validate", async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       valid: errors.length === 0,
       errors,
       warnings,
     });
   } catch (err) {
     logger.error({ err }, "Failed to validate config");
-    res.status(500).json({ error: "Validation failed" });
+    return res.status(500).json({ error: "Validation failed" });
   }
 });
 
@@ -169,14 +169,14 @@ router.post("/preview", async (req, res) => {
       )
     );
 
-    res.json({
+    return res.json({
       transformedRecords,
       recordTypeName,
       recordCount: transformedRecords.length,
     });
   } catch (err) {
     logger.error({ err }, "Failed to preview config");
-    res.status(500).json({
+    return res.status(500).json({
       error: "Preview failed",
       message: err instanceof Error ? err.message : "Unknown error",
     });
@@ -237,7 +237,7 @@ router.post("/save", async (req, res) => {
       `Saved IndexingConfig for ${config.source}`
     );
 
-    res.json({
+    return res.json({
       data: {
         success: true,
         configId: configDoc._id,
@@ -246,7 +246,7 @@ router.post("/save", async (req, res) => {
     });
   } catch (err) {
     logger.error({ err }, "Failed to save config");
-    res.status(500).json({ error: "Failed to save config" });
+    return res.status(500).json({ error: "Failed to save config" });
   }
 });
 
@@ -423,7 +423,7 @@ router.post("/sync", async (req, res) => {
       );
     }
 
-    res.json({
+    return res.json({
       success: true,
       recordsProcessed,
       vectorChunks,
@@ -432,7 +432,7 @@ router.post("/sync", async (req, res) => {
     });
   } catch (err) {
     logger.error({ err }, "Failed to sync with config");
-    res.status(500).json({ error: "Sync failed" });
+    return res.status(500).json({ error: "Sync failed" });
   }
 });
 
@@ -452,10 +452,10 @@ router.get("/:serverName", async (req, res) => {
         .json({ error: `No config found for ${serverName}` });
     }
 
-    res.json({ data: configDoc });
+    return res.json({ data: configDoc });
   } catch (err) {
     logger.error({ err }, "Failed to get config");
-    res.status(500).json({ error: "Failed to get config" });
+    return res.status(500).json({ error: "Failed to get config" });
   }
 });
 
@@ -463,11 +463,11 @@ router.get("/:serverName", async (req, res) => {
  * GET /api/indexing-config
  * List all IndexingConfigs
  */
-router.get("/", async (req, res) => {
+router.get("/", async (_req, res) => {
   try {
     const configs = await IndexingConfigModel.find({}).sort({ updatedAt: -1 });
 
-    res.json({
+    return res.json({
       data: {
         configs: configs.map((c) => ({
           id: c._id,
@@ -483,7 +483,7 @@ router.get("/", async (req, res) => {
     });
   } catch (err) {
     logger.error({ err }, "Failed to list configs");
-    res.status(500).json({ error: "Failed to list configs" });
+    return res.status(500).json({ error: "Failed to list configs" });
   }
 });
 
@@ -511,7 +511,7 @@ router.post("/reset-sync", async (req, res) => {
       `Reset sync state for ${serverName} (deleted: ${result.deletedCount})`
     );
 
-    res.json({
+    return res.json({
       data: {
         success: true,
         serverName,
@@ -520,7 +520,7 @@ router.post("/reset-sync", async (req, res) => {
     });
   } catch (err) {
     logger.error({ err }, "Failed to reset sync state");
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to reset sync state",
       message: err instanceof Error ? err.message : "Unknown error",
     });
@@ -572,7 +572,7 @@ router.get("/:serverName/starting-points", async (req, res) => {
       hasValue: !!userProvidedValues[sp.name]?.length,
     }));
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         serverName,
@@ -585,7 +585,7 @@ router.get("/:serverName/starting-points", async (req, res) => {
     });
   } catch (err) {
     logger.error({ err }, "Failed to get starting points");
-    res.status(500).json({ error: "Failed to get starting points" });
+    return res.status(500).json({ error: "Failed to get starting points" });
   }
 });
 
@@ -685,7 +685,7 @@ router.put("/:serverName/starting-points", async (req, res) => {
       "Updated starting point values"
     );
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         serverName,
@@ -694,7 +694,7 @@ router.put("/:serverName/starting-points", async (req, res) => {
     });
   } catch (err) {
     logger.error({ err }, "Failed to update starting points");
-    res.status(500).json({ error: "Failed to update starting points" });
+    return res.status(500).json({ error: "Failed to update starting points" });
   }
 });
 
@@ -743,14 +743,14 @@ router.post("/:serverName/reload-from-marketplace", async (req, res) => {
       `Reloaded config from marketplace for ${serverName}`
     );
 
-    res.json({
+    return res.json({
       success: true,
       data: configDoc,
       message: "Config successfully reloaded from marketplace",
     });
   } catch (err) {
     logger.error({ err }, "Failed to reload config from marketplace");
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to reload config from marketplace",
       message: err instanceof Error ? err.message : "Unknown error",
     });
@@ -775,10 +775,10 @@ router.delete("/:serverName", async (req, res) => {
 
     logger.info(`Deleted IndexingConfig for ${serverName}`);
 
-    res.json({ data: { success: true } });
+    return res.json({ data: { success: true } });
   } catch (err) {
     logger.error({ err }, "Failed to delete config");
-    res.status(500).json({ error: "Failed to delete config" });
+    return res.status(500).json({ error: "Failed to delete config" });
   }
 });
 

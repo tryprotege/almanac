@@ -7,6 +7,7 @@
 
 import type { FormatProcessor } from "../types/format-processors.js";
 import TurndownService from "turndown";
+import { parse } from "csv-parse/sync";
 
 /**
  * Built-in format processors
@@ -325,6 +326,45 @@ export const formatProcessors: Record<string, FormatProcessor> = {
         return JSON.stringify(input);
       }
       return String(input);
+    },
+  },
+
+  /**
+   * CSV → JSON Array
+   * Uses the industry-standard csv-parse library for robust CSV parsing
+   */
+  "csv-to-json": {
+    name: "CSV to JSON",
+    description:
+      "Convert CSV formatted data to JSON array of objects using csv-parse library",
+    process: async (
+      input: string,
+      options?: {
+        delimiter?: string; // Column delimiter (default: ",")
+        skipEmptyLines?: boolean; // Skip empty lines (default: true)
+        trimValues?: boolean; // Trim whitespace from values (default: true)
+        hasHeaders?: boolean; // Whether first row contains headers (default: true)
+      }
+    ) => {
+      if (!input || typeof input !== "string") return [];
+
+      try {
+        // Parse CSV using csv-parse library
+        const records = parse(input, {
+          columns: options?.hasHeaders ?? true, // Use first row as column names
+          skip_empty_lines: options?.skipEmptyLines ?? true,
+          trim: options?.trimValues ?? true,
+          delimiter: options?.delimiter || ",",
+          relax_quotes: true, // Be more forgiving with quotes
+          relax_column_count: true, // Handle inconsistent column counts
+          cast: true, // Auto-convert types (numbers, booleans)
+        });
+
+        return records;
+      } catch (error) {
+        console.error("CSV parsing error:", error);
+        return [];
+      }
     },
   },
 };

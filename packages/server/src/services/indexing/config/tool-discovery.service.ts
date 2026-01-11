@@ -91,7 +91,7 @@ class GenericIDRegistry {
     });
   }
 
-  findForParameter(paramName: string, targetTool: string): any {
+  findForParameter(paramName: string, _targetTool: string): any {
     // Strategy 1: Exact field name match
     const exactMatch = this.values.find((v) => v.fieldName === paramName);
     if (exactMatch) return exactMatch.value;
@@ -428,7 +428,7 @@ export async function discoverToolData(
   toolDefinitions: any[],
   options: DiscoveryOptions = {}
 ): Promise<ToolDiscoveryResult> {
-  const { sampleLimit = 3, maxDepth = 5, includeSchemaOnly = true } = options;
+  const { sampleLimit = 3, maxDepth = 5 } = options;
 
   logger.info(
     `Discovering tool data from ${toolDefinitions.length} tools using multi-level discovery...`

@@ -67,15 +67,14 @@
         ],
         "discovery": {
           "fetcher": "discoverRootPages",
-          "valuePath": "$[*].id",
-          "filter": "record.parent && record.parent.type === 'workspace'",
+          "valuePath": "$[?(@.object == 'page' && @.parent && @.parent.type == 'workspace')].id",
           "description": "Auto-discover root workspace pages via search"
         }
       }
     ],
     "syncOrder": [
       "discoverRootPages",
-      "fetchRootPage",
+      "fetchPages",
       "fetchPageBlocks",
       "fetchChildPages",
       "fetchDatabases",
@@ -84,14 +83,10 @@
     "fetchers": {
       "discoverRootPages": {
         "tool": "notion_search",
-        "description": "Discover all accessible pages for starting point discovery",
+        "description": "Discover all accessible pages and databases for starting point discovery",
         "params": {
           "page_size": 100,
-          "format": "json",
-          "filter": {
-            "property": "object",
-            "value": "page"
-          }
+          "format": "json"
         },
         "pagination": {
           "type": "cursor",
@@ -101,9 +96,9 @@
         },
         "resultPath": "results"
       },
-      "fetchRootPage": {
+      "fetchPages": {
         "tool": "notion_retrieve_page",
-        "description": "Fetch the root team workspace page using the starting point",
+        "description": "Fetch pages using the starting point",
         "seedFrom": {
           "startingPoint": "teamWorkspaceId",
           "paramMapping": {
@@ -187,7 +182,7 @@
         "tool": "notion_retrieve_block_children",
         "description": "Fetch blocks from all pages (root and children)",
         "forEach": {
-          "source": "fetchRootPage",
+          "source": "fetchPages",
           "path": "$[*]",
           "paramMapping": {
             "block_id": "$.id",
@@ -208,10 +203,13 @@
       },
       "fetchDatabases": {
         "tool": "notion_retrieve_database",
-        "description": "Fetch databases referenced in blocks",
+        "description": "Fetch databases from blocks and root-level discoveries",
         "forEach": {
-          "source": "fetchPageBlocks",
-          "path": "$[?(@.type == 'child_database')]",
+          "source": ["fetchPageBlocks", "discoverRootPages"],
+          "path": [
+            "$[?(@.type == 'child_database')]",
+            "$[?(@.object == 'database' && @.parent && @.parent.type == 'workspace')]"
+          ],
           "paramMapping": {
             "database_id": "$.id",
             "format": "json"
@@ -271,7 +269,7 @@
     "recordTypes": {
       "notionPage": {
         "name": "notionPage",
-        "fetcher": "fetchRootPage",
+        "fetcher": "fetchPages",
         "detection": {
           "always": true
         },

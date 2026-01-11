@@ -70,33 +70,67 @@ export async function transformRecord(
     enrichments,
   };
 
-  // Generate record ID - tries common ID field patterns
-  let sourceId = record.id || record._id || record.sourceId;
-  if (!sourceId) {
-    // Check for other common ID patterns
-    const idKey = Object.keys(record).find(
-      (k) => k.endsWith("_id") || k.endsWith("Id")
-    );
-    const potentialId =
-      record.recordId ||
-      record.uuid ||
-      record.guid ||
-      (idKey ? record[idKey] : undefined) ||
-      record.url ||
-      record.uri;
+  // Generate record ID - use configured idField or fallback to common patterns
+  let sourceId: string | undefined;
 
-    if (!potentialId) {
-      throw new Error(
-        `Record missing ID field: ${JSON.stringify(record).substring(
-          0,
-          100
-        )}. ` +
-          `Expected one of: id, _id, sourceId, recordId, uuid, guid, *_id, url, uri. ` +
-          `Available fields: ${Object.keys(record).join(", ")}`
+  // First try configured idField if specified
+  if (config.idField) {
+    try {
+      const extractedId = JSONPath({
+        path: config.idField,
+        json: record,
+        wrap: false,
+      });
+      sourceId = extractedId;
+    } catch (err) {
+      console.warn(
+        `Failed to extract ID using configured idField "${config.idField}":`,
+        err
       );
     }
+  }
 
-    sourceId = potentialId;
+  // Fallback to common ID patterns if not found
+  if (!sourceId) {
+    sourceId = record.id || record._id || record.sourceId;
+    if (!sourceId) {
+      // Check for other common ID patterns
+      const idKey = Object.keys(record).find(
+        (k) => k.endsWith("_id") || k.endsWith("Id")
+      );
+      const potentialId =
+        record.recordId ||
+        record.uuid ||
+        record.guid ||
+        (idKey ? record[idKey] : undefined) ||
+        record.url ||
+        record.uri;
+
+      if (!potentialId) {
+        throw new Error(
+          `Record missing ID field: ${JSON.stringify(record).substring(
+            0,
+            100
+          )}. ` +
+            `Expected one of: id, _id, sourceId, recordId, uuid, guid, *_id, url, uri. ` +
+            `Available fields: ${Object.keys(record).join(", ")}` +
+            (config.idField
+              ? `. Configured idField "${config.idField}" also failed.`
+              : "")
+        );
+      }
+
+      sourceId = potentialId;
+    }
+  }
+
+  // Ensure sourceId is defined (TypeScript type guard)
+  if (!sourceId) {
+    throw new Error(
+      `Failed to extract sourceId from record: ${JSON.stringify(
+        record
+      ).substring(0, 100)}`
+    );
   }
 
   const _id = generateRecordId(sourceId, config.name, source);

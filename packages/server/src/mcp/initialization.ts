@@ -14,10 +14,7 @@ import { connectQdrant, QdrantConnection } from "../connections/qdrant.js";
 import { connectRedis, RedisConnection } from "../connections/redis.js";
 import { resolveSerializedZodOutput } from "../utils/resolveSerializedZodOutput.js";
 import { mcpClientManager } from "./client.js";
-import type {
-  DataSource,
-  DataSourceModel,
-} from "../models/data-source.model.js";
+import type { DataSource } from "../models/data-source.model.js";
 import { DataSourceModel as DataSourceModelImpl } from "../models/data-source.model.js";
 import { registerLightRAGTool } from "../services/search/lightrag-tool.js";
 import { initWorkers } from "../services/queue/index.js";

@@ -439,7 +439,7 @@ function autoRepair(
       usedFetchers.add(recordType.fetcher);
     }
     if (recordType && recordType.enrichments) {
-      for (const enrichment of recordType.enrichments) {
+      for (const _enrichment of recordType.enrichments) {
         // Enrichments reference tools directly, not fetcher names
         // So we don't add them to usedFetchers
       }
@@ -447,7 +447,7 @@ function autoRepair(
   }
 
   const fetchersToRemove: string[] = [];
-  for (const [fetcherName, fetcher] of Object.entries(newConfig.fetchers)) {
+  for (const [fetcherName, _fetcher] of Object.entries(newConfig.fetchers)) {
     if (!usedFetchers.has(fetcherName)) {
       fetchersToRemove.push(fetcherName);
     }

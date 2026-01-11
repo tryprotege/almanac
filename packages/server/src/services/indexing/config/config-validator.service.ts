@@ -4,7 +4,6 @@ import type {
   FetcherConfig,
 } from "@ebee-oss/indexing-engine";
 import { fetchAll as fetchPaginated } from "./paginated-fetcher.js";
-import { mcpClientManager } from "../../../mcp/client.js";
 import logger from "../../../utils/logger.js";
 
 /**
@@ -296,8 +295,8 @@ function matchRecordTypeWithDetails(
  * Validate field mappings work on a sample record
  */
 function validateFieldMappings(
-  record: any,
-  recordType: RecordTypeConfig
+  _record: any,
+  _recordType: RecordTypeConfig
 ): ValidationError[] {
   const errors: ValidationError[] = [];
 

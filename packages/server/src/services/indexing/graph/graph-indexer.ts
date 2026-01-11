@@ -920,10 +920,6 @@ export const indexAllRecords = async (
         }
 
         // Second, process adapter relationships (these use direct record IDs)
-        const adapterRelCount = validResults.reduce(
-          (sum, result) => sum + result.adapterRelationships.length,
-          0
-        );
         let adapterLinksAdded = 0;
 
         // Re-enabled adapter relationships for document-to-document links

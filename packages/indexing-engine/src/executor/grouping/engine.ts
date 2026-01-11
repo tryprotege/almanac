@@ -7,13 +7,13 @@ import {
   RecordGroup,
   GroupingResult,
   GroupingStatistics,
-} from "./types";
-import { ThreadGrouper } from "./strategies/thread-grouper";
-import { TimeWindowGrouper } from "./strategies/time-window-grouper";
-import { UserSessionGrouper } from "./strategies/session-grouper";
-import { LLMConversationGrouper } from "./strategies/llm-grouper";
-import { HybridGrouper } from "./strategies/hybrid-grouper";
-import { ParentRecordBuilder } from "./parent-builder";
+} from "./types.js";
+import { ThreadGrouper } from "./strategies/thread-grouper.js";
+import { TimeWindowGrouper } from "./strategies/time-window-grouper.js";
+import { UserSessionGrouper } from "./strategies/session-grouper.js";
+import { LLMConversationGrouper } from "./strategies/llm-grouper.js";
+import { HybridGrouper } from "./strategies/hybrid-grouper.js";
+import { ParentRecordBuilder } from "./parent-builder.js";
 
 /**
  * Main grouping engine that orchestrates record grouping

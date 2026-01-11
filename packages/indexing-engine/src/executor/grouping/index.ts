@@ -2,13 +2,13 @@
  * Grouping engine exports
  */
 
-export { GroupingEngine, extractValue, extractValues } from "./engine";
-export { ParentRecordBuilder } from "./parent-builder";
-export { ThreadGrouper } from "./strategies/thread-grouper";
-export { TimeWindowGrouper } from "./strategies/time-window-grouper";
-export { UserSessionGrouper } from "./strategies/session-grouper";
-export { LLMConversationGrouper } from "./strategies/llm-grouper";
-export { HybridGrouper } from "./strategies/hybrid-grouper";
+export { GroupingEngine, extractValue, extractValues } from "./engine.js";
+export { ParentRecordBuilder } from "./parent-builder.js";
+export { ThreadGrouper } from "./strategies/thread-grouper.js";
+export { TimeWindowGrouper } from "./strategies/time-window-grouper.js";
+export { UserSessionGrouper } from "./strategies/session-grouper.js";
+export { LLMConversationGrouper } from "./strategies/llm-grouper.js";
+export { HybridGrouper } from "./strategies/hybrid-grouper.js";
 
 export type {
   GroupingConfig,
@@ -26,4 +26,4 @@ export type {
   ParentRecordConfig,
   Batch,
   BatchResult,
-} from "./types";
+} from "./types.js";

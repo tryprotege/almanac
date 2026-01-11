@@ -139,11 +139,15 @@ export async function cleanupOrphanedEmbeddings(
         // Delete from Qdrant (construct point ID based on item type)
         try {
           const qdrantPointId =
-            meta.itemType === "entity" ? `entity_${meta._id}` : meta._id;
+            meta.itemType === "entity"
+              ? `entity_${meta._id}`
+              : meta._id.toString();
           await vectorStore.deleteByIds([qdrantPointId]);
         } catch (err) {
           const pointId =
-            meta.itemType === "entity" ? `entity_${meta._id}` : meta._id;
+            meta.itemType === "entity"
+              ? `entity_${meta._id}`
+              : meta._id.toString();
           logger.warn({ err, pointId }, "Failed to delete from Qdrant");
         }
 

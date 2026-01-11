@@ -85,6 +85,10 @@ export async function rerank(
   try {
     const url = env.RERANKER_BASE_URL;
 
+    if (!url) {
+      throw new Error("Reranker URL is not configured");
+    }
+
     const response = await fetch(url, {
       method: "POST",
       headers: {

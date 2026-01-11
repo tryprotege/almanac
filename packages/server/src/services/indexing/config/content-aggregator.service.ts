@@ -3,7 +3,6 @@ import type {
   AggregationConfig,
   FetcherConfig,
 } from "@ebee-oss/indexing-engine";
-import { mcpClientManager } from "../../../mcp/client.js";
 import logger from "../../../utils/logger.js";
 
 /**

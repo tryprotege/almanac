@@ -18,7 +18,7 @@ import logger from "../../../utils/logger.js";
  */
 export async function indexConfigEntities(
   documentId: string,
-  documentTitle: string,
+  _documentTitle: string,
   source: string,
   extractedEntities: ExtractedEntity[],
   extractedRelationships: ExtractedRelationship[],
@@ -135,7 +135,6 @@ export async function indexConfigEntities(
 
     // 6. Create MongoDB metadata for relationship embeddings
     const relMetadataOps = extractedRelationships.map((rel) => {
-      const relId = `rel_${rel.sourceId}_${rel.type}_${rel.targetId}`;
       const contentChecksum = calculateEmbeddingChecksum({
         sourceId: rel.sourceId,
         targetId: rel.targetId,

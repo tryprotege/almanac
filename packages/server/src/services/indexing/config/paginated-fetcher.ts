@@ -219,17 +219,64 @@ export async function* fetchWithForEach(
     return;
   }
 
-  // Get source records from previous fetcher
-  const sourceRecords = fetcherResults[forEach.source];
-  if (!sourceRecords || sourceRecords.length === 0) {
-    logger.warn(`forEach source "${forEach.source}" has no records`);
-    yield { records: [], hasMore: false };
-    return;
+  // Handle array sources (multiple fetchers as sources)
+  let sourceRecords: any[] = [];
+
+  if (Array.isArray(forEach.source)) {
+    // Multiple sources - combine records from each using corresponding path
+    const sources = forEach.source;
+    const paths = Array.isArray(forEach.path) ? forEach.path : [forEach.path];
+
+    for (let i = 0; i < sources.length; i++) {
+      const sourceName = sources[i];
+      const sourcePath = paths[i] || paths[0]; // Use corresponding path or first path
+
+      const records = fetcherResults[sourceName];
+      if (!records || records.length === 0) {
+        logger.debug(`forEach source "${sourceName}" has no records, skipping`);
+        continue;
+      }
+
+      // Apply path filter to this source's records
+      const filtered = JSONPath({
+        path: sourcePath,
+        json: records,
+      });
+
+      if (filtered && filtered.length > 0) {
+        sourceRecords.push(...filtered);
+        logger.debug(
+          `forEach: extracted ${filtered.length} records from source "${sourceName}" using path "${sourcePath}"`
+        );
+      }
+    }
+
+    if (sourceRecords.length === 0) {
+      logger.warn(
+        `forEach: no records found from any sources: ${sources.join(", ")}`
+      );
+      yield { records: [], hasMore: false };
+      return;
+    }
+
+    logger.info(
+      `forEach: combined ${sourceRecords.length} records from ${sources.length} sources`
+    );
+  } else {
+    // Single source - original behavior
+    sourceRecords = fetcherResults[forEach.source];
+    if (!sourceRecords || sourceRecords.length === 0) {
+      logger.warn(`forEach source "${forEach.source}" has no records`);
+      yield { records: [], hasMore: false };
+      return;
+    }
   }
 
   // Extract iteration items using JSONPath
+  // If we already filtered with paths above (array source case), use identity path
+  const iterationPath = Array.isArray(forEach.source) ? "$[*]" : forEach.path;
   const iterationItems = JSONPath({
-    path: forEach.path,
+    path: iterationPath,
     json: sourceRecords,
   });
 

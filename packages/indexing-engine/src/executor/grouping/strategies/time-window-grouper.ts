@@ -3,8 +3,8 @@ import {
   RecordGroup,
   TransformedRecord,
   TimeWindowGroupingConfig,
-} from "../types";
-import { extractValue } from "../engine";
+} from "../types.js";
+import { extractValue } from "../engine.js";
 
 /**
  * Time window grouping strategy

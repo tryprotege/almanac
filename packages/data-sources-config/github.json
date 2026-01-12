@@ -113,7 +113,6 @@
           "retries": 2
         },
         "resultPath": "$.content[0].text",
-        "arrayPath": "$[*]",
         "pagination": {
           "type": "offset",
           "pageParam": "page",
@@ -141,7 +140,6 @@
           "retries": 2
         },
         "resultPath": "$.content[0].text",
-        "arrayPath": "$[*]",
         "pagination": {
           "type": "offset",
           "pageParam": "page",
@@ -208,10 +206,7 @@
           },
           "tags": {
             "type": "paths",
-            "paths": [
-              "$.topics[*]",
-              "$.language"
-            ]
+            "paths": ["$.topics[*]", "$.language"]
           }
         },
         "entities": [
@@ -247,10 +242,7 @@
           },
           "people": {
             "type": "paths",
-            "paths": [
-              "$.user.login",
-              "$.assignees[*].login"
-            ]
+            "paths": ["$.user.login", "$.assignees[*].login"]
           },
           "primaryDate": {
             "type": "path",
@@ -258,10 +250,7 @@
           },
           "tags": {
             "type": "paths",
-            "paths": [
-              "$.state",
-              "$.labels[*].name"
-            ]
+            "paths": ["$.state", "$.labels[*].name"]
           }
         },
         "entities": [
@@ -324,10 +313,7 @@
           },
           "tags": {
             "type": "paths",
-            "paths": [
-              "$.state",
-              "$.labels[*].name"
-            ]
+            "paths": ["$.state", "$.labels[*].name"]
           }
         },
         "entities": [
@@ -397,10 +383,7 @@
         "fields": {
           "title": {
             "type": "paths",
-            "paths": [
-              "$.name",
-              "$.tag_name"
-            ]
+            "paths": ["$.name", "$.tag_name"]
           },
           "content": {
             "type": "path",
@@ -416,9 +399,7 @@
           },
           "tags": {
             "type": "paths",
-            "paths": [
-              "$.tag_name"
-            ]
+            "paths": ["$.tag_name"]
           }
         },
         "entities": [
@@ -454,10 +435,7 @@
           },
           "people": {
             "type": "paths",
-            "paths": [
-              "$.user.login",
-              "$.answer_chosen_by.login"
-            ]
+            "paths": ["$.user.login", "$.answer_chosen_by.login"]
           },
           "primaryDate": {
             "type": "path",
@@ -465,10 +443,7 @@
           },
           "tags": {
             "type": "paths",
-            "paths": [
-              "$.state",
-              "$.category.name"
-            ]
+            "paths": ["$.state", "$.category.name"]
           }
         },
         "entities": [

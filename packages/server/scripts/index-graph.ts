@@ -14,8 +14,6 @@ import { loadProxyConfig } from "../src/mcp/config-loader.js";
 import { SourceType } from "../src/types/index.js";
 import { env } from "../src/env.js";
 import logger from "../src/utils/logger.js";
-import { SlackMCPClient } from "../src/services/sources/slack/mcpClient.ts";
-import { SlackAdapter } from "../src/services/sync/adapters/slack-adapter.ts";
 
 /**
  * Script to index unindexed records to the graph database
@@ -105,14 +103,6 @@ async function indexGraphRecords() {
       ? new VectorStore(qdrant)
       : undefined;
 
-    // Set up adapters
-    const adapters = new Map<SourceType, any>();
-
-    if (config.name === "slack") {
-      const slackClient = new SlackMCPClient();
-      adapters.set("slack", new SlackAdapter(slackClient));
-    }
-
     // 1. Cleanup deleted records first (if requested)
     if (options.cleanup) {
       logger.info({ msg: `🧹 Cleaning up deleted records...` });
@@ -187,7 +177,6 @@ async function indexGraphRecords() {
       config.name as SourceType,
       recordStore,
       graphStore,
-      adapters,
       openaiClient,
       {
         batchSize: options.batchSize,

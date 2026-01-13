@@ -1,16 +1,33 @@
 # Table of contents
 
-* [Welcome](README.md)
+- [Welcome](README.md)
 
 ## Getting Started
 
-* [Quickstart](getting-started/quickstart.md)
-* [Publish your docs](getting-started/publish-your-docs.md)
+- [Quickstart](getting-started/quickstart.md)
+- [Installation](getting-started/installation.md)
+- [Configuration](getting-started/configuration.md)
 
-## Basics
+## Core Concepts
 
-* [Editor](basics/editor.md)
-* [Markdown](basics/markdown.md)
-* [Images & media](basics/images-and-media.md)
-* [Interactive blocks](basics/interactive-blocks.md)
-* [Integrations](basics/integrations.md)
+- [LightRAG Algorithm](core-concepts/lightrag.md)
+- [System Architecture](core-concepts/architecture.md)
+
+## Custom MCP Servers
+
+- [Overview](custom-mcp-servers/README.md)
+
+## Data Pipeline
+
+- [Overview](data-pipeline/README.md)
+- [Data Syncing](data-pipeline/syncing.md)
+
+## Query & Search
+
+- [API Reference](query-search/api.md)
+- [Best Practices](query-search/best-practices.md)
+
+## Examples & Tutorials
+
+- [Overview](examples/README.md)
+- [Query Mode Comparison](examples/query-modes.md)

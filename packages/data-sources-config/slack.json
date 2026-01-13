@@ -114,7 +114,6 @@
           "limitParam": "limit"
         },
         "resultPath": "$",
-        "arrayPath": "$[*]",
         "rateLimit": {
           "maxRequests": 20,
           "windowSeconds": 60,
@@ -151,7 +150,6 @@
           "cursorPath": "$.Cursor"
         },
         "resultPath": "$",
-        "arrayPath": "$[*]",
         "rateLimit": {
           "maxRequests": 50,
           "windowSeconds": 60,
@@ -196,7 +194,6 @@
           "cursorPath": "$.Cursor"
         },
         "resultPath": "$",
-        "arrayPath": "$[*]",
         "rateLimit": {
           "maxRequests": 50,
           "windowSeconds": 60,

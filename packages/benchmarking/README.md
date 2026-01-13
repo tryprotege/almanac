@@ -375,13 +375,11 @@ The issue is being actively discussed across multiple Slack channels: #product, 
 Modify these values in `.env` to control AI generation:
 
 - **TEMPERATURE** (0.0-1.0): Higher values = more creative/varied content
-
   - `0.3` - More deterministic, factual
   - `0.8` - Balanced (default)
   - `1.0` - More creative, diverse
 
 - **BATCH_SIZE**: Number of items to generate at once
-
   - Lower values (5-10) = Slower but more reliable
   - Higher values (20-30) = Faster but may hit rate limits
 
@@ -428,25 +426,21 @@ These volumes are organized into workflows, creating realistic cross-platform na
 ### Key Components
 
 1. **Workflow Orchestrator** ([`workflows/orchestrator.ts`](src/mock-data-generator/workflows/orchestrator.ts))
-
    - Executes workflow templates
    - Manages cross-service connections
    - Ensures consistent references between services
 
 2. **Workflow Templates** ([`workflows/templates.ts`](src/mock-data-generator/workflows/templates.ts))
-
    - Define common development patterns
    - Specify stage sequences and timing
    - Configure reference relationships
 
 3. **Topic Generation** ([`workflows/topics.ts`](src/mock-data-generator/workflows/topics.ts))
-
    - LLM-generated realistic topics
    - Contextual for gaming startup
    - Assigns participants and technical details
 
 4. **Grouping Utility** ([`utils/grouping.ts`](src/mock-data-generator/utils/grouping.ts))
-
    - Creates workflow-grouped output
    - Extracts cross-references
    - Generates relationship graph

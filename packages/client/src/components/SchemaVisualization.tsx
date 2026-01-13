@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo } from 'react';
 import {
   ReactFlow,
   Background,
@@ -11,10 +11,10 @@ import {
   Position,
   useEdgesState,
   useNodesState,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
-import { SchemaData } from "../lib/api";
-import { useTheme } from "../contexts/ThemeContext";
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { SchemaData } from '../lib/api';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SchemaVisualizationProps {
   schema: SchemaData;
@@ -30,7 +30,7 @@ function EntityNode({ data }: { data: any }) {
       {data.description && (
         <div className="text-xs text-gray-600 dark:text-gray-300 text-center border-t border-gray-200 dark:border-gray-600 pt-1 mt-1">
           {data.description.length > 50
-            ? data.description.substring(0, 50) + "..."
+            ? data.description.substring(0, 50) + '...'
             : data.description}
         </div>
       )}
@@ -64,7 +64,7 @@ export function SchemaVisualization({ schema }: SchemaVisualizationProps) {
 
       nodes.push({
         id: entityType.name,
-        type: "entityType",
+        type: 'entityType',
         position: { x, y },
         data: {
           label: entityType.name,
@@ -91,7 +91,7 @@ export function SchemaVisualization({ schema }: SchemaVisualizationProps) {
               source: sourceType,
               target: targetType,
               label: relType.name,
-              type: relType.bidirectional ? "default" : "default",
+              type: relType.bidirectional ? 'default' : 'default',
               markerEnd: {
                 type: MarkerType.ArrowClosed,
                 width: 20,
@@ -104,9 +104,9 @@ export function SchemaVisualization({ schema }: SchemaVisualizationProps) {
                     height: 20,
                   }
                 : undefined,
-              style: { stroke: "#6b7280", strokeWidth: 2 },
-              labelStyle: { fill: "#374151", fontWeight: 500 },
-              labelBgStyle: { fill: "#f3f4f6" },
+              style: { stroke: '#6b7280', strokeWidth: 2 },
+              labelStyle: { fill: '#374151', fontWeight: 500 },
+              labelBgStyle: { fill: '#f3f4f6' },
               animated: false,
             });
           }
@@ -121,7 +121,7 @@ export function SchemaVisualization({ schema }: SchemaVisualizationProps) {
   const [edges, _setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
-    console.log("Node clicked:", node);
+    console.log('Node clicked:', node);
     // You can add modal or detail view here
   }, []);
 
@@ -129,9 +129,7 @@ export function SchemaVisualization({ schema }: SchemaVisualizationProps) {
     return (
       <div className="flex items-center justify-center h-96 bg-gray-50 dark:bg-gray-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
         <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-300 mb-2">
-            No schema data available
-          </p>
+          <p className="text-gray-600 dark:text-gray-300 mb-2">No schema data available</p>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Run schema learning to generate entity and relationship types
           </p>
@@ -159,7 +157,7 @@ export function SchemaVisualization({ schema }: SchemaVisualizationProps) {
         <Controls />
         <MiniMap
           nodeColor={(_node: Node) => {
-            return "#3b82f6";
+            return '#3b82f6';
           }}
           maskColor="rgba(0, 0, 0, 0.1)"
         />

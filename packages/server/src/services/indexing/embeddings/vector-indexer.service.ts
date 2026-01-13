@@ -1,17 +1,17 @@
-import { randomUUID } from "crypto";
-import pLimit from "p-limit";
+import { randomUUID } from 'crypto';
+import pLimit from 'p-limit';
 
-import { env } from "../../../env.js";
-import { Record } from "../../../models/record.model.js";
-import { RecordStore } from "../../../stores/record.store.js";
-import { VectorStore } from "../../../stores/vector.store.js";
-import { VectorPoint, SourceType } from "../../../types/index.js";
-import { chunkText } from "../../../utils/chunking.js";
-import { embed } from "../../../utils/embedding.js";
-import logger from "../../../utils/logger.js";
+import { env } from '../../../env.js';
+import { Record } from '../../../models/record.model.js';
+import { RecordStore } from '../../../stores/record.store.js';
+import { VectorStore } from '../../../stores/vector.store.js';
+import { VectorPoint, SourceType } from '../../../types/index.js';
+import { chunkText } from '../../../utils/chunking.js';
+import { embed } from '../../../utils/embedding.js';
+import logger from '../../../utils/logger.js';
 
 // Create concurrency limiter. Have this outside of the function to ensure the limit applied to all invocations
-const limit = pLimit(env.VECTOR_INDEXING_CONCURRENCY);
+const limit = pLimit(env.VECTOR_INDEXING_CONCURRENCY ?? 5);
 
 /**
  * Vector Indexer Service
@@ -25,7 +25,7 @@ const limit = pLimit(env.VECTOR_INDEXING_CONCURRENCY);
 export async function insertAllRecordsToVectorDB(
   recordStore: RecordStore,
   vectorStore: VectorStore,
-  source: SourceType
+  source: SourceType,
 ): Promise<{
   processed: number;
   chunks: number;
@@ -40,7 +40,7 @@ export async function insertAllRecordsToVectorDB(
   };
 
   logger.info({
-    msg: "🔄 Starting vector indexing",
+    msg: '🔄 Starting vector indexing',
     source,
     concurrency: env.VECTOR_INDEXING_CONCURRENCY,
   });
@@ -70,31 +70,22 @@ export async function insertAllRecordsToVectorDB(
     });
 
     batchNumber++;
-    logger.info(
-      `\n🔄 Processing batch ${batchNumber} (${records.length} records)...`
-    );
+    logger.info(`\n🔄 Processing batch ${batchNumber} (${records.length} records)...`);
 
     // Process batch in parallel
     const promises = recordsToProcess.map((record) =>
       limit(async () => {
         try {
-          const vectorIds = await insertRecordToVectorDB(
-            recordStore,
-            vectorStore,
-            record
-          );
+          const vectorIds = await insertRecordToVectorDB(recordStore, vectorStore, record);
           stats.processed++;
           stats.chunks += vectorIds.length;
           return { success: true, chunks: vectorIds.length };
         } catch (err) {
-          logger.error(
-            { err, recordId: record._id },
-            `Error indexing record ${record._id}`
-          );
+          logger.error({ err, recordId: record._id }, `Error indexing record ${record._id}`);
           stats.errors++;
           return { success: false, chunks: 0 };
         }
-      })
+      }),
     );
 
     await Promise.all(promises);
@@ -107,7 +98,7 @@ export async function insertAllRecordsToVectorDB(
   }
 
   logger.info({
-    msg: "✅ Vector indexing complete",
+    msg: '✅ Vector indexing complete',
     source,
     stats: {
       processed: stats.processed,
@@ -126,7 +117,7 @@ export async function insertAllRecordsToVectorDB(
 export async function insertRecordToVectorDB(
   recordStore: RecordStore,
   vectorStore: VectorStore,
-  record: Record
+  record: Record,
 ): Promise<string[]> {
   // Skip if no content
   if (!record.content || record.content.trim().length === 0) {
@@ -140,7 +131,7 @@ export async function insertRecordToVectorDB(
 
   // Prepend title to content for better search relevance
   const contentWithTitle = record.title
-    ? `# ${record.title}\n\n${record.content}`
+    ? `ID: ${record.sourceId}\n# ${record.title}\n\n${record.content}`
     : record.content;
 
   // Chunk the content (including title)
@@ -161,8 +152,9 @@ export async function insertRecordToVectorDB(
       id: vectorId,
       vector: embeddings[index],
       payload: {
+        type: 'chunk',
         // Link to MongoDB (required)
-        mongoId: record._id,
+        recordId: record._id,
         // Change detection (for re-indexing)
         checksum: record.checksum,
         // Chunk metadata (for result assembly)

@@ -3,13 +3,15 @@
  * All types are immutable and composable
  */
 
+import { McpStdioServerConfig } from '@anthropic-ai/claude-agent-sdk';
+
 // Import types from server package (defined locally to avoid dependency issues)
-export type LightRAGMode = "naive" | "local" | "global" | "hybrid" | "mix";
+export type LightRAGMode = 'naive' | 'local' | 'global' | 'hybrid' | 'mix';
 
 export interface LightRAGQuery {
   query: string;
   mode?: LightRAGMode;
-  response_format?: "compact" | "full";
+  response_format?: 'compact' | 'full';
   top_k?: number;
   chunk_top_k?: number;
   enable_rerank?: boolean;
@@ -56,36 +58,31 @@ export interface LightRAGResponse {
 // Core Configuration Types
 // ============================================
 
-export type BenchmarkType =
-  | "query"
-  | "agent"
-  | "comparison"
-  | "accuracy"
-  | "matrix";
+export type BenchmarkType = 'query' | 'agent' | 'comparison' | 'accuracy' | 'matrix';
 
 export type QueryCategory =
-  | "entity_focused" // Who, What, Where
-  | "relationship" // How, Why
-  | "temporal" // When
-  | "aggregation" // Count, Sum
-  | "exploratory"; // Open-ended
+  | 'entity_focused' // Who, What, Where
+  | 'relationship' // How, Why
+  | 'temporal' // When
+  | 'aggregation' // Count, Sum
+  | 'exploratory'; // Open-ended
 
 export type AgentName =
-  | "claude"
-  | "claude-cli"
-  | "amp"
-  | "roo-code"
-  | "chatgpt"
-  | "gemini"
-  | "cline"
+  | 'claude'
+  | 'claude-cli'
+  | 'amp'
+  | 'roo-code'
+  | 'chatgpt'
+  | 'gemini'
+  | 'cline'
   | string; // Allow any string for custom agent names
 
 export type EvaluationMetric =
-  | "response_quality"
-  | "answer_completeness"
-  | "factual_accuracy"
-  | "reasoning_depth"
-  | "token_efficiency";
+  | 'response_quality'
+  | 'answer_completeness'
+  | 'factual_accuracy'
+  | 'reasoning_depth'
+  | 'token_efficiency';
 
 // ============================================
 // Base Configuration
@@ -122,7 +119,7 @@ export interface GroundTruth {
 }
 
 export interface QueryBenchmarkConfig extends BaseBenchmarkConfig {
-  readonly type: "query";
+  readonly type: 'query';
   readonly queries: readonly BenchmarkQuery[];
   readonly modes?: readonly LightRAGMode[]; // Optional - let LLM auto-select if not provided
   readonly parameters?: {
@@ -144,7 +141,7 @@ export interface AgentConfig {
   readonly baseURL?: string;
   readonly systemPrompt?: string;
   readonly command?: string; // For CLI-based agents (amp, claude-cli, cline)
-  readonly mcpConfig?: Record<string, any>; // MCP server configuration
+  readonly mcpConfig?: Record<string, McpStdioServerConfig>; // MCP server configuration
 }
 
 export interface EvaluationCriteria {
@@ -153,7 +150,7 @@ export interface EvaluationCriteria {
 }
 
 export interface AgentBenchmarkConfig extends BaseBenchmarkConfig {
-  readonly type: "agent";
+  readonly type: 'agent';
   readonly agents: readonly AgentConfig[];
   readonly queries: readonly BenchmarkQuery[];
   readonly evalCriteria: EvaluationCriteria;
@@ -170,7 +167,7 @@ export interface ComparisonScenario {
 }
 
 export interface ComparisonBenchmarkConfig extends BaseBenchmarkConfig {
-  readonly type: "comparison";
+  readonly type: 'comparison';
   readonly agents: readonly AgentConfig[];
   readonly scenarios: readonly ComparisonScenario[];
   readonly sourceServers: Readonly<Record<string, string>>;
@@ -426,6 +423,9 @@ export interface MatrixScenario {
   readonly query: string;
   readonly category?: QueryCategory;
   readonly targetServers: readonly string[];
+  readonly evaluationCriteria?: {
+    readonly mustInclude: readonly string[];
+  };
 }
 
 export interface MCPSetupConfig {
@@ -433,15 +433,17 @@ export interface MCPSetupConfig {
   readonly url?: string;
   readonly servers?: readonly string[];
   readonly packages?: Readonly<
-    Record<string, string | { command: string; args?: string[] }>
+    Record<string, { command: string; args?: string[]; env?: Record<string, string> }>
   >;
 }
 
 export interface MatrixBenchmarkConfig extends BaseBenchmarkConfig {
-  readonly type: "matrix";
+  readonly type: 'matrix';
   readonly agents: readonly AgentConfig[];
   readonly mcpSetups: readonly MCPSetupConfig[];
-  readonly scenarios: readonly MatrixScenario[];
+  readonly queriesSource: QuerySource;
+  readonly scenarios?: readonly MatrixScenario[]; // Optional for hardcoded mode
+  readonly verbose: boolean;
 }
 
 export interface MatrixCellResult {
@@ -450,6 +452,30 @@ export interface MatrixCellResult {
   readonly thinkingTokens?: number; // Extended thinking tokens
   readonly cost: number;
   readonly quality: number;
+  readonly evaluation?: EvaluationResult; // For generated queries
+}
+
+export interface DetailedQueryResult {
+  readonly queryId: string;
+  readonly query: string;
+  readonly category?: string;
+  readonly agentName: string;
+  readonly setupName: string;
+  readonly iteration: number;
+  readonly response: string;
+  readonly evaluation?: EvaluationResult;
+  readonly executionTime: number;
+  readonly totalTokens: number;
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly thinkingTokens?: number;
+  readonly cacheCreationTokens?: number;
+  readonly cacheReadTokens?: number;
+  readonly cost: number;
+  readonly timestamp: string;
+  readonly targetServers: readonly string[];
+  readonly error?: string;
+  readonly steps?: readonly any[]; // Agent interaction steps for debugging
 }
 
 export interface MatrixAgentResult {
@@ -473,8 +499,52 @@ export interface MatrixBenchmarkResults {
   readonly config: MatrixBenchmarkConfig;
   readonly matrix: MatrixResult;
   readonly analysis: MatrixAnalysis;
+  readonly detailedResults: readonly DetailedQueryResult[];
   readonly timestamp: string;
 }
+
+// ============================================
+// Generated Query Types (from generate-queries.ts)
+// ============================================
+
+export interface GeneratedTestCase {
+  readonly query: string;
+  readonly evaluationCriteria: {
+    readonly mustInclude: readonly string[];
+  };
+}
+
+export interface GeneratedWorkflow {
+  readonly workflow: { groupId: string };
+  readonly testCases: readonly GeneratedTestCase[];
+}
+
+// ============================================
+// Evaluation Types
+// ============================================
+
+export interface EvaluationResult {
+  readonly passed: boolean;
+  readonly score: number; // 0-1 semantic similarity
+  readonly matchedCount: number;
+  readonly totalRequired: number;
+  readonly matches: readonly string[]; // Items that matched
+  readonly missing: readonly string[]; // Items that didn't match
+}
+
+// ============================================
+// Query Source Configuration
+// ============================================
+
+export type QuerySource =
+  | {
+      readonly type: 'generated';
+      readonly file: string;
+      readonly skipWorkflows?: readonly string[];
+    }
+  | {
+      readonly type: 'hardcoded';
+    };
 
 export type BenchmarkConfig =
   | QueryBenchmarkConfig
@@ -494,8 +564,7 @@ export type BenchmarkResults =
 
 export type MetricsCollector<T> = (metrics: T) => void;
 export type MetricsAggregator<T, R> = (metrics: readonly T[]) => R;
-export type BenchmarkRunner<
-  C extends BenchmarkConfig,
-  R extends BenchmarkResults
-> = (config: C) => Promise<R>;
+export type BenchmarkRunner<C extends BenchmarkConfig, R extends BenchmarkResults> = (
+  config: C,
+) => Promise<R>;
 export type Evaluator<I, O> = (input: I) => Promise<O>;

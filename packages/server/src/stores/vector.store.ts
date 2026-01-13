@@ -1,20 +1,22 @@
-import { randomUUID } from "crypto";
+import { randomUUID } from 'crypto';
 import {
   VectorPoint,
-  VectorPayloadType,
   EntityVectorPayload,
   RelationshipVectorPayload,
   SourceType,
-} from "../types/index.js";
-import { QdrantConnection } from "../connections/qdrant.js";
-import { env } from "../env.js";
-import logger from "../utils/logger.js";
+} from '../types/index.js';
+import { QdrantConnection } from '../connections/qdrant.js';
+import { env } from '../env.js';
+import logger from '../utils/logger.js';
+import { QdrantClient } from '@qdrant/js-client-rest';
+
+export type QdrantSearchParams = Parameters<QdrantClient['search']>[1];
 
 /**
  * Vector Store - Single-tenant Qdrant operations
  */
 export class VectorStore {
-  private readonly collectionName = "embeddings";
+  private readonly collectionName = 'embeddings';
 
   constructor(private qdrant: QdrantConnection) {}
 
@@ -27,24 +29,18 @@ export class VectorStore {
     try {
       // Check if collection exists
       const collections = await this.qdrant.client.getCollections();
-      const exists = collections.collections.some(
-        (c) => c.name === this.collectionName
-      );
+      const exists = collections.collections.some((c) => c.name === this.collectionName);
 
       if (!exists) {
-        await this.qdrant.createCollection(
-          this.collectionName,
-          dimensions,
-          "Cosine"
-        );
+        await this.qdrant.createCollection(this.collectionName, dimensions, 'Cosine');
         logger.info(
-          `Created Qdrant collection: ${this.collectionName} (${dimensions} dimensions, model: ${env.LLM_EMBEDDING_MODEL})`
+          `Created Qdrant collection: ${this.collectionName} (${dimensions} dimensions, model: ${env.LLM_EMBEDDING_MODEL})`,
         );
       }
     } catch (err) {
       logger.error(
         { err, collectionName: this.collectionName },
-        `Error ensuring collection ${this.collectionName}`
+        `Error ensuring collection ${this.collectionName}`,
       );
       throw err;
     }
@@ -53,9 +49,7 @@ export class VectorStore {
   /**
    * Upsert a single point
    */
-  async upsertPoint(
-    point: Omit<VectorPoint, "id"> & { id?: string }
-  ): Promise<string> {
+  async upsertPoint(point: Omit<VectorPoint, 'id'> & { id?: string }): Promise<string> {
     const id = point.id || randomUUID();
     const fullPoint: VectorPoint = {
       ...point,
@@ -89,13 +83,11 @@ export class VectorStore {
     vector: number[],
     options?: {
       limit?: number;
-      filter?: Record<string, any>;
+      filter?: QdrantSearchParams['filter'];
       scoreThreshold?: number;
-    }
-  ): Promise<
-    Array<{ id: string; score: number; payload: VectorPoint["payload"] }>
-  > {
-    const searchParams: any = {
+    },
+  ): Promise<Array<{ id: string; score: number; payload: VectorPoint['payload'] }>> {
+    const searchParams: QdrantSearchParams = {
       vector,
       limit: options?.limit || 20,
     };
@@ -108,66 +100,33 @@ export class VectorStore {
       searchParams.score_threshold = options.scoreThreshold;
     }
 
-    const results = await this.qdrant.client.search(
-      this.collectionName,
-      searchParams
-    );
+    const results = await this.qdrant.client.search(this.collectionName, searchParams);
 
     return results.map((result) => ({
       id: result.id as string,
       score: result.score,
-      payload: result.payload as VectorPoint["payload"],
+      payload: result.payload as VectorPoint['payload'],
     }));
-  }
-
-  /**
-   * Search with pre-filtered MongoDB IDs
-   */
-  async searchWithMongoFilter(
-    vector: number[],
-    mongoIds: string[],
-    options?: {
-      limit?: number;
-      scoreThreshold?: number;
-    }
-  ): Promise<
-    Array<{ id: string; score: number; payload: VectorPoint["payload"] }>
-  > {
-    if (mongoIds.length === 0) return [];
-
-    return this.search(vector, {
-      ...options,
-      filter: {
-        must: [
-          {
-            key: "mongoId",
-            match: {
-              any: mongoIds,
-            },
-          },
-        ],
-      },
-    });
   }
 
   /**
    * Delete points by MongoDB ID
    */
-  async deleteOutdatedPoints(mongoId: string, checksum: string): Promise<void> {
+  async deleteOutdatedPoints(recordId: string, checksum: string): Promise<void> {
     await this.qdrant.client.delete(this.collectionName, {
       wait: true,
       filter: {
         must: [
           {
-            key: "mongoId",
+            key: 'recordId',
             match: {
-              value: mongoId,
+              value: recordId,
             },
           },
         ],
         must_not: [
           {
-            key: "checksum",
+            key: 'checksum',
             match: {
               value: checksum,
             },
@@ -194,7 +153,7 @@ export class VectorStore {
       return {
         id: point.id as string,
         vector: point.vector as number[],
-        payload: point.payload as VectorPoint["payload"],
+        payload: point.payload as VectorPoint['payload'],
       };
     } catch (err) {
       logger.error({ err, pointId: id }, `Error getting point ${id}`);
@@ -211,16 +170,14 @@ export class VectorStore {
       limit?: number;
       scoreThreshold?: number;
       source?: SourceType;
-    }
-  ): Promise<
-    Array<{ id: string; score: number; payload: EntityVectorPayload }>
-  > {
-    const filter: any = {
-      must: [{ key: "type", match: { value: "entity" } }],
-    };
+    },
+  ): Promise<Array<{ id: string; score: number; payload: EntityVectorPayload }>> {
+    const filter = {
+      must: [{ key: 'type', match: { value: 'entity' } }],
+    } satisfies QdrantSearchParams['filter'];
 
     if (options?.source) {
-      filter.must.push({ key: "source", match: { value: options.source } });
+      filter.must.push({ key: 'source', match: { value: options.source } });
     }
 
     const results = await this.search(vector, {
@@ -245,16 +202,14 @@ export class VectorStore {
       limit?: number;
       scoreThreshold?: number;
       relType?: string;
-    }
-  ): Promise<
-    Array<{ id: string; score: number; payload: RelationshipVectorPayload }>
-  > {
-    const filter: any = {
-      must: [{ key: "type", match: { value: "relationship" } }],
-    };
+    },
+  ): Promise<Array<{ id: string; score: number; payload: RelationshipVectorPayload }>> {
+    const filter = {
+      must: [{ key: 'type', match: { value: 'relationship' } }],
+    } satisfies QdrantSearchParams['filter'];
 
     if (options?.relType) {
-      filter.must.push({ key: "relType", match: { value: options.relType } });
+      filter.must.push({ key: 'relType', match: { value: options.relType } });
     }
 
     const results = await this.search(vector, {
@@ -271,135 +226,6 @@ export class VectorStore {
   }
 
   /**
-   * Delete all vectors of a specific type
-   */
-  async deleteByType(type: VectorPayloadType): Promise<void> {
-    await this.qdrant.client.delete(this.collectionName, {
-      wait: true,
-      filter: {
-        must: [{ key: "type", match: { value: type } }],
-      },
-    });
-  }
-
-  /**
-   * Delete entity embedding by mongoId
-   */
-  async deleteEntityEmbedding(mongoId: string): Promise<void> {
-    await this.qdrant.client.delete(this.collectionName, {
-      wait: true,
-      filter: {
-        must: [
-          { key: "type", match: { value: "entity" } },
-          { key: "mongoId", match: { value: mongoId } },
-        ],
-      },
-    });
-  }
-
-  /**
-   * Delete relationship embedding by source/target/type
-   */
-  async deleteRelationshipEmbedding(
-    sourceId: string,
-    targetId: string,
-    type: string
-  ): Promise<void> {
-    await this.qdrant.client.delete(this.collectionName, {
-      wait: true,
-      filter: {
-        must: [
-          { key: "type", match: { value: "relationship" } },
-          { key: "sourceId", match: { value: sourceId } },
-          { key: "targetId", match: { value: targetId } },
-          { key: "relType", match: { value: type } },
-        ],
-      },
-    });
-  }
-
-  /**
-   * Delete all embeddings for a source
-   */
-  async deleteBySource(source: SourceType): Promise<{
-    entities: number;
-    relationships: number;
-  }> {
-    // Get counts before deletion
-    const entityCount = await this.qdrant.client.count(this.collectionName, {
-      filter: {
-        must: [
-          { key: "type", match: { value: "entity" } },
-          { key: "source", match: { value: source } },
-        ],
-      },
-    });
-
-    const relCount = await this.qdrant.client.count(this.collectionName, {
-      filter: {
-        must: [
-          { key: "type", match: { value: "relationship" } },
-          { key: "sourceId", match: { any: [`${source}_`] } },
-        ],
-      },
-    });
-
-    // Delete entity embeddings
-    await this.qdrant.client.delete(this.collectionName, {
-      wait: true,
-      filter: {
-        must: [
-          { key: "type", match: { value: "entity" } },
-          { key: "source", match: { value: source } },
-        ],
-      },
-    });
-
-    // Delete relationship embeddings (filter by sourceId prefix)
-    await this.qdrant.client.delete(this.collectionName, {
-      wait: true,
-      filter: {
-        must: [{ key: "type", match: { value: "relationship" } }],
-      },
-    });
-
-    return {
-      entities: entityCount.count,
-      relationships: relCount.count,
-    };
-  }
-
-  /**
-   * Delete entity embeddings in batch by mongoIds
-   */
-  async deleteEntityEmbeddingsBatch(mongoIds: string[]): Promise<number> {
-    if (mongoIds.length === 0) return 0;
-
-    // Get count before deletion
-    const countResult = await this.qdrant.client.count(this.collectionName, {
-      filter: {
-        must: [
-          { key: "type", match: { value: "entity" } },
-          { key: "mongoId", match: { any: mongoIds } },
-        ],
-      },
-    });
-
-    // Delete
-    await this.qdrant.client.delete(this.collectionName, {
-      wait: true,
-      filter: {
-        must: [
-          { key: "type", match: { value: "entity" } },
-          { key: "mongoId", match: { any: mongoIds } },
-        ],
-      },
-    });
-
-    return countResult.count;
-  }
-
-  /**
    * Delete embeddings by their vector IDs
    */
   async deleteByIds(ids: string[]): Promise<void> {
@@ -408,91 +234,9 @@ export class VectorStore {
     await this.qdrant.client.delete(this.collectionName, {
       wait: true,
       filter: {
-        must: [{ key: "id", match: { any: ids } }],
+        must: [{ key: 'id', match: { any: ids } }],
       },
     });
-  }
-
-  /**
-   * Clean up orphaned embeddings (not in MongoDB/Memgraph anymore)
-   */
-  async cleanupOrphanedEmbeddings(
-    validMongoIds: string[],
-    validRelationships: Array<{
-      sourceId: string;
-      targetId: string;
-      type: string;
-    }>
-  ): Promise<{ entities: number; relationships: number }> {
-    // Get all entity embeddings
-    const allEntities = await this.search([0, 0, 0], {
-      limit: 100000,
-      filter: {
-        must: [{ key: "type", match: { value: "entity" } }],
-      },
-    });
-
-    // Find orphaned entities (mongoId not in validMongoIds)
-    const validIdSet = new Set(validMongoIds);
-    const orphanedEntityIds: string[] = [];
-
-    for (const entity of allEntities) {
-      const payload = entity.payload as EntityVectorPayload;
-      if (!validIdSet.has(payload.mongoId as string)) {
-        orphanedEntityIds.push(entity.id);
-      }
-    }
-
-    // Delete orphaned entities
-    if (orphanedEntityIds.length > 0) {
-      await this.qdrant.client.delete(this.collectionName, {
-        wait: true,
-        filter: {
-          must: [{ key: "id", match: { any: orphanedEntityIds } }],
-        },
-      });
-    }
-
-    // Get all relationship embeddings
-    const allRelationships = await this.search([0, 0, 0], {
-      limit: 100000,
-      filter: {
-        must: [{ key: "type", match: { value: "relationship" } }],
-      },
-    });
-
-    // Build set of valid relationships
-    const validRelSet = new Set(
-      validRelationships.map((r) => `${r.sourceId}_${r.type}_${r.targetId}`)
-    );
-
-    const orphanedRelIds: string[] = [];
-    for (const rel of allRelationships) {
-      const payload = rel.payload as RelationshipVectorPayload;
-      const key = `${payload.sourceId}_${payload.relType}_${payload.targetId}`;
-      if (!validRelSet.has(key)) {
-        orphanedRelIds.push(rel.id);
-      }
-    }
-
-    // Delete orphaned relationships
-    if (orphanedRelIds.length > 0) {
-      await this.qdrant.client.delete(this.collectionName, {
-        wait: true,
-        filter: {
-          must: [{ key: "id", match: { any: orphanedRelIds } }],
-        },
-      });
-    }
-
-    logger.info(
-      `Cleaned up ${orphanedEntityIds.length} orphaned entity embeddings and ${orphanedRelIds.length} orphaned relationship embeddings`
-    );
-
-    return {
-      entities: orphanedEntityIds.length,
-      relationships: orphanedRelIds.length,
-    };
   }
 }
 

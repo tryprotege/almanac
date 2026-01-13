@@ -33,50 +33,50 @@ export function needsEscaping(identifier: string): boolean {
 
   // Check if it's a Cypher reserved keyword (case-insensitive)
   const reservedKeywords = [
-    "MATCH",
-    "WHERE",
-    "RETURN",
-    "CREATE",
-    "DELETE",
-    "SET",
-    "REMOVE",
-    "MERGE",
-    "WITH",
-    "UNWIND",
-    "CASE",
-    "WHEN",
-    "THEN",
-    "ELSE",
-    "END",
-    "AND",
-    "OR",
-    "XOR",
-    "NOT",
-    "IN",
-    "STARTS",
-    "ENDS",
-    "CONTAINS",
-    "IS",
-    "NULL",
-    "TRUE",
-    "FALSE",
-    "DISTINCT",
-    "AS",
-    "ORDER",
-    "BY",
-    "SKIP",
-    "LIMIT",
-    "ASC",
-    "DESC",
-    "ON",
-    "INDEX",
-    "DROP",
-    "CONSTRAINT",
-    "ASSERT",
-    "UNIQUE",
-    "EXISTS",
-    "CALL",
-    "YIELD",
+    'MATCH',
+    'WHERE',
+    'RETURN',
+    'CREATE',
+    'DELETE',
+    'SET',
+    'REMOVE',
+    'MERGE',
+    'WITH',
+    'UNWIND',
+    'CASE',
+    'WHEN',
+    'THEN',
+    'ELSE',
+    'END',
+    'AND',
+    'OR',
+    'XOR',
+    'NOT',
+    'IN',
+    'STARTS',
+    'ENDS',
+    'CONTAINS',
+    'IS',
+    'NULL',
+    'TRUE',
+    'FALSE',
+    'DISTINCT',
+    'AS',
+    'ORDER',
+    'BY',
+    'SKIP',
+    'LIMIT',
+    'ASC',
+    'DESC',
+    'ON',
+    'INDEX',
+    'DROP',
+    'CONSTRAINT',
+    'ASSERT',
+    'UNIQUE',
+    'EXISTS',
+    'CALL',
+    'YIELD',
   ];
 
   return reservedKeywords.includes(identifier.toUpperCase());
@@ -94,11 +94,11 @@ export function needsEscaping(identifier: string): boolean {
  */
 export function escapeIdentifier(identifier: string): string {
   if (!identifier || identifier.length === 0) {
-    throw new Error("Cannot escape empty identifier");
+    throw new Error('Cannot escape empty identifier');
   }
 
   // If already escaped (starts and ends with backtick), return as-is
-  if (identifier.startsWith("`") && identifier.endsWith("`")) {
+  if (identifier.startsWith('`') && identifier.endsWith('`')) {
     return identifier;
   }
 
@@ -108,7 +108,7 @@ export function escapeIdentifier(identifier: string): string {
   }
 
   // Escape any existing backticks by doubling them
-  const escapedBackticks = identifier.replace(/`/g, "``");
+  const escapedBackticks = identifier.replace(/`/g, '``');
 
   // Wrap in backticks
   return `\`${escapedBackticks}\``;
@@ -149,14 +149,76 @@ export function unescapeIdentifier(escapedIdentifier: string): string {
 
   // Remove surrounding backticks
   let unescaped = escapedIdentifier;
-  if (unescaped.startsWith("`") && unescaped.endsWith("`")) {
+  if (unescaped.startsWith('`') && unescaped.endsWith('`')) {
     unescaped = unescaped.slice(1, -1);
   }
 
   // Unescape doubled backticks
-  unescaped = unescaped.replace(/``/g, "`");
+  unescaped = unescaped.replace(/``/g, '`');
 
   return unescaped;
+}
+
+/**
+ * Sanitize a Cypher identifier to contain only valid characters
+ * Valid: letters (a-z, A-Z), digits (0-9), underscore (_)
+ * Must start with letter or underscore (not digit)
+ *
+ * This is a whitelist approach - replaces ALL invalid characters with underscores
+ * Returns null if the identifier cannot be salvaged
+ *
+ * @param identifier The identifier to sanitize (relationship type, label, etc.)
+ * @param options Sanitization options
+ * @returns Sanitized identifier or null if unsalvageable
+ */
+export function sanitizeCypherIdentifier(
+  identifier: string,
+  options: {
+    toUpperCase?: boolean;
+    prefix?: string;
+  } = {},
+): string | null {
+  if (!identifier || typeof identifier !== 'string') {
+    return null;
+  }
+
+  // Remove all characters that are NOT alphanumeric or underscore
+  // This handles ALL problematic Cypher characters: ?, +, -, *, /, etc.
+  let sanitized = identifier.replace(/[^a-zA-Z0-9_]/g, '_');
+
+  // Remove consecutive underscores
+  sanitized = sanitized.replace(/_+/g, '_');
+
+  // Remove leading/trailing underscores
+  sanitized = sanitized.replace(/^_+|_+$/g, '');
+
+  // Must start with letter or underscore (not digit)
+  if (/^[0-9]/.test(sanitized)) {
+    sanitized = (options.prefix || '_') + sanitized;
+  }
+
+  // Return null if empty after sanitization
+  if (sanitized.length === 0) {
+    return null;
+  }
+
+  // Optionally convert to uppercase (common for relationship types)
+  if (options.toUpperCase) {
+    sanitized = sanitized.toUpperCase();
+  }
+
+  return sanitized;
+}
+
+/**
+ * Sanitize a relationship type for safe use in Cypher queries
+ * Applies whitelist-based sanitization and converts to uppercase
+ *
+ * @param relationshipType The relationship type to sanitize
+ * @returns Sanitized type or null if invalid
+ */
+export function sanitizeRelationshipType(relationshipType: string): string | null {
+  return sanitizeCypherIdentifier(relationshipType, { toUpperCase: true });
 }
 
 /**
@@ -177,13 +239,13 @@ export function validateRelationshipType(relationshipType: string): {
     return {
       isValid: false,
       needsEscaping: false,
-      warnings: ["Relationship type cannot be empty"],
+      warnings: ['Relationship type cannot be empty'],
     };
   }
 
   if (relationshipType.length > 100) {
     warnings.push(
-      `Relationship type is very long (${relationshipType.length} chars). Consider shortening it.`
+      `Relationship type is very long (${relationshipType.length} chars). Consider shortening it.`,
     );
   }
 
@@ -194,20 +256,16 @@ export function validateRelationshipType(relationshipType: string): {
       const specialChars = relationshipType.match(/[^a-zA-Z0-9_]/g) || [];
       const uniqueChars = [...new Set(specialChars)];
       warnings.push(
-        `Contains special characters: ${uniqueChars.join(
-          ", "
-        )}. Will be escaped with backticks.`
+        `Contains special characters: ${uniqueChars.join(', ')}. Will be escaped with backticks.`,
       );
     }
 
     if (/^[0-9]/.test(relationshipType)) {
-      warnings.push("Starts with a number. Will be escaped with backticks.");
+      warnings.push('Starts with a number. Will be escaped with backticks.');
     }
 
-    if (relationshipType.includes("`")) {
-      warnings.push(
-        "Contains backtick characters. These will be doubled when escaped."
-      );
+    if (relationshipType.includes('`')) {
+      warnings.push('Contains backtick characters. These will be doubled when escaped.');
     }
   }
 

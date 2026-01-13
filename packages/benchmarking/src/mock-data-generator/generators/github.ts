@@ -3,44 +3,40 @@ import type {
   GitHubPullRequest,
   GitHubUser,
   GitHubRepository,
-} from "@ebee-oss/shared-util";
-import type {
-  GeneratorConfig,
-  GenerationContext,
-  RelationshipContext,
-} from "../types.js";
-import { COMPANY_DATA } from "../data/company.js";
-import { generateWithLLM } from "../utils/llm.js";
-import { selectRandom, selectRandomMultiple } from "../utils/random.js";
-import { generateRandomDate } from "../utils/dates.js";
+} from '@ebee-oss/shared-util';
+import type { GeneratorConfig, GenerationContext, RelationshipContext } from '../types.js';
+import { COMPANY_DATA } from '../data/company.js';
+import { generateWithLLM } from '../utils/llm.js';
+import { selectRandom, selectRandomMultiple } from '../utils/random.js';
+import { generateRandomDate } from '../utils/dates.js';
 import {
   generateRandomId,
   generateRandomNodeId,
   generateRandomHash,
-} from "../utils/id-generator.js";
+} from '../utils/id-generator.js';
 
 /**
  * Generate GitHub issues and pull requests (functional approach - no classes)
  */
 
 const ISSUE_LABELS = [
-  ["bug", "p1"],
-  ["bug", "p2"],
-  ["feature", "enhancement"],
-  ["documentation"],
-  ["performance"],
-  ["security"],
-  ["refactor"],
-  ["testing"],
+  ['bug', 'p1'],
+  ['bug', 'p2'],
+  ['feature', 'enhancement'],
+  ['documentation'],
+  ['performance'],
+  ['security'],
+  ['refactor'],
+  ['testing'],
 ];
 ``;
-const ISSUE_STATES = ["open", "closed"] as const;
+const ISSUE_STATES = ['open', 'closed'] as const;
 
 export async function generateGitHubIssues(
   count: number,
   dates: Date[],
   config: GeneratorConfig,
-  context?: any
+  context?: any,
 ): Promise<GitHubIssue[]> {
   const issues: GitHubIssue[] = [];
   const users = generateGitHubUsers();
@@ -52,23 +48,19 @@ export async function generateGitHubIssues(
     const repo = selectRandom(repos);
     const author = selectRandom(users);
     const labels = selectRandom(ISSUE_LABELS);
-    const state = Math.random() > 0.3 ? "closed" : "open"; // 70% closed
+    const state = Math.random() > 0.3 ? 'closed' : 'open'; // 70% closed
     const createdAt = generateRandomDate(dates[0], dates[dates.length - 1]);
     const closedAt =
-      state === "closed"
-        ? new Date(
-            createdAt.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000
-          ) // Closed within 7 days
+      state === 'closed'
+        ? new Date(createdAt.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) // Closed within 7 days
         : undefined;
 
     // Generate realistic issue content with LLM
-    const prompt = `Generate a realistic GitHub issue for a ${
-      repo.description
-    } repository.
+    const prompt = `Generate a realistic GitHub issue for a ${repo.description} repository.
 
 Company: ${COMPANY_DATA.name} - ${COMPANY_DATA.githubOrg}
 Repository: ${repo.name} (${repo.language})
-Labels: ${labels.join(", ")}
+Labels: ${labels.join(', ')}
 Author: ${author.name}
 
 Return ONLY a JSON object with this exact structure (no markdown, no extra text):
@@ -87,12 +79,12 @@ Return ONLY a JSON object with this exact structure (no markdown, no extra text)
 
       issues.push({
         id: issueId,
-        node_id: generateRandomNodeId("MDU6SXNzdWU"),
+        node_id: generateRandomNodeId('MDU6SXNzdWU'),
         number: issueNumber,
         title: parsed.title,
         body: parsed.body,
         state,
-        state_reason: state === "closed" ? "completed" : null,
+        state_reason: state === 'closed' ? 'completed' : null,
         user: {
           login: author.login,
           id: author.id,
@@ -106,10 +98,10 @@ Return ONLY a JSON object with this exact structure (no markdown, no extra text)
         },
         labels: labels.map((label) => ({
           id: generateRandomId(100000, 999999),
-          node_id: generateRandomNodeId("MDU6TGFiZWw"),
+          node_id: generateRandomNodeId('MDU6TGFiZWw'),
           name: label,
           description: null,
-          color: "0e8a16",
+          color: '0e8a16',
           default: false,
         })),
         assignees: [],
@@ -118,7 +110,7 @@ Return ONLY a JSON object with this exact structure (no markdown, no extra text)
         created_at: createdAt.toISOString(),
         updated_at: (closedAt || createdAt).toISOString(),
         closed_at: closedAt?.toISOString() || null,
-        author_association: "CONTRIBUTOR",
+        author_association: 'CONTRIBUTOR',
         locked: false,
         repository_url: `https://api.github.com/repos/${COMPANY_DATA.githubOrg}/${repo.name}`,
         html_url: `https://github.com/${COMPANY_DATA.githubOrg}/${repo.name}/issues/${issueNumber}`,
@@ -139,32 +131,30 @@ export async function generateGitHubPRs(
   count: number,
   dates: Date[],
   config: GeneratorConfig,
-  context?: any
+  context?: any,
 ): Promise<GitHubPullRequest[]> {
   const prs: GitHubPullRequest[] = [];
   const users = generateGitHubUsers();
   const repos = COMPANY_DATA.githubRepos;
   const dependabotCount = Math.floor(count * 0.3); // 30% from Dependabot
 
-  console.log(
-    `Generating ${count} GitHub PRs (${dependabotCount} from Dependabot)...`
-  );
+  console.log(`Generating ${count} GitHub PRs (${dependabotCount} from Dependabot)...`);
 
   for (let i = 0; i < count; i++) {
     const repo = selectRandom(repos);
     const isDependabot = i < dependabotCount;
     const author = isDependabot
-      ? { login: "dependabot[bot]", name: "Dependabot", id: 49699333 }
+      ? { login: 'dependabot[bot]', name: 'Dependabot', id: 49699333 }
       : selectRandom(users);
-    const state = Math.random() > 0.2 ? "closed" : "open"; // 80% merged/closed
-    const merged = state === "closed" && Math.random() > 0.1; // 90% of closed are merged
+    const state = Math.random() > 0.2 ? 'closed' : 'open'; // 80% merged/closed
+    const merged = state === 'closed' && Math.random() > 0.1; // 90% of closed are merged
     const createdAt = generateRandomDate(dates[0], dates[dates.length - 1]);
     const mergedAt = merged
       ? new Date(createdAt.getTime() + Math.random() * 3 * 24 * 60 * 60 * 1000) // Merged within 3 days
       : undefined;
 
     // Generate realistic PR content with LLM
-    let prompt = "";
+    let prompt = '';
 
     if (isDependabot) {
       prompt = `Generate a realistic Dependabot PR for updating a dependency in a ${repo.description} repository.
@@ -185,12 +175,7 @@ Author: ${author.name}
 `;
 
       // 70% chance to reference an issue from context
-      if (
-        context &&
-        context.issues &&
-        context.issues.length > 0 &&
-        Math.random() < 0.7
-      ) {
+      if (context && context.issues && context.issues.length > 0 && Math.random() < 0.7) {
         const issue = selectRandom(context.issues) as GitHubIssue;
         prompt += `\nThis PR fixes Issue #${issue.number}: ${issue.title}
 Include "Fixes #${issue.number}" in the PR body to link it to the issue.
@@ -211,16 +196,14 @@ Include "Fixes #${issue.number}" in the PR body to link it to the issue.
       const repoId = generateRandomId(5000, 9999);
       const mockRepo: GitHubRepository = {
         id: repoId,
-        node_id: generateRandomNodeId("MDEwOlJlcG9zaXRvcnk"),
+        node_id: generateRandomNodeId('MDEwOlJlcG9zaXRvcnk'),
         name: repo.name,
         full_name: `${COMPANY_DATA.githubOrg}/${repo.name}`,
         owner: users[0],
         description: repo.description,
         private: false,
         html_url: `https://github.com/${COMPANY_DATA.githubOrg}/${repo.name}`,
-        created_at: new Date(
-          Date.now() - 365 * 24 * 60 * 60 * 1000
-        ).toISOString(),
+        created_at: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
         updated_at: new Date().toISOString(),
         pushed_at: new Date().toISOString(),
         size: Math.floor(Math.random() * 10000),
@@ -228,7 +211,7 @@ Include "Fixes #${issue.number}" in the PR body to link it to the issue.
         watchers_count: Math.floor(Math.random() * 100),
         language: repo.language,
         topics: repo.topics,
-        default_branch: "main",
+        default_branch: 'main',
         archived: false,
         disabled: false,
         fork: false,
@@ -241,7 +224,7 @@ Include "Fixes #${issue.number}" in the PR body to link it to the issue.
 
       prs.push({
         id: prId,
-        node_id: generateRandomNodeId("MDExOlB1bGxSZXF1ZXN0"),
+        node_id: generateRandomNodeId('MDExOlB1bGxSZXF1ZXN0'),
         number: prNumber,
         title: parsed.title,
         body: parsed.body,
@@ -249,10 +232,10 @@ Include "Fixes #${issue.number}" in the PR body to link it to the issue.
         user: {
           login: author.login,
           id: author.id,
-          node_id: generateRandomNodeId("MDQ6VXNlcjEyMzQ1Njc4"),
+          node_id: generateRandomNodeId('MDQ6VXNlcjEyMzQ1Njc4'),
           avatar_url: `https://avatars.githubusercontent.com/u/${author.id}?v=4`,
           html_url: `https://github.com/${author.login}`,
-          type: isDependabot ? "Bot" : "User",
+          type: isDependabot ? 'Bot' : 'User',
           site_admin: false,
           name: author.name,
         },
@@ -263,8 +246,8 @@ Include "Fixes #${issue.number}" in the PR body to link it to the issue.
         milestone: null,
         draft: false,
         merged: merged,
-        mergeable: state === "open" ? true : null,
-        mergeable_state: state === "open" ? "clean" : "unknown",
+        mergeable: state === 'open' ? true : null,
+        mergeable_state: state === 'open' ? 'clean' : 'unknown',
         merged_at: mergedAt?.toISOString() || null,
         merged_by: merged ? selectRandom(users) : null,
         merge_commit_sha: merged ? generateRandomHash(40) : null,
@@ -277,15 +260,14 @@ Include "Fixes #${issue.number}" in the PR body to link it to the issue.
         },
         base: {
           label: `${COMPANY_DATA.githubOrg}:main`,
-          ref: "main",
+          ref: 'main',
           sha: generateRandomHash(40),
           user: users[0],
           repo: mockRepo,
         },
         created_at: createdAt.toISOString(),
         updated_at: (mergedAt || createdAt).toISOString(),
-        closed_at:
-          state === "closed" ? (mergedAt || createdAt).toISOString() : null,
+        closed_at: state === 'closed' ? (mergedAt || createdAt).toISOString() : null,
         html_url: `https://github.com/${COMPANY_DATA.githubOrg}/${repo.name}/pull/${prNumber}`,
         diff_url: `https://github.com/${COMPANY_DATA.githubOrg}/${repo.name}/pull/${prNumber}.diff`,
         patch_url: `https://github.com/${COMPANY_DATA.githubOrg}/${repo.name}/pull/${prNumber}.patch`,
@@ -293,7 +275,7 @@ Include "Fixes #${issue.number}" in the PR body to link it to the issue.
         additions: Math.floor(Math.random() * 500) + 10,
         deletions: Math.floor(Math.random() * 200) + 5,
         changed_files: Math.floor(Math.random() * 10) + 1,
-        author_association: isDependabot ? "NONE" : "CONTRIBUTOR",
+        author_association: isDependabot ? 'NONE' : 'CONTRIBUTOR',
         locked: false,
       });
 
@@ -314,10 +296,10 @@ export function generateGitHubUsers(): GitHubUser[] {
     return {
       id: userId,
       login: member.githubHandle,
-      node_id: generateRandomNodeId("MDQ6VXNlcg"),
+      node_id: generateRandomNodeId('MDQ6VXNlcg'),
       avatar_url: `https://avatars.githubusercontent.com/u/${userId}?v=4`,
       html_url: `https://github.com/${member.githubHandle}`,
-      type: "User",
+      type: 'User',
       site_admin: false,
       name: member.name,
       email: member.email,
@@ -330,7 +312,7 @@ export function generateGitHubRepositories(): GitHubRepository[] {
 
   return COMPANY_DATA.githubRepos.map((repo, index) => ({
     id: generateRandomId(5000, 9999),
-    node_id: generateRandomNodeId("MDEwOlJlcG9zaXRvcnk"),
+    node_id: generateRandomNodeId('MDEwOlJlcG9zaXRvcnk'),
     name: repo.name,
     full_name: `${COMPANY_DATA.githubOrg}/${repo.name}`,
     owner,
@@ -345,7 +327,7 @@ export function generateGitHubRepositories(): GitHubRepository[] {
     watchers_count: Math.floor(Math.random() * 200) + 10,
     language: repo.language,
     topics: repo.topics,
-    default_branch: "main",
+    default_branch: 'main',
     archived: false,
     disabled: false,
     fork: false,

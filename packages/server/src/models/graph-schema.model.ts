@@ -1,4 +1,4 @@
-import mongoose, { InferSchemaType } from "mongoose";
+import mongoose, { InferSchemaType } from 'mongoose';
 
 // Graph Schema Mongoose Schema
 const EntityTypeSchema = new mongoose.Schema(
@@ -8,7 +8,7 @@ const EntityTypeSchema = new mongoose.Schema(
     mcpSource: { type: String },
     properties: [{ type: String }],
   },
-  { _id: false }
+  { _id: false },
 );
 
 const RelationshipTypeSchema = new mongoose.Schema(
@@ -20,7 +20,7 @@ const RelationshipTypeSchema = new mongoose.Schema(
     bidirectional: { type: Boolean, required: true },
     mcpSource: { type: String },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const SchemaUpdateHistorySchema = new mongoose.Schema(
@@ -33,7 +33,7 @@ const SchemaUpdateHistorySchema = new mongoose.Schema(
     totalEntityTypes: { type: Number, required: true },
     totalRelationshipTypes: { type: Number, required: true },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const GraphSchemaSchema = new mongoose.Schema(
@@ -48,8 +48,8 @@ const GraphSchemaSchema = new mongoose.Schema(
     // Persona field
     persona: {
       type: String,
-      default: "",
-      description: "User-provided context/persona for AI schema learning",
+      default: '',
+      description: 'User-provided context/persona for AI schema learning',
     },
     // History tracking
     schemaUpdateHistory: [SchemaUpdateHistorySchema],
@@ -57,19 +57,14 @@ const GraphSchemaSchema = new mongoose.Schema(
     updatedAt: { type: Date, default: Date.now },
   },
   {
-    collection: "graph_schemas",
+    collection: 'graph_schemas',
     timestamps: true,
-  }
+  },
 );
 
 export type GraphSchema = InferSchemaType<typeof GraphSchemaSchema>;
-export type GraphRelationshipType = InferSchemaType<
-  typeof RelationshipTypeSchema
->;
+export type GraphRelationshipType = InferSchemaType<typeof RelationshipTypeSchema>;
 export type GraphEntityType = InferSchemaType<typeof EntityTypeSchema>;
 
 // Export the model
-export const GraphSchemaModel = mongoose.model<GraphSchema>(
-  "GraphSchema",
-  GraphSchemaSchema
-);
+export const GraphSchemaModel = mongoose.model<GraphSchema>('GraphSchema', GraphSchemaSchema);

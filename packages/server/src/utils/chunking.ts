@@ -13,7 +13,7 @@ export function chunkText(text: string): DocumentChunk[] {
   const strategy = {
     maxChunkSize: 2000, // Characters
     overlapSize: 200, // Overlap between chunks
-    splitOn: "paragraph",
+    splitOn: 'paragraph',
   };
 
   if (text.length <= strategy.maxChunkSize) {
@@ -30,16 +30,16 @@ export function chunkText(text: string): DocumentChunk[] {
 
   // Split based on strategy
   let segments: string[];
-  if (strategy.splitOn === "paragraph") {
+  if (strategy.splitOn === 'paragraph') {
     segments = text.split(/\n\n+/);
-  } else if (strategy.splitOn === "sentence") {
+  } else if (strategy.splitOn === 'sentence') {
     segments = text.split(/[.!?]+\s+/);
   } else {
     // Character-based splitting
     segments = [text];
   }
 
-  let currentChunk = "";
+  let currentChunk = '';
   let currentStart = 0;
   let chunkIndex = 0;
 
@@ -57,13 +57,13 @@ export function chunkText(text: string): DocumentChunk[] {
         // Start new chunk with overlap
         const overlapText = currentChunk.slice(-strategy.overlapSize);
         currentStart = currentStart + currentChunk.length - overlapText.length;
-        currentChunk = overlapText + " " + segment;
+        currentChunk = overlapText + ' ' + segment;
       } else {
         // Segment itself is too large, split it
         currentChunk = segment;
       }
     } else {
-      currentChunk += (currentChunk ? " " : "") + segment;
+      currentChunk += (currentChunk ? ' ' : '') + segment;
     }
   }
 

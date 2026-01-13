@@ -1,29 +1,28 @@
 #!/usr/bin/env node
-import express, { NextFunction, Request, Response } from "express";
+import express, { NextFunction, Request, Response } from 'express';
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
-import { fathomMcpServer } from "./mcpServers/fathom.js";
-import { githubMcpServer } from "./mcpServers/github.js";
-import { notionMcpServer } from "./mcpServers/notion.js";
-import { slackMcpServer } from "./mcpServers/slack.js";
+import { fathomMcpServer } from './mcpServers/fathom.js';
+import { githubMcpServer } from './mcpServers/github.js';
+import { notionMcpServer } from './mcpServers/notion.js';
+import { slackMcpServer } from './mcpServers/slack.js';
 
-const mcpHandler =
-  (mcpServer: McpServer) => async (req: Request, res: Response) => {
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-      enableJsonResponse: true,
-    });
+const mcpHandler = (mcpServer: McpServer) => async (req: Request, res: Response) => {
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  });
 
-    res.on("close", () => {
-      transport.close();
-    });
+  res.on('close', () => {
+    transport.close();
+  });
 
-    await mcpServer.connect(transport);
-    await transport.handleRequest(req, res, req.body);
-  };
+  await mcpServer.connect(transport);
+  await transport.handleRequest(req, res, req.body);
+};
 
 const mcpServers = {
   notion: notionMcpServer,
@@ -39,21 +38,15 @@ const streamable = () => {
   app.use(express.urlencoded({ extended: true }));
 
   const PORT = process.env.PORT ? parseInt(process.env.PORT) : 4000;
-  const HOST = process.env.HOST || "0.0.0.0";
+  const HOST = process.env.HOST || '0.0.0.0';
 
   // CORS middleware
   app.use((req: Request, res: Response, next: NextFunction) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, OPTIONS"
-    );
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, mcp-protocol-version"
-    );
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, mcp-protocol-version');
 
-    if (req.method === "OPTIONS") {
+    if (req.method === 'OPTIONS') {
       res.status(200).end();
       return;
     }
@@ -62,14 +55,14 @@ const streamable = () => {
   });
 
   // Health check
-  app.get("/health", (_req: Request, res: Response) => {
+  app.get('/health', (_req: Request, res: Response) => {
     res.json({
-      status: "ok",
+      status: 'ok',
       services: {
-        github: "/mcp/github",
-        fathom: "/mcp/fathom",
-        notion: "/mcp/notion",
-        slack: "/mcp/slack",
+        github: '/mcp/github',
+        fathom: '/mcp/fathom',
+        notion: '/mcp/notion',
+        slack: '/mcp/slack',
       },
     });
   });
@@ -82,7 +75,7 @@ const streamable = () => {
 
   // 404 for other routes
   app.use((_req: Request, res: Response) => {
-    res.status(404).json({ error: "Not found" });
+    res.status(404).json({ error: 'Not found' });
   });
 
   app.listen(PORT, HOST, () => {
@@ -105,7 +98,7 @@ const stdio = async () => {
 
   if (!mcpServer) {
     throw new Error(
-      `Unsupported source type: "${source}". Please set the environment variable "SOURCE_TYPE" to one of "slack", "github", "notion" or "fathom".`
+      `Unsupported source type: "${source}". Please set the environment variable "SOURCE_TYPE" to one of "slack", "github", "notion" or "fathom".`,
     );
   }
 
@@ -114,7 +107,7 @@ const stdio = async () => {
 
 // Start server
 async function main() {
-  if (process.env.STDIO?.toLowerCase() === "true") {
+  if (process.env.STDIO?.toLowerCase() === 'true') {
     await stdio();
   } else {
     streamable();
@@ -122,6 +115,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error("Fatal error:", error);
+  console.error('Fatal error:', error);
   process.exit(1);
 });

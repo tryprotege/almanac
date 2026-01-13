@@ -1,27 +1,57 @@
 #!/usr/bin/env node
-import "dotenv/config";
-import express, { NextFunction, Request, Response } from "express";
+import 'dotenv/config';
+import express, { NextFunction, Request, Response } from 'express';
 
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
-import { router } from "./api/index.js";
-import { mcpClientManager, MCPServerConfig } from "./mcp/client.js";
-import { validateConfig } from "./mcp/config-loader.js";
-import {
-  initializeServices,
-  mcpServer,
-  shutdownServices,
-} from "./mcp/initialization.js";
-import { MCPServerConfigModel } from "./models/mcp-config.model.js";
-import { syncMcpServerQueue } from "./services/queue/sync.queue.js";
-import logger from "./utils/logger.js";
+import { router } from './api/index.js';
+import { mcpClientManager } from './mcp/client.js';
+import { initializeServices, mcpServer, shutdownServices } from './mcp/initialization.js';
+import { DataSourceModel } from './models/data-source.model.js';
+import { syncMcpServerQueue } from './services/queue/sync.queue.js';
+import { presetLoader } from './services/presets/preset-loader.service.js';
+import { syncScheduler } from './services/scheduler/sync-scheduler.service.js';
+import logger from './utils/logger.js';
+import { env } from './env.js';
 
 // Start server
 const runServer = async () => {
-  await initializeServices();
+  // In setup mode, only initialize MongoDB for storing config
+  // In normal mode, initialize all services
+  if (!env.isSetupMode) {
+    await initializeServices();
+  } else {
+    // Only connect to MongoDB in setup mode
+    const { connectMongoose } = await import('./connections/mongoose.js');
+    await connectMongoose();
+    logger.warn('⚠️  Running in SETUP MODE - LLM features disabled until configured');
+  }
+
+  // Load presets from data-sources-config directory
+  logger.info('Loading data source presets...');
+  try {
+    await presetLoader.loadPresetsAtStartup();
+    logger.info(
+      { count: presetLoader.getPresetCount() },
+      'Data source presets loaded successfully',
+    );
+  } catch (error) {
+    logger.error({ error }, 'Failed to load presets, continuing anyway');
+  }
+
+  // Initialize sync scheduler
+  if (!env.isSetupMode) {
+    logger.info('Initializing sync scheduler...');
+    try {
+      await syncScheduler.initialize();
+      logger.info('Sync scheduler initialized successfully');
+    } catch (error) {
+      logger.error({ error }, 'Failed to initialize sync scheduler');
+    }
+  }
 
   const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
-  const HOST = process.env.HOST || "0.0.0.0";
+  const HOST = process.env.HOST || '0.0.0.0';
 
   // Create Express app
   const app = express();
@@ -32,17 +62,11 @@ const runServer = async () => {
 
   // CORS middleware
   app.use((req: Request, res: Response, next: NextFunction) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, OPTIONS"
-    );
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, mcp-protocol-version"
-    );
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, mcp-protocol-version');
 
-    if (req.method === "OPTIONS") {
+    if (req.method === 'OPTIONS') {
       res.status(200).end();
       return;
     }
@@ -50,303 +74,50 @@ const runServer = async () => {
     next();
   });
 
+  // Setup mode middleware - block certain routes if in setup mode
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (env.isSetupMode) {
+      // Allow only these routes in setup mode
+      const allowedPaths = [
+        '/health',
+        '/api/config', // Config management
+      ];
+
+      const isAllowed = allowedPaths.some((p) => req.path.startsWith(p));
+
+      if (!isAllowed) {
+        res.status(503).json({
+          success: false,
+          error: 'Server is in setup mode. Please complete configuration first.',
+          setupRequired: true,
+          setupUrl: '/api/config/env',
+        });
+        return;
+      }
+    }
+    next();
+  });
+
   // Health check endpoint
-  app.get("/health", (_req: Request, res: Response) => {
-    res.json({ status: "ok", version: "0.1.0" });
+  app.get('/health', (_req: Request, res: Response) => {
+    res.json({
+      status: 'ok',
+      version: '0.1.0',
+      setupMode: env.isSetupMode,
+    });
   });
 
-  // MCP Server Config REST API endpoints
-  // GET /api/mcp-servers - List all MCP server configs
-  app.get("/api/mcp-servers", async (_req: Request, res: Response) => {
-    try {
-      const configs = await MCPServerConfigModel.find().sort({
-        createdAt: -1,
-      });
-      res.json({ success: true, data: configs });
-    } catch (err) {
-      logger.error({ err }, "Error fetching MCP server configs");
-      res.status(500).json({
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  });
-
-  // POST /api/mcp-servers - Create a new MCP server config
-  app.post("/api/mcp-servers", async (req: Request, res: Response) => {
-    try {
-      const configData: MCPServerConfig = req.body;
-
-      // Validate the config
-      const validationError = validateConfig(configData);
-      if (validationError) {
-        res.status(400).json({ success: false, error: validationError });
-        return;
-      }
-
-      // Create and save the config
-      const config = new MCPServerConfigModel(configData);
-      await config.save();
-
-      // Optionally connect to the server immediately
-      if (configData.name) {
-        try {
-          await mcpClientManager.connect(configData);
-        } catch (connectError) {
-          logger.error(
-            { err: connectError, serverName: configData.name },
-            `Failed to auto-connect to ${configData.name}`
-          );
-        }
-      }
-
-      res.status(201).json({ success: true, data: config });
-    } catch (err) {
-      logger.error({ err }, "Error creating MCP server config");
-      const statusCode = (err as any).code === 11000 ? 409 : 500;
-      res.status(statusCode).json({
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  });
-
-  // GET /api/mcp-servers/:name - Get a specific MCP server config
-  app.get("/api/mcp-servers/:name", async (req: Request, res: Response) => {
-    try {
-      const name = decodeURIComponent(req.params.name);
-      const config = await MCPServerConfigModel.findOne({ name });
-
-      if (!config) {
-        res.status(404).json({
-          success: false,
-          error: "MCP server config not found",
-        });
-        return;
-      }
-
-      res.json({ success: true, data: config });
-    } catch (err) {
-      logger.error(
-        { err, serverName: req.params.name },
-        "Error fetching MCP server config"
-      );
-      res.status(500).json({
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  });
-
-  // PUT /api/mcp-servers/:name - Update an MCP server config
-  app.put("/api/mcp-servers/:name", async (req: Request, res: Response) => {
-    try {
-      const name = decodeURIComponent(req.params.name);
-      const updateData: Partial<MCPServerConfig> = req.body;
-
-      // Don't allow changing the name
-      delete (updateData as any).name;
-
-      // Validate if type is being changed
-      if (updateData.type) {
-        const tempConfig = { ...updateData, name } as MCPServerConfig;
-        const validationError = validateConfig(tempConfig);
-        if (validationError) {
-          res.status(400).json({ success: false, error: validationError });
-          return;
-        }
-      }
-
-      const config = await MCPServerConfigModel.findOneAndUpdate(
-        { name },
-        updateData,
-        { new: true, runValidators: true }
-      );
-
-      if (!config) {
-        res.status(404).json({
-          success: false,
-          error: "MCP server config not found",
-        });
-        return;
-      }
-
-      // Reconnect if the server is currently connected
-      if (mcpClientManager.isConnected(name)) {
-        try {
-          await mcpClientManager.disconnect(name);
-          await mcpClientManager.connect(config.toJSON() as MCPServerConfig);
-          logger.info(
-            { serverName: name },
-            `Reconnected to updated MCP server: ${name}`
-          );
-        } catch (reconnectError) {
-          logger.error(
-            { err: reconnectError, serverName: name },
-            `Failed to reconnect to ${name}`
-          );
-        }
-      }
-
-      res.json({ success: true, data: config });
-    } catch (err) {
-      logger.error(
-        { err, serverName: req.params.name },
-        "Error updating MCP server config"
-      );
-      res.status(500).json({
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  });
-
-  // DELETE /api/mcp-servers/:name - Delete an MCP server config
-  app.delete("/api/mcp-servers/:name", async (req: Request, res: Response) => {
-    try {
-      const name = decodeURIComponent(req.params.name);
-
-      // Disconnect if currently connected
-      if (mcpClientManager.isConnected(name)) {
-        await mcpClientManager.disconnect(name);
-      }
-
-      const config = await MCPServerConfigModel.findOneAndDelete({ name });
-
-      if (!config) {
-        res.status(404).json({
-          success: false,
-          error: "MCP server config not found",
-        });
-        return;
-      }
-
-      res.json({
-        success: true,
-        message: "MCP server config deleted",
-      });
-    } catch (err) {
-      logger.error(
-        { err, serverName: req.params.name },
-        "Error deleting MCP server config"
-      );
-      res.status(500).json({
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  });
-
-  // POST /api/mcp-servers/:name/connect - Connect to an MCP server
-  app.post(
-    "/api/mcp-servers/:name/connect",
-    async (req: Request, res: Response) => {
-      try {
-        const name = decodeURIComponent(req.params.name);
-        const config = await MCPServerConfigModel.findOne({ name });
-
-        if (!config) {
-          res.status(404).json({
-            success: false,
-            error: "MCP server config not found",
-          });
-          return;
-        }
-
-        if (mcpClientManager.isConnected(name)) {
-          res.status(400).json({
-            success: false,
-            error: "Server already connected",
-          });
-          return;
-        }
-
-        await mcpClientManager.connect(config.toJSON() as MCPServerConfig);
-
-        res.json({ success: true, message: `Connected to ${name}` });
-      } catch (err) {
-        logger.error(
-          { err, serverName: req.params.name },
-          "Error connecting to MCP server"
-        );
-        res.status(500).json({
-          success: false,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
-  );
-
-  // POST /api/mcp-servers/:name/disconnect - Disconnect from an MCP server
-  app.post(
-    "/api/mcp-servers/:name/disconnect",
-    async (req: Request, res: Response) => {
-      try {
-        const name = decodeURIComponent(req.params.name);
-
-        if (!mcpClientManager.isConnected(name)) {
-          res
-            .status(400)
-            .json({ success: false, error: "Server not connected" });
-          return;
-        }
-
-        await mcpClientManager.disconnect(name);
-
-        res.json({
-          success: true,
-          message: `Disconnected from ${name}`,
-        });
-      } catch (err) {
-        logger.error(
-          { err, serverName: req.params.name },
-          "Error disconnecting from MCP server"
-        );
-        res.status(500).json({
-          success: false,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
-  );
-
-  // GET /api/mcp-servers/:name/status - Get connection status
-  app.get(
-    "/api/mcp-servers/:name/status",
-    async (req: Request, res: Response) => {
-      try {
-        const name = decodeURIComponent(req.params.name);
-
-        const isConnected = mcpClientManager.isConnected(name);
-
-        res.json({
-          success: true,
-          data: { name, connected: isConnected },
-        });
-      } catch (err) {
-        logger.error(
-          { err, serverName: req.params.name },
-          "Error getting MCP server status"
-        );
-        res.status(500).json({
-          success: false,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
-  );
-
-  // Schema API endpoints
-  app.use("/api", router);
+  // API endpoints (includes data-sources routes)
+  app.use('/api', router);
 
   // MCP JSON-RPC endpoint
-  app.post("/mcp", async (req: Request, res: Response) => {
+  app.post('/mcp', async (req: Request, res: Response) => {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
     });
 
-    res.on("close", () => {
+    res.on('close', () => {
       transport.close();
     });
 
@@ -354,27 +125,46 @@ const runServer = async () => {
     await transport.handleRequest(req, res, req.body);
   });
 
-  app.post("/api/sync", async (req: Request, res: Response) => {
+  app.post('/api/sync', async (req: Request, res: Response) => {
     try {
       const configId = req.body.configId;
-      const config = await MCPServerConfigModel.findById(configId);
+      const config = await DataSourceModel.findById(configId);
 
       if (!config) {
         res.status(404).json({
           success: false,
-          error: "MCP server config not found",
+          error: 'Data source config not found',
         });
         return;
       }
 
+      // Auto-connect if not already connected
       if (!mcpClientManager.isConnected(config.name)) {
-        res.status(400).json({ success: false, error: "Server not connected" });
-        return;
+        logger.info(
+          { serverName: config.name },
+          'MCP server not connected, attempting connection before sync',
+        );
+
+        try {
+          await mcpClientManager.connect(config);
+          logger.info({ serverName: config.name }, 'MCP server connected successfully');
+        } catch (connectError) {
+          logger.error(
+            { err: connectError, serverName: config.name },
+            'Failed to connect to MCP server',
+          );
+          res.status(500).json({
+            success: false,
+            error: 'Failed to connect to MCP server',
+            message: connectError instanceof Error ? connectError.message : 'Unknown error',
+          });
+          return;
+        }
       }
 
       // Queue sync job
       const job = await syncMcpServerQueue.add(config._id.toString(), {
-        mcpConfig: config.toJSON(), // use toJSON instead of toObject as `Map` won't be preserved when passing to redis
+        mcpConfig: config as any,
       });
 
       // Return jobId for progress tracking
@@ -383,7 +173,7 @@ const runServer = async () => {
         data: { jobId: job.id },
       });
     } catch (err) {
-      logger.error({ err }, "Error queueing sync job");
+      logger.error({ err }, 'Error queueing sync job');
       res.status(500).json({
         success: false,
         error: err instanceof Error ? err.message : String(err),
@@ -393,12 +183,12 @@ const runServer = async () => {
 
   // 404 for other routes
   app.use((_req: Request, res: Response) => {
-    res.status(404).json({ error: "Not found" });
+    res.status(404).json({ error: 'Not found' });
   });
 
   app.listen(PORT, HOST, () => {
     logger.info({
-      msg: "🚀 eBee MCP server running",
+      msg: '🚀 eBee MCP server running',
       host: HOST,
       port: PORT,
       endpoints: {
@@ -410,14 +200,15 @@ const runServer = async () => {
 };
 
 // Handle graceful shutdown
-process.on("SIGINT", async () => {
-  logger.info("Shutting down MCP server...");
+process.on('SIGINT', async () => {
+  logger.info('Shutting down MCP server...');
+  await syncScheduler.shutdown();
   await mcpClientManager.disconnectAll();
   await shutdownServices();
   process.exit(0);
 });
 
 runServer().catch((error) => {
-  logger.error({ err: error }, "Fatal error in MCP server");
+  logger.error({ err: error }, 'Fatal error in MCP server');
   process.exit(1);
 });

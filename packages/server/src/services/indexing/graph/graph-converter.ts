@@ -3,12 +3,8 @@
  * Convert entities/relationships to minimal graph format
  */
 
-import {
-  Entity,
-  Relationship,
-  normalizeEntityName,
-} from "./schema/entity-deduplication.js";
-import logger from "../../../utils/logger.js";
+import { Entity, Relationship, normalizeEntityName } from './schema/entity-deduplication.js';
+import logger from '../../../utils/logger.js';
 
 export interface GraphNode {
   id: string; // Global entity ID
@@ -33,13 +29,10 @@ export interface GraphRelationship {
  * Uses normalization to ensure consistent IDs across documents
  * @example generateGlobalEntityId("John Smith", "Person") => "entity_person_john_smith"
  */
-export const generateGlobalEntityId = (
-  entityName: string,
-  entityType: string
-): string => {
+export const generateGlobalEntityId = (entityName: string, entityType: string): string => {
   // Normalize first (lowercase, trim, single spaces)
   // Then convert spaces to underscores ONLY for the ID string
-  const normalized = normalizeEntityName(entityName).replace(/\s+/g, "_");
+  const normalized = normalizeEntityName(entityName).replace(/\s+/g, '_');
   return `entity_${entityType.toLowerCase()}_${normalized}`;
 };
 
@@ -49,7 +42,7 @@ export const generateGlobalEntityId = (
  * NOTE: No longer scoped to individual records - entities are global
  */
 export const entitiesToGraphNodes = (
-  entities: Entity[]
+  entities: Entity[],
 ): { nodes: GraphNode[]; entityNameToId: Map<string, string> } => {
   const entityNameToId = new Map<string, string>();
   const nodes: GraphNode[] = [];
@@ -80,7 +73,7 @@ export const entitiesToGraphNodes = (
  */
 export const relationshipsToGraphRelationships = (
   relationships: Relationship[],
-  entityNameToId: Map<string, string>
+  entityNameToId: Map<string, string>,
 ): GraphRelationship[] => {
   const validRelationships: GraphRelationship[] = [];
   let skippedCount = 0;
@@ -126,9 +119,7 @@ export const relationshipsToGraphRelationships = (
   }
 
   if (skippedCount > 0) {
-    logger.warn(
-      `⚠️  Skipped ${skippedCount} relationships due to missing entities`
-    );
+    logger.warn(`⚠️  Skipped ${skippedCount} relationships due to missing entities`);
   }
 
   return validRelationships;

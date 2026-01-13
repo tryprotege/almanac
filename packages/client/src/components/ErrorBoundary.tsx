@@ -1,5 +1,5 @@
-import { AlertTriangle, RefreshCw } from "lucide-react";
-import { Component, ErrorInfo, ReactNode } from "react";
+import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
@@ -27,7 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Error caught by boundary:", error, errorInfo);
+    console.error('Error caught by boundary:', error, errorInfo);
     this.setState({
       error,
       errorInfo,
@@ -58,8 +58,7 @@ export class ErrorBoundary extends Component<Props, State> {
               Something went wrong
             </h2>
             <p className="text-gray-600 text-center mb-4">
-              The application encountered an unexpected error. Please try
-              refreshing the page.
+              The application encountered an unexpected error. Please try refreshing the page.
             </p>
             {this.state.error && (
               <div className="bg-gray-50 rounded-lg p-4 mb-4">

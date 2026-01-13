@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
-import { schemaApi, SchemaData } from "../lib/api";
+import { useQuery } from '@tanstack/react-query';
+import { schemaApi, SchemaData } from '../lib/api';
 
 export function useSchema() {
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["schema"],
+    queryKey: ['schema'],
     queryFn: async () => {
       const response = await schemaApi.get();
       return response.data.data;

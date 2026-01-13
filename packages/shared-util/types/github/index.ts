@@ -10,7 +10,7 @@ export interface GitHubUser {
   node_id: string;
   avatar_url: string;
   html_url: string;
-  type: "User" | "Bot" | "Organization";
+  type: 'User' | 'Bot' | 'Organization';
   site_admin: boolean;
   name?: string;
   email?: string;
@@ -98,7 +98,7 @@ export interface GitHubMilestone {
   number: number;
   title: string;
   description: string | null;
-  state: "open" | "closed";
+  state: 'open' | 'closed';
   created_at: string;
   updated_at: string;
   due_on: string | null;
@@ -114,7 +114,7 @@ export interface GitHubIssue {
   number: number;
   title: string;
   body: string | null;
-  state: "open" | "closed";
+  state: 'open' | 'closed';
   state_reason: string | null;
   user: GitHubUser;
   labels: GitHubLabel[];
@@ -143,7 +143,7 @@ export interface GitHubPullRequest {
   number: number;
   title: string;
   body: string | null;
-  state: "open" | "closed";
+  state: 'open' | 'closed';
   user: GitHubUser;
   labels: GitHubLabel[];
   assignees?: GitHubUser[];
@@ -195,12 +195,7 @@ export interface GitHubReview {
   node_id: string;
   user: GitHubUser;
   body: string;
-  state:
-    | "APPROVED"
-    | "CHANGES_REQUESTED"
-    | "COMMENTED"
-    | "DISMISSED"
-    | "PENDING";
+  state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED' | 'PENDING';
   html_url: string;
   pull_request_url: string;
   submitted_at: string;
@@ -217,12 +212,7 @@ export interface GitHubWorkflow {
   node_id: string;
   name: string;
   path: string;
-  state:
-    | "active"
-    | "deleted"
-    | "disabled_fork"
-    | "disabled_inactivity"
-    | "disabled_manually";
+  state: 'active' | 'deleted' | 'disabled_fork' | 'disabled_inactivity' | 'disabled_manually';
   created_at: string;
   updated_at: string;
   url: string;
@@ -239,15 +229,15 @@ export interface GitHubWorkflowRun {
   run_number: number;
   run_attempt: number;
   event: string;
-  status: "queued" | "in_progress" | "completed" | "waiting";
+  status: 'queued' | 'in_progress' | 'completed' | 'waiting';
   conclusion:
-    | "success"
-    | "failure"
-    | "neutral"
-    | "cancelled"
-    | "skipped"
-    | "timed_out"
-    | "action_required"
+    | 'success'
+    | 'failure'
+    | 'neutral'
+    | 'cancelled'
+    | 'skipped'
+    | 'timed_out'
+    | 'action_required'
     | null;
   workflow_id: number;
   url: string;
@@ -284,15 +274,15 @@ export interface GitHubWorkflowRun {
 
 export interface GitHubWorkflowStep {
   name: string;
-  status: "queued" | "in_progress" | "completed";
+  status: 'queued' | 'in_progress' | 'completed';
   conclusion:
-    | "success"
-    | "failure"
-    | "neutral"
-    | "cancelled"
-    | "skipped"
-    | "timed_out"
-    | "action_required"
+    | 'success'
+    | 'failure'
+    | 'neutral'
+    | 'cancelled'
+    | 'skipped'
+    | 'timed_out'
+    | 'action_required'
     | null;
   number: number;
   started_at: string | null;
@@ -307,15 +297,15 @@ export interface GitHubWorkflowJob {
   head_sha: string;
   url: string;
   html_url: string;
-  status: "queued" | "in_progress" | "completed" | "waiting";
+  status: 'queued' | 'in_progress' | 'completed' | 'waiting';
   conclusion:
-    | "success"
-    | "failure"
-    | "neutral"
-    | "cancelled"
-    | "skipped"
-    | "timed_out"
-    | "action_required"
+    | 'success'
+    | 'failure'
+    | 'neutral'
+    | 'cancelled'
+    | 'skipped'
+    | 'timed_out'
+    | 'action_required'
     | null;
   started_at: string;
   completed_at: string | null;
@@ -339,7 +329,7 @@ export interface GitHubReleaseAsset {
   name: string;
   label: string | null;
   content_type: string;
-  state: "uploaded" | "open";
+  state: 'uploaded' | 'open';
   size: number;
   download_count: number;
   created_at: string;
@@ -376,16 +366,16 @@ export interface GitHubCodeScanningAlert {
   updated_at: string;
   url: string;
   html_url: string;
-  state: "open" | "dismissed" | "fixed";
+  state: 'open' | 'dismissed' | 'fixed';
   fixed_at: string | null;
   dismissed_by: GitHubUser | null;
   dismissed_at: string | null;
-  dismissed_reason: "false positive" | "won't fix" | "used in tests" | null;
+  dismissed_reason: 'false positive' | "won't fix" | 'used in tests' | null;
   dismissed_comment: string | null;
   rule: {
     id: string;
-    severity: "none" | "note" | "warning" | "error";
-    security_severity_level: "low" | "medium" | "high" | "critical" | null;
+    severity: 'none' | 'note' | 'warning' | 'error';
+    security_severity_level: 'low' | 'medium' | 'high' | 'critical' | null;
     description: string;
     name: string;
     full_description: string;
@@ -403,7 +393,7 @@ export interface GitHubCodeScanningAlert {
     analysis_key: string;
     environment: string;
     category: string;
-    state: "open" | "dismissed" | "fixed";
+    state: 'open' | 'dismissed' | 'fixed';
     commit_sha: string;
     message: {
       text: string;
@@ -422,21 +412,21 @@ export interface GitHubCodeScanningAlert {
 
 export interface GitHubDependabotAlert {
   number: number;
-  state: "auto_dismissed" | "dismissed" | "fixed" | "open";
+  state: 'auto_dismissed' | 'dismissed' | 'fixed' | 'open';
   dependency: {
     package: {
       ecosystem: string;
       name: string;
     };
     manifest_path: string;
-    scope: "development" | "runtime" | null;
+    scope: 'development' | 'runtime' | null;
   };
   security_advisory: {
     ghsa_id: string;
     cve_id: string | null;
     summary: string;
     description: string;
-    severity: "low" | "medium" | "high" | "critical";
+    severity: 'low' | 'medium' | 'high' | 'critical';
     identifiers: Array<{
       type: string;
       value: string;
@@ -452,7 +442,7 @@ export interface GitHubDependabotAlert {
         ecosystem: string;
         name: string;
       };
-      severity: "low" | "medium" | "high" | "critical";
+      severity: 'low' | 'medium' | 'high' | 'critical';
       vulnerable_version_range: string;
       first_patched_version: {
         identifier: string;
@@ -472,7 +462,7 @@ export interface GitHubDependabotAlert {
       ecosystem: string;
       name: string;
     };
-    severity: "low" | "medium" | "high" | "critical";
+    severity: 'low' | 'medium' | 'high' | 'critical';
     vulnerable_version_range: string;
     first_patched_version: {
       identifier: string;
@@ -485,11 +475,11 @@ export interface GitHubDependabotAlert {
   dismissed_at: string | null;
   dismissed_by: GitHubUser | null;
   dismissed_reason:
-    | "fix_started"
-    | "inaccurate"
-    | "no_bandwidth"
-    | "not_used"
-    | "tolerable_risk"
+    | 'fix_started'
+    | 'inaccurate'
+    | 'no_bandwidth'
+    | 'not_used'
+    | 'tolerable_risk'
     | null;
   dismissed_comment: string | null;
   fixed_at: string | null;
@@ -503,13 +493,8 @@ export interface GitHubSecretScanningAlert {
   url: string;
   html_url: string;
   locations_url: string;
-  state: "open" | "resolved";
-  resolution:
-    | "false_positive"
-    | "wont_fix"
-    | "revoked"
-    | "used_in_tests"
-    | null;
+  state: 'open' | 'resolved';
+  resolution: 'false_positive' | 'wont_fix' | 'revoked' | 'used_in_tests' | null;
   resolved_at: string | null;
   resolved_by: GitHubUser | null;
   secret_type: string;
@@ -545,7 +530,7 @@ export interface GitHubDiscussion {
   title: string;
   body: string;
   user: GitHubUser;
-  state: "open" | "closed" | "locked";
+  state: 'open' | 'closed' | 'locked';
   locked: boolean;
   comments: number;
   created_at: string;
@@ -579,12 +564,12 @@ export interface GitHubNotification {
     url: string;
     latest_comment_url: string;
     type:
-      | "Issue"
-      | "PullRequest"
-      | "Commit"
-      | "Release"
-      | "Discussion"
-      | "RepositoryVulnerabilityAlert";
+      | 'Issue'
+      | 'PullRequest'
+      | 'Commit'
+      | 'Release'
+      | 'Discussion'
+      | 'RepositoryVulnerabilityAlert';
   };
   reason: string;
   unread: boolean;
@@ -670,7 +655,7 @@ export interface CreateIssueData {
 export interface UpdateIssueData {
   title?: string;
   body?: string;
-  state?: "open" | "closed";
+  state?: 'open' | 'closed';
   assignees?: string[];
   milestone?: number | null;
   labels?: string[];
@@ -688,7 +673,7 @@ export interface CreatePullRequestData {
 export interface UpdatePullRequestData {
   title?: string;
   body?: string;
-  state?: "open" | "closed";
+  state?: 'open' | 'closed';
   base?: string;
   maintainer_can_modify?: boolean;
 }

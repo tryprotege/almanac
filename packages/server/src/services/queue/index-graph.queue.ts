@@ -1,88 +1,63 @@
-import { Processor, Queue, Worker } from "bullmq";
+import { Processor, Queue, Worker } from 'bullmq';
 
-import { initializeServices } from "../../mcp/initialization.js";
-import { GraphStore } from "../../stores/graph.store.js";
-import { RecordStore } from "../../stores/record.store.js";
-import { SourceType } from "../../types/index.js";
-import logger from "../../utils/logger.js";
-import { indexAllRecords } from "../indexing/graph/graph-indexer.js";
-import { createLLMClient } from "../llm/providers.js";
-import { FathomMCPClient } from "../sources/fathom/mcpClient.js";
-import { GitHubMCPClient } from "../sources/github/mcpClient.js";
-import { NotionMCPClient } from "../sources/notion/mcpClient.js";
-import { BaseRecordAdapter } from "../sync/adapters/base-adapter.js";
-import { FathomAdapter } from "../sync/adapters/fathom-adapter.js";
-import { GitHubAdapter } from "../sync/adapters/github-adapter.js";
-import { NotionAdapter } from "../sync/adapters/notion-adapter.js";
-import { SlackAdapter } from "../sync/adapters/slack-adapter.js";
-import { createRedisConnection, QUEUE_NAME } from "./config.js";
-import { env } from "../../env.js";
-import { SlackMCPClient } from "../sources/slack/mcpClient.js";
+import { initializeServices } from '../../mcp/initialization.js';
+import { GraphStore } from '../../stores/graph.store.js';
+import { RecordStore } from '../../stores/record.store.js';
+import { VectorStore } from '../../stores/vector.store.js';
+import { SourceType } from '../../types/index.js';
+import logger from '../../utils/logger.js';
+import { indexAllRecords } from '../indexing/graph/graph-indexer.js';
+import {
+  indexEntityEmbeddings,
+  indexRelationshipEmbeddings,
+} from '../indexing/graph/graph-embeddings.js';
+import { createRedisConnection, QUEUE_NAME } from './config.js';
+import { env } from '../../env.js';
+import { llm } from '../llm/llm.js';
 
-const processor: Processor<
-  IndexGraphJobData,
-  IndexGraphJobResult,
-  string
-> = async ({ data: { source } }) => {
+const processor: Processor<IndexGraphJobData, IndexGraphJobResult, string> = async ({
+  data: { source },
+}) => {
   // Initialize services
-  const { memgraph } = await initializeServices();
+  const { memgraph, qdrant } = await initializeServices();
 
   // Create stores
   const recordStore = new RecordStore();
   const graphStore = new GraphStore(memgraph);
-
-  const adapters = new Map<SourceType, BaseRecordAdapter>();
-
-  if (source === "notion") {
-    const notionClient = new NotionMCPClient();
-    adapters.set("notion", new NotionAdapter(notionClient));
-  } else if (source === "slack") {
-    const slackClient = new SlackMCPClient();
-    adapters.set("slack", new SlackAdapter(slackClient));
-  }
-
-  if (source === "github") {
-    const githubClient = new GitHubMCPClient();
-    adapters.set(
-      "github",
-      new GitHubAdapter(githubClient, {
-        includeArchived: false,
-        includeForks: true,
-        includePrivate: true,
-      })
-    );
-  }
-
-  if (source === "fathom") {
-    const fathomClient = new FathomMCPClient();
-    adapters.set(
-      "fathom",
-      new FathomAdapter(fathomClient, {
-        includeActionItems: false,
-        includeSummaries: true,
-        includeTranscripts: true,
-      })
-    );
-  }
-
-  // Create LLM client for extraction
-  const openaiClient = createLLMClient();
+  const vectorStore = new VectorStore(qdrant);
 
   // Use functional approach for indexing
-  await indexAllRecords(
-    source,
-    recordStore,
-    graphStore,
-    adapters,
-    openaiClient,
-    {
-      batchSize: 100,
-      concurrency: env.GRAPH_EXTRACTION_CONCURRENCY,
-      enableToxicFilter: env.ENABLE_TOXIC_DOCUMENT_FILTER,
-      maxEntitiesPerDoc: env.MAX_ENTITIES_PER_DOCUMENT,
-      force: false,
-    }
-  );
+  // Note: Removed adapter dependency - relationships now come from
+  // config-driven extractedRelationships in transformed records
+  const result = await indexAllRecords(source, recordStore, graphStore, llm, {
+    batchSize: 100,
+    concurrency: env.GRAPH_EXTRACTION_CONCURRENCY,
+    enableToxicFilter: env.ENABLE_TOXIC_DOCUMENT_FILTER,
+    maxEntitiesPerDoc: env.MAX_ENTITIES_PER_DOCUMENT,
+    force: false,
+  });
+
+  // Index entity and relationship embeddings after graph extraction
+  if (result.nodes > 0 || result.relationships > 0) {
+    logger.info({
+      msg: `🔮 Indexing entity and relationship embeddings for ${source}`,
+    });
+
+    const deps = { vectorStore, recordStore, graphStore };
+
+    const entityStats = await indexEntityEmbeddings(source, deps);
+    const relStats = await indexRelationshipEmbeddings(source, deps);
+
+    logger.info({
+      msg: `✅ Embedding indexing complete`,
+      entityEmbeddingsIndexed: entityStats.indexed,
+      entityEmbeddingsSkipped: entityStats.skipped,
+      relationshipEmbeddingsIndexed: relStats.indexed,
+      relationshipEmbeddingsSkipped: relStats.skipped,
+    });
+  }
+
+  console.log('✅✅✅✅✅ done', source);
 };
 
 type IndexGraphJobData = {
@@ -91,57 +66,59 @@ type IndexGraphJobData = {
 
 type IndexGraphJobResult = void;
 
-export const indexGraphWorker = new Worker<
-  IndexGraphJobData,
-  IndexGraphJobResult
->(QUEUE_NAME.INDEX_GRAPH, processor, {
-  connection: createRedisConnection(),
-  concurrency: 2,
-  autorun: false,
-});
+export const indexGraphWorker = new Worker<IndexGraphJobData, IndexGraphJobResult>(
+  QUEUE_NAME.INDEX_GRAPH,
+  processor,
+  {
+    connection: createRedisConnection(),
+    concurrency: 2,
+    autorun: false,
+    lockDuration: 5 * 60 * 60 * 1000,
+  },
+);
 
 // Set up worker event handlers
-indexGraphWorker.on("completed", (job) => {
+indexGraphWorker.on('completed', (job) => {
   logger.info({
     msg: `✅ Graph index job completed: jobId: ${job.id} for record ${job.data.source}`,
   });
 });
 
-indexGraphWorker.on("failed", (job, err) => {
+indexGraphWorker.on('failed', (job, err) => {
   logger.error(
     { err },
-    `❌ Graph index job failed: jobId: ${job?.id} for record ${job?.data.source}`
+    `❌ Graph index job failed: jobId: ${job?.id} for record ${job?.data.source}`,
   );
 });
 
-indexGraphWorker.on("error", (err) => {
-  logger.error({ err }, "Graph index worker error");
+indexGraphWorker.on('error', (err) => {
+  logger.error({ err }, 'Graph index worker error');
 });
 
-indexGraphWorker.on("active", (job) => {
+indexGraphWorker.on('active', (job) => {
   logger.info({
     msg: `🔄 Graph index job started: jobId: ${job.id} for record ${job.data.source}`,
   });
 });
 
-export const indexGraphQueue = new Queue<
-  IndexGraphJobData,
-  IndexGraphJobResult
->(QUEUE_NAME.INDEX_GRAPH, {
-  connection: createRedisConnection(),
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: "exponential",
-      delay: 5000,
-    },
-    removeOnComplete: {
-      count: 100, // Keep last 100 completed jobs
-      age: 24 * 60 * 60, // Keep for 24 hours
-    },
-    removeOnFail: {
-      count: 500, // Keep last 500 failed jobs for debugging
-      age: 7 * 24 * 60 * 60, // Keep for 7 days
+export const indexGraphQueue = new Queue<IndexGraphJobData, IndexGraphJobResult>(
+  QUEUE_NAME.INDEX_GRAPH,
+  {
+    connection: createRedisConnection(),
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 5000,
+      },
+      removeOnComplete: {
+        count: 100, // Keep last 100 completed jobs
+        age: 24 * 60 * 60, // Keep for 24 hours
+      },
+      removeOnFail: {
+        count: 500, // Keep last 500 failed jobs for debugging
+        age: 7 * 24 * 60 * 60, // Keep for 7 days
+      },
     },
   },
-});
+);

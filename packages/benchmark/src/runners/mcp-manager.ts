@@ -8,10 +8,10 @@
  * - Executes tool calls and returns results
  */
 
-import { spawn, ChildProcess } from "child_process";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { spawn, ChildProcess } from 'child_process';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 export interface MCPServerConfig {
   url?: string; // For URL-based servers (eBee)
@@ -56,9 +56,7 @@ export class MCPServerManager {
     } else if (config.command) {
       await this.startStdioServer(name, config);
     } else {
-      throw new Error(
-        `Invalid MCP config for ${name}: must have url or command`
-      );
+      throw new Error(`Invalid MCP config for ${name}: must have url or command`);
     }
   }
 
@@ -77,12 +75,12 @@ export class MCPServerManager {
 
       const client = new Client(
         {
-          name: "ebee-benchmark",
-          version: "1.0.0",
+          name: 'ebee-benchmark',
+          version: '1.0.0',
         },
         {
           capabilities: {},
-        }
+        },
       );
 
       // Connect to the server
@@ -96,7 +94,7 @@ export class MCPServerManager {
       const toolsResponse = await client.listTools();
       const tools: MCPTool[] = toolsResponse.tools.map((tool) => ({
         name: tool.name,
-        description: tool.description || "",
+        description: tool.description || '',
         inputSchema: tool.inputSchema as any,
       }));
 
@@ -123,15 +121,10 @@ export class MCPServerManager {
   /**
    * Start a stdio-based MCP server (spawns child process)
    */
-  private async startStdioServer(
-    name: string,
-    config: MCPServerConfig
-  ): Promise<void> {
+  private async startStdioServer(name: string, config: MCPServerConfig): Promise<void> {
     if (this.verbose) {
       console.log(`\n🔧 Starting MCP server: ${name}`);
-      console.log(
-        `   Command: ${config.command} ${config.args?.join(" ") || ""}`
-      );
+      console.log(`   Command: ${config.command} ${config.args?.join(' ') || ''}`);
     }
 
     try {
@@ -141,15 +134,15 @@ export class MCPServerManager {
           ...process.env,
           ...config.env,
         },
-        stdio: ["pipe", "pipe", "pipe"],
+        stdio: ['pipe', 'pipe', 'pipe'],
       });
 
       // Handle process errors
-      childProcess.on("error", (error: Error) => {
+      childProcess.on('error', (error: Error) => {
         console.error(`[${name}] Process error:`, error);
       });
 
-      childProcess.stderr?.on("data", (data: Buffer) => {
+      childProcess.stderr?.on('data', (data: Buffer) => {
         if (this.verbose) {
           console.error(`[${name}] stderr:`, data.toString());
         }
@@ -164,12 +157,12 @@ export class MCPServerManager {
 
       const client = new Client(
         {
-          name: "ebee-benchmark",
-          version: "1.0.0",
+          name: 'ebee-benchmark',
+          version: '1.0.0',
         },
         {
           capabilities: {},
-        }
+        },
       );
 
       // Connect to the server
@@ -183,7 +176,7 @@ export class MCPServerManager {
       const toolsResponse = await client.listTools();
       const tools: MCPTool[] = toolsResponse.tools.map((tool) => ({
         name: tool.name,
-        description: tool.description || "",
+        description: tool.description || '',
         inputSchema: tool.inputSchema as any,
       }));
 
@@ -226,7 +219,7 @@ export class MCPServerManager {
    */
   getAnthropicTools(): any[] {
     return this.getAllTools().map((tool) => ({
-      type: "custom" as const,
+      type: 'custom' as const,
       name: tool.name,
       description: tool.description,
       input_schema: tool.inputSchema,
@@ -236,10 +229,7 @@ export class MCPServerManager {
   /**
    * Call a tool on a specific server
    */
-  async callTool(
-    toolName: string,
-    args: any
-  ): Promise<{ content: any; isError: boolean }> {
+  async callTool(toolName: string, args: any): Promise<{ content: any; isError: boolean }> {
     // Find which server has this tool
     let targetServer: MCPServer | undefined;
 
@@ -255,9 +245,7 @@ export class MCPServerManager {
     }
 
     if (this.verbose) {
-      console.log(
-        `\n🔧 Calling tool: ${toolName} on server: ${targetServer.name}`
-      );
+      console.log(`\n🔧 Calling tool: ${toolName} on server: ${targetServer.name}`);
       console.log(`   Args:`, JSON.stringify(args, null, 2));
     }
 
@@ -280,10 +268,8 @@ export class MCPServerManager {
       return {
         content: [
           {
-            type: "text",
-            text: `Error calling tool: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
+            type: 'text',
+            text: `Error calling tool: ${error instanceof Error ? error.message : String(error)}`,
           },
         ],
         isError: true,
@@ -296,7 +282,7 @@ export class MCPServerManager {
    */
   async stopAll(): Promise<void> {
     if (this.verbose) {
-      console.log("\n🛑 Stopping all MCP servers...");
+      console.log('\n🛑 Stopping all MCP servers...');
     }
 
     for (const [name, server] of this.servers.entries()) {

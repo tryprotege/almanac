@@ -3,15 +3,15 @@
  * Functions for evaluating retrieval and ranking quality
  */
 
-import type { AccuracyMetrics } from "../types/index.js";
-import { mean } from "./statistics.js";
+import type { AccuracyMetrics } from '../types/index.js';
+import { mean } from './statistics.js';
 
 /**
  * Calculate precision: % of retrieved documents that are relevant
  */
 export const calculatePrecision = (
   retrieved: readonly string[],
-  relevant: readonly string[]
+  relevant: readonly string[],
 ): number => {
   if (retrieved.length === 0) return 0;
   const relevantRetrieved = retrieved.filter((doc) => relevant.includes(doc));
@@ -23,7 +23,7 @@ export const calculatePrecision = (
  */
 export const calculateRecall = (
   retrieved: readonly string[],
-  relevant: readonly string[]
+  relevant: readonly string[],
 ): number => {
   if (relevant.length === 0) return 0;
   const relevantRetrieved = retrieved.filter((doc) => relevant.includes(doc));
@@ -42,10 +42,7 @@ export const calculateF1 = (precision: number, recall: number): number => {
  * Calculate Mean Reciprocal Rank (MRR)
  * Measures how early the first relevant document appears
  */
-export const calculateMRR = (
-  retrieved: readonly string[],
-  relevant: readonly string[]
-): number => {
+export const calculateMRR = (retrieved: readonly string[], relevant: readonly string[]): number => {
   for (let i = 0; i < retrieved.length; i++) {
     if (relevant.includes(retrieved[i])) {
       return 1 / (i + 1);
@@ -61,15 +58,11 @@ export const calculateMRR = (
 export const calculateNDCG = (
   retrieved: readonly string[],
   relevant: readonly string[],
-  relevanceScores?: Readonly<Record<string, number>>
+  relevanceScores?: Readonly<Record<string, number>>,
 ): number => {
   // Calculate DCG (Discounted Cumulative Gain)
   const dcg = retrieved.reduce((sum, doc, index) => {
-    const relevance = relevanceScores
-      ? relevanceScores[doc] || 0
-      : relevant.includes(doc)
-      ? 1
-      : 0;
+    const relevance = relevanceScores ? relevanceScores[doc] || 0 : relevant.includes(doc) ? 1 : 0;
     const position = index + 1;
     return sum + relevance / Math.log2(position + 1);
   }, 0);
@@ -93,7 +86,7 @@ export const calculateNDCG = (
  */
 export const calculateJaccardSimilarity = (
   setA: readonly string[],
-  setB: readonly string[]
+  setB: readonly string[],
 ): number => {
   const a = new Set(setA);
   const b = new Set(setB);
@@ -120,13 +113,13 @@ export const calculateTokenOverlap = (textA: string, textB: string): number => {
 export const evaluateAccuracy = (
   retrieved: readonly string[],
   relevant: readonly string[],
-  relevanceScores?: Readonly<Record<string, number>>
+  relevanceScores?: Readonly<Record<string, number>>,
 ): AccuracyMetrics => {
   const precision = calculatePrecision(retrieved, relevant);
   const recall = calculateRecall(retrieved, relevant);
 
   return {
-    queryId: "", // Will be filled by caller
+    queryId: '', // Will be filled by caller
     precision,
     recall,
     f1: calculateF1(precision, recall),
@@ -143,7 +136,7 @@ export const calculateMAP = (
   queries: readonly {
     retrieved: readonly string[];
     relevant: readonly string[];
-  }[]
+  }[],
 ): number => {
   if (queries.length === 0) return 0;
 
@@ -173,7 +166,7 @@ export const calculateHitRate = (
     retrieved: readonly string[];
     relevant: readonly string[];
   }[],
-  k: number
+  k: number,
 ): number => {
   if (queries.length === 0) return 0;
 
@@ -194,7 +187,7 @@ export const calculateCoverage = (
     retrieved: readonly string[];
     relevant: readonly string[];
   }[],
-  k: number
+  k: number,
 ): number => {
   if (queries.length === 0) return 0;
 
@@ -214,9 +207,7 @@ export const formatAccuracyMetrics = (metrics: AccuracyMetrics): string => {
   return `
 Accuracy Metrics
 ================
-Precision:  ${(metrics.precision * 100).toFixed(
-    1
-  )}% (${metrics.precision.toFixed(3)})
+Precision:  ${(metrics.precision * 100).toFixed(1)}% (${metrics.precision.toFixed(3)})
 Recall:     ${(metrics.recall * 100).toFixed(1)}% (${metrics.recall.toFixed(3)})
 F1 Score:   ${metrics.f1.toFixed(3)}
 MRR:        ${metrics.mrr.toFixed(3)}

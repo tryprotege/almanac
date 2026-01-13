@@ -1,18 +1,18 @@
-import { Request, Response, Router } from "express";
-import { getSchema } from "../../stores/index.js";
-import logger from "../../utils/logger.js";
+import { Request, Response, Router } from 'express';
+import { getSchema } from '../../stores/index.js';
+import logger from '../../utils/logger.js';
 
 const schemaRouter: Router = Router();
 
 // GET /api/schema - Get full schema with entity and relationship types
-schemaRouter.get("/schema", async (_req: Request, res: Response) => {
+schemaRouter.get('/schema', async (_req: Request, res: Response) => {
   try {
     const schema = await getSchema();
 
     if (!schema) {
       res.status(404).json({
         success: false,
-        error: "Schema not found",
+        error: 'Schema not found',
       });
       return;
     }
@@ -29,7 +29,7 @@ schemaRouter.get("/schema", async (_req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    logger.error({ err }, "Error fetching schema");
+    logger.error({ err }, 'Error fetching schema');
     res.status(500).json({
       success: false,
       error: err instanceof Error ? err.message : String(err),

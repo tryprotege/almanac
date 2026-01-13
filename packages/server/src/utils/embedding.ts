@@ -1,7 +1,7 @@
-import pRetry from "p-retry";
-import { env } from "../env.js";
-import logger from "./logger.js";
-import { createLLMClient } from "../services/llm/providers.js";
+import pRetry from 'p-retry';
+import { env } from '../env.js';
+import logger from './logger.js';
+import { llm } from '../services/llm/llm.js';
 
 /**
  * Embedder service - Generates vector embeddings using any OpenAI-compatible API
@@ -14,8 +14,6 @@ export async function embed(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) {
     return [];
   }
-
-  const llm = createLLMClient();
 
   try {
     const response = await pRetry(
@@ -32,13 +30,13 @@ export async function embed(texts: string[]): Promise<number[][]> {
         maxTimeout: 10000,
         onFailedAttempt: (err) => {
           logger.warn({
-            msg: "Embedding generation attempt failed",
+            msg: 'Embedding generation attempt failed',
             attempt: err.attemptNumber,
             retriesLeft: err.retriesLeft,
             err,
           });
         },
-      }
+      },
     );
 
     const embeddings = response.data.map((item) => item.embedding);
@@ -46,7 +44,7 @@ export async function embed(texts: string[]): Promise<number[][]> {
     return embeddings;
   } catch (err) {
     logger.error({
-      msg: "Error generating embeddings after retries",
+      msg: 'Error generating embeddings after retries',
       err,
       texts,
     });

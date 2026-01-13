@@ -7,26 +7,26 @@
 // ============================================
 
 export type SourceType =
-  | "notion"
-  | "slack"
-  | "calendar"
-  | "fathom"
-  | "whatsapp"
-  | "codebase"
-  | "asana"
-  | "jira"
-  | "google_drive"
-  | "github";
+  | 'notion'
+  | 'slack'
+  | 'calendar'
+  | 'fathom'
+  | 'whatsapp'
+  | 'codebase'
+  | 'asana'
+  | 'jira'
+  | 'google_drive'
+  | 'github';
 
 // ============================================
 // Qdrant (Vector Search)
 // ============================================
 
-export type VectorPayloadType = "chunk" | "entity" | "relationship";
+export type VectorPayloadType = 'chunk' | 'entity' | 'relationship';
 
 export interface ChunkVectorPayload extends Record<string, unknown> {
-  type: "chunk";
-  mongoId: string;
+  type: 'chunk';
+  recordId: string;
   checksum: string;
   chunkIndex: number;
   chunkStart: number;
@@ -34,18 +34,15 @@ export interface ChunkVectorPayload extends Record<string, unknown> {
 }
 
 export interface EntityVectorPayload extends Record<string, unknown> {
-  type: "entity";
-  // Global entity from Memgraph
-  entityId: string; // Global entity ID from Memgraph (required)
-  entityType: string; // Entity type from Memgraph (required)
+  type: 'entity';
+  graphEmbeddingMetadataId: string; // ID from GraphEmbeddingMetadata
   // Shared fields
   source: SourceType;
-  degree: number; // Graph centrality (cached)
   checksum: string;
 }
 
 export interface RelationshipVectorPayload extends Record<string, unknown> {
-  type: "relationship";
+  type: 'relationship';
   sourceId: string;
   targetId: string;
   relType: string;
@@ -87,7 +84,21 @@ export interface FetchOptions {
 }
 
 /**
+ * Document-to-Document relationship (structural links from adapters)
+ * These link MongoDB records to each other (e.g., transcript to meeting, page to database)
+ * IDs use the record ID format: {source}_{type}_{id}
+ */
+export interface DocumentRelationship {
+  sourceId: string; // MongoDB record ID (e.g., "fathom_transcript_123")
+  targetId: string; // MongoDB record ID (e.g., "fathom_meeting_456")
+  type: string; // "TRANSCRIPT_OF", "CHILD_OF", "ROW_OF", etc.
+  confidence: number; // 0.0 - 1.0
+}
+
+/**
  * Entity relationship extracted from source data
+ * @deprecated Use DocumentRelationship for adapter relationships
+ * This type is still used for backwards compatibility but will be removed
  */
 export interface EntityRelationship {
   sourceId: string;
@@ -97,4 +108,4 @@ export interface EntityRelationship {
 }
 
 // Re-export from new type files
-export * from "./search.types.js";
+export * from './search.types.js';

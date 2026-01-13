@@ -1,11 +1,11 @@
-import "dotenv/config";
+import 'dotenv/config';
 
-import { initializeServices } from "../src/mcp/initialization.js";
-import { insertRecordToVectorDB } from "../src/services/indexing/embeddings/vector-indexer.service.ts";
-import { RecordStore } from "../src/stores/record.store.js";
-import { VectorStore } from "../src/stores/vector.store.js";
-import { SourceType } from "../src/types/index.js";
-import logger from "../src/utils/logger.js";
+import { initializeServices } from '../src/mcp/initialization.js';
+import { insertRecordToVectorDB } from '../src/services/indexing/embeddings/vector-indexer.service.ts';
+import { RecordStore } from '../src/stores/record.store.js';
+import { VectorStore } from '../src/stores/vector.store.js';
+import { SourceType } from '../src/types/index.js';
+import logger from '../src/utils/logger.js';
 
 /**
  * Script to index unindexed records to the vector database
@@ -34,13 +34,13 @@ function parseArgs(): ScriptOptions {
   };
 
   for (const arg of args) {
-    if (arg.startsWith("--source=")) {
-      options.source = arg.split("=")[1] as SourceType;
-    } else if (arg.startsWith("--batch-size=")) {
-      options.batchSize = parseInt(arg.split("=")[1], 10);
-    } else if (arg.startsWith("--limit=")) {
-      options.limit = parseInt(arg.split("=")[1], 10);
-    } else if (arg === "--force") {
+    if (arg.startsWith('--source=')) {
+      options.source = arg.split('=')[1] as SourceType;
+    } else if (arg.startsWith('--batch-size=')) {
+      options.batchSize = parseInt(arg.split('=')[1], 10);
+    } else if (arg.startsWith('--limit=')) {
+      options.limit = parseInt(arg.split('=')[1], 10);
+    } else if (arg === '--force') {
       options.force = true;
     }
   }
@@ -50,7 +50,7 @@ function parseArgs(): ScriptOptions {
 
 async function getVectorStats(
   recordStore: RecordStore,
-  source: SourceType
+  source: SourceType,
 ): Promise<{
   totalRecords: number;
   indexed: number;
@@ -72,7 +72,7 @@ async function getVectorStats(
 async function indexVectorRecords() {
   const options = parseArgs();
 
-  logger.info({ msg: "🚀 Vector Indexing Script", ...options });
+  logger.info({ msg: '🚀 Vector Indexing Script', ...options });
 
   const { qdrant } = await initializeServices();
   const recordStore = new RecordStore();
@@ -84,11 +84,11 @@ async function indexVectorRecords() {
   // Get all sources to process
   const sources: SourceType[] = options.source
     ? [options.source]
-    : ["notion", "fathom"]; // Add more sources as needed
+    : ['notion', 'fathom', 'github', 'slack']; // Add more sources as needed
 
   // Show what will be processed
   logger.info({
-    msg: `📋 Sources to process: ${sources.join(", ")}`,
+    msg: `📋 Sources to process: ${sources.join(', ')}`,
     totalSources: sources.length,
   });
 
@@ -97,11 +97,11 @@ async function indexVectorRecords() {
     const sourceNum = sourceIndex + 1;
 
     // Visual separator
-    logger.info(`\n${"━".repeat(60)}`);
+    logger.info(`\n${'━'.repeat(60)}`);
     logger.info({
       msg: `📦 Source ${sourceNum}/${sources.length}: ${source.toUpperCase()}`,
     });
-    logger.info(`${"━".repeat(60)}\n`);
+    logger.info(`${'━'.repeat(60)}\n`);
 
     // Get statistics before indexing
     const statsBefore = await getVectorStats(recordStore, source);
@@ -117,7 +117,7 @@ async function indexVectorRecords() {
       continue;
     }
 
-    const allRecords = await recordStore.findBySourceAndType(source, "", {
+    const allRecords = await recordStore.findBySourceAndType(source, '', {
       includeDeleted: false,
     });
 
@@ -164,19 +164,12 @@ async function indexVectorRecords() {
             continue;
           }
 
-          const vectorIds = await insertRecordToVectorDB(
-            recordStore,
-            vectorStore,
-            record
-          );
+          const vectorIds = await insertRecordToVectorDB(recordStore, vectorStore, record);
 
           stats.processed++;
           stats.chunks += vectorIds.length;
         } catch (err) {
-          logger.error(
-            { err, recordId: record._id },
-            `Error indexing record ${record._id}`
-          );
+          logger.error({ err, recordId: record._id }, `Error indexing record ${record._id}`);
           stats.errors++;
         }
       }
@@ -184,15 +177,12 @@ async function indexVectorRecords() {
       // Progress update after each batch
       const elapsedMs = Date.now() - startTime;
       const elapsedSec = Math.floor(elapsedMs / 1000);
-      const percentage = Math.floor(
-        (stats.processed / recordsToIndex.length) * 100
-      );
+      const percentage = Math.floor((stats.processed / recordsToIndex.length) * 100);
 
       // Format elapsed time
       const minutes = Math.floor(elapsedSec / 60);
       const seconds = elapsedSec % 60;
-      const elapsedStr =
-        minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+      const elapsedStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
 
       logger.info({
         msg: `  ⏳ [Batch ${batchNum}/${totalBatches}] ${stats.processed}/${recordsToIndex.length} (${percentage}%) - ${stats.chunks} chunks - ${elapsedStr} elapsed`,
@@ -218,9 +208,9 @@ async function indexVectorRecords() {
   }
 
   // Final completion message
-  logger.info(`\n${"━".repeat(60)}`);
+  logger.info(`\n${'━'.repeat(60)}`);
   logger.info(`✨ ALL SOURCES INDEXED - Job Complete!`);
-  logger.info(`${"━".repeat(60)}\n`);
+  logger.info(`${'━'.repeat(60)}\n`);
 }
 
 const run = async () => {
@@ -230,6 +220,6 @@ const run = async () => {
 run()
   .then(() => process.exit(0))
   .catch((err) => {
-    logger.error({ err }, "Script error");
+    logger.error({ err }, 'Script error');
     process.exit(1);
   });

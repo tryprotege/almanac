@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from 'crypto';
 
 /**
  * Normalize data for consistent checksum computation
@@ -17,19 +17,19 @@ export function normalizeForChecksum(data: any): any {
     });
   }
 
-  if (typeof data === "object") {
+  if (typeof data === 'object') {
     const normalized: any = {};
     const keys = Object.keys(data).sort();
 
     for (const key of keys) {
       // Skip volatile fields
       if (
-        key === "last_edited_time" ||
-        key === "created_time" ||
-        key === "indexed_at" ||
-        key === "synced_at" ||
-        key === "updated_at" ||
-        key === "timestamp"
+        key === 'last_edited_time' ||
+        key === 'created_time' ||
+        key === 'indexed_at' ||
+        key === 'synced_at' ||
+        key === 'updated_at' ||
+        key === 'timestamp'
       ) {
         continue;
       }
@@ -49,7 +49,7 @@ export function normalizeForChecksum(data: any): any {
 export function computeChecksum(data: any): string {
   const normalized = normalizeForChecksum(data);
   const json = JSON.stringify(normalized);
-  return crypto.createHash("sha256").update(json).digest("hex");
+  return crypto.createHash('sha256').update(json).digest('hex');
 }
 
 /**
@@ -71,10 +71,7 @@ export function computeChecksums(entities: any[]): Map<string, string> {
 /**
  * Compare two checksums
  */
-export function hasChanged(
-  newChecksum: string,
-  existingChecksum: string | null
-): boolean {
+export function hasChanged(newChecksum: string, existingChecksum: string | null): boolean {
   if (!existingChecksum) return true;
   return newChecksum !== existingChecksum;
 }
@@ -84,7 +81,7 @@ export function hasChanged(
  */
 export function detectChanges(
   newChecksums: Map<string, string>,
-  existingChecksums: Map<string, string>
+  existingChecksums: Map<string, string>,
 ): {
   changed: Set<string>;
   unchanged: Set<string>;
@@ -158,5 +155,5 @@ export function calculateEmbeddingChecksum(content: {
   }
 
   const json = JSON.stringify(normalized);
-  return crypto.createHash("sha256").update(json).digest("hex");
+  return crypto.createHash('sha256').update(json).digest('hex');
 }

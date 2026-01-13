@@ -1,27 +1,20 @@
-import {
-  CheckSquare,
-  FileText,
-  Search,
-  Server,
-  Workflow,
-  X,
-} from "lucide-react";
-import { ActivityFeed } from "../components/ui/ActivityFeed";
-import { Badge } from "../components/ui/Badge";
-import { DataTable } from "../components/ui/DataTable";
-import { MetricCard } from "../components/ui/MetricCard";
-import { PageHeader } from "../components/ui/PageHeader";
-import { IconDisplay } from "../components/ui/IconDisplay";
-import { useStats } from "../hooks/useStats";
-import { useDataSources } from "../hooks/useDataSources";
-import { useSyncConfigs } from "../hooks/useSyncConfigs";
-import { statsApi, ActivityItem } from "../lib/api";
-import { capitalCase } from "change-case";
-import { useEffect, useState } from "react";
+import { CheckSquare, FileText, Search, Server, Workflow, X } from 'lucide-react';
+import { ActivityFeed } from '../components/ui/ActivityFeed';
+import { Badge } from '../components/ui/Badge';
+import { DataTable } from '../components/ui/DataTable';
+import { MetricCard } from '../components/ui/MetricCard';
+import { PageHeader } from '../components/ui/PageHeader';
+import { IconDisplay } from '../components/ui/IconDisplay';
+import { useStats } from '../hooks/useStats';
+import { useDataSources } from '../hooks/useDataSources';
+import { useSyncConfigs } from '../hooks/useSyncConfigs';
+import { statsApi, ActivityItem } from '../lib/api';
+import { capitalCase } from 'change-case';
+import { useEffect, useState } from 'react';
 
 // Helper function to format relative time
 function formatRelativeTime(date: Date | string | undefined): string {
-  if (!date) return "Never";
+  if (!date) return 'Never';
 
   const now = new Date();
   const syncDate = new Date(date);
@@ -30,12 +23,10 @@ function formatRelativeTime(date: Date | string | undefined): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60)
-    return `${diffMins} ${diffMins === 1 ? "minute" : "minutes"} ago`;
-  if (diffHours < 24)
-    return `${diffHours} ${diffHours === 1 ? "hour" : "hours"} ago`;
-  return `${diffDays} ${diffDays === 1 ? "day" : "days"} ago`;
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`;
+  if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+  return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
 }
 
 export default function Dashboard() {
@@ -54,7 +45,7 @@ export default function Dashboard() {
           setActivity(response.data.data);
         }
       } catch (err) {
-        console.error("Failed to fetch activity:", err);
+        console.error('Failed to fetch activity:', err);
       } finally {
         setActivityLoading(false);
       }
@@ -70,9 +61,7 @@ export default function Dashboard() {
     return (
       <div className="py-8">
         <div className="bg-error-bg border border-error-border rounded-lg p-4">
-          <p className="text-error-text">
-            Failed to load statistics: {error.message}
-          </p>
+          <p className="text-error-text">Failed to load statistics: {error.message}</p>
         </div>
       </div>
     );
@@ -91,7 +80,7 @@ export default function Dashboard() {
         records: sourceData?.records || 0,
         embedded: sourceData?.embedded || 0,
         graphIndexed: sourceData?.graphIndexed || 0,
-        status: hasData ? "Has Data" : "No Data",
+        status: hasData ? 'Has Data' : 'No Data',
         lastSync: formatRelativeTime(sourceData?.lastSync),
       };
     }) || [];
@@ -168,8 +157,8 @@ export default function Dashboard() {
             title="Data Sources"
             columns={[
               {
-                key: "name",
-                header: "Source Name",
+                key: 'name',
+                header: 'Source Name',
                 render: (item) => (
                   <div className="flex items-center gap-2">
                     {item.icon && <IconDisplay icon={item.icon} size="sm" />}
@@ -177,28 +166,28 @@ export default function Dashboard() {
                   </div>
                 ),
               },
-              { key: "records", header: "Records" },
-              { key: "embedded", header: "Embedded" },
-              { key: "graphIndexed", header: "Graph" },
+              { key: 'records', header: 'Records' },
+              { key: 'embedded', header: 'Embedded' },
+              { key: 'graphIndexed', header: 'Graph' },
               {
-                key: "status",
-                header: "Status",
+                key: 'status',
+                header: 'Status',
                 render: (item) => (
                   <Badge
-                    variant={item.status === "Has Data" ? "success" : "neutral"}
-                    dot={item.status === "Has Data"}
+                    variant={item.status === 'Has Data' ? 'success' : 'neutral'}
+                    dot={item.status === 'Has Data'}
                   >
                     {item.status}
                   </Badge>
                 ),
               },
-              { key: "lastSync", header: "Last Sync" },
+              { key: 'lastSync', header: 'Last Sync' },
             ]}
             data={dataSourcesList}
             loading={isLoading || sourcesLoading || configsLoading}
             showAll={() => {
               // Navigate to data sources page
-              window.location.href = "/data-sources";
+              window.location.href = '/data-sources';
             }}
           />
         </div>
@@ -206,9 +195,7 @@ export default function Dashboard() {
         {/* Right Column: Recent Activity */}
         <div className="lg:col-span-1">
           <div className="card">
-            <h3 className="text-base font-semibold text-text-primary mb-6">
-              Recent Activity
-            </h3>
+            <h3 className="text-base font-semibold text-text-primary mb-6">Recent Activity</h3>
             <ActivityFeed items={activity} loading={activityLoading} />
           </div>
         </div>

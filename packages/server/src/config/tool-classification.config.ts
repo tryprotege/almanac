@@ -18,13 +18,13 @@ export const TOOL_CLASSIFICATION_CONFIG = {
    * Default: true
    * Search tools typically require specific query parameters and cannot enumerate all results
    */
-  SKIP_SEARCH_TOOLS: process.env.SKIP_SEARCH_TOOLS !== "false",
+  SKIP_SEARCH_TOOLS: process.env.SKIP_SEARCH_TOOLS !== 'false',
 
   /**
    * Enable verbose logging for tool classification
    * Default: false
    */
-  VERBOSE_LOGGING: process.env.TOOL_CLASSIFICATION_VERBOSE === "true",
+  VERBOSE_LOGGING: process.env.TOOL_CLASSIFICATION_VERBOSE === 'true',
 } as const;
 
 /**

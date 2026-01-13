@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode } from 'react';
 
 interface Column<T> {
   key: string;
@@ -26,9 +26,7 @@ export function DataTable<T extends Record<string, any>>({
       <div className="table-container">
         {title && (
           <div className="table-header">
-            <h3 className="text-base font-semibold text-text-primary">
-              {title}
-            </h3>
+            <h3 className="text-base font-semibold text-text-primary">{title}</h3>
           </div>
         )}
         <div className="p-6 space-y-4">
@@ -66,10 +64,7 @@ export function DataTable<T extends Record<string, any>>({
         <tbody>
           {data.length === 0 ? (
             <tr>
-              <td
-                colSpan={columns.length}
-                className="text-center py-8 text-text-tertiary"
-              >
+              <td colSpan={columns.length} className="text-center py-8 text-text-tertiary">
                 No data available
               </td>
             </tr>
@@ -77,9 +72,7 @@ export function DataTable<T extends Record<string, any>>({
             data.map((item, index) => (
               <tr key={index}>
                 {columns.map((column) => (
-                  <td key={column.key}>
-                    {column.render ? column.render(item) : item[column.key]}
-                  </td>
+                  <td key={column.key}>{column.render ? column.render(item) : item[column.key]}</td>
                 ))}
               </tr>
             ))

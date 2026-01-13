@@ -1,8 +1,8 @@
-import { GraphEmbeddingMetadata } from "../../models/graph-embedding-metadata.model.js";
-import { GraphStore } from "../../stores/graph.store.js";
-import { VectorStore } from "../../stores/vector.store.js";
-import { SourceType } from "../../types/index.js";
-import logger from "../../utils/logger.js";
+import { GraphEmbeddingMetadata } from '../../models/graph-embedding-metadata.model.js';
+import { GraphStore } from '../../stores/graph.store.js';
+import { VectorStore } from '../../stores/vector.store.js';
+import { SourceType } from '../../types/index.js';
+import logger from '../../utils/logger.js';
 
 /**
  * Embedding Cleanup Service
@@ -23,12 +23,10 @@ import logger from "../../utils/logger.js";
 export async function cleanupOrphanedEmbeddings(
   graphStore: GraphStore,
   vectorStore: VectorStore,
-  source?: SourceType
+  source?: SourceType,
 ): Promise<{ deleted: number; errors: number }> {
   logger.info(
-    `🧹 Cleaning up orphaned embedding metadata${
-      source ? ` for source: ${source}` : ""
-    }...`
+    `🧹 Cleaning up orphaned embedding metadata${source ? ` for source: ${source}` : ''}...`,
   );
 
   let deleted = 0;
@@ -36,16 +34,14 @@ export async function cleanupOrphanedEmbeddings(
 
   try {
     // 1. Clean up entities that no longer exist in Memgraph
-    const entityQuery: any = { itemType: "entity" };
+    const entityQuery: any = { itemType: 'entity' };
     if (source) {
       // Find entities whose source documents match the source prefix
       entityQuery.sourceRecordIds = { $regex: `^${source}_` };
     }
 
     const entityMetadata = await GraphEmbeddingMetadata.find(entityQuery);
-    logger.info(
-      `   Found ${entityMetadata.length} entity metadata records to check`
-    );
+    logger.info(`   Found ${entityMetadata.length} entity metadata records to check`);
 
     for (const meta of entityMetadata) {
       try {
@@ -59,40 +55,32 @@ export async function cleanupOrphanedEmbeddings(
             const qdrantPointId = `entity_${meta._id}`;
             await vectorStore.deleteByIds([qdrantPointId]);
           } catch (err) {
-            logger.warn(
-              { err, pointId: `entity_${meta._id}` },
-              "Failed to delete from Qdrant"
-            );
+            logger.warn({ err, pointId: `entity_${meta._id}` }, 'Failed to delete from Qdrant');
           }
 
           deleted++;
         }
       } catch (err) {
-        logger.error(
-          { err, metaId: meta._id },
-          "Error checking entity existence"
-        );
+        logger.error({ err, metaId: meta._id }, 'Error checking entity existence');
         errors++;
       }
     }
 
     // 2. Clean up relationships that no longer exist in Memgraph
-    const relQuery: any = { itemType: "relationship" };
+    const relQuery: any = { itemType: 'relationship' };
     if (source) {
       relQuery.sourceId = { $regex: `^${source}_` };
     }
 
     const relMetadata = await GraphEmbeddingMetadata.find(relQuery);
-    logger.info(
-      `   Found ${relMetadata.length} relationship metadata records to check`
-    );
+    logger.info(`   Found ${relMetadata.length} relationship metadata records to check`);
 
     for (const meta of relMetadata) {
       try {
         const exists = await graphStore.relationshipExists(
           meta.sourceId!,
           meta.relType!,
-          meta.targetId!
+          meta.targetId!,
         );
         if (!exists) {
           // Delete from MongoDB
@@ -102,34 +90,23 @@ export async function cleanupOrphanedEmbeddings(
           try {
             await vectorStore.deleteByIds([meta._id.toString()]);
           } catch (err) {
-            logger.warn(
-              { err, pointId: meta._id },
-              "Failed to delete from Qdrant"
-            );
+            logger.warn({ err, pointId: meta._id }, 'Failed to delete from Qdrant');
           }
 
           deleted++;
         }
       } catch (err) {
-        logger.error(
-          { err, metaId: meta._id },
-          "Error checking relationship existence"
-        );
+        logger.error({ err, metaId: meta._id }, 'Error checking relationship existence');
         errors++;
       }
     }
 
     // 3. Clean up embeddings with no source documents
     const noSourceDocs = await GraphEmbeddingMetadata.find({
-      $or: [
-        { sourceRecordIds: { $size: 0 } },
-        { sourceRecordIds: { $exists: false } },
-      ],
+      $or: [{ sourceRecordIds: { $size: 0 } }, { sourceRecordIds: { $exists: false } }],
     });
 
-    logger.info(
-      `   Found ${noSourceDocs.length} metadata records with no source documents`
-    );
+    logger.info(`   Found ${noSourceDocs.length} metadata records with no source documents`);
 
     for (const meta of noSourceDocs) {
       try {
@@ -139,35 +116,25 @@ export async function cleanupOrphanedEmbeddings(
         // Delete from Qdrant (construct point ID based on item type)
         try {
           const qdrantPointId =
-            meta.itemType === "entity"
-              ? `entity_${meta._id}`
-              : meta._id.toString();
+            meta.itemType === 'entity' ? `entity_${meta._id}` : meta._id.toString();
           await vectorStore.deleteByIds([qdrantPointId]);
         } catch (err) {
-          const pointId =
-            meta.itemType === "entity"
-              ? `entity_${meta._id}`
-              : meta._id.toString();
-          logger.warn({ err, pointId }, "Failed to delete from Qdrant");
+          const pointId = meta.itemType === 'entity' ? `entity_${meta._id}` : meta._id.toString();
+          logger.warn({ err, pointId }, 'Failed to delete from Qdrant');
         }
 
         deleted++;
       } catch (err) {
-        logger.error(
-          { err, metaId: meta._id },
-          "Error deleting no-source metadata"
-        );
+        logger.error({ err, metaId: meta._id }, 'Error deleting no-source metadata');
         errors++;
       }
     }
 
     logger.info(
-      `✅ Cleaned up ${deleted} orphaned embeddings${
-        errors > 0 ? ` (${errors} errors)` : ""
-      }`
+      `✅ Cleaned up ${deleted} orphaned embeddings${errors > 0 ? ` (${errors} errors)` : ''}`,
     );
   } catch (err) {
-    logger.error({ err }, "Error during orphan cleanup");
+    logger.error({ err }, 'Error during orphan cleanup');
     errors++;
   }
 
@@ -178,9 +145,7 @@ export async function cleanupOrphanedEmbeddings(
  * Clean up embedding metadata for a specific source
  * Used when wiping data for a source
  */
-export async function cleanupEmbeddingsBySource(
-  source: SourceType
-): Promise<{ deleted: number }> {
+export async function cleanupEmbeddingsBySource(source: SourceType): Promise<{ deleted: number }> {
   logger.debug({ msg: `🧹 Cleaning up embedding metadata`, source });
 
   // Delete all metadata where any source document matches the source prefix
@@ -210,14 +175,14 @@ export async function cleanupAllEmbeddings(): Promise<{ deleted: number }> {
  * Used when deleting a document
  */
 export async function removeDocumentFromEmbeddingProvenance(
-  recordId: string
+  recordId: string,
 ): Promise<{ updated: number; deleted: number }> {
   logger.info(`🧹 Removing document ${recordId} from embedding provenance...`);
 
   // Remove document from sourceRecordIds arrays
   const updateResult = await GraphEmbeddingMetadata.updateMany(
     { sourceRecordIds: recordId },
-    { $pull: { sourceRecordIds: recordId } }
+    { $pull: { sourceRecordIds: recordId } },
   );
 
   // Delete metadata that now has no source documents
@@ -226,7 +191,7 @@ export async function removeDocumentFromEmbeddingProvenance(
   });
 
   logger.info(
-    `   ✅ Updated ${updateResult.modifiedCount} records, deleted ${deleteResult.deletedCount} with no sources`
+    `   ✅ Updated ${updateResult.modifiedCount} records, deleted ${deleteResult.deletedCount} with no sources`,
   );
 
   return {

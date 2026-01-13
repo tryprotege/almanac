@@ -1,11 +1,11 @@
-import { Router, type Router as ExpressRouter } from "express";
-import { oauthFlowManager } from "../../oauth/oauth-flow.js";
-import { DataSourceModel } from "../../models/data-source.model.js";
-import { discoverOAuthMetadata } from "../../oauth/discovery.js";
-import { discoverSseOAuth } from "../../oauth/sse-oauth.js";
-import { mcpClientManager } from "../../mcp/client.js";
-import { env } from "../../env.js";
-import logger from "../../utils/logger.js";
+import { Router, type Router as ExpressRouter } from 'express';
+import { oauthFlowManager } from '../../oauth/oauth-flow.js';
+import { DataSourceModel } from '../../models/data-source.model.js';
+import { discoverOAuthMetadata } from '../../oauth/discovery.js';
+import { discoverSseOAuth } from '../../oauth/sse-oauth.js';
+import { mcpClientManager } from '../../mcp/client.js';
+import { env } from '../../env.js';
+import logger from '../../utils/logger.js';
 
 const router: ExpressRouter = Router();
 
@@ -13,17 +13,17 @@ const router: ExpressRouter = Router();
  * POST /api/oauth/discover-sse
  * Discover OAuth metadata from SSE endpoint (pre-flight)
  */
-router.post("/discover-sse", async (req, res) => {
+router.post('/discover-sse', async (req, res) => {
   try {
     const { sseUrl } = req.body;
 
-    if (!sseUrl || typeof sseUrl !== "string") {
+    if (!sseUrl || typeof sseUrl !== 'string') {
       return res.status(400).json({
-        error: "sseUrl is required and must be a string",
+        error: 'sseUrl is required and must be a string',
       });
     }
 
-    logger.info({ sseUrl }, "SSE OAuth discovery request received");
+    logger.info({ sseUrl }, 'SSE OAuth discovery request received');
 
     // Discover metadata via pre-flight
     const result = await discoverSseOAuth(sseUrl);
@@ -38,14 +38,11 @@ router.post("/discover-sse", async (req, res) => {
     if (result.error || !result.oauthMetadata) {
       return res.status(404).json({
         success: false,
-        error: result.error || "Failed to discover OAuth metadata",
+        error: result.error || 'Failed to discover OAuth metadata',
       });
     }
 
-    logger.info(
-      { sseUrl, metadata: result.oauthMetadata },
-      "SSE OAuth discovery successful"
-    );
+    logger.info({ sseUrl, metadata: result.oauthMetadata }, 'SSE OAuth discovery successful');
 
     return res.json({
       success: true,
@@ -53,9 +50,9 @@ router.post("/discover-sse", async (req, res) => {
       metadata: result.oauthMetadata,
     });
   } catch (err) {
-    logger.error({ err }, "Failed to discover SSE OAuth metadata");
+    logger.error({ err }, 'Failed to discover SSE OAuth metadata');
     return res.status(500).json({
-      error: "Failed to discover SSE OAuth metadata",
+      error: 'Failed to discover SSE OAuth metadata',
       message: err instanceof Error ? err.message : String(err),
     });
   }
@@ -65,17 +62,17 @@ router.post("/discover-sse", async (req, res) => {
  * POST /api/oauth/discover
  * Discover OAuth metadata from issuer URL
  */
-router.post("/discover", async (req, res) => {
+router.post('/discover', async (req, res) => {
   try {
     const { issuerUrl } = req.body;
 
-    if (!issuerUrl || typeof issuerUrl !== "string") {
+    if (!issuerUrl || typeof issuerUrl !== 'string') {
       return res.status(400).json({
-        error: "issuerUrl is required and must be a string",
+        error: 'issuerUrl is required and must be a string',
       });
     }
 
-    logger.info({ issuerUrl }, "OAuth discovery request received");
+    logger.info({ issuerUrl }, 'OAuth discovery request received');
 
     // Discover metadata
     const result = await discoverOAuthMetadata(issuerUrl);
@@ -87,10 +84,7 @@ router.post("/discover", async (req, res) => {
       });
     }
 
-    logger.info(
-      { issuerUrl, source: result.source },
-      "OAuth discovery successful"
-    );
+    logger.info({ issuerUrl, source: result.source }, 'OAuth discovery successful');
 
     return res.json({
       success: true,
@@ -98,9 +92,9 @@ router.post("/discover", async (req, res) => {
       source: result.source,
     });
   } catch (err) {
-    logger.error({ err }, "Failed to discover OAuth metadata");
+    logger.error({ err }, 'Failed to discover OAuth metadata');
     return res.status(500).json({
-      error: "Failed to discover OAuth metadata",
+      error: 'Failed to discover OAuth metadata',
       message: err instanceof Error ? err.message : String(err),
     });
   }
@@ -111,23 +105,19 @@ router.post("/discover", async (req, res) => {
  * Initiate OAuth flow for remote MCP servers (SSE or streamable-http) with auto-discovery
  * Supports OAuth 2.1 Dynamic Client Registration (RFC 7591)
  */
-router.post("/start-remote/:mcpServerId", async (req, res) => {
+router.post('/start-remote/:mcpServerId', async (req, res) => {
   try {
     const { mcpServerId } = req.params;
 
     // Get data source config
     const dataSource = await DataSourceModel.findById(mcpServerId);
     if (!dataSource) {
-      return res.status(404).json({ error: "Data source not found" });
+      return res.status(404).json({ error: 'Data source not found' });
     }
 
-    if (
-      (dataSource.type !== "sse" && dataSource.type !== "streamable-http") ||
-      !dataSource.url
-    ) {
+    if ((dataSource.type !== 'sse' && dataSource.type !== 'streamable-http') || !dataSource.url) {
       return res.status(400).json({
-        error:
-          "Data source must be configured as SSE or streamable-http with a URL",
+        error: 'Data source must be configured as SSE or streamable-http with a URL',
       });
     }
 
@@ -137,18 +127,18 @@ router.post("/start-remote/:mcpServerId", async (req, res) => {
     if (!discovery.requiresAuth) {
       return res.json({
         requiresAuth: false,
-        message: "Server does not require authentication",
+        message: 'Server does not require authentication',
       });
     }
 
     if (discovery.error || !discovery.oauthMetadata) {
       return res.status(400).json({
-        error: discovery.error || "Failed to discover OAuth metadata",
+        error: discovery.error || 'Failed to discover OAuth metadata',
       });
     }
 
     // Check if we have a client_id, if not perform dynamic client registration
-    let clientId = dataSource.oauth?.clientId || "";
+    let clientId = dataSource.oauth?.clientId || '';
     let clientSecret = dataSource.oauth?.clientSecret;
 
     if (!clientId && discovery.oauthMetadata.registrationEndpoint) {
@@ -157,36 +147,32 @@ router.post("/start-remote/:mcpServerId", async (req, res) => {
           mcpServerId,
           registrationEndpoint: discovery.oauthMetadata.registrationEndpoint,
         },
-        "Performing dynamic client registration"
+        'Performing dynamic client registration',
       );
 
       try {
-        const redirectUri =
-          dataSource.oauth?.redirectUri || env.OAUTH_REDIRECT_URI;
+        const redirectUri = dataSource.oauth?.redirectUri || env.OAUTH_REDIRECT_URI;
 
-        const registrationResponse = await fetch(
-          discovery.oauthMetadata.registrationEndpoint,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-            },
-            body: JSON.stringify({
-              client_name: `eBee MCP Client - ${dataSource.name}`,
-              redirect_uris: [redirectUri],
-              grant_types: ["authorization_code", "refresh_token"],
-              response_types: ["code"],
-              token_endpoint_auth_method: "none", // PKCE doesn't require client secret
-              application_type: "web",
-            }),
-          }
-        );
+        const registrationResponse = await fetch(discovery.oauthMetadata.registrationEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            client_name: `eBee MCP Client - ${dataSource.name}`,
+            redirect_uris: [redirectUri],
+            grant_types: ['authorization_code', 'refresh_token'],
+            response_types: ['code'],
+            token_endpoint_auth_method: 'none', // PKCE doesn't require client secret
+            application_type: 'web',
+          }),
+        });
 
         if (!registrationResponse.ok) {
           const errorText = await registrationResponse.text();
           throw new Error(
-            `Client registration failed: ${registrationResponse.status} ${errorText}`
+            `Client registration failed: ${registrationResponse.status} ${errorText}`,
           );
         }
 
@@ -201,29 +187,22 @@ router.post("/start-remote/:mcpServerId", async (req, res) => {
         // Save the registered client credentials AND discovered OAuth endpoints
         await DataSourceModel.findByIdAndUpdate(mcpServerId, {
           $set: {
-            "oauth.clientId": clientId,
-            "oauth.clientSecret": clientSecret,
-            "oauth.redirectUri": redirectUri,
-            "oauth.authorizationUrl":
-              discovery.oauthMetadata.authorizationEndpoint,
-            "oauth.tokenUrl": discovery.oauthMetadata.tokenEndpoint,
-            "oauth.scopes": discovery.oauthMetadata.scopesSupported || [],
-            "oauth.usePKCE": true,
-            "oauth.registrationStatus": "dynamic",
+            'oauth.clientId': clientId,
+            'oauth.clientSecret': clientSecret,
+            'oauth.redirectUri': redirectUri,
+            'oauth.authorizationUrl': discovery.oauthMetadata.authorizationEndpoint,
+            'oauth.tokenUrl': discovery.oauthMetadata.tokenEndpoint,
+            'oauth.scopes': discovery.oauthMetadata.scopesSupported || [],
+            'oauth.usePKCE': true,
+            'oauth.registrationStatus': 'dynamic',
           },
         });
 
-        logger.info(
-          { mcpServerId, clientId },
-          "Dynamic client registration successful"
-        );
+        logger.info({ mcpServerId, clientId }, 'Dynamic client registration successful');
       } catch (registrationError) {
-        logger.error(
-          { err: registrationError, mcpServerId },
-          "Failed to register OAuth client"
-        );
+        logger.error({ err: registrationError, mcpServerId }, 'Failed to register OAuth client');
         return res.status(500).json({
-          error: "Failed to register OAuth client",
+          error: 'Failed to register OAuth client',
           message:
             registrationError instanceof Error
               ? registrationError.message
@@ -233,20 +212,17 @@ router.post("/start-remote/:mcpServerId", async (req, res) => {
     }
 
     // Start OAuth flow with discovered metadata and client credentials
-    const { authorizationUrl, state } = await oauthFlowManager.startFlow(
-      mcpServerId,
-      {
-        authorizationUrl: discovery.oauthMetadata.authorizationEndpoint,
-        tokenUrl: discovery.oauthMetadata.tokenEndpoint,
-        clientId,
-        clientSecret: clientSecret ?? undefined,
-        redirectUri: dataSource.oauth?.redirectUri || env.OAUTH_REDIRECT_URI,
-        scopes: discovery.oauthMetadata.scopesSupported || [],
-        usePKCE: true,
-      }
-    );
+    const { authorizationUrl, state } = await oauthFlowManager.startFlow(mcpServerId, {
+      authorizationUrl: discovery.oauthMetadata.authorizationEndpoint,
+      tokenUrl: discovery.oauthMetadata.tokenEndpoint,
+      clientId,
+      clientSecret: clientSecret ?? undefined,
+      redirectUri: dataSource.oauth?.redirectUri || env.OAUTH_REDIRECT_URI,
+      scopes: discovery.oauthMetadata.scopesSupported || [],
+      usePKCE: true,
+    });
 
-    logger.info({ mcpServerId, state }, "Remote OAuth flow started");
+    logger.info({ mcpServerId, state }, 'Remote OAuth flow started');
 
     return res.json({
       requiresAuth: true,
@@ -255,9 +231,9 @@ router.post("/start-remote/:mcpServerId", async (req, res) => {
       metadata: discovery.oauthMetadata,
     });
   } catch (err) {
-    logger.error({ err }, "Failed to start remote OAuth flow");
+    logger.error({ err }, 'Failed to start remote OAuth flow');
     return res.status(500).json({
-      error: "Failed to start remote OAuth flow",
+      error: 'Failed to start remote OAuth flow',
       message: err instanceof Error ? err.message : String(err),
     });
   }
@@ -267,46 +243,41 @@ router.post("/start-remote/:mcpServerId", async (req, res) => {
  * GET /api/oauth/start/:mcpServerId
  * Initiate OAuth flow for an MCP server
  */
-router.get("/start/:mcpServerId", async (req, res) => {
+router.get('/start/:mcpServerId', async (req, res) => {
   try {
     const { mcpServerId } = req.params;
 
     // Get data source config
     const dataSource = await DataSourceModel.findById(mcpServerId);
     if (!dataSource) {
-      return res.status(404).json({ error: "Data source not found" });
+      return res.status(404).json({ error: 'Data source not found' });
     }
 
-    if (dataSource.authType !== "oauth" || !dataSource.oauth) {
-      return res
-        .status(400)
-        .json({ error: "Data source is not configured for OAuth" });
+    if (dataSource.authType !== 'oauth' || !dataSource.oauth) {
+      return res.status(400).json({ error: 'Data source is not configured for OAuth' });
     }
 
     // Start OAuth flow
-    const { authorizationUrl, state } = await oauthFlowManager.startFlow(
-      mcpServerId,
-      {
-        authorizationUrl: dataSource.oauth.authorizationUrl || "",
-        tokenUrl: dataSource.oauth.tokenUrl || "",
-        clientId: dataSource.oauth.clientId || "",
-        clientSecret: dataSource.oauth.clientSecret ?? undefined,
-        redirectUri: dataSource.oauth.redirectUri || "",
-        scopes: dataSource.oauth.scopes || [],
-        usePKCE: dataSource.oauth.usePKCE ?? true,
-      }
-    );
+    const { authorizationUrl, state } = await oauthFlowManager.startFlow(mcpServerId, {
+      authorizationUrl: dataSource.oauth.authorizationUrl || '',
+      tokenUrl: dataSource.oauth.tokenUrl || '',
+      clientId: dataSource.oauth.clientId || '',
+      clientSecret: dataSource.oauth.clientSecret ?? undefined,
+      redirectUri: dataSource.oauth.redirectUri || '',
+      scopes: dataSource.oauth.scopes || [],
+      usePKCE: dataSource.oauth.usePKCE ?? true,
+    });
 
-    logger.info({ mcpServerId, state }, "OAuth flow started");
+    logger.info({ mcpServerId, state }, 'OAuth flow started');
 
     return res.json({
       authorizationUrl,
       state,
     });
   } catch (err) {
-    logger.error({ err }, "Failed to start OAuth flow");
+    logger.error({ err }, 'Failed to start OAuth flow');
     return res.status(500).json({
-      error: "Failed to start OAuth flow",
+      error: 'Failed to start OAuth flow',
       message: err instanceof Error ? err.message : String(err),
     });
   }
@@ -317,27 +288,27 @@ router.get("/start/:mcpServerId", async (req, res) => {
  * Receive authorization code from frontend after OAuth redirect
  * This is called by the frontend after the user completes OAuth in popup
  */
-router.post("/code", async (req, res) => {
+router.post('/code', async (req, res) => {
   try {
     const { serverId, code } = req.body;
 
     if (!serverId || !code) {
       return res.status(400).json({
-        error: "Missing required fields",
-        required: ["serverId", "code"],
+        error: 'Missing required fields',
+        required: ['serverId', 'code'],
       });
     }
 
-    logger.info({ serverId }, "Received OAuth code from frontend");
+    logger.info({ serverId }, 'Received OAuth code from frontend');
 
     // Pass code to MCP client manager
     mcpClientManager.receiveOAuthCallback(serverId, code);
 
     return res.json({ success: true });
   } catch (err) {
-    logger.error({ err }, "Failed to process OAuth code");
+    logger.error({ err }, 'Failed to process OAuth code');
     return res.status(500).json({
-      error: "Failed to process OAuth code",
+      error: 'Failed to process OAuth code',
       message: err instanceof Error ? err.message : String(err),
     });
   }
@@ -347,43 +318,41 @@ router.post("/code", async (req, res) => {
  * GET /api/oauth/callback
  * Handle OAuth callback from authorization server
  */
-router.get("/callback", async (req, res) => {
+router.get('/callback', async (req, res) => {
   try {
     const { code, state, error, error_description } = req.query;
 
     // Check for errors from authorization server
     if (error) {
-      logger.error({ error, error_description }, "OAuth authorization failed");
+      logger.error({ error, error_description }, 'OAuth authorization failed');
       return res.redirect(
         `${env.OAUTH_CLIENT_URL}/oauth/callback?error=${encodeURIComponent(
-          error as string
-        )}&description=${encodeURIComponent(
-          (error_description as string) || ""
-        )}`
+          error as string,
+        )}&description=${encodeURIComponent((error_description as string) || '')}`,
       );
     }
 
     if (!code || !state) {
       return res.status(400).json({
-        error: "Missing code or state parameter",
+        error: 'Missing code or state parameter',
       });
     }
 
     // Exchange code for tokens
     await oauthFlowManager.handleCallback(code as string, state as string);
 
-    logger.info({ state }, "OAuth callback handled successfully");
+    logger.info({ state }, 'OAuth callback handled successfully');
 
     // Redirect to success page on client (frontend will handle popup messaging)
     return res.redirect(`${env.OAUTH_CLIENT_URL}/oauth/callback?success=true`);
   } catch (err) {
-    logger.error({ err }, "Failed to handle OAuth callback");
+    logger.error({ err }, 'Failed to handle OAuth callback');
     return res.redirect(
       `${
         env.OAUTH_CLIENT_URL
       }/oauth/callback?error=callback_failed&description=${encodeURIComponent(
-        err instanceof Error ? err.message : String(err)
-      )}`
+        err instanceof Error ? err.message : String(err),
+      )}`,
     );
   }
 });
@@ -392,22 +361,22 @@ router.get("/callback", async (req, res) => {
  * POST /api/oauth/refresh/:mcpServerId
  * Manually refresh OAuth tokens for an MCP server
  */
-router.post("/refresh/:mcpServerId", async (req, res) => {
+router.post('/refresh/:mcpServerId', async (req, res) => {
   try {
     const { mcpServerId } = req.params;
 
     // Refresh tokens
     await oauthFlowManager.refreshTokens(mcpServerId);
 
-    logger.info({ mcpServerId }, "OAuth tokens refreshed");
+    logger.info({ mcpServerId }, 'OAuth tokens refreshed');
 
     return res.json({
       success: true,
     });
   } catch (err) {
-    logger.error({ err }, "Failed to refresh OAuth tokens");
+    logger.error({ err }, 'Failed to refresh OAuth tokens');
     return res.status(500).json({
-      error: "Failed to refresh tokens",
+      error: 'Failed to refresh tokens',
       message: err instanceof Error ? err.message : String(err),
     });
   }
@@ -417,22 +386,22 @@ router.post("/refresh/:mcpServerId", async (req, res) => {
  * DELETE /api/oauth/revoke/:mcpServerId
  * Revoke OAuth tokens for an MCP server
  */
-router.delete("/revoke/:mcpServerId", async (req, res) => {
+router.delete('/revoke/:mcpServerId', async (req, res) => {
   try {
     const { mcpServerId } = req.params;
 
     // Revoke tokens
     await oauthFlowManager.revokeTokens(mcpServerId);
 
-    logger.info({ mcpServerId }, "OAuth tokens revoked");
+    logger.info({ mcpServerId }, 'OAuth tokens revoked');
 
     return res.json({
       success: true,
     });
   } catch (err) {
-    logger.error({ err }, "Failed to revoke OAuth tokens");
+    logger.error({ err }, 'Failed to revoke OAuth tokens');
     return res.status(500).json({
-      error: "Failed to revoke tokens",
+      error: 'Failed to revoke tokens',
       message: err instanceof Error ? err.message : String(err),
     });
   }
@@ -442,7 +411,7 @@ router.delete("/revoke/:mcpServerId", async (req, res) => {
  * GET /api/oauth/status/:mcpServerId
  * Get OAuth connection status for an MCP server
  */
-router.get("/status/:mcpServerId", async (req, res) => {
+router.get('/status/:mcpServerId', async (req, res) => {
   try {
     const { mcpServerId } = req.params;
 
@@ -451,9 +420,9 @@ router.get("/status/:mcpServerId", async (req, res) => {
 
     return res.json(status);
   } catch (err) {
-    logger.error({ err }, "Failed to get OAuth status");
+    logger.error({ err }, 'Failed to get OAuth status');
     return res.status(500).json({
-      error: "Failed to get OAuth status",
+      error: 'Failed to get OAuth status',
       message: err instanceof Error ? err.message : String(err),
     });
   }

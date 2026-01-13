@@ -1,33 +1,29 @@
-import { useEffect, useState } from "react";
-import { Settings } from "lucide-react";
-import { Modal } from "../ui/Modal";
-import { AdvancedConfigForm } from "../DataSourceForm/AdvancedConfigForm";
-import {
-  ServicePreset,
-  getPresetById,
-  CUSTOM_PRESET,
-} from "../DataSourceForm/presets";
-import { usePreset } from "../../hooks/usePresets";
-import { IndexingStep } from "./IndexingStep";
-import { ReviewStep } from "./ReviewStep";
-import { ConfigChoiceStep } from "./ConfigChoiceStep";
-import { ConfigImportStep } from "./ConfigImportStep";
-import { OAuthStep } from "./OAuthStep";
-import { GeneratingStep } from "./GeneratingStep";
-import { SavingStep } from "./SavingStep";
-import { DataSourceConfig } from "../../lib/api";
+import { useEffect, useState } from 'react';
+import { Settings } from 'lucide-react';
+import { Modal } from '../ui/Modal';
+import { AdvancedConfigForm } from '../DataSourceForm/AdvancedConfigForm';
+import { ServicePreset, getPresetById, CUSTOM_PRESET } from '../DataSourceForm/presets';
+import { usePreset } from '../../hooks/usePresets';
+import { IndexingStep } from './IndexingStep';
+import { ReviewStep } from './ReviewStep';
+import { ConfigChoiceStep } from './ConfigChoiceStep';
+import { ConfigImportStep } from './ConfigImportStep';
+import { OAuthStep } from './OAuthStep';
+import { GeneratingStep } from './GeneratingStep';
+import { SavingStep } from './SavingStep';
+import { DataSourceConfig } from '../../lib/api';
 import {
   useCreateDataSource,
   useUpdateDataSource,
   useConnectDataSource,
-} from "../../hooks/useDataSources";
+} from '../../hooks/useDataSources';
 import {
   useGenerateSyncConfig,
   useSaveSyncConfig,
   useSyncWithConfig,
   useSyncConfig,
-} from "../../hooks/useSyncConfigs";
-import toast from "react-hot-toast";
+} from '../../hooks/useSyncConfigs';
+import toast from 'react-hot-toast';
 
 interface DataSourceWizardProps {
   isOpen: boolean;
@@ -37,23 +33,17 @@ interface DataSourceWizardProps {
 }
 
 type WizardStep =
-  | "select"
-  | "configure"
-  | "oauth-auth"
-  | "config-choice"
-  | "generating"
-  | "auto-generate"
-  | "import"
-  | "review"
-  | "saving";
+  | 'select'
+  | 'configure'
+  | 'oauth-auth'
+  | 'config-choice'
+  | 'generating'
+  | 'auto-generate'
+  | 'import'
+  | 'review'
+  | 'saving';
 
-type SavingStepStatus =
-  | "saving"
-  | "activating"
-  | "syncing"
-  | "complete"
-  | "error"
-  | null;
+type SavingStepStatus = 'saving' | 'activating' | 'syncing' | 'complete' | 'error' | null;
 
 export function DataSourceWizard({
   isOpen,
@@ -74,22 +64,18 @@ export function DataSourceWizard({
   // Load preset data if presetId is provided
   const { data: presetData } = usePreset(presetId || null);
 
-  const [step, setStep] = useState<WizardStep>("select");
-  const [selectedPreset, setSelectedPreset] = useState<ServicePreset | null>(
-    null
-  );
+  const [step, setStep] = useState<WizardStep>('select');
+  const [selectedPreset, setSelectedPreset] = useState<ServicePreset | null>(null);
   const [serverConfig, setServerConfig] = useState<Omit<
     DataSourceConfig,
-    "_id" | "createdAt" | "updatedAt"
+    '_id' | 'createdAt' | 'updatedAt'
   > | null>(null);
   const [isCustomServerCreated, setIsCustomServerCreated] = useState(false);
   const [importedConfig, setImportedConfig] = useState<any>(null);
   const [oauthCompleted, setOauthCompleted] = useState(false);
   const [savingStatus, setSavingStatus] = useState<SavingStepStatus>(null);
   const [savingError, setSavingError] = useState<string | null>(null);
-  const [startingPointValues, setStartingPointValues] = useState<
-    Record<string, string[]>
-  >({});
+  const [startingPointValues, setStartingPointValues] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     if (isOpen && existingSource) {
@@ -98,28 +84,23 @@ export function DataSourceWizard({
 
       if (isPresetBased) {
         // Try to find the preset by presetId first, then fallback to name
-        const preset = getPresetById(
-          existingSource.presetId || existingSource.name
-        );
+        const preset = getPresetById(existingSource.presetId || existingSource.name);
         console.log(
-          "DataSourceWizard: Editing preset-based source",
+          'DataSourceWizard: Editing preset-based source',
           existingSource.name,
-          "preset:",
-          preset?.id
+          'preset:',
+          preset?.id,
         );
         setSelectedPreset(preset || CUSTOM_PRESET);
       } else {
         // This is a custom server - use CUSTOM_PRESET
-        console.log(
-          "DataSourceWizard: Editing custom source",
-          existingSource.name
-        );
+        console.log('DataSourceWizard: Editing custom source', existingSource.name);
         setSelectedPreset(CUSTOM_PRESET);
       }
-      setStep("configure");
+      setStep('configure');
     } else if (isOpen && presetId && presetData) {
       // New source from marketplace preset
-      console.log("DataSourceWizard: Creating from preset", presetId);
+      console.log('DataSourceWizard: Creating from preset', presetId);
       // Create a preset object for the wizard
       const connection = presetData.data.connection;
       const preset: ServicePreset = {
@@ -128,7 +109,7 @@ export function DataSourceWizard({
         displayName: presetData.data.displayName,
         description: presetData.data.description,
         icon: Settings, // Use default icon since API returns string
-        type: connection.type || "stdio",
+        type: connection.type || 'stdio',
         command: connection.command,
         args: connection.args,
         url: connection.url,
@@ -144,14 +125,14 @@ export function DataSourceWizard({
         setImportedConfig(presetData.data.indexingConfig);
       }
 
-      setStep("configure");
+      setStep('configure');
     } else if (isOpen && !existingSource && !presetId) {
       // New custom source - skip selector and go directly to custom config
       setSelectedPreset(CUSTOM_PRESET);
-      setStep("configure");
+      setStep('configure');
     } else if (!isOpen) {
       // Reset when closing
-      setStep("configure");
+      setStep('configure');
       setSelectedPreset(null);
       setServerConfig(null);
       setIsCustomServerCreated(false);
@@ -160,75 +141,71 @@ export function DataSourceWizard({
   }, [existingSource, isOpen, presetId, presetData]);
 
   const handleBack = () => {
-    if (step === "configure") {
+    if (step === 'configure') {
       // Close the wizard - no selector step to go back to
       onClose();
-    } else if (step === "oauth-auth") {
-      setStep("configure");
-    } else if (step === "config-choice") {
-      setStep("configure");
-    } else if (step === "generating") {
-      setStep("config-choice");
-    } else if (step === "auto-generate") {
-      setStep("generating");
-    } else if (step === "import") {
-      setStep("config-choice");
-    } else if (step === "review") {
-      if (selectedPreset?.id === "custom") {
-        setStep(importedConfig ? "import" : "auto-generate");
+    } else if (step === 'oauth-auth') {
+      setStep('configure');
+    } else if (step === 'config-choice') {
+      setStep('configure');
+    } else if (step === 'generating') {
+      setStep('config-choice');
+    } else if (step === 'auto-generate') {
+      setStep('generating');
+    } else if (step === 'import') {
+      setStep('config-choice');
+    } else if (step === 'review') {
+      if (selectedPreset?.id === 'custom') {
+        setStep(importedConfig ? 'import' : 'auto-generate');
       } else {
-        setStep("configure");
+        setStep('configure');
       }
     }
   };
 
   const handleConfigureSubmit = async (
-    config: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt">
+    config: Omit<DataSourceConfig, '_id' | 'createdAt' | 'updatedAt'>,
   ) => {
     setServerConfig(config);
 
     // Add presetId to config for preset-based sources (not custom)
     const configWithPreset = {
       ...config,
-      presetId:
-        selectedPreset?.id !== "custom"
-          ? presetId || selectedPreset?.id
-          : undefined,
+      presetId: selectedPreset?.id !== 'custom' ? presetId || selectedPreset?.id : undefined,
     };
 
     // If OAuth is required, create server first, then go to OAuth step
-    if (config.authType === ("oauth" as const)) {
+    if (config.authType === ('oauth' as const)) {
       try {
         // Create the server first
-        toast.loading("Creating data source...", { id: "create-server" });
+        toast.loading('Creating data source...', { id: 'create-server' });
         const response = await createMutation.mutateAsync(configWithPreset);
-        toast.success("Data source created", { id: "create-server" });
+        toast.success('Data source created', { id: 'create-server' });
         setIsCustomServerCreated(true);
 
         // Now go to OAuth step
-        setStep("oauth-auth");
+        setStep('oauth-auth');
       } catch (error) {
-        console.error("Failed to create server:", error);
-        toast.error(
-          error instanceof Error ? error.message : "Failed to create server",
-          { id: "create-error" }
-        );
+        console.error('Failed to create server:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to create server', {
+          id: 'create-error',
+        });
       }
       return;
     }
 
     // For custom servers, create and connect server first, then show config choice
-    if (selectedPreset?.id === "custom") {
+    if (selectedPreset?.id === 'custom') {
       try {
         // Check if we're editing an existing server
         if (existingSource) {
           // Update existing server (backend handles reconnection automatically)
-          toast.loading("Updating data source...", { id: "update-server" });
+          toast.loading('Updating data source...', { id: 'update-server' });
           await updateMutation.mutateAsync({
             name: existingSource.name,
             config: configWithPreset,
           });
-          toast.success("Data source updated", { id: "update-server" });
+          toast.success('Data source updated', { id: 'update-server' });
 
           // Backend PUT endpoint automatically reconnects if server was connected
           // Just wait a moment for reconnection to complete
@@ -238,11 +215,11 @@ export function DataSourceWizard({
           if (existingConfig.data) {
             // Server has existing config - just close wizard, no need to reconfigure
             toast.success(
-              "Data source updated successfully. Your existing indexing configuration is unchanged.",
+              'Data source updated successfully. Your existing indexing configuration is unchanged.',
               {
-                id: "update-success",
+                id: 'update-success',
                 duration: 4000,
-              }
+              },
             );
             onClose();
             resetWizard();
@@ -250,16 +227,16 @@ export function DataSourceWizard({
           }
 
           // No existing config - show config choice for non-OAuth servers
-          if (config.authType !== ("oauth" as const)) {
-            setStep("config-choice");
+          if (config.authType !== ('oauth' as const)) {
+            setStep('config-choice');
           } else {
             // OAuth server - close wizard, user needs to complete OAuth first
             toast.success(
-              "Data source updated. Complete OAuth authorization, then configure sync.",
+              'Data source updated. Complete OAuth authorization, then configure sync.',
               {
-                id: "oauth-notice",
+                id: 'oauth-notice',
                 duration: 5000,
-              }
+              },
             );
             onClose();
             resetWizard();
@@ -267,34 +244,34 @@ export function DataSourceWizard({
           }
         } else {
           // Create new server
-          toast.loading("Creating data source...", { id: "create-server" });
+          toast.loading('Creating data source...', { id: 'create-server' });
           await createMutation.mutateAsync(configWithPreset);
-          toast.success("Data source created", { id: "create-server" });
+          toast.success('Data source created', { id: 'create-server' });
           setIsCustomServerCreated(true);
 
           // Only auto-connect for non-OAuth servers
           // OAuth servers need to complete OAuth flow first
-          if (config.authType !== ("oauth" as const)) {
+          if (config.authType !== ('oauth' as const)) {
             // Connect to the server to cache tools
-            toast.loading("Connecting to data source...", {
-              id: "connect-server",
+            toast.loading('Connecting to data source...', {
+              id: 'connect-server',
             });
             await connectMutation.mutateAsync(config.name);
-            toast.success("Connected to data source", { id: "connect-server" });
+            toast.success('Connected to data source', { id: 'connect-server' });
 
             // Wait a moment for tool caching to complete
             await new Promise((resolve) => setTimeout(resolve, 1000));
 
             // Show config choice
-            setStep("config-choice");
+            setStep('config-choice');
           } else {
             // OAuth server - close wizard, user needs to complete OAuth first
             toast.success(
-              "Data source created. Complete OAuth authorization, then configure sync.",
+              'Data source created. Complete OAuth authorization, then configure sync.',
               {
-                id: "oauth-notice",
+                id: 'oauth-notice',
                 duration: 5000,
-              }
+              },
             );
             onClose();
             resetWizard();
@@ -302,13 +279,10 @@ export function DataSourceWizard({
           }
         }
       } catch (error) {
-        console.error("Failed to setup custom server:", error);
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Failed to setup custom server",
-          { id: "setup-error" }
-        );
+        console.error('Failed to setup custom server:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to setup custom server', {
+          id: 'setup-error',
+        });
         // Clean up if server was created but later steps failed
         if (isCustomServerCreated) {
           setIsCustomServerCreated(false);
@@ -316,7 +290,7 @@ export function DataSourceWizard({
       }
     } else {
       // For preset services, go directly to review
-      setStep("review");
+      setStep('review');
     }
   };
 
@@ -324,7 +298,7 @@ export function DataSourceWizard({
     if (!serverConfig) return;
 
     // Immediately transition to generating step
-    setStep("generating");
+    setStep('generating');
 
     try {
       // Generate indexing config using connected server's tools
@@ -334,46 +308,42 @@ export function DataSourceWizard({
       });
 
       // Move to results step
-      setStep("auto-generate");
+      setStep('auto-generate');
     } catch (error) {
-      console.error("Failed to generate config:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to generate config",
-        { id: "generate-error" }
-      );
+      console.error('Failed to generate config:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to generate config', {
+        id: 'generate-error',
+      });
       // Stay on generating step to show error
     }
   };
 
   const handleChooseImport = () => {
-    setStep("import");
+    setStep('import');
   };
 
   const handleImportConfig = (config: any) => {
     setImportedConfig(config);
-    setStep("review");
+    setStep('review');
   };
 
   const handleAutoGenerateNext = () => {
-    setStep("review");
+    setStep('review');
   };
 
   const handleFinalSubmit = async () => {
     if (!serverConfig) return;
 
     // Immediately transition to saving step
-    setStep("saving");
-    setSavingStatus("saving");
+    setStep('saving');
+    setSavingStatus('saving');
     setSavingError(null);
 
     try {
       // Add presetId to config for preset-based sources (not custom)
       const configWithPreset = {
         ...serverConfig,
-        presetId:
-          selectedPreset?.id !== "custom"
-            ? presetId || selectedPreset?.id
-            : undefined,
+        presetId: selectedPreset?.id !== 'custom' ? presetId || selectedPreset?.id : undefined,
       };
 
       // 1. Create/update MCP server (skip for custom if already created)
@@ -382,7 +352,7 @@ export function DataSourceWizard({
           name: existingSource.name,
           config: configWithPreset,
         });
-      } else if (selectedPreset?.id !== "custom" || !isCustomServerCreated) {
+      } else if (selectedPreset?.id !== 'custom' || !isCustomServerCreated) {
         // Only create if not a custom server (already created in handleConfigureSubmit)
         await createMutation.mutateAsync(configWithPreset);
       }
@@ -390,10 +360,10 @@ export function DataSourceWizard({
       // 2. Save sync config (custom servers or preset servers with imported configs)
       const configToSave = importedConfig || generateConfig.data?.config;
       if (configToSave) {
-        setSavingStatus("activating");
+        setSavingStatus('activating');
         await saveConfig.mutateAsync({
           config: configToSave,
-          status: "active",
+          status: 'active',
           startingPointValues: startingPointValues,
         });
       }
@@ -405,25 +375,20 @@ export function DataSourceWizard({
       });
 
       // 4. Show success message and close immediately
-      setSavingStatus("complete");
-      toast.success(
-        `Data source saved! Initial sync is running in the background.`,
-        { duration: 4000 }
-      );
+      setSavingStatus('complete');
+      toast.success(`Data source saved! Initial sync is running in the background.`, {
+        duration: 4000,
+      });
 
       setTimeout(() => {
         onClose();
         resetWizard();
       }, 1500);
     } catch (error) {
-      console.error("Failed to save data source:", error);
-      setSavingStatus("error");
-      setSavingError(
-        error instanceof Error ? error.message : "Failed to save data source"
-      );
-      toast.error(
-        error instanceof Error ? error.message : "Failed to save data source"
-      );
+      console.error('Failed to save data source:', error);
+      setSavingStatus('error');
+      setSavingError(error instanceof Error ? error.message : 'Failed to save data source');
+      toast.error(error instanceof Error ? error.message : 'Failed to save data source');
     }
   };
 
@@ -432,26 +397,25 @@ export function DataSourceWizard({
 
     try {
       // Connect to the server to cache tools
-      toast.loading("Connecting to data source...", { id: "connect-server" });
+      toast.loading('Connecting to data source...', { id: 'connect-server' });
       await connectMutation.mutateAsync(serverConfig.name);
-      toast.success("Connected to data source", { id: "connect-server" });
+      toast.success('Connected to data source', { id: 'connect-server' });
 
       // Wait a moment for tool caching
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Proceed to config choice
-      setStep("config-choice");
+      setStep('config-choice');
     } catch (error) {
-      console.error("Failed to connect after OAuth:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to connect",
-        { id: "connect-error" }
-      );
+      console.error('Failed to connect after OAuth:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to connect', {
+        id: 'connect-error',
+      });
     }
   };
 
   const resetWizard = () => {
-    setStep("select");
+    setStep('select');
     setSelectedPreset(null);
     setServerConfig(null);
     setIsCustomServerCreated(false);
@@ -473,19 +437,19 @@ export function DataSourceWizard({
     syncConfig.isPending;
 
   // Build subtitle
-  let subtitle = "";
-  if (selectedPreset && step !== "select") {
+  let subtitle = '';
+  if (selectedPreset && step !== 'select') {
     subtitle = selectedPreset.displayName;
-    if (step === "config-choice") {
-      subtitle += " • Choose Config Method";
-    } else if (step === "generating") {
-      subtitle += " • Generating Config";
-    } else if (step === "auto-generate") {
-      subtitle += " • Auto-Generate Config";
-    } else if (step === "import") {
-      subtitle += " • Import Config";
-    } else if (step === "review") {
-      subtitle += " • Review & Save";
+    if (step === 'config-choice') {
+      subtitle += ' • Choose Config Method';
+    } else if (step === 'generating') {
+      subtitle += ' • Generating Config';
+    } else if (step === 'auto-generate') {
+      subtitle += ' • Auto-Generate Config';
+    } else if (step === 'import') {
+      subtitle += ' • Import Config';
+    } else if (step === 'review') {
+      subtitle += ' • Review & Save';
     }
   }
 
@@ -493,12 +457,12 @@ export function DataSourceWizard({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={existingSource ? "Edit Data Source" : "Add Data Source"}
+      title={existingSource ? 'Edit Data Source' : 'Add Data Source'}
       subtitle={subtitle || undefined}
       size="full"
       disableClose={isLoading}
     >
-      {step === "configure" && selectedPreset && (
+      {step === 'configure' && selectedPreset && (
         <AdvancedConfigForm
           server={existingSource}
           preset={
@@ -517,7 +481,7 @@ export function DataSourceWizard({
         />
       )}
 
-      {step === "oauth-auth" && serverConfig && (
+      {step === 'oauth-auth' && serverConfig && (
         <OAuthStep
           serverConfig={serverConfig}
           onBack={handleBack}
@@ -527,13 +491,13 @@ export function DataSourceWizard({
       )}
 
       {/* Fallback for edge cases where no form is rendered */}
-      {step === "configure" && !selectedPreset && (
+      {step === 'configure' && !selectedPreset && (
         <div className="p-6 text-center text-text-tertiary">
           <p>Loading configuration...</p>
         </div>
       )}
 
-      {step === "config-choice" && (
+      {step === 'config-choice' && (
         <ConfigChoiceStep
           onBack={handleBack}
           onChooseAutoGenerate={handleChooseAutoGenerate}
@@ -542,21 +506,21 @@ export function DataSourceWizard({
         />
       )}
 
-      {step === "generating" && (
+      {step === 'generating' && (
         <GeneratingStep
           isGenerating={generateConfig.isPending}
           error={
             generateConfig.isError
               ? generateConfig.error instanceof Error
                 ? generateConfig.error.message
-                : "Failed to generate config"
+                : 'Failed to generate config'
               : undefined
           }
           onBack={handleBack}
         />
       )}
 
-      {step === "auto-generate" && generateConfig.data && (
+      {step === 'auto-generate' && generateConfig.data && (
         <IndexingStep
           generatedConfig={generateConfig.data}
           onBack={handleBack}
@@ -565,15 +529,11 @@ export function DataSourceWizard({
         />
       )}
 
-      {step === "import" && (
-        <ConfigImportStep
-          onBack={handleBack}
-          onSubmit={handleImportConfig}
-          isLoading={isLoading}
-        />
+      {step === 'import' && (
+        <ConfigImportStep onBack={handleBack} onSubmit={handleImportConfig} isLoading={isLoading} />
       )}
 
-      {step === "review" && serverConfig && (
+      {step === 'review' && serverConfig && (
         <ReviewStep
           serverConfig={serverConfig}
           preset={selectedPreset}
@@ -587,10 +547,10 @@ export function DataSourceWizard({
         />
       )}
 
-      {step === "saving" && serverConfig && (
+      {step === 'saving' && serverConfig && (
         <SavingStep
           serverName={serverConfig.name}
-          isCustomServer={selectedPreset?.id === "custom"}
+          isCustomServer={selectedPreset?.id === 'custom'}
           currentStep={savingStatus}
           error={savingError || undefined}
         />

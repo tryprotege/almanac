@@ -7,10 +7,7 @@ const generatedIds = new Set<string>();
 /**
  * Generate a random numeric ID within a range
  */
-export function generateRandomId(
-  min: number = 1000,
-  max: number = 999999
-): number {
+export function generateRandomId(min: number = 1000, max: number = 999999): number {
   let id: number;
   let attempts = 0;
   const maxAttempts = 100;
@@ -33,10 +30,7 @@ export function generateRandomId(
 /**
  * Generate a random string ID with prefix
  */
-export function generateRandomStringId(
-  prefix: string,
-  length: number = 8
-): string {
+export function generateRandomStringId(prefix: string, length: number = 8): string {
   let id: string;
   let attempts = 0;
   const maxAttempts = 100;
@@ -45,7 +39,7 @@ export function generateRandomStringId(
     const randomPart = Math.random()
       .toString(36)
       .substring(2, 2 + length)
-      .padEnd(length, "0");
+      .padEnd(length, '0');
     id = `${prefix}_${randomPart}`;
     attempts++;
 
@@ -64,8 +58,8 @@ export function generateRandomStringId(
  * Generate a random hexadecimal hash
  */
 export function generateRandomHash(length: number = 40): string {
-  const chars = "0123456789abcdef";
-  let hash = "";
+  const chars = '0123456789abcdef';
+  let hash = '';
 
   for (let i = 0; i < length; i++) {
     hash += chars[Math.floor(Math.random() * chars.length)];
@@ -77,9 +71,9 @@ export function generateRandomHash(length: number = 40): string {
 /**
  * Generate a random node ID (GitHub-style)
  */
-export function generateRandomNodeId(prefix: string = "MDU6"): string {
+export function generateRandomNodeId(prefix: string = 'MDU6'): string {
   const randomPart = Math.random().toString(36).substring(2, 10);
-  const encoded = Buffer.from(randomPart).toString("base64").replace(/=/g, "");
+  const encoded = Buffer.from(randomPart).toString('base64').replace(/=/g, '');
   return `${prefix}${encoded}`;
 }
 
@@ -97,7 +91,7 @@ export function generateSlackTimestamp(date: Date): string {
   const baseTimestamp = date.getTime() / 1000;
   // Add microseconds for uniqueness
   const microseconds = Math.floor(Math.random() * 1000000);
-  return `${baseTimestamp.toFixed(0)}.${String(microseconds).padStart(6, "0")}`;
+  return `${baseTimestamp.toFixed(0)}.${String(microseconds).padStart(6, '0')}`;
 }
 
 /**

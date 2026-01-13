@@ -1,5 +1,5 @@
-import { mcpClientManager } from "../../../mcp/client.js";
-import logger from "../../../utils/logger.js";
+import { mcpClientManager } from '../../../mcp/client.js';
+import logger from '../../../utils/logger.js';
 
 /**
  * Discovered value from tool execution
@@ -29,7 +29,7 @@ export interface ToolDependency {
  */
 export interface ToolFailureReason {
   tool: string;
-  category: "missing_ids" | "api_error" | "invalid_params" | "unresolvable";
+  category: 'missing_ids' | 'api_error' | 'invalid_params' | 'unresolvable';
   details: string;
   requiredParams?: string[];
   availableIds?: string[];
@@ -79,7 +79,7 @@ class GenericIDRegistry {
     sourceTool: string,
     level: number,
     parentPath?: string,
-    fullObject?: any
+    fullObject?: any,
   ) {
     this.values.push({
       value,
@@ -97,9 +97,9 @@ class GenericIDRegistry {
     if (exactMatch) return exactMatch.value;
 
     // Strategy 2: Normalize and match (database_id matches databaseId)
-    const normalizedParam = paramName.toLowerCase().replace(/_/g, "");
+    const normalizedParam = paramName.toLowerCase().replace(/_/g, '');
     const normalizedMatch = this.values.find(
-      (v) => v.fieldName.toLowerCase().replace(/_/g, "") === normalizedParam
+      (v) => v.fieldName.toLowerCase().replace(/_/g, '') === normalizedParam,
     );
     if (normalizedMatch) return normalizedMatch.value;
 
@@ -107,21 +107,19 @@ class GenericIDRegistry {
     const partialMatch = this.values.find(
       (v) =>
         paramName.toLowerCase().includes(v.fieldName.toLowerCase()) ||
-        v.fieldName.toLowerCase().includes(paramName.toLowerCase())
+        v.fieldName.toLowerCase().includes(paramName.toLowerCase()),
     );
     if (partialMatch) return partialMatch.value;
 
     // Strategy 4: Generic "id" field
-    const genericId = this.values.find((v) => v.fieldName === "id");
+    const genericId = this.values.find((v) => v.fieldName === 'id');
     if (genericId) return genericId.value;
 
     return null;
   }
 
   getAllForFieldName(fieldName: string): any[] {
-    return this.values
-      .filter((v) => v.fieldName === fieldName)
-      .map((v) => v.value);
+    return this.values.filter((v) => v.fieldName === fieldName).map((v) => v.value);
   }
 
   getValues(): DiscoveredValue[] {
@@ -150,9 +148,7 @@ function analyzeDependencies(tools: any[]): ToolDependency[] {
     // Identify ID parameters (params that look like they need IDs)
     const idParams = required.filter(
       (param: string) =>
-        param.toLowerCase().includes("id") ||
-        param.endsWith("_id") ||
-        param.endsWith("Id")
+        param.toLowerCase().includes('id') || param.endsWith('_id') || param.endsWith('Id'),
     );
 
     deps.push({
@@ -178,9 +174,7 @@ function analyzeDependencies(tools: any[]): ToolDependency[] {
 
     if (canExecuteNow.length === 0) {
       // No progress - break out
-      logger.warn(
-        `Cannot resolve ${unresolved.length} tools - circular dependency or no producer`
-      );
+      logger.warn(`Cannot resolve ${unresolved.length} tools - circular dependency or no producer`);
       break;
     }
 
@@ -199,10 +193,7 @@ function analyzeDependencies(tools: any[]): ToolDependency[] {
 /**
  * Check if a parameter can potentially be satisfied by already-resolved tools
  */
-function canBeSatisfiedBy(
-  paramName: string,
-  resolvedTools: ToolDependency[]
-): boolean {
+function canBeSatisfiedBy(paramName: string, resolvedTools: ToolDependency[]): boolean {
   // Heuristic: if ANY resolved tool might produce this type of ID, return true
   // We use simple name matching: a tool named "list_pages" likely produces page_ids
 
@@ -214,7 +205,7 @@ function canBeSatisfiedBy(
     // Direct match: tool name contains param name
     // e.g., "list_pages" can satisfy "page_id"
     if (
-      toolLower.includes(paramLower.replace("_id", "").replace("id", "")) ||
+      toolLower.includes(paramLower.replace('_id', '').replace('id', '')) ||
       paramLower.includes(toolLower)
     ) {
       return true;
@@ -232,11 +223,7 @@ function canBeSatisfiedBy(
 /**
  * Recursively extract all ID-like values from a response
  */
-function extractAllIds(
-  obj: any,
-  path: string = "",
-  maxDepth: number = 5
-): DiscoveredValue[] {
+function extractAllIds(obj: any, path: string = '', maxDepth: number = 5): DiscoveredValue[] {
   const ids: DiscoveredValue[] = [];
 
   if (maxDepth <= 0 || obj === null || obj === undefined) {
@@ -253,25 +240,25 @@ function extractAllIds(
     }
   }
 
-  if (typeof obj === "object" && !Array.isArray(obj)) {
+  if (typeof obj === 'object' && !Array.isArray(obj)) {
     // Object: check each key
     for (const [key, value] of Object.entries(obj)) {
       const fullPath = path ? `${path}.${key}` : key;
 
       // If key looks like an ID field and value is primitive, record it
       if (
-        (key.toLowerCase().includes("id") ||
-          key === "id" ||
-          key.endsWith("_id") ||
-          key.endsWith("Id")) &&
-        (typeof value === "string" || typeof value === "number") &&
+        (key.toLowerCase().includes('id') ||
+          key === 'id' ||
+          key.endsWith('_id') ||
+          key.endsWith('Id')) &&
+        (typeof value === 'string' || typeof value === 'number') &&
         value !== null &&
-        value !== ""
+        value !== ''
       ) {
         ids.push({
           value,
           fieldName: key,
-          sourceTool: "",
+          sourceTool: '',
           sourceLevel: -1,
           parentPath: path,
           fullObject: obj,
@@ -279,7 +266,7 @@ function extractAllIds(
       }
 
       // Recurse into nested objects/arrays
-      if (typeof value === "object" && value !== null) {
+      if (typeof value === 'object' && value !== null) {
         ids.push(...extractAllIds(value, fullPath, maxDepth - 1));
       }
     }
@@ -301,7 +288,7 @@ function extractAllIds(
 function buildParametersFromRegistry(
   dep: ToolDependency,
   registry: GenericIDRegistry,
-  toolDef: any
+  toolDef: any,
 ): Record<string, any> | null {
   const params: Record<string, any> = {};
 
@@ -310,10 +297,7 @@ function buildParametersFromRegistry(
       // This is an ID parameter - find from registry
       const value = registry.findForParameter(paramName, dep.tool);
       if (!value) {
-        logger.debug(
-          { tool: dep.tool, param: paramName },
-          "Cannot find value for ID parameter"
-        );
+        logger.debug({ tool: dep.tool, param: paramName }, 'Cannot find value for ID parameter');
         return null; // Can't satisfy
       }
       params[paramName] = value;
@@ -331,22 +315,22 @@ function buildParametersFromRegistry(
  * Get default value for a parameter schema
  */
 function getDefaultValueForSchema(schema: any): any {
-  if (!schema) return "";
+  if (!schema) return '';
 
   switch (schema.type) {
-    case "string":
-      return "";
-    case "number":
-    case "integer":
+    case 'string':
+      return '';
+    case 'number':
+    case 'integer':
       return 0;
-    case "boolean":
+    case 'boolean':
       return false;
-    case "array":
+    case 'array':
       return [];
-    case "object":
+    case 'object':
       return {};
     default:
-      return "";
+      return '';
   }
 }
 
@@ -361,7 +345,7 @@ function isErrorResponse(response: any): boolean {
   if (response?.content?.[0]?.text) {
     try {
       const parsed = JSON.parse(response.content[0].text);
-      if (parsed.status >= 400 || parsed.object === "error") {
+      if (parsed.status >= 400 || parsed.object === 'error') {
         return true;
       }
     } catch {
@@ -376,8 +360,7 @@ function isErrorResponse(response: any): boolean {
   if (
     response?.errorMessage ||
     response?.error_message ||
-    (typeof response?.message === "string" &&
-      response.message.toLowerCase().includes("error"))
+    (typeof response?.message === 'string' && response.message.toLowerCase().includes('error'))
   ) {
     return true;
   }
@@ -426,28 +409,26 @@ function limitSampleSize(data: any, limit: number): any {
 export async function discoverToolData(
   serverName: string,
   toolDefinitions: any[],
-  options: DiscoveryOptions = {}
+  options: DiscoveryOptions = {},
 ): Promise<ToolDiscoveryResult> {
   const { sampleLimit = 3, maxDepth = 5 } = options;
 
   logger.info(
-    `Discovering tool data from ${toolDefinitions.length} tools using multi-level discovery...`
+    `Discovering tool data from ${toolDefinitions.length} tools using multi-level discovery...`,
   );
 
   // Step 1: Analyze dependencies and assign execution levels
   const dependencies = analyzeDependencies(toolDefinitions);
   const maxLevel = Math.max(...dependencies.map((d) => d.level));
 
-  logger.info(
-    `Dependency analysis complete: ${maxLevel + 1} execution levels identified`
-  );
+  logger.info(`Dependency analysis complete: ${maxLevel + 1} execution levels identified`);
 
   // Log level distribution
   const levelCounts: Record<number, number> = {};
   for (const dep of dependencies) {
     levelCounts[dep.level] = (levelCounts[dep.level] || 0) + 1;
   }
-  logger.debug({ levelCounts }, "Tools per level");
+  logger.debug({ levelCounts }, 'Tools per level');
 
   // Step 2: Execute tools level by level, building up ID registry
   const registry = new GenericIDRegistry();
@@ -477,7 +458,7 @@ export async function discoverToolData(
     for (const dep of toolsAtLevel) {
       const toolDef = toolDefinitions.find((t) => t.name === dep.tool);
       if (!toolDef) {
-        logger.warn({ tool: dep.tool }, "Tool definition not found");
+        logger.warn({ tool: dep.tool }, 'Tool definition not found');
         continue;
       }
 
@@ -492,12 +473,11 @@ export async function discoverToolData(
           skippedTools.push(dep.tool);
           failureReasons[dep.tool] = {
             tool: dep.tool,
-            category: "missing_ids",
+            category: 'missing_ids',
             details: `Cannot satisfy required parameters`,
             requiredParams: dep.idParams,
             availableIds,
-            suggestion:
-              "Tool schema will be included for LLM without sample data",
+            suggestion: 'Tool schema will be included for LLM without sample data',
           };
 
           logger.debug(
@@ -506,33 +486,28 @@ export async function discoverToolData(
               requiredIds: dep.idParams,
               availableIds,
             },
-            "Cannot satisfy required parameters - skipping execution"
+            'Cannot satisfy required parameters - skipping execution',
           );
           continue;
         }
 
         // Execute tool
-        logger.debug({ tool: dep.tool, params, level }, "Calling tool");
-        const response = await mcpClientManager.callTool(
-          serverName,
-          dep.tool,
-          params
-        );
+        logger.debug({ tool: dep.tool, params, level }, 'Calling tool');
+        const response = await mcpClientManager.callTool(serverName, dep.tool, params);
 
         // Check for errors
         if (isErrorResponse(response)) {
           failedTools.push(dep.tool);
           failureReasons[dep.tool] = {
             tool: dep.tool,
-            category: "api_error",
-            details: "Tool returned error response",
-            suggestion:
-              "Tool schema will be included for LLM without sample data",
+            category: 'api_error',
+            details: 'Tool returned error response',
+            suggestion: 'Tool schema will be included for LLM without sample data',
           };
 
           logger.warn(
             { tool: dep.tool, params, response },
-            `Tool returned error at level ${level}`
+            `Tool returned error at level ${level}`,
           );
           continue;
         }
@@ -542,15 +517,9 @@ export async function discoverToolData(
         successfulTools.push(dep.tool);
 
         // Extract ALL IDs from response and register them
-        const extractedIds = extractAllIds(response, "", maxDepth);
+        const extractedIds = extractAllIds(response, '', maxDepth);
         for (const id of extractedIds) {
-          registry.register(
-            id.value,
-            id.fieldName,
-            dep.tool,
-            level,
-            id.parentPath
-          );
+          registry.register(id.value, id.fieldName, dep.tool, level, id.parentPath);
         }
 
         const registryStats = registry.getStats();
@@ -561,21 +530,18 @@ export async function discoverToolData(
             extractedCount: extractedIds.length,
             registryTotal: registryStats.totalValues,
           },
-          "Tool succeeded and IDs extracted"
+          'Tool succeeded and IDs extracted',
         );
       } catch (error) {
         failedTools.push(dep.tool);
         failureReasons[dep.tool] = {
           tool: dep.tool,
-          category: "api_error",
-          details: `Execution failed: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-          suggestion:
-            "Tool schema will be included for LLM without sample data",
+          category: 'api_error',
+          details: `Execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          suggestion: 'Tool schema will be included for LLM without sample data',
         };
 
-        logger.warn({ error, tool: dep.tool, level }, "Tool execution failed");
+        logger.warn({ error, tool: dep.tool, level }, 'Tool execution failed');
       }
     }
   }
@@ -585,17 +551,17 @@ export async function discoverToolData(
   if (unexecutable.length > 0) {
     logger.warn(
       { count: unexecutable.length, tools: unexecutable.map((d) => d.tool) },
-      "Some tools could not be executed due to unresolvable dependencies"
+      'Some tools could not be executed due to unresolvable dependencies',
     );
 
     for (const dep of unexecutable) {
       skippedTools.push(dep.tool);
       failureReasons[dep.tool] = {
         tool: dep.tool,
-        category: "unresolvable",
+        category: 'unresolvable',
         details: `Circular dependency or no ID producer found`,
         requiredParams: dep.idParams,
-        suggestion: "Tool schema will be included for LLM without sample data",
+        suggestion: 'Tool schema will be included for LLM without sample data',
       };
     }
   }
@@ -612,7 +578,7 @@ export async function discoverToolData(
       registryTotal: registryStats.totalValues,
       idFields: Object.keys(registryStats.byField),
     },
-    "Multi-level discovery complete"
+    'Multi-level discovery complete',
   );
 
   return {

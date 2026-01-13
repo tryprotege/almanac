@@ -1,21 +1,21 @@
-import { randomUUID } from "crypto";
-import { embed } from "../../../utils/embedding.js";
-import { VectorStore } from "../../../stores/vector.store.js";
-import { RecordStore } from "../../../stores/record.store.js";
-import { GraphStore } from "../../../stores/graph.store.js";
+import { randomUUID } from 'crypto';
+import { embed } from '../../../utils/embedding.js';
+import { VectorStore } from '../../../stores/vector.store.js';
+import { RecordStore } from '../../../stores/record.store.js';
+import { GraphStore } from '../../../stores/graph.store.js';
 import {
   SourceType,
   EntityVectorPayload,
   RelationshipVectorPayload,
-} from "../../../types/index.js";
-import { GraphEmbeddingMetadata } from "../../../models/graph-embedding-metadata.model.js";
-import { computeChecksum } from "../../../utils/checksum.js";
+} from '../../../types/index.js';
+import { GraphEmbeddingMetadata } from '../../../models/graph-embedding-metadata.model.js';
+import { computeChecksum } from '../../../utils/checksum.js';
 import {
   getEntityEmbeddingText,
   getRelationshipEmbeddingText,
-} from "./entity-conflict-resolution.js";
-import { env } from "../../../env.js";
-import logger from "../../../utils/logger.js";
+} from './entity-conflict-resolution.js';
+import { env } from '../../../env.js';
+import logger from '../../../utils/logger.js';
 
 // ============================================
 // Entity Embedding Functions (Global)
@@ -31,7 +31,7 @@ export async function indexEntityEmbeddings(
     vectorStore: VectorStore;
     recordStore: RecordStore;
     graphStore: GraphStore;
-  }
+  },
 ): Promise<{ indexed: number; errors: number; skipped: number }> {
   const stats = { indexed: 0, errors: 0, skipped: 0 };
   const BATCH_SIZE = 500;
@@ -40,8 +40,8 @@ export async function indexEntityEmbeddings(
 
   // Query MongoDB directly for entities that need embedding (MUCH faster than Memgraph!)
   const entityMetadata = await GraphEmbeddingMetadata.find({
-    itemType: "entity",
-    "sources.0": source, // the 1st source is the primary one
+    itemType: 'entity',
+    'sources.0': source, // the 1st source is the primary one
   });
 
   if (entityMetadata.length === 0) {
@@ -97,7 +97,7 @@ export async function indexEntityEmbeddings(
           id: qdrantId,
           vector: embeddings[index],
           payload: {
-            type: "entity" as const,
+            type: 'entity' as const,
             graphEmbeddingMetadataId: entity._id.toString(),
             source: source,
             checksum: computeChecksum(entityTexts[index]),
@@ -121,13 +121,13 @@ export async function indexEntityEmbeddings(
           { memgraphId: entity.memgraphId },
           {
             $set: {
-              itemType: "entity",
+              itemType: 'entity',
               qdrantId: qdrantId,
               embeddedChecksum: embeddedChecksum,
               embeddedAt: new Date(),
               embeddingModelVersion: env.LLM_EMBEDDING_MODEL,
             },
-          }
+          },
         );
       }
     } catch (err) {
@@ -159,7 +159,7 @@ export async function indexRelationshipEmbeddings(
     vectorStore: VectorStore;
     graphStore: GraphStore;
     recordStore: RecordStore;
-  }
+  },
 ): Promise<{ indexed: number; errors: number; skipped: number }> {
   const stats = { indexed: 0, errors: 0, skipped: 0 };
   const BATCH_SIZE = 500;
@@ -168,8 +168,8 @@ export async function indexRelationshipEmbeddings(
 
   // Query MongoDB directly for relationships that need embedding (MUCH faster than Memgraph!)
   const relMetadata = await GraphEmbeddingMetadata.find({
-    itemType: "relationship",
-    "sources.0": source, // the 1st source is the primary one
+    itemType: 'relationship',
+    'sources.0': source, // the 1st source is the primary one
   });
 
   if (relMetadata.length === 0) {
@@ -190,7 +190,7 @@ export async function indexRelationshipEmbeddings(
 
   // Look up MongoDB IDs for these entity IDs
   const entityMetadata = await GraphEmbeddingMetadata.find({
-    itemType: "entity",
+    itemType: 'entity',
     memgraphId: { $in: Array.from(uniqueEntityIds) },
   });
 
@@ -211,7 +211,7 @@ export async function indexRelationshipEmbeddings(
       // Skip relationships where we can't map to MongoDB IDs
       if (!sourceRecordId || !targetRecordId) {
         logger.warn(
-          `Skipping relationship ${meta.sourceId} -> ${meta.targetId}: Cannot map to MongoDB IDs`
+          `Skipping relationship ${meta.sourceId} -> ${meta.targetId}: Cannot map to MongoDB IDs`,
         );
         return null;
       }
@@ -286,7 +286,7 @@ export async function indexRelationshipEmbeddings(
             targetId: rel.targetId!,
             type: rel.relType!,
           });
-        })
+        }),
       );
 
       // Generate embeddings
@@ -301,7 +301,7 @@ export async function indexRelationshipEmbeddings(
           id: qdrantId,
           vector: embeddings[index],
           payload: {
-            type: "relationship",
+            type: 'relationship',
             sourceId: rel.sourceRecordId, // MongoDB ID
             targetId: rel.targetRecordId, // MongoDB ID
             relType: rel.relType!,
@@ -325,13 +325,13 @@ export async function indexRelationshipEmbeddings(
           { memgraphId: rel.memgraphId },
           {
             $set: {
-              itemType: "relationship",
+              itemType: 'relationship',
               qdrantId: qdrantId,
               embeddedChecksum: embeddedChecksum,
               embeddedAt: new Date(),
               embeddingModelVersion: env.LLM_EMBEDDING_MODEL,
             },
-          }
+          },
         );
       }
     } catch (err) {
@@ -368,13 +368,13 @@ export async function cleanupDeletedEntityEmbeddings(
     vectorStore: VectorStore;
     recordStore: RecordStore;
     graphStore: GraphStore;
-  }
+  },
 ): Promise<{ deleted: number }> {
   let deleted = 0;
 
   // Find all entity embeddings for this source
   const entityMetadata = await GraphEmbeddingMetadata.find({
-    itemType: "entity",
+    itemType: 'entity',
     sourceRecordIds: source,
   });
 
@@ -402,7 +402,7 @@ export async function cleanupDeletedEntityEmbeddings(
       } catch (err) {
         logger.error(
           { err, entityId: metadata._id },
-          `Error deleting entity embedding ${metadata._id}`
+          `Error deleting entity embedding ${metadata._id}`,
         );
       }
     }
@@ -420,13 +420,13 @@ export async function cleanupDeletedRelationshipEmbeddings(
     vectorStore: VectorStore;
     recordStore: RecordStore;
     graphStore: GraphStore;
-  }
+  },
 ): Promise<{ deleted: number }> {
   let deleted = 0;
 
   // Find all relationship embeddings for this source
   const relMetadata = await GraphEmbeddingMetadata.find({
-    itemType: "relationship",
+    itemType: 'relationship',
     sourceRecordIds: source,
   });
 
@@ -444,7 +444,7 @@ export async function cleanupDeletedRelationshipEmbeddings(
     const exists = await deps.graphStore.relationshipExists(
       metadata.sourceId,
       metadata.relType,
-      metadata.targetId
+      metadata.targetId,
     );
 
     if (!exists) {
@@ -461,7 +461,7 @@ export async function cleanupDeletedRelationshipEmbeddings(
       } catch (err) {
         logger.error(
           { err, relId: metadata._id },
-          `Error deleting relationship embedding ${metadata._id}`
+          `Error deleting relationship embedding ${metadata._id}`,
         );
       }
     }

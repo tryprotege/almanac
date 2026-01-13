@@ -18,10 +18,7 @@ export function generateTimeline(days: number): Date[] {
 /**
  * Generate timeline from a specific start date going forward
  */
-export function generateTimelineFromDate(
-  startDate: Date,
-  days: number
-): Date[] {
+export function generateTimelineFromDate(startDate: Date, days: number): Date[] {
   const dates: Date[] = [];
 
   for (let i = 0; i < days; i++) {

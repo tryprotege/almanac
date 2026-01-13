@@ -2,7 +2,7 @@
  * Type definitions for graph indexing
  */
 
-import { SourceType } from "../../../types/index.js";
+import { SourceType } from '../../../types/index.js';
 
 // ============================================================================
 // Entity & Relationship Types

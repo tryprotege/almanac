@@ -68,7 +68,7 @@ export interface EnrichedRecord {
  * IndexProgress - Progress updates during indexing
  */
 export interface IndexProgress {
-  phase: "fetching" | "enriching" | "transforming" | "storing" | "indexed";
+  phase: 'fetching' | 'enriching' | 'transforming' | 'storing' | 'indexed';
   recordType: string;
   count?: number;
   cursor?: string;
@@ -79,7 +79,7 @@ export interface IndexProgress {
  * Test result from config validation
  */
 export interface TestResult {
-  status: "pass" | "fail" | "partial";
+  status: 'pass' | 'fail' | 'partial';
   recordsTested: number;
   recordsPassed: number;
   issues: TestIssue[];
@@ -88,7 +88,7 @@ export interface TestResult {
 }
 
 export interface TestIssue {
-  severity: "error" | "warning" | "info";
+  severity: 'error' | 'warning' | 'info';
   field: string;
   message: string;
   recordId: string;
@@ -100,7 +100,7 @@ export interface TestIssue {
  * LLM evaluation result
  */
 export interface LLMEvaluation {
-  status: "pass" | "fail" | "partial";
+  status: 'pass' | 'fail' | 'partial';
   additionalIssues: TestIssue[];
   suggestions: string[];
   confidence?: number;
@@ -114,7 +114,7 @@ export interface FixIteration {
   previousIssues: number;
   newIssues: number;
   changes: ConfigChange[];
-  status: "pass" | "fail" | "partial";
+  status: 'pass' | 'fail' | 'partial';
 }
 
 export interface ConfigChange {

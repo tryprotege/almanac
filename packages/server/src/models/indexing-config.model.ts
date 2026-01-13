@@ -1,5 +1,5 @@
-import mongoose, { Schema, InferSchemaType } from "mongoose";
-import type { IndexingConfig as Config } from "@ebee-oss/indexing-engine";
+import mongoose, { Schema, InferSchemaType } from 'mongoose';
+import type { IndexingConfig as Config } from '@ebee-oss/indexing-engine';
 
 const IndexingConfigSchema = new Schema(
   {
@@ -15,8 +15,8 @@ const IndexingConfigSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["draft", "active", "disabled"],
-      default: "draft",
+      enum: ['draft', 'active', 'disabled'],
+      default: 'draft',
       index: true,
     },
     configVersion: {
@@ -34,22 +34,19 @@ const IndexingConfigSchema = new Schema(
     },
   },
   {
-    collection: "indexing_configs",
+    collection: 'indexing_configs',
     timestamps: true,
-  }
+  },
 );
 
 // Indexes
 IndexingConfigSchema.index({ serverName: 1, status: 1 });
 
-type IndexingConfig = Omit<
-  InferSchemaType<typeof IndexingConfigSchema>,
-  "config"
-> & {
+type IndexingConfig = Omit<InferSchemaType<typeof IndexingConfigSchema>, 'config'> & {
   config: Config;
 };
 
 export const IndexingConfigModel = mongoose.model<IndexingConfig>(
-  "IndexingConfig",
-  IndexingConfigSchema
+  'IndexingConfig',
+  IndexingConfigSchema,
 );

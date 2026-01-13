@@ -1,5 +1,5 @@
-import { RecordModel, Record } from "../models/record.model.js";
-import { SourceType } from "../types/index.js";
+import { RecordModel, Record } from '../models/record.model.js';
+import { SourceType } from '../types/index.js';
 
 /**
  * Data access layer for synced entities
@@ -28,7 +28,7 @@ export class RecordStore {
     const result = await RecordModel.findByIdAndUpdate(
       _id,
       { $set: updateData },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
 
     if (!result) {
@@ -68,7 +68,7 @@ export class RecordStore {
   async findBySourceAndType(
     source: SourceType,
     recordType?: string,
-    options?: { limit?: number; skip?: number; includeDeleted?: boolean }
+    options?: { limit?: number; skip?: number; includeDeleted?: boolean },
   ): Promise<Record[]> {
     const filter: any = { source };
 
@@ -92,10 +92,7 @@ export class RecordStore {
   /**
    * Get record by source ID
    */
-  async findBySourceId(
-    source: SourceType,
-    sourceId: string
-  ): Promise<Record | null> {
+  async findBySourceId(source: SourceType, sourceId: string): Promise<Record | null> {
     return await RecordModel.findOne({ source, sourceId });
   }
 
@@ -111,10 +108,7 @@ export class RecordStore {
    * Get multiple checksums efficiently
    */
   async getChecksums(ids: string[]): Promise<Map<string, string>> {
-    const entities = await RecordModel.find(
-      { _id: { $in: ids } },
-      { _id: 1, checksum: 1 }
-    );
+    const entities = await RecordModel.find({ _id: { $in: ids } }, { _id: 1, checksum: 1 });
 
     const checksumMap = new Map<string, string>();
     entities.forEach((record) => {
@@ -147,7 +141,7 @@ export class RecordStore {
         $set: {
           deletedAt: new Date(),
         },
-      }
+      },
     );
   }
 
@@ -173,7 +167,7 @@ export class RecordStore {
   async findModifiedSince(
     source: SourceType,
     since: Date,
-    options?: { limit?: number }
+    options?: { limit?: number },
   ): Promise<Record[]> {
     let query = RecordModel.find({
       source,
@@ -190,10 +184,7 @@ export class RecordStore {
   /**
    * Count entities by source
    */
-  async countBySource(
-    source: SourceType,
-    includeDeleted: boolean = false
-  ): Promise<number> {
+  async countBySource(source: SourceType, includeDeleted: boolean = false): Promise<number> {
     const filter: any = { source };
     if (!includeDeleted) {
       filter.deletedAt = null;
@@ -207,7 +198,7 @@ export class RecordStore {
   async countBySourceAndType(
     source: SourceType,
     recordType?: string,
-    options?: { includeDeleted?: boolean }
+    options?: { includeDeleted?: boolean },
   ): Promise<number> {
     const filter: any = { source };
 
@@ -240,7 +231,7 @@ export class RecordStore {
       recordType?: string;
       limit?: number;
       skip?: number;
-    }
+    },
   ): Promise<Record[]> {
     const filter: any = {
       $text: { $search: query },
@@ -256,7 +247,7 @@ export class RecordStore {
     }
 
     let searchQuery = RecordModel.find(filter).sort({
-      score: { $meta: "textScore" },
+      score: { $meta: 'textScore' },
     });
 
     if (options?.skip) searchQuery = searchQuery.skip(options.skip);
@@ -273,7 +264,7 @@ export class RecordStore {
     options?: {
       source?: SourceType;
       limit?: number;
-    }
+    },
   ): Promise<Record[]> {
     const filter: any = {
       people: { $in: people },
@@ -303,7 +294,7 @@ export class RecordStore {
       source?: SourceType;
       recordType?: string;
       limit?: number;
-    }
+    },
   ): Promise<Record[]> {
     const filter: any = {
       primaryDate: { $gte: startDate, $lte: endDate },
@@ -335,7 +326,7 @@ export class RecordStore {
     options?: {
       source?: SourceType;
       limit?: number;
-    }
+    },
   ): Promise<Record[]> {
     const filter: any = {
       tags: { $in: tags },

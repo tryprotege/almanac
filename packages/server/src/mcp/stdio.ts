@@ -1,5 +1,5 @@
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { initializeServices } from "./initialization.js";
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { initializeServices } from './initialization.js';
 
 const run = async () => {
   // skip mcp proxy
@@ -7,7 +7,7 @@ const run = async () => {
 
   const transport = new StdioServerTransport();
 
-  const { mcpServer } = await import("./initialization.js");
+  const { mcpServer } = await import('./initialization.js');
 
   await mcpServer.connect(transport);
 };

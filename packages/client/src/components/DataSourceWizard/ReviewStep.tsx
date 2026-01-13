@@ -1,10 +1,10 @@
-import { ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
-import { DataSourceConfig, GeneratedSyncConfigResult } from "../../lib/api";
-import { ServicePreset } from "../DataSourceForm/presets";
-import { StartingPointsCollector } from "../StartingPointsCollector";
+import { ArrowLeft, CheckCircle, Loader2 } from 'lucide-react';
+import { DataSourceConfig, GeneratedSyncConfigResult } from '../../lib/api';
+import { ServicePreset } from '../DataSourceForm/presets';
+import { StartingPointsCollector } from '../StartingPointsCollector';
 
 interface ReviewStepProps {
-  serverConfig: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt">;
+  serverConfig: Omit<DataSourceConfig, '_id' | 'createdAt' | 'updatedAt'>;
   preset: ServicePreset | null;
   generatedConfig?: GeneratedSyncConfigResult;
   importedConfig?: any;
@@ -37,7 +37,7 @@ export function ReviewStep({
     return displayConfig.startingPoints.every((sp: any) => {
       if (!sp.required) return true;
       const values = startingPointValues[sp.name] || [];
-      return values.length > 0 && values.some((v: string) => v.trim() !== "");
+      return values.length > 0 && values.some((v: string) => v.trim() !== '');
     });
   };
 
@@ -45,9 +45,7 @@ export function ReviewStep({
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-text-primary mb-2">
-          Review & Save
-        </h3>
+        <h3 className="text-lg font-semibold text-text-primary mb-2">Review & Save</h3>
         <p className="text-sm text-text-tertiary">
           Review your data source configuration before saving
         </p>
@@ -55,27 +53,21 @@ export function ReviewStep({
 
       {/* Server Details */}
       <div className="border border-border-secondary rounded-lg p-4">
-        <h4 className="text-sm font-medium text-text-primary mb-3">
-          Connection Details
-        </h4>
+        <h4 className="text-sm font-medium text-text-primary mb-3">Connection Details</h4>
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-text-tertiary">Name</span>
-            <span className="font-medium text-text-primary">
-              {serverConfig.name}
-            </span>
+            <span className="font-medium text-text-primary">{serverConfig.name}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-text-tertiary">Type</span>
             <span className="font-medium text-text-primary">
-              {preset?.displayName || "Custom MCP Server"}
+              {preset?.displayName || 'Custom MCP Server'}
             </span>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-text-tertiary">Connection Type</span>
-            <span className="font-medium text-text-primary">
-              {serverConfig.type}
-            </span>
+            <span className="font-medium text-text-primary">{serverConfig.type}</span>
           </div>
         </div>
       </div>
@@ -85,13 +77,9 @@ export function ReviewStep({
         <div className="border border-border-secondary rounded-lg p-4">
           <h4 className="text-sm font-medium text-text-primary mb-3">
             Sync Configuration
-            {isImported && (
-              <span className="ml-2 text-xs text-brand-blue">(Imported)</span>
-            )}
+            {isImported && <span className="ml-2 text-xs text-brand-blue">(Imported)</span>}
             {!isImported && (
-              <span className="ml-2 text-xs text-brand-purple">
-                (Auto-Generated)
-              </span>
+              <span className="ml-2 text-xs text-brand-purple">(Auto-Generated)</span>
             )}
           </h4>
           <div className="space-y-2">
@@ -121,17 +109,15 @@ export function ReviewStep({
 
       {/* What Happens Next */}
       <div className="bg-brand-blue/10 border border-brand-blue/30 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-brand-blue mb-2">
-          What happens next?
-        </h4>
+        <h4 className="text-sm font-medium text-brand-blue mb-2">What happens next?</h4>
         <ol className="text-sm text-text-secondary space-y-1 list-decimal list-inside">
           <li>MCP server connection will be saved</li>
           <li>
-            {preset?.id === "custom"
+            {preset?.id === 'custom'
               ? isImported
-                ? "Imported sync config will be activated"
-                : "Auto-generated sync config will be activated"
-              : "Preset indexing adapter will be configured"}
+                ? 'Imported sync config will be activated'
+                : 'Auto-generated sync config will be activated'
+              : 'Preset indexing adapter will be configured'}
           </li>
           <li>Initial data sync will start automatically</li>
           <li>You can monitor sync progress from the Data Sources page</li>
@@ -139,25 +125,22 @@ export function ReviewStep({
       </div>
 
       {/* Starting Points Configuration */}
-      {displayConfig?.startingPoints &&
-        displayConfig.startingPoints.length > 0 && (
-          <div className="border border-border-secondary rounded-lg p-4">
-            <StartingPointsCollector
-              startingPoints={displayConfig.startingPoints}
-              initialValues={startingPointValues}
-              onChange={onStartingPointValuesChange}
-            />
-          </div>
-        )}
+      {displayConfig?.startingPoints && displayConfig.startingPoints.length > 0 && (
+        <div className="border border-border-secondary rounded-lg p-4">
+          <StartingPointsCollector
+            startingPoints={displayConfig.startingPoints}
+            initialValues={startingPointValues}
+            onChange={onStartingPointValuesChange}
+          />
+        </div>
+      )}
 
       {/* Success Indicator */}
       <div className="bg-brand-success/10 border border-brand-success/30 rounded-lg p-4">
         <div className="flex items-start gap-2">
           <CheckCircle className="w-5 h-5 text-brand-success flex-shrink-0 mt-0.5" />
           <div>
-            <h4 className="text-sm font-medium text-brand-success">
-              Ready to Save
-            </h4>
+            <h4 className="text-sm font-medium text-brand-success">Ready to Save</h4>
             <p className="mt-1 text-sm text-brand-success/80">
               Your data source is configured and ready to start indexing.
             </p>
@@ -186,7 +169,7 @@ export function ReviewStep({
               Saving & Syncing...
             </>
           ) : (
-            "Save & Start Indexing"
+            'Save & Start Indexing'
           )}
         </button>
       </div>

@@ -1,9 +1,9 @@
 // Notion entity types for the indexer
 
 export interface NotionUser {
-  object: "user";
+  object: 'user';
   id: string;
-  type: "person" | "bot";
+  type: 'person' | 'bot';
   name: string;
   avatar_url?: string;
   person?: {
@@ -19,12 +19,12 @@ export interface NotionUser {
 }
 
 export interface NotionPage {
-  object: "page";
+  object: 'page';
   id: string;
   created_time: string;
   last_edited_time: string;
-  created_by: { object: "user"; id: string };
-  last_edited_by: { object: "user"; id: string };
+  created_by: { object: 'user'; id: string };
+  last_edited_by: { object: 'user'; id: string };
   cover?: {
     type: string;
     [key: string]: any;
@@ -44,12 +44,12 @@ export interface NotionPage {
 }
 
 export interface NotionDatabase {
-  object: "database";
+  object: 'database';
   id: string;
   created_time: string;
   last_edited_time: string;
-  created_by: { object: "user"; id: string };
-  last_edited_by: { object: "user"; id: string };
+  created_by: { object: 'user'; id: string };
+  last_edited_by: { object: 'user'; id: string };
   title: Array<{
     type: string;
     text: { content: string };
@@ -76,7 +76,7 @@ export interface NotionDatabase {
 }
 
 export interface NotionBlock {
-  object: "block";
+  object: 'block';
   id: string;
   parent: {
     type: string;
@@ -84,8 +84,8 @@ export interface NotionBlock {
   };
   created_time: string;
   last_edited_time: string;
-  created_by: { object: "user"; id: string };
-  last_edited_by: { object: "user"; id: string };
+  created_by: { object: 'user'; id: string };
+  last_edited_by: { object: 'user'; id: string };
   has_children: boolean;
   archived: boolean;
   type: string;
@@ -93,7 +93,7 @@ export interface NotionBlock {
 }
 
 export interface NotionComment {
-  object: "comment";
+  object: 'comment';
   id: string;
   parent: {
     type: string;
@@ -102,7 +102,7 @@ export interface NotionComment {
   discussion_id: string;
   created_time: string;
   last_edited_time: string;
-  created_by: { object: "user"; id: string };
+  created_by: { object: 'user'; id: string };
   rich_text: Array<{
     type: string;
     text: { content: string };
@@ -119,7 +119,7 @@ export interface PaginatedResponse<T> {
 export interface IndexerProgress {
   job_id: string;
   started_at: string;
-  status: "running" | "completed" | "failed" | "paused";
+  status: 'running' | 'completed' | 'failed' | 'paused';
   current_phase: string;
   progress: {
     users: { total: number; processed: number };

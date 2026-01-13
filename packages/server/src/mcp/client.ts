@@ -1,18 +1,18 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
-import type { ToolClassification } from "@ebee-oss/indexing-engine";
-import { EventEmitter } from "events";
-import pRetry, { AbortError } from "p-retry";
-import logger from "../utils/logger.js";
-import { oauthProviderFactory } from "../oauth/mcp-oauth-provider.js";
-import { discoverSseOAuth } from "../oauth/sse-oauth.js";
-import type { DataSource } from "../models/data-source.model.js";
-import { env } from "../env.js";
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+import { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
+import type { ToolClassification } from '@ebee-oss/indexing-engine';
+import { EventEmitter } from 'events';
+import pRetry, { AbortError } from 'p-retry';
+import logger from '../utils/logger.js';
+import { oauthProviderFactory } from '../oauth/mcp-oauth-provider.js';
+import { discoverSseOAuth } from '../oauth/sse-oauth.js';
+import type { DataSource } from '../models/data-source.model.js';
+import { env } from '../env.js';
 
 /**
  * Retry configuration for MCP tool calls
@@ -47,25 +47,25 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 function isRetryableError(error: any): boolean {
   // MCP error -32603: Internal error - check for transient messages
   if (error.code === -32603) {
-    const message = error.message?.toLowerCase() || "";
+    const message = error.message?.toLowerCase() || '';
     const retryableKeywords = [
-      "not ready",
-      "please wait",
-      "cache",
-      "sync",
-      "initializing",
-      "starting",
-      "loading",
-      "processing",
-      "warming up",
-      "indexing",
+      'not ready',
+      'please wait',
+      'cache',
+      'sync',
+      'initializing',
+      'starting',
+      'loading',
+      'processing',
+      'warming up',
+      'indexing',
     ];
 
     return retryableKeywords.some((keyword) => message.includes(keyword));
   }
 
   // Network/timeout errors
-  if (error.name === "TimeoutError" || error.code === "ETIMEDOUT") {
+  if (error.name === 'TimeoutError' || error.code === 'ETIMEDOUT') {
     return true;
   }
 
@@ -104,7 +104,7 @@ function isNonRetryableError(error: any): boolean {
     error.code === 403 ||
     error.status === 401 ||
     error.status === 403 ||
-    error.name === "UnauthorizedError"
+    error.name === 'UnauthorizedError'
   ) {
     return true;
   }
@@ -128,7 +128,7 @@ function isNonRetryableError(error: any): boolean {
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   config: RetryConfig,
-  context: { serverName: string; toolName: string }
+  context: { serverName: string; toolName: string },
 ): Promise<T> {
   return pRetry(
     async () => {
@@ -139,7 +139,7 @@ async function retryWithBackoff<T>(
         if (isNonRetryableError(error)) {
           logger.debug(
             { ...context, errorCode: error.code, errorMessage: error.message },
-            "Non-retryable error, aborting"
+            'Non-retryable error, aborting',
           );
           throw new AbortError(error);
         }
@@ -148,7 +148,7 @@ async function retryWithBackoff<T>(
         if (!isRetryableError(error)) {
           logger.debug(
             { ...context, errorCode: error.code, errorMessage: error.message },
-            "Error not retryable, aborting"
+            'Error not retryable, aborting',
           );
           throw new AbortError(error);
         }
@@ -176,10 +176,10 @@ async function retryWithBackoff<T>(
           },
           `Retryable error, attempt ${error.attemptNumber}/${
             config.maxRetries + 1
-          }, ${error.retriesLeft} retries left`
+          }, ${error.retriesLeft} retries left`,
         );
       },
-    }
+    },
   );
 }
 
@@ -187,8 +187,7 @@ class MCPClientManager {
   private clients: Map<string, Client> = new Map();
   private transports: Map<string, Transport> = new Map();
   private toolCache: Map<string, Tool[]> = new Map();
-  private toolClassifications: Map<string, Record<string, ToolClassification>> =
-    new Map();
+  private toolClassifications: Map<string, Record<string, ToolClassification>> = new Map();
   private eventEmitter = new EventEmitter();
   private pendingOAuthCallbacks: Map<
     string,
@@ -202,7 +201,7 @@ class MCPClientManager {
    * Create OAuth provider for a server
    */
   private createOAuthProvider(dataSource: DataSource): any | undefined {
-    if (dataSource.authType !== "oauth" || !dataSource._id) {
+    if (dataSource.authType !== 'oauth' || !dataSource._id) {
       return undefined;
     }
 
@@ -211,12 +210,12 @@ class MCPClientManager {
       dataSource.url!,
       (authUrl) => {
         // Emit event for frontend to handle redirect
-        this.eventEmitter.emit("oauth-redirect-required", {
+        this.eventEmitter.emit('oauth-redirect-required', {
           serverId: dataSource._id?.toString(),
           authUrl: authUrl.toString(),
         });
       },
-      dataSource.oauth?.clientMetadataUrl || undefined
+      dataSource.oauth?.clientMetadataUrl || undefined,
     );
   }
 
@@ -230,7 +229,7 @@ class MCPClientManager {
       // 5 minute timeout
       setTimeout(() => {
         this.pendingOAuthCallbacks.delete(serverId);
-        reject(new Error("OAuth callback timeout"));
+        reject(new Error('OAuth callback timeout'));
       }, 300000);
     });
   }
@@ -244,17 +243,15 @@ class MCPClientManager {
       callback.resolve(code);
       this.pendingOAuthCallbacks.delete(serverId);
     } else {
-      logger.warn({ serverId }, "Received OAuth callback for unknown server");
+      logger.warn({ serverId }, 'Received OAuth callback for unknown server');
     }
   }
 
   /**
    * Subscribe to OAuth redirect events
    */
-  onOAuthRedirect(
-    handler: (data: { serverId: string; authUrl: string }) => void
-  ): void {
-    this.eventEmitter.on("oauth-redirect-required", handler);
+  onOAuthRedirect(handler: (data: { serverId: string; authUrl: string }) => void): void {
+    this.eventEmitter.on('oauth-redirect-required', handler);
   }
 
   /**
@@ -264,14 +261,14 @@ class MCPClientManager {
     if (this.clients.has(dataSource.name)) {
       logger.info(
         { clientName: dataSource.name },
-        `Client ${dataSource.name} already connected, disconnecting and reconnecting...`
+        `Client ${dataSource.name} already connected, disconnecting and reconnecting...`,
       );
       try {
         await this.disconnect(dataSource.name);
       } catch (disconnectErr) {
         logger.warn(
           { err: disconnectErr, clientName: dataSource.name },
-          "Failed to disconnect before reconnecting, continuing anyway"
+          'Failed to disconnect before reconnecting, continuing anyway',
         );
         // Force cleanup even if disconnect failed
         this.clients.delete(dataSource.name);
@@ -281,30 +278,26 @@ class MCPClientManager {
     }
 
     // Pre-flight OAuth discovery for SSE servers
-    if (
-      dataSource.type === "sse" &&
-      dataSource.authType === "oauth" &&
-      dataSource.url
-    ) {
+    if (dataSource.type === 'sse' && dataSource.authType === 'oauth' && dataSource.url) {
       await this.handleSseOAuthPreFlight(dataSource);
       return; // Will retry connection after OAuth
     }
 
     let transport: Transport;
 
-    if (dataSource.type === "stdio") {
+    if (dataSource.type === 'stdio') {
       // stdio doesn't support OAuth
       if (!dataSource.command) {
-        throw new Error("stdio transport requires command");
+        throw new Error('stdio transport requires command');
       }
       transport = new StdioClientTransport({
         command: dataSource.command,
         args: dataSource.args || [],
         env: dataSource.getEnv() || undefined,
       });
-    } else if (dataSource.type === "sse") {
+    } else if (dataSource.type === 'sse') {
       if (!dataSource.url) {
-        throw new Error("sse transport requires url");
+        throw new Error('sse transport requires url');
       }
 
       const sseOpts: { requestInit?: RequestInit; eventSourceInit?: any } = {};
@@ -324,9 +317,9 @@ class MCPClientManager {
         sseOpts.requestInit = { headers };
         transport = new SSEClientTransport(new URL(dataSource.url), sseOpts);
       }
-    } else if (dataSource.type === "streamable-http") {
+    } else if (dataSource.type === 'streamable-http') {
       if (!dataSource.url) {
-        throw new Error("streamable-http transport requires url");
+        throw new Error('streamable-http transport requires url');
       }
 
       const httpOpts: { requestInit?: RequestInit } = {};
@@ -345,30 +338,29 @@ class MCPClientManager {
         const headers = dataSource.getHeaders() || {};
 
         // Log sanitized headers for debugging
-        const sanitizedHeaders = Object.keys(headers).reduce((acc, key) => {
-          acc[key] =
-            key.toLowerCase() === "authorization" ? "[REDACTED]" : headers[key];
-          return acc;
-        }, {} as Record<string, string>);
+        const sanitizedHeaders = Object.keys(headers).reduce(
+          (acc, key) => {
+            acc[key] = key.toLowerCase() === 'authorization' ? '[REDACTED]' : headers[key];
+            return acc;
+          },
+          {} as Record<string, string>,
+        );
 
         logger.debug(
           { serverName: dataSource.name, headers: sanitizedHeaders },
-          "Connecting with headers"
+          'Connecting with headers',
         );
 
         httpOpts.requestInit = { headers };
-        transport = new StreamableHTTPClientTransport(
-          new URL(dataSource.url),
-          httpOpts
-        );
+        transport = new StreamableHTTPClientTransport(new URL(dataSource.url), httpOpts);
       }
     } else {
       throw new Error(`Unknown transport type: ${dataSource.type}`);
     }
 
     const client = new Client(
-      { name: `ebee-proxy-client-${dataSource.name}`, version: "0.1.0" },
-      { capabilities: {} }
+      { name: `ebee-proxy-client-${dataSource.name}`, version: '0.1.0' },
+      { capabilities: {} },
     );
 
     try {
@@ -376,24 +368,16 @@ class MCPClientManager {
     } catch (error) {
       if (error instanceof UnauthorizedError) {
         // OAuth flow required - wait for callback
-        logger.info(
-          { serverName: dataSource.name },
-          "OAuth authorization required"
-        );
+        logger.info({ serverName: dataSource.name }, 'OAuth authorization required');
 
         if (!dataSource._id) {
-          throw new Error("Server ID required for OAuth flow");
+          throw new Error('Server ID required for OAuth flow');
         }
 
-        const authCode = await this.waitForOAuthCallback(
-          dataSource._id.toString()
-        );
+        const authCode = await this.waitForOAuthCallback(dataSource._id.toString());
 
         // finishAuth is only available on HTTP transports with OAuth
-        if (
-          "finishAuth" in transport &&
-          typeof transport.finishAuth === "function"
-        ) {
+        if ('finishAuth' in transport && typeof transport.finishAuth === 'function') {
           await transport.finishAuth(authCode);
         }
 
@@ -413,7 +397,7 @@ class MCPClientManager {
     } catch (toolError) {
       logger.warn(
         { error: toolError, serverName: dataSource.name },
-        "Tool refresh failed but connection established"
+        'Tool refresh failed but connection established',
       );
     }
 
@@ -441,9 +425,7 @@ class MCPClientManager {
    * Disconnect all clients
    */
   async disconnectAll(): Promise<void> {
-    const promises = Array.from(this.clients.keys()).map((name) =>
-      this.disconnect(name)
-    );
+    const promises = Array.from(this.clients.keys()).map((name) => this.disconnect(name));
     await Promise.all(promises);
   }
 
@@ -459,14 +441,11 @@ class MCPClientManager {
     try {
       const response = await client.listTools();
 
-      logger.debug(
-        { serverName, responseType: typeof response },
-        "Received listTools response"
-      );
+      logger.debug({ serverName, responseType: typeof response }, 'Received listTools response');
 
       // Validate response structure
       if (!response) {
-        logger.warn({ serverName }, "listTools returned no response");
+        logger.warn({ serverName }, 'listTools returned no response');
         this.toolCache.set(serverName, []);
         return;
       }
@@ -474,22 +453,16 @@ class MCPClientManager {
       // Ensure tools is an array
       if (response.tools && Array.isArray(response.tools)) {
         this.toolCache.set(serverName, response.tools);
-        logger.info(
-          { serverName, toolCount: response.tools.length },
-          "Successfully cached tools"
-        );
+        logger.info({ serverName, toolCount: response.tools.length }, 'Successfully cached tools');
       } else {
         logger.warn(
           { serverName, responseType: typeof response.tools },
-          "listTools response.tools is not an array"
+          'listTools response.tools is not an array',
         );
         this.toolCache.set(serverName, []);
       }
     } catch (error) {
-      logger.error(
-        { error, serverName },
-        "Failed to refresh tools - continuing without tools"
-      );
+      logger.error({ error, serverName }, 'Failed to refresh tools - continuing without tools');
       // Don't throw - allow connection to succeed even if tool listing fails
       this.toolCache.set(serverName, []);
     }
@@ -532,14 +505,14 @@ class MCPClientManager {
     serverName: string,
     toolName: string,
     args: Record<string, unknown>,
-    retryConfig?: Partial<RetryConfig>
+    retryConfig?: Partial<RetryConfig>,
   ): Promise<any> {
     const client = this.clients.get(serverName);
     if (!client) {
       throw new Error(`Client ${serverName} not connected`);
     }
 
-    const actualToolName = toolName.replace(`${serverName}__`, "");
+    const actualToolName = toolName.replace(`${serverName}__`, '');
 
     // Log the MCP call with parameters
     logger.info(
@@ -548,7 +521,7 @@ class MCPClientManager {
         toolName: actualToolName,
         parameters: args,
       },
-      `[MCP CALL] ${serverName}.${actualToolName}`
+      `[MCP CALL] ${serverName}.${actualToolName}`,
     );
 
     // Wrap the tool call with retry logic
@@ -560,7 +533,7 @@ class MCPClientManager {
         });
       },
       { ...DEFAULT_RETRY_CONFIG, ...retryConfig },
-      { serverName, toolName: actualToolName }
+      { serverName, toolName: actualToolName },
     );
 
     // Conditionally log full response or just length based on DEBUG_MCP_LOGS
@@ -571,7 +544,7 @@ class MCPClientManager {
           toolName: actualToolName,
           responsePreview: JSON.stringify(response, null, 2),
         },
-        `[MCP RESPONSE] ${serverName}.${actualToolName}`
+        `[MCP RESPONSE] ${serverName}.${actualToolName}`,
       );
     } else {
       const responseLength = JSON.stringify(response).length;
@@ -581,7 +554,7 @@ class MCPClientManager {
           toolName: actualToolName,
           responseLength,
         },
-        `[MCP RESPONSE] ${serverName}.${actualToolName} - ${responseLength} chars`
+        `[MCP RESPONSE] ${serverName}.${actualToolName} - ${responseLength} chars`,
       );
     }
 
@@ -635,21 +608,19 @@ class MCPClientManager {
    */
   setToolClassifications(
     serverName: string,
-    classifications: Record<string, ToolClassification>
+    classifications: Record<string, ToolClassification>,
   ): void {
     this.toolClassifications.set(serverName, classifications);
     logger.debug(
       { serverName, count: Object.keys(classifications).length },
-      "Tool classifications set for server"
+      'Tool classifications set for server',
     );
   }
 
   /**
    * Get tool classifications for a server
    */
-  getToolClassifications(
-    serverName: string
-  ): Record<string, ToolClassification> | undefined {
+  getToolClassifications(serverName: string): Record<string, ToolClassification> | undefined {
     return this.toolClassifications.get(serverName);
   }
 
@@ -661,7 +632,7 @@ class MCPClientManager {
     if (!classifications) return false;
 
     const classification = classifications[toolName];
-    return classification?.category === "write";
+    return classification?.category === 'write';
   }
 
   /**
@@ -672,7 +643,7 @@ class MCPClientManager {
     if (!classifications) return false;
 
     const classification = classifications[toolName];
-    return classification?.category === "search";
+    return classification?.category === 'search';
   }
 
   /**
@@ -683,7 +654,7 @@ class MCPClientManager {
     if (!classifications) return true; // Default to read if not classified
 
     const classification = classifications[toolName];
-    return classification?.category === "read";
+    return classification?.category === 'read';
   }
 
   /**
@@ -696,12 +667,12 @@ class MCPClientManager {
    */
   private async handleSseOAuthPreFlight(dataSource: DataSource): Promise<void> {
     if (!dataSource.url || !dataSource._id) {
-      throw new Error("SSE OAuth requires url and server ID");
+      throw new Error('SSE OAuth requires url and server ID');
     }
 
     logger.info(
       { serverName: dataSource.name, url: dataSource.url },
-      "Starting SSE OAuth pre-flight discovery"
+      'Starting SSE OAuth pre-flight discovery',
     );
 
     // Perform discovery
@@ -710,32 +681,28 @@ class MCPClientManager {
     if (!discovery.requiresAuth) {
       logger.info(
         { serverName: dataSource.name },
-        "SSE server does not require authentication, retrying connection"
+        'SSE server does not require authentication, retrying connection',
       );
       // Retry connection without OAuth
-      const dataSourceNoAuth = { ...dataSource, authType: "none" as const };
+      const dataSourceNoAuth = { ...dataSource, authType: 'none' as const };
       return this.connect(dataSourceNoAuth);
     }
 
     if (discovery.error || !discovery.oauthMetadata) {
       logger.error(
         { serverName: dataSource.name, error: discovery.error },
-        "SSE OAuth discovery failed"
+        'SSE OAuth discovery failed',
       );
-      throw new Error(
-        `SSE OAuth discovery failed: ${discovery.error || "Unknown error"}`
-      );
+      throw new Error(`SSE OAuth discovery failed: ${discovery.error || 'Unknown error'}`);
     }
 
     // Check if we already have tokens
-    const existingProvider = oauthProviderFactory.getProvider(
-      dataSource._id.toString()
-    );
+    const existingProvider = oauthProviderFactory.getProvider(dataSource._id.toString());
     if (existingProvider) {
       // Try to connect with existing tokens
       logger.info(
         { serverName: dataSource.name },
-        "Found existing OAuth provider, attempting connection"
+        'Found existing OAuth provider, attempting connection',
       );
       // Retry connection (will use OAuth provider)
       return this.connect(dataSource);
@@ -744,11 +711,11 @@ class MCPClientManager {
     // Need to trigger OAuth flow
     logger.info(
       { serverName: dataSource.name, metadata: discovery.oauthMetadata },
-      "SSE requires OAuth, triggering authorization flow"
+      'SSE requires OAuth, triggering authorization flow',
     );
 
     // Emit event for frontend to handle
-    this.eventEmitter.emit("oauth-redirect-required", {
+    this.eventEmitter.emit('oauth-redirect-required', {
       serverId: dataSource._id?.toString(),
       serverName: dataSource.name,
       authorizationEndpoint: discovery.oauthMetadata.authorizationEndpoint,
@@ -769,17 +736,14 @@ class MCPClientManager {
     serverName: string,
     toolName: string,
     args: Record<string, unknown>,
-    options?: { forceUpstream?: boolean }
+    options?: { forceUpstream?: boolean },
   ): Promise<any> {
     // Check classification
     const isWrite = this.isWriteTool(serverName, toolName);
     const isSearch = this.isSearchTool(serverName, toolName);
 
     if (isWrite) {
-      logger.debug(
-        { serverName, toolName },
-        "Routing WRITE tool to upstream MCP server"
-      );
+      logger.debug({ serverName, toolName }, 'Routing WRITE tool to upstream MCP server');
     }
 
     // Always pass through for write operations or when forced

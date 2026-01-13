@@ -1,18 +1,18 @@
-import type { FetcherConfig, RateLimitConfig } from "@ebee-oss/indexing-engine";
-import { mcpClientManager } from "../../../mcp/client.js";
-import { JSONPath } from "jsonpath-plus";
+import type { FetcherConfig, RateLimitConfig } from '@ebee-oss/indexing-engine';
+import { mcpClientManager } from '../../../mcp/client.js';
+import { JSONPath } from 'jsonpath-plus';
 import {
   applyRateLimit,
   handleRateLimitError,
   notifySuccess,
   notifyRateLimitError,
   rateLimiterManager,
-} from "./rate-limiter.js";
-import { detectRateLimitError } from "./mcp-error-parser.js";
-import { applyCutoffDateToParams } from "./config-indexer.service.js";
-import logger from "../../../utils/logger.js";
-import { env } from "../../../env.js";
-import { executeProcessor } from "@ebee-oss/indexing-engine";
+} from './rate-limiter.js';
+import { detectRateLimitError } from './mcp-error-parser.js';
+import { applyCutoffDateToParams } from './config-indexer.service.js';
+import logger from '../../../utils/logger.js';
+import { env } from '../../../env.js';
+import { executeProcessor } from '@ebee-oss/indexing-engine';
 
 export interface PageResult {
   records: any[];
@@ -37,7 +37,7 @@ export interface StartingPointContext {
 export async function* fetchWithSeedFrom(
   serverName: string,
   config: FetcherConfig,
-  startingPointValues: StartingPointContext
+  startingPointValues: StartingPointContext,
 ): AsyncGenerator<PageResult> {
   const { seedFrom } = config;
 
@@ -48,15 +48,13 @@ export async function* fetchWithSeedFrom(
   // Get starting point values
   const values = startingPointValues[seedFrom.startingPoint];
   if (!values || values.length === 0) {
-    logger.warn(
-      `seedFrom starting point "${seedFrom.startingPoint}" has no values`
-    );
+    logger.warn(`seedFrom starting point "${seedFrom.startingPoint}" has no values`);
     yield { records: [], hasMore: false };
     return;
   }
 
   logger.debug(
-    `[seedFrom] Processing ${values.length} values from starting point "${seedFrom.startingPoint}"`
+    `[seedFrom] Processing ${values.length} values from starting point "${seedFrom.startingPoint}"`,
   );
 
   const concurrency = seedFrom.concurrency ?? 3;
@@ -73,7 +71,7 @@ export async function* fetchWithSeedFrom(
     logger.debug(
       `[seedFrom] Processing batch ${
         Math.floor(i / concurrency) + 1
-      }/${Math.ceil(values.length / concurrency)} (${batch.length} items)`
+      }/${Math.ceil(values.length / concurrency)} (${batch.length} items)`,
     );
 
     const batchPromises = batch.map(async (value: any) => {
@@ -84,16 +82,14 @@ export async function* fetchWithSeedFrom(
       applyCutoffDateToParams(params, config);
 
       // Map starting point value to tool parameters
-      for (const [paramName, jsonPath] of Object.entries(
-        seedFrom.paramMapping
-      )) {
+      for (const [paramName, jsonPath] of Object.entries(seedFrom.paramMapping)) {
         // If jsonPath starts with $, treat as JSONPath expression
         // Otherwise, use as literal value
-        if (typeof jsonPath === "string" && jsonPath.startsWith("$")) {
+        if (typeof jsonPath === 'string' && jsonPath.startsWith('$')) {
           // For simple string values, wrap in object for JSONPath
-          const source = typeof value === "string" ? { value } : value;
+          const source = typeof value === 'string' ? { value } : value;
           const extractedValue = JSONPath({
-            path: jsonPath === "$" ? "$.value" : jsonPath,
+            path: jsonPath === '$' ? '$.value' : jsonPath,
             json: source,
             wrap: false,
           });
@@ -107,9 +103,10 @@ export async function* fetchWithSeedFrom(
       }
 
       logger.debug(
-        `[seedFrom] Calling ${config.tool} with params: ${JSON.stringify(
-          params
-        ).substring(0, 200)}`
+        `[seedFrom] Calling ${config.tool} with params: ${JSON.stringify(params).substring(
+          0,
+          200,
+        )}`,
       );
 
       // Call with retries
@@ -118,11 +115,7 @@ export async function* fetchWithSeedFrom(
         try {
           // Apply rate limiting before each attempt (including retries)
           if (attempt > 0) {
-            logger.debug(
-              `[seedFrom] Applying rate limit before retry attempt ${
-                attempt + 1
-              }...`
-            );
+            logger.debug(`[seedFrom] Applying rate limit before retry attempt ${attempt + 1}...`);
             await applyRateLimit(config.rateLimit, serverName);
           }
 
@@ -135,24 +128,15 @@ export async function* fetchWithSeedFrom(
             arrayPath: config.arrayPath, // Include arrayPath if present
             formatProcessor: (config as any).formatProcessor, // Include formatProcessor if present
           };
-          const result = await fetchPage(
-            serverName,
-            callConfig,
-            params,
-            config.rateLimit
-          );
+          const result = await fetchPage(serverName, callConfig, params, config.rateLimit);
 
-          logger.debug(
-            `[seedFrom] Call succeeded, got ${result.records.length} records`
-          );
+          logger.debug(`[seedFrom] Call succeeded, got ${result.records.length} records`);
           return result.records;
         } catch (err) {
           lastError = err as Error;
           if (attempt < maxRetries) {
             logger.warn(
-              `[seedFrom] Call failed (attempt ${
-                attempt + 1
-              }/${maxRetries}), retrying...`
+              `[seedFrom] Call failed (attempt ${attempt + 1}/${maxRetries}), retrying...`,
             );
             await sleep(1000 * (attempt + 1)); // Exponential backoff
           }
@@ -166,13 +150,13 @@ export async function* fetchWithSeedFrom(
 
     for (let j = 0; j < results.length; j++) {
       const result = results[j];
-      if (result.status === "fulfilled") {
+      if (result.status === 'fulfilled') {
         allResults.push(...(result.value || []));
       } else {
         errors.push({ value: batch[j], error: result.reason });
         logger.error(
           { value: batch[j], error: result.reason },
-          `[seedFrom] Error processing value`
+          `[seedFrom] Error processing value`,
         );
         if (!continueOnError) {
           throw result.reason;
@@ -182,12 +166,10 @@ export async function* fetchWithSeedFrom(
   }
 
   if (errors.length > 0) {
-    logger.warn(
-      `[seedFrom] Completed with ${errors.length} errors out of ${values.length} values`
-    );
+    logger.warn(`[seedFrom] Completed with ${errors.length} errors out of ${values.length} values`);
   } else {
     logger.debug(
-      `[seedFrom] Successfully processed all ${values.length} values, got ${allResults.length} total records`
+      `[seedFrom] Successfully processed all ${values.length} values, got ${allResults.length} total records`,
     );
   }
 
@@ -205,7 +187,7 @@ export async function* fetchWithSeedFrom(
 export async function* fetchWithForEach(
   serverName: string,
   config: FetcherConfig,
-  fetcherResults: ForEachContext
+  fetcherResults: ForEachContext,
 ): AsyncGenerator<PageResult> {
   const { forEach } = config;
 
@@ -246,22 +228,18 @@ export async function* fetchWithForEach(
       if (filtered && filtered.length > 0) {
         sourceRecords.push(...filtered);
         logger.debug(
-          `forEach: extracted ${filtered.length} records from source "${sourceName}" using path "${sourcePath}"`
+          `forEach: extracted ${filtered.length} records from source "${sourceName}" using path "${sourcePath}"`,
         );
       }
     }
 
     if (sourceRecords.length === 0) {
-      logger.warn(
-        `forEach: no records found from any sources: ${sources.join(", ")}`
-      );
+      logger.warn(`forEach: no records found from any sources: ${sources.join(', ')}`);
       yield { records: [], hasMore: false };
       return;
     }
 
-    logger.info(
-      `forEach: combined ${sourceRecords.length} records from ${sources.length} sources`
-    );
+    logger.info(`forEach: combined ${sourceRecords.length} records from ${sources.length} sources`);
   } else {
     // Single source - original behavior
     sourceRecords = fetcherResults[forEach.source];
@@ -274,7 +252,7 @@ export async function* fetchWithForEach(
 
   // Extract iteration items using JSONPath
   // If we already filtered with paths above (array source case), use identity path
-  const iterationPath = Array.isArray(forEach.source) ? "$[*]" : forEach.path;
+  const iterationPath = Array.isArray(forEach.source) ? '$[*]' : forEach.path;
   const iterationItems = JSONPath({
     path: iterationPath,
     json: sourceRecords,
@@ -304,13 +282,11 @@ export async function* fetchWithForEach(
       // Apply cutoff date parameters if configured
       applyCutoffDateToParams(params, config);
 
-      for (const [paramName, jsonPath] of Object.entries(
-        forEach.paramMapping
-      )) {
+      for (const [paramName, jsonPath] of Object.entries(forEach.paramMapping)) {
         const value = JSONPath({ path: jsonPath, json: item, wrap: false });
         if (value !== undefined) {
           // Apply type coercion if specified
-          if ((forEach as any).paramTypes?.[paramName] === "string") {
+          if ((forEach as any).paramTypes?.[paramName] === 'string') {
             params[paramName] = String(value);
           } else {
             params[paramName] = value;
@@ -324,11 +300,7 @@ export async function* fetchWithForEach(
         try {
           // Apply rate limiting before each attempt (including retries)
           if (attempt > 0) {
-            logger.debug(
-              `[forEach] Applying rate limit before retry attempt ${
-                attempt + 1
-              }...`
-            );
+            logger.debug(`[forEach] Applying rate limit before retry attempt ${attempt + 1}...`);
             await applyRateLimit(config.rateLimit, serverName);
           }
 
@@ -341,12 +313,7 @@ export async function* fetchWithForEach(
             arrayPath: config.arrayPath, // Include arrayPath if present
             formatProcessor: (config as any).formatProcessor, // Include formatProcessor if present
           };
-          const result = await fetchPage(
-            serverName,
-            callConfig,
-            params,
-            config.rateLimit
-          );
+          const result = await fetchPage(serverName, callConfig, params, config.rateLimit);
           return result.records;
         } catch (err) {
           lastError = err as Error;
@@ -363,7 +330,7 @@ export async function* fetchWithForEach(
 
     for (let j = 0; j < results.length; j++) {
       const result = results[j];
-      if (result.status === "fulfilled") {
+      if (result.status === 'fulfilled') {
         allResults.push(...(result.value || []));
       } else {
         errors.push({ item: batch[j], error: result.reason });
@@ -377,7 +344,7 @@ export async function* fetchWithForEach(
   if (errors.length > 0) {
     logger.warn(
       { errorCount: errors.length, errors: errors.map((e) => e.error.message) },
-      `forEach completed with errors`
+      `forEach completed with errors`,
     );
   }
 
@@ -394,14 +361,12 @@ export async function* fetchWithForEach(
 async function* fetchWithBatchMode(
   serverName: string,
   config: FetcherConfig,
-  fetcherResults: ForEachContext
+  fetcherResults: ForEachContext,
 ): AsyncGenerator<PageResult> {
   const { forEach } = config;
 
   if (!forEach || !forEach.batchMode) {
-    throw new Error(
-      `fetchWithBatchMode called but batchMode config is missing`
-    );
+    throw new Error(`fetchWithBatchMode called but batchMode config is missing`);
   }
 
   // Get source records from previous fetcher
@@ -457,7 +422,7 @@ async function* fetchWithBatchMode(
     logger.debug(
       `Calling ${config.tool} with batch of ${batch.length} items (${i}-${
         i + batch.length
-      }/${values.length})`
+      }/${values.length})`,
     );
 
     // Build params with batch array
@@ -482,22 +447,13 @@ async function* fetchWithBatchMode(
           arrayPath: config.arrayPath, // Include arrayPath if present
           formatProcessor: (config as any).formatProcessor, // Include formatProcessor if present
         };
-        const result = await fetchPage(
-          serverName,
-          callConfig,
-          params,
-          config.rateLimit
-        );
+        const result = await fetchPage(serverName, callConfig, params, config.rateLimit);
         allResults.push(...result.records);
         break; // Success
       } catch (err) {
         lastError = err as Error;
         if (attempt < maxRetries) {
-          logger.warn(
-            `Batch call failed (attempt ${attempt + 1}/${
-              maxRetries + 1
-            }), retrying...`
-          );
+          logger.warn(`Batch call failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying...`);
           await sleep(1000 * (attempt + 1)); // Exponential backoff
         }
       }
@@ -517,7 +473,7 @@ async function* fetchWithBatchMode(
         errorCount: errors.length,
         errors: errors.map((e) => e.error.message),
       },
-      `forEach batch mode completed with batch errors`
+      `forEach batch mode completed with batch errors`,
     );
   }
 
@@ -534,7 +490,7 @@ async function* fetchWithBatchMode(
 export async function* fetchAll(
   serverName: string,
   config: FetcherConfig,
-  initialParams: Record<string, any> = {}
+  initialParams: Record<string, any> = {},
 ): AsyncGenerator<PageResult> {
   let cursor: string | undefined;
   let hasMore = true;
@@ -551,12 +507,7 @@ export async function* fetchAll(
     }
 
     // Fetch page with rate limiting
-    const result = await fetchPage(
-      serverName,
-      config,
-      params,
-      config.rateLimit
-    );
+    const result = await fetchPage(serverName, config, params, config.rateLimit);
 
     // Always yield result (even if 0 records) so we can access raw response
     yield result;
@@ -566,7 +517,7 @@ export async function* fetchAll(
     hasMore = result.hasMore;
 
     // If no pagination config, break after first page
-    if (!config.pagination || config.pagination.type === "none") {
+    if (!config.pagination || config.pagination.type === 'none') {
       break;
     }
   }
@@ -580,7 +531,7 @@ export async function* fetchAll(
  */
 async function extractRecordsFromMCPResponse(
   response: any,
-  formatProcessor?: { name: string; options?: any }
+  formatProcessor?: { name: string; options?: any },
 ): Promise<{
   records: any[];
   error?: string;
@@ -600,53 +551,43 @@ async function extractRecordsFromMCPResponse(
 
   // If response has content array (MCP format), extract the text and parse it
   if (response?.content && Array.isArray(response.content)) {
-    const textContent = response.content.find((c: any) => c.type === "text");
+    const textContent = response.content.find((c: any) => c.type === 'text');
 
     if (textContent?.text) {
       let text = textContent.text.trim();
 
       // Check if it's an error message (not JSON)
       if (
-        text.startsWith("Entity not") ||
-        text.startsWith("Error") ||
-        text.startsWith("Failed") ||
-        text.startsWith("MCP error")
+        text.startsWith('Entity not') ||
+        text.startsWith('Error') ||
+        text.startsWith('Failed') ||
+        text.startsWith('MCP error')
       ) {
-        logger.warn(
-          `MCP response contains error message: ${text.substring(0, 100)}`
-        );
+        logger.warn(`MCP response contains error message: ${text.substring(0, 100)}`);
         return { records: [], error: text }; // Return error info
       }
 
       // Apply format processor if configured (e.g., CSV to JSON)
-      if (formatProcessor && formatProcessor.name === "csv-to-json") {
+      if (formatProcessor && formatProcessor.name === 'csv-to-json') {
         // Check if text looks like CSV (has comma-separated values and no JSON markers)
-        if (
-          !text.startsWith("[") &&
-          !text.startsWith("{") &&
-          text.includes(",")
-        ) {
+        if (!text.startsWith('[') && !text.startsWith('{') && text.includes(',')) {
           logger.debug(`[fetchPage] Applying CSV-to-JSON format processor`);
           try {
             const processed = await executeProcessor(
               formatProcessor.name,
               text,
-              formatProcessor.options
+              formatProcessor.options,
             );
             // Return the result even if empty - this IS the expected format
             if (Array.isArray(processed)) {
-              logger.debug(
-                `[fetchPage] CSV processor converted ${processed.length} rows to JSON`
-              );
+              logger.debug(`[fetchPage] CSV processor converted ${processed.length} rows to JSON`);
               return { records: processed };
             }
-            logger.warn(
-              `[fetchPage] CSV processor returned non-array: ${typeof processed}`
-            );
+            logger.warn(`[fetchPage] CSV processor returned non-array: ${typeof processed}`);
           } catch (err) {
             logger.error(
               { err },
-              `[fetchPage] CSV processor failed - this is unexpected for CSV data`
+              `[fetchPage] CSV processor failed - this is unexpected for CSV data`,
             );
             // For CSV data, if processor fails, return empty rather than trying JSON.parse
             return { records: [], error: `CSV parsing failed: ${err}` };
@@ -658,13 +599,8 @@ async function extractRecordsFromMCPResponse(
         const parsed = JSON.parse(text);
 
         // Check if parsed JSON is an error object
-        if (parsed.error && typeof parsed.error === "string") {
-          logger.warn(
-            `MCP response contains error object: ${parsed.error.substring(
-              0,
-              100
-            )}`
-          );
+        if (parsed.error && typeof parsed.error === 'string') {
+          logger.warn(`MCP response contains error object: ${parsed.error.substring(0, 100)}`);
           return { records: [], error: parsed.error };
         }
 
@@ -694,7 +630,7 @@ async function extractRecordsFromMCPResponse(
         return { records: [parsed] };
       } catch (err) {
         // If parsing fails, return empty array
-        logger.warn({ err }, "Failed to parse MCP response text as JSON");
+        logger.warn({ err }, 'Failed to parse MCP response text as JSON');
         return { records: [] };
       }
     }
@@ -725,18 +661,14 @@ export async function fetchPage(
   serverName: string,
   config: FetcherConfig,
   params: Record<string, any>,
-  rateLimitConfig?: RateLimitConfig
+  rateLimitConfig?: RateLimitConfig,
 ): Promise<PageResult> {
   // Use server-level scope so all tools share the same rate limiter
   // This is important for APIs like Fathom that have a global rate limit
   const scopeId = serverName;
 
   logger.debug(
-    `[Fetcher] About to call ${config.tool} with params: ${JSON.stringify(
-      params,
-      null,
-      2
-    )}`
+    `[Fetcher] About to call ${config.tool} with params: ${JSON.stringify(params, null, 2)}`,
   );
 
   // Apply rate limiting before making the call
@@ -759,14 +691,12 @@ export async function fetchPage(
     response = await mcpClientManager.callTool(serverName, config.tool, params);
 
     const callDuration = Date.now() - callStartTime;
-    logger.debug(
-      `[Fetcher] API call to ${config.tool} succeeded in ${callDuration}ms`
-    );
+    logger.debug(`[Fetcher] API call to ${config.tool} succeeded in ${callDuration}ms`);
   } catch (err: any) {
     const callDuration = Date.now() - callStartTime;
     logger.error(
       { err, callDuration },
-      `[Fetcher] API call to ${config.tool} failed after ${callDuration}ms`
+      `[Fetcher] API call to ${config.tool} failed after ${callDuration}ms`,
     );
     caughtError = err;
     response = err.response; // MCP errors may have response attached
@@ -779,23 +709,14 @@ export async function fetchPage(
     logger.warn(
       `[Fetcher] Rate limit detected for ${
         config.tool
-      }: ${rateLimitInfo.errorMessage?.substring(0, 200)}`
+      }: ${rateLimitInfo.errorMessage?.substring(0, 200)}`,
     );
 
     // Notify rate limiter to adjust
-    notifyRateLimitError(
-      rateLimitConfig,
-      scopeId,
-      serverName,
-      rateLimitInfo.retryAfter
-    );
+    notifyRateLimitError(rateLimitConfig, scopeId, serverName, rateLimitInfo.retryAfter);
 
     // Handle rate limit and wait
-    await handleRateLimitError(
-      rateLimitConfig,
-      scopeId,
-      rateLimitInfo.retryAfter
-    );
+    await handleRateLimitError(rateLimitConfig, scopeId, rateLimitInfo.retryAfter);
 
     // Apply rate limit again before retry
     logger.debug(`[Fetcher] Applying rate limit before retry...`);
@@ -803,11 +724,7 @@ export async function fetchPage(
 
     // Retry the request
     try {
-      response = await mcpClientManager.callTool(
-        serverName,
-        config.tool,
-        params
-      );
+      response = await mcpClientManager.callTool(serverName, config.tool, params);
       logger.debug(`[Fetcher] Retry succeeded for ${config.tool}`);
       notifySuccess(rateLimitConfig, scopeId);
     } catch (retryErr: any) {
@@ -825,7 +742,7 @@ export async function fetchPage(
   // Log MCP response based on debug flag
   if (env.MCP_DEBUG_LOGS) {
     logger.debug({
-      msg: "[fetchPage] Raw MCP response structure",
+      msg: '[fetchPage] Raw MCP response structure',
       response,
       toolName: config.tool,
     });
@@ -841,12 +758,10 @@ export async function fetchPage(
   // Extract records from MCP response format
   const parseResult = await extractRecordsFromMCPResponse(
     response,
-    (config as any).formatProcessor
+    (config as any).formatProcessor,
   );
 
-  logger.debug(
-    `[fetchPage] Extracted ${parseResult.records.length} records before arrayPath`
-  );
+  logger.debug(`[fetchPage] Extracted ${parseResult.records.length} records before arrayPath`);
 
   // Check if MCP returned an error
   if (parseResult.error) {
@@ -861,9 +776,7 @@ export async function fetchPage(
 
   // Validate that we have actual records
   if (!Array.isArray(parseResult.records)) {
-    logger.warn(
-      `fetchPage: extracted records is not an array, got ${typeof parseResult.records}`
-    );
+    logger.warn(`fetchPage: extracted records is not an array, got ${typeof parseResult.records}`);
     return {
       records: [],
       nextCursor: undefined,
@@ -877,15 +790,12 @@ export async function fetchPage(
 
   // Apply arrayPath if configured to extract nested records
   if (config.arrayPath) {
+    logger.debug(`[fetchPage] Applying arrayPath: ${config.arrayPath} to extract nested records`);
     logger.debug(
-      `[fetchPage] Applying arrayPath: ${config.arrayPath} to extract nested records`
-    );
-    logger.debug(
-      `[fetchPage] Records before arrayPath: ${JSON.stringify(
-        finalRecords,
-        null,
-        2
-      ).substring(0, 300)}`
+      `[fetchPage] Records before arrayPath: ${JSON.stringify(finalRecords, null, 2).substring(
+        0,
+        300,
+      )}`,
     );
 
     try {
@@ -894,12 +804,12 @@ export async function fetchPage(
       let target = finalRecords;
       if (
         finalRecords.length === 1 &&
-        typeof finalRecords[0] === "object" &&
+        typeof finalRecords[0] === 'object' &&
         finalRecords[0] !== null &&
         !Array.isArray(finalRecords[0])
       ) {
         logger.debug(
-          `[fetchPage] Detected single wrapper object, applying arrayPath to object directly`
+          `[fetchPage] Detected single wrapper object, applying arrayPath to object directly`,
         );
         target = finalRecords[0];
         paginationSource = target; // Use the wrapper object for pagination info
@@ -914,24 +824,24 @@ export async function fetchPage(
         finalRecords = extractedRecords;
         if (extractedRecords.length > 0) {
           logger.debug(
-            `[fetchPage] Successfully extracted ${finalRecords.length} records using arrayPath`
+            `[fetchPage] Successfully extracted ${finalRecords.length} records using arrayPath`,
           );
           logger.debug(
             `[fetchPage] First record after arrayPath: ${JSON.stringify(
               finalRecords[0],
               null,
-              2
-            ).substring(0, 300)}`
+              2,
+            ).substring(0, 300)}`,
           );
         } else {
           logger.debug(
-            `[fetchPage] arrayPath "${config.arrayPath}" extracted 0 records (empty array)`
+            `[fetchPage] arrayPath "${config.arrayPath}" extracted 0 records (empty array)`,
           );
         }
       } else {
         logger.warn(
           { extractedRecords },
-          `[fetchPage] arrayPath "${config.arrayPath}" returned non-array`
+          `[fetchPage] arrayPath "${config.arrayPath}" returned non-array`,
         );
       }
     } catch (err) {
@@ -954,12 +864,12 @@ export async function fetchPage(
         });
         nextCursor = extractedCursor;
         logger.debug(
-          `[fetchPage] Extracted cursor from path "${config.pagination.cursorPath}": ${nextCursor}`
+          `[fetchPage] Extracted cursor from path "${config.pagination.cursorPath}": ${nextCursor}`,
         );
       } catch (err) {
         logger.warn(
           { err },
-          `[fetchPage] Failed to extract cursor using path "${config.pagination.cursorPath}"`
+          `[fetchPage] Failed to extract cursor using path "${config.pagination.cursorPath}"`,
         );
       }
     }
@@ -986,12 +896,12 @@ export async function fetchPage(
 function addPaginationParams(
   params: Record<string, any>,
   cursor: string | undefined,
-  config: FetcherConfig["pagination"]
+  config: FetcherConfig['pagination'],
 ): void {
   if (!config) return;
 
   switch (config.type) {
-    case "cursor":
+    case 'cursor':
       if (config.limitParam) {
         params[config.limitParam] = 100; // Default page size
       }
@@ -1000,7 +910,7 @@ function addPaginationParams(
       }
       break;
 
-    case "offset":
+    case 'offset':
       if (config.limitParam) {
         params[config.limitParam] = 100;
       }
@@ -1010,7 +920,7 @@ function addPaginationParams(
       }
       break;
 
-    case "none":
+    case 'none':
     default:
       break;
   }

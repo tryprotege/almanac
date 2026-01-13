@@ -18,8 +18,8 @@
  *   PORT=3001 pnpm tsx scripts/test-query.ts --all    # Custom port
  */
 
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 // ============================================================================
 // Types
@@ -85,120 +85,120 @@ const TEST_SUITE: TestCase[] = [
   // 1. QUERY MODE TESTS
   // ==========================================================================
   {
-    name: "naive-basic",
-    category: "modes",
-    query: "protege bugs",
+    name: 'naive-basic',
+    category: 'modes',
+    query: 'protege bugs',
     arguments: {
-      mode: "naive",
+      mode: 'naive',
     },
     expected: {
-      mode: "naive",
+      mode: 'naive',
       graphExpanded: false,
       minChunks: 1,
     },
   },
   {
-    name: "naive-high-threshold",
-    category: "modes",
-    query: "protege customer requests",
+    name: 'naive-high-threshold',
+    category: 'modes',
+    query: 'protege customer requests',
     arguments: {
-      mode: "naive",
+      mode: 'naive',
       score_threshold: 0.7,
       chunk_top_k: 15,
     },
     expected: {
-      mode: "naive",
+      mode: 'naive',
       minScore: 0.7,
       maxChunks: 15,
     },
   },
   {
-    name: "local-basic",
-    category: "modes",
-    query: "stripe check in",
+    name: 'local-basic',
+    category: 'modes',
+    query: 'stripe check in',
     arguments: {
-      mode: "local",
+      mode: 'local',
     },
     expected: {
-      mode: "local",
+      mode: 'local',
       graphExpanded: true,
     },
   },
   {
-    name: "local-custom-topk",
-    category: "modes",
-    query: "worldpay sales call",
+    name: 'local-custom-topk',
+    category: 'modes',
+    query: 'worldpay sales call',
     arguments: {
-      mode: "local",
+      mode: 'local',
       top_k: 40,
       chunk_top_k: 10,
     },
     expected: {
-      mode: "local",
+      mode: 'local',
       maxChunks: 10,
     },
   },
   {
-    name: "global-basic",
-    category: "modes",
-    query: "stripe feedback",
+    name: 'global-basic',
+    category: 'modes',
+    query: 'stripe feedback',
     arguments: {
-      mode: "global",
+      mode: 'global',
     },
     expected: {
-      mode: "global",
+      mode: 'global',
       graphExpanded: true,
     },
   },
   {
-    name: "global-workflows",
-    category: "modes",
-    query: "monitoring capabilities",
+    name: 'global-workflows',
+    category: 'modes',
+    query: 'monitoring capabilities',
     arguments: {
-      mode: "global",
+      mode: 'global',
       top_k: 50,
       chunk_top_k: 15,
     },
     expected: {
-      mode: "global",
+      mode: 'global',
       maxChunks: 15,
     },
   },
   {
-    name: "hybrid-basic",
-    category: "modes",
-    query: "What are the main technical challenges?",
+    name: 'hybrid-basic',
+    category: 'modes',
+    query: 'What are the main technical challenges?',
     arguments: {
-      mode: "hybrid",
+      mode: 'hybrid',
     },
     expected: {
-      mode: "hybrid",
+      mode: 'hybrid',
       graphExpanded: true,
     },
   },
   {
-    name: "mix-basic",
-    category: "modes",
-    query: "Explain the data pipeline architecture",
+    name: 'mix-basic',
+    category: 'modes',
+    query: 'Explain the data pipeline architecture',
     arguments: {
-      mode: "mix",
+      mode: 'mix',
     },
     expected: {
-      mode: "mix",
+      mode: 'mix',
       reranked: true,
     },
   },
   {
-    name: "mix-no-rerank",
-    category: "modes",
-    query: "How do I set up the development environment?",
+    name: 'mix-no-rerank',
+    category: 'modes',
+    query: 'How do I set up the development environment?',
     arguments: {
-      mode: "mix",
+      mode: 'mix',
       chunk_top_k: 15,
       enable_rerank: false,
     },
     expected: {
-      mode: "mix",
+      mode: 'mix',
       reranked: false,
       maxChunks: 15,
     },
@@ -208,24 +208,24 @@ const TEST_SUITE: TestCase[] = [
   // 2. RESPONSE FORMAT TESTS
   // ==========================================================================
   {
-    name: "compact-response",
-    category: "formats",
-    query: "API documentation",
+    name: 'compact-response',
+    category: 'formats',
+    query: 'API documentation',
     arguments: {
-      mode: "mix",
-      response_format: "compact",
+      mode: 'mix',
+      response_format: 'compact',
     },
     expected: {
       hasFullContent: false,
     },
   },
   {
-    name: "full-response",
-    category: "formats",
-    query: "technical specifications",
+    name: 'full-response',
+    category: 'formats',
+    query: 'technical specifications',
     arguments: {
-      mode: "mix",
-      response_format: "full",
+      mode: 'mix',
+      response_format: 'full',
       chunk_top_k: 5,
     },
     expected: {
@@ -238,11 +238,11 @@ const TEST_SUITE: TestCase[] = [
   // 3. PARAMETER VARIATION TESTS
   // ==========================================================================
   {
-    name: "low-topk",
-    category: "params",
-    query: "user authentication",
+    name: 'low-topk',
+    category: 'params',
+    query: 'user authentication',
     arguments: {
-      mode: "hybrid",
+      mode: 'hybrid',
       top_k: 10,
       chunk_top_k: 5,
     },
@@ -251,11 +251,11 @@ const TEST_SUITE: TestCase[] = [
     },
   },
   {
-    name: "high-topk",
-    category: "params",
-    query: "system architecture",
+    name: 'high-topk',
+    category: 'params',
+    query: 'system architecture',
     arguments: {
-      mode: "hybrid",
+      mode: 'hybrid',
       top_k: 100,
       chunk_top_k: 50,
     },
@@ -264,11 +264,11 @@ const TEST_SUITE: TestCase[] = [
     },
   },
   {
-    name: "low-threshold",
-    category: "params",
-    query: "documentation",
+    name: 'low-threshold',
+    category: 'params',
+    query: 'documentation',
     arguments: {
-      mode: "naive",
+      mode: 'naive',
       score_threshold: 0.3,
       chunk_top_k: 30,
     },
@@ -277,11 +277,11 @@ const TEST_SUITE: TestCase[] = [
     },
   },
   {
-    name: "high-threshold",
-    category: "params",
-    query: "critical security issues",
+    name: 'high-threshold',
+    category: 'params',
+    query: 'critical security issues',
     arguments: {
-      mode: "mix",
+      mode: 'mix',
       score_threshold: 0.8,
       chunk_top_k: 10,
       enable_rerank: true,
@@ -296,54 +296,54 @@ const TEST_SUITE: TestCase[] = [
   // 4. FILTER TESTS
   // ==========================================================================
   {
-    name: "filter-notion",
-    category: "filters",
-    query: "project roadmap",
+    name: 'filter-notion',
+    category: 'filters',
+    query: 'project roadmap',
     arguments: {
-      mode: "mix",
+      mode: 'mix',
       filters: {
-        sources: ["notion"],
+        sources: ['notion'],
       },
       chunk_top_k: 20,
     },
   },
   {
-    name: "filter-multiple-sources",
-    category: "filters",
-    query: "product updates",
+    name: 'filter-multiple-sources',
+    category: 'filters',
+    query: 'product updates',
     arguments: {
-      mode: "mix",
+      mode: 'mix',
       filters: {
-        sources: ["notion", "slack"],
+        sources: ['notion', 'slack'],
       },
     },
   },
   {
-    name: "filter-date-range",
-    category: "filters",
-    query: "recent updates",
+    name: 'filter-date-range',
+    category: 'filters',
+    query: 'recent updates',
     arguments: {
-      mode: "mix",
+      mode: 'mix',
       filters: {
         dateRange: {
-          start: "2024-11-01T00:00:00Z",
-          end: "2024-11-30T23:59:59Z",
+          start: '2024-11-01T00:00:00Z',
+          end: '2024-11-30T23:59:59Z',
         },
       },
       chunk_top_k: 15,
     },
   },
   {
-    name: "filter-combined",
-    category: "filters",
-    query: "sprint planning",
+    name: 'filter-combined',
+    category: 'filters',
+    query: 'sprint planning',
     arguments: {
-      mode: "mix",
+      mode: 'mix',
       filters: {
-        sources: ["notion"],
+        sources: ['notion'],
         dateRange: {
-          start: "2024-10-01T00:00:00Z",
-          end: "2024-12-31T23:59:59Z",
+          start: '2024-10-01T00:00:00Z',
+          end: '2024-12-31T23:59:59Z',
         },
       },
     },
@@ -353,11 +353,11 @@ const TEST_SUITE: TestCase[] = [
   // 5. EDGE CASE TESTS
   // ==========================================================================
   {
-    name: "empty-results",
-    category: "edge-cases",
-    query: "xyzzytotallynonexistentquery12345",
+    name: 'empty-results',
+    category: 'edge-cases',
+    query: 'xyzzytotallynonexistentquery12345',
     arguments: {
-      mode: "naive",
+      mode: 'naive',
       score_threshold: 0.9,
     },
     expected: {
@@ -365,29 +365,29 @@ const TEST_SUITE: TestCase[] = [
     },
   },
   {
-    name: "very-short-query",
-    category: "edge-cases",
-    query: "API",
+    name: 'very-short-query',
+    category: 'edge-cases',
+    query: 'API',
     arguments: {
-      mode: "naive",
+      mode: 'naive',
       chunk_top_k: 10,
     },
   },
   {
-    name: "very-long-query",
-    category: "edge-cases",
+    name: 'very-long-query',
+    category: 'edge-cases',
     query:
-      "Can you provide a comprehensive overview of the entire authentication and authorization system including OAuth2 implementation, JWT token handling, refresh token rotation, session management, role-based access control, and integration with third-party identity providers?",
+      'Can you provide a comprehensive overview of the entire authentication and authorization system including OAuth2 implementation, JWT token handling, refresh token rotation, session management, role-based access control, and integration with third-party identity providers?',
     arguments: {
-      mode: "mix",
+      mode: 'mix',
     },
   },
   {
-    name: "question-format",
-    category: "edge-cases",
-    query: "Who is working on the mobile app and what is their progress?",
+    name: 'question-format',
+    category: 'edge-cases',
+    query: 'Who is working on the mobile app and what is their progress?',
     arguments: {
-      mode: "local",
+      mode: 'local',
     },
   },
 
@@ -395,28 +395,28 @@ const TEST_SUITE: TestCase[] = [
   // 6. PERFORMANCE BENCHMARK TESTS
   // ==========================================================================
   {
-    name: "perf-naive-fastest",
-    category: "performance",
-    query: "quick search test",
+    name: 'perf-naive-fastest',
+    category: 'performance',
+    query: 'quick search test',
     arguments: {
-      mode: "naive",
+      mode: 'naive',
       chunk_top_k: 10,
     },
   },
   {
-    name: "perf-hybrid-balanced",
-    category: "performance",
-    query: "balanced search test",
+    name: 'perf-hybrid-balanced',
+    category: 'performance',
+    query: 'balanced search test',
     arguments: {
-      mode: "hybrid",
+      mode: 'hybrid',
     },
   },
   {
-    name: "perf-mix-accurate",
-    category: "performance",
-    query: "comprehensive search test",
+    name: 'perf-mix-accurate',
+    category: 'performance',
+    query: 'comprehensive search test',
     arguments: {
-      mode: "mix",
+      mode: 'mix',
       enable_rerank: true,
     },
   },
@@ -444,12 +444,12 @@ class TestRunner {
   async connect(): Promise<void> {
     this.client = new Client(
       {
-        name: "ebee-test-client",
-        version: "1.0.0",
+        name: 'ebee-test-client',
+        version: '1.0.0',
       },
       {
         capabilities: {},
-      }
+      },
     );
 
     const transport = new StreamableHTTPClientTransport(new URL(this.url));
@@ -465,10 +465,10 @@ class TestRunner {
 
   async runTest(testCase: TestCase): Promise<void> {
     if (!this.client) {
-      throw new Error("Client not connected");
+      throw new Error('Client not connected');
     }
 
-    console.log(`\n${"=".repeat(80)}`);
+    console.log(`\n${'='.repeat(80)}`);
     console.log(`🧪 Running Test: ${testCase.name}`);
     console.log(`   Category: ${testCase.category}`);
     console.log(`   Query: "${testCase.query}"`);
@@ -478,7 +478,7 @@ class TestRunner {
 
     try {
       const result = await this.client.callTool({
-        name: "ebee_search",
+        name: 'ebee_search',
         arguments: {
           query: testCase.query,
           ...testCase.arguments,
@@ -492,7 +492,7 @@ class TestRunner {
         this.results.push({
           test: testCase,
           passed: false,
-          error: "No content in response",
+          error: 'No content in response',
           duration,
         });
         console.log(`   ❌ FAILED: No content in response`);
@@ -529,10 +529,7 @@ class TestRunner {
     }
   }
 
-  private validateResponse(
-    testCase: TestCase,
-    response: LightRAGResponse
-  ): boolean {
+  private validateResponse(testCase: TestCase, response: LightRAGResponse): boolean {
     if (!testCase.expected) return true;
 
     const { expected } = testCase;
@@ -544,22 +541,12 @@ class TestRunner {
     }
 
     // Check chunk count
-    if (
-      expected.minChunks !== undefined &&
-      response.chunks.length < expected.minChunks
-    ) {
-      issues.push(
-        `Expected at least ${expected.minChunks} chunks, got ${response.chunks.length}`
-      );
+    if (expected.minChunks !== undefined && response.chunks.length < expected.minChunks) {
+      issues.push(`Expected at least ${expected.minChunks} chunks, got ${response.chunks.length}`);
     }
 
-    if (
-      expected.maxChunks !== undefined &&
-      response.chunks.length > expected.maxChunks
-    ) {
-      issues.push(
-        `Expected at most ${expected.maxChunks} chunks, got ${response.chunks.length}`
-      );
+    if (expected.maxChunks !== undefined && response.chunks.length > expected.maxChunks) {
+      issues.push(`Expected at most ${expected.maxChunks} chunks, got ${response.chunks.length}`);
     }
 
     // Check reranking
@@ -568,35 +555,31 @@ class TestRunner {
       response.stats.retrieval_breakdown?.reranked !== expected.reranked
     ) {
       issues.push(
-        `Expected reranked=${expected.reranked}, got ${response.stats.retrieval_breakdown?.reranked}`
+        `Expected reranked=${expected.reranked}, got ${response.stats.retrieval_breakdown?.reranked}`,
       );
     }
 
     // Check graph expansion
     if (expected.graphExpanded === true) {
-      const expanded =
-        (response.stats.retrieval_breakdown?.graph_expanded || 0) > 0;
+      const expanded = (response.stats.retrieval_breakdown?.graph_expanded || 0) > 0;
       if (!expanded) {
         issues.push(`Expected graph expansion, but graph_expanded = 0`);
       }
     } else if (expected.graphExpanded === false) {
-      const expanded =
-        (response.stats.retrieval_breakdown?.graph_expanded || 0) > 0;
+      const expanded = (response.stats.retrieval_breakdown?.graph_expanded || 0) > 0;
       if (expanded) {
         issues.push(
-          `Expected no graph expansion, but graph_expanded = ${response.stats.retrieval_breakdown?.graph_expanded}`
+          `Expected no graph expansion, but graph_expanded = ${response.stats.retrieval_breakdown?.graph_expanded}`,
         );
       }
     }
 
     // Check minimum score
     if (expected.minScore !== undefined) {
-      const belowThreshold = response.chunks.filter(
-        (c) => c.score < expected.minScore!
-      );
+      const belowThreshold = response.chunks.filter((c) => c.score < expected.minScore!);
       if (belowThreshold.length > 0) {
         issues.push(
-          `Found ${belowThreshold.length} chunks below score threshold ${expected.minScore}`
+          `Found ${belowThreshold.length} chunks below score threshold ${expected.minScore}`,
         );
       }
     }
@@ -606,15 +589,13 @@ class TestRunner {
       const withoutFullContent = response.chunks.filter((c) => !c.full_content);
       if (withoutFullContent.length > 0) {
         issues.push(
-          `Expected full_content in all chunks, but ${withoutFullContent.length} chunks missing it`
+          `Expected full_content in all chunks, but ${withoutFullContent.length} chunks missing it`,
         );
       }
     } else if (expected.hasFullContent === false) {
       const withFullContent = response.chunks.filter((c) => c.full_content);
       if (withFullContent.length > 0) {
-        issues.push(
-          `Expected no full_content, but ${withFullContent.length} chunks have it`
-        );
+        issues.push(`Expected no full_content, but ${withFullContent.length} chunks have it`);
       }
     }
 
@@ -635,33 +616,25 @@ class TestRunner {
     console.log(`      Unique Documents: ${response.stats.unique_documents}`);
 
     if (response.stats.retrieval_breakdown) {
-      console.log(
-        `      Vector Matches: ${response.stats.retrieval_breakdown.vector_matches}`
-      );
-      console.log(
-        `      Graph Expanded: ${response.stats.retrieval_breakdown.graph_expanded}`
-      );
-      console.log(
-        `      Reranked: ${response.stats.retrieval_breakdown.reranked}`
-      );
+      console.log(`      Vector Matches: ${response.stats.retrieval_breakdown.vector_matches}`);
+      console.log(`      Graph Expanded: ${response.stats.retrieval_breakdown.graph_expanded}`);
+      console.log(`      Reranked: ${response.stats.retrieval_breakdown.reranked}`);
     }
 
     if (response.chunks.length > 0) {
       console.log(`\n   📄 Sample Results (first 3):`);
       response.chunks.slice(0, 3).forEach((chunk, idx) => {
         console.log(`      ${idx + 1}. ${chunk.title}`);
-        console.log(
-          `         Source: ${chunk.source} | Score: ${chunk.score.toFixed(3)}`
-        );
+        console.log(`         Source: ${chunk.source} | Score: ${chunk.score.toFixed(3)}`);
         console.log(`         Snippet: ${chunk.snippet.substring(0, 100)}...`);
       });
     }
   }
 
   printSummary(): void {
-    console.log(`\n${"=".repeat(80)}`);
+    console.log(`\n${'='.repeat(80)}`);
     console.log(`📊 TEST SUMMARY`);
-    console.log(`${"=".repeat(80)}`);
+    console.log(`${'='.repeat(80)}`);
 
     const total = this.results.length;
     const passed = this.results.filter((r) => r.passed).length;
@@ -676,13 +649,9 @@ class TestRunner {
     const categories = new Set(this.results.map((r) => r.test.category));
     console.log(`\n📂 By Category:`);
     categories.forEach((category) => {
-      const categoryResults = this.results.filter(
-        (r) => r.test.category === category
-      );
+      const categoryResults = this.results.filter((r) => r.test.category === category);
       const categoryPassed = categoryResults.filter((r) => r.passed).length;
-      console.log(
-        `   ${category}: ${categoryPassed}/${categoryResults.length} passed`
-      );
+      console.log(`   ${category}: ${categoryPassed}/${categoryResults.length} passed`);
     });
 
     // Performance stats
@@ -690,11 +659,8 @@ class TestRunner {
     const withDuration = this.results.filter((r) => r.duration !== undefined);
     if (withDuration.length > 0) {
       const avgDuration =
-        withDuration.reduce((sum, r) => sum + (r.duration || 0), 0) /
-        withDuration.length;
-      const minDuration = Math.min(
-        ...withDuration.map((r) => r.duration || Infinity)
-      );
+        withDuration.reduce((sum, r) => sum + (r.duration || 0), 0) / withDuration.length;
+      const minDuration = Math.min(...withDuration.map((r) => r.duration || Infinity));
       const maxDuration = Math.max(...withDuration.map((r) => r.duration || 0));
 
       console.log(`   Average: ${avgDuration.toFixed(0)}ms`);
@@ -708,11 +674,11 @@ class TestRunner {
       this.results
         .filter((r) => !r.passed)
         .forEach((r) => {
-          console.log(`   - ${r.test.name}: ${r.error || "Validation failed"}`);
+          console.log(`   - ${r.test.name}: ${r.error || 'Validation failed'}`);
         });
     }
 
-    console.log(`\n${"=".repeat(80)}`);
+    console.log(`\n${'='.repeat(80)}`);
   }
 }
 
@@ -727,22 +693,22 @@ async function main() {
   // Parse arguments
   let testsToRun: TestCase[] = [];
 
-  if (args.includes("--all")) {
+  if (args.includes('--all')) {
     testsToRun = TEST_SUITE;
-  } else if (args.includes("--modes")) {
-    testsToRun = TEST_SUITE.filter((t) => t.category === "modes");
-  } else if (args.includes("--formats")) {
-    testsToRun = TEST_SUITE.filter((t) => t.category === "formats");
-  } else if (args.includes("--params")) {
-    testsToRun = TEST_SUITE.filter((t) => t.category === "params");
-  } else if (args.includes("--filters")) {
-    testsToRun = TEST_SUITE.filter((t) => t.category === "filters");
-  } else if (args.includes("--edge-cases")) {
-    testsToRun = TEST_SUITE.filter((t) => t.category === "edge-cases");
-  } else if (args.includes("--performance")) {
-    testsToRun = TEST_SUITE.filter((t) => t.category === "performance");
-  } else if (args.includes("--test")) {
-    const testName = args[args.indexOf("--test") + 1];
+  } else if (args.includes('--modes')) {
+    testsToRun = TEST_SUITE.filter((t) => t.category === 'modes');
+  } else if (args.includes('--formats')) {
+    testsToRun = TEST_SUITE.filter((t) => t.category === 'formats');
+  } else if (args.includes('--params')) {
+    testsToRun = TEST_SUITE.filter((t) => t.category === 'params');
+  } else if (args.includes('--filters')) {
+    testsToRun = TEST_SUITE.filter((t) => t.category === 'filters');
+  } else if (args.includes('--edge-cases')) {
+    testsToRun = TEST_SUITE.filter((t) => t.category === 'edge-cases');
+  } else if (args.includes('--performance')) {
+    testsToRun = TEST_SUITE.filter((t) => t.category === 'performance');
+  } else if (args.includes('--test')) {
+    const testName = args[args.indexOf('--test') + 1];
     const test = TEST_SUITE.find((t) => t.name === testName);
     if (!test) {
       console.error(`❌ Test "${testName}" not found`);
@@ -751,7 +717,7 @@ async function main() {
       process.exit(1);
     }
     testsToRun = [test];
-  } else if (args.includes("--list")) {
+  } else if (args.includes('--list')) {
     console.log(`\n📋 Available Tests:\n`);
     const categories = new Set(TEST_SUITE.map((t) => t.category));
     categories.forEach((category) => {
@@ -762,7 +728,7 @@ async function main() {
       console.log();
     });
     return;
-  } else if (args.includes("--help") || args.includes("-h")) {
+  } else if (args.includes('--help') || args.includes('-h')) {
     console.log(`
 🐝 eBee Search Test Suite
 
@@ -793,22 +759,20 @@ Examples:
     return;
   } else {
     // Default: run mix-basic test
-    const defaultTest = TEST_SUITE.find((t) => t.name === "mix-basic");
+    const defaultTest = TEST_SUITE.find((t) => t.name === 'mix-basic');
     testsToRun = defaultTest ? [defaultTest] : [];
   }
 
   if (testsToRun.length === 0) {
-    console.error("❌ No tests to run");
+    console.error('❌ No tests to run');
     process.exit(1);
   }
 
   console.log(`\n🐝 eBee Search Test Suite`);
-  console.log(`${"=".repeat(80)}`);
+  console.log(`${'='.repeat(80)}`);
   console.log(`Server: http://localhost:${PORT}/mcp`);
   console.log(`Tests to run: ${testsToRun.length}`);
-  console.log(
-    `Categories: ${[...new Set(testsToRun.map((t) => t.category))].join(", ")}`
-  );
+  console.log(`Categories: ${[...new Set(testsToRun.map((t) => t.category))].join(', ')}`);
 
   const runner = new TestRunner(PORT);
 
@@ -823,10 +787,10 @@ Examples:
 
     runner.printSummary();
   } catch (error) {
-    console.error("\n❌ Fatal Error:", error);
+    console.error('\n❌ Fatal Error:', error);
     if (error instanceof Error) {
-      console.error("   Message:", error.message);
-      console.error("   Stack:", error.stack);
+      console.error('   Message:', error.message);
+      console.error('   Stack:', error.stack);
     }
     process.exit(1);
   } finally {
@@ -838,6 +802,6 @@ Examples:
 main()
   .then(() => process.exit(0))
   .catch((err) => {
-    console.error("Fatal error:", err);
+    console.error('Fatal error:', err);
     process.exit(1);
   });

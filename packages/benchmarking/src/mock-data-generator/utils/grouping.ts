@@ -5,8 +5,8 @@ import type {
   FathomMeeting,
   FathomTranscript,
   FathomSummary,
-} from "@ebee-oss/shared-util";
-import type { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse.js";
+} from '@ebee-oss/shared-util';
+import type { MessageElement } from '@slack/web-api/dist/types/response/ConversationsHistoryResponse.js';
 
 // Extended MessageElement with channel tracking
 interface MessageWithChannel extends MessageElement {
@@ -116,14 +116,14 @@ export interface GroupedOutput {
  */
 function extractMeetingTitle(text: string): string | null {
   const meetingTypes = [
-    "Sprint Review",
-    "Sprint Planning",
-    "Sprint Retrospective",
-    "Daily Standup",
-    "Product Review",
-    "Architecture Discussion",
-    "1:1 Meeting",
-    "Team Sync",
+    'Sprint Review',
+    'Sprint Planning',
+    'Sprint Retrospective',
+    'Daily Standup',
+    'Product Review',
+    'Architecture Discussion',
+    '1:1 Meeting',
+    'Team Sync',
   ];
 
   for (const type of meetingTypes) {
@@ -138,9 +138,7 @@ function extractMeetingTitle(text: string): string | null {
 /**
  * Group Slack messages into threads
  */
-function groupSlackThreads(
-  messages: MessageElement[]
-): Map<string, SlackThread> {
+function groupSlackThreads(messages: MessageElement[]): Map<string, SlackThread> {
   const threads = new Map<string, SlackThread>();
 
   // Group by thread_ts or ts
@@ -154,7 +152,7 @@ function groupSlackThreads(
     if (!threads.has(threadTs)) {
       threads.set(threadTs, {
         threadId: threadTs,
-        channel: msgWithChannel.channel || "",
+        channel: msgWithChannel.channel || '',
         parentMessage: msg,
         replies: [],
         totalMessages: 0,
@@ -181,7 +179,7 @@ function groupSlackThreads(
 function extractCrossReferences(
   record: any,
   recordId: string,
-  recordType: string
+  recordType: string,
 ): {
   githubIssues: string[];
   githubPRs: string[];
@@ -210,9 +208,9 @@ function extractCrossReferences(
         prMatches
           .map((m) => {
             const num = m.match(/\d+/)?.[0];
-            return num || "";
+            return num || '';
           })
-          .filter(Boolean)
+          .filter(Boolean),
       ),
     ];
   }
@@ -225,9 +223,9 @@ function extractCrossReferences(
         notionMatches
           .map((m) => {
             const id = m.match(/notion\.so\/(\d+)/)?.[1];
-            return id || "";
+            return id || '';
           })
-          .filter(Boolean)
+          .filter(Boolean),
       ),
     ];
   }
@@ -271,19 +269,15 @@ export function createGroupedOutput(combined: {
     summaries: FathomSummary[];
   };
 }): GroupedOutput {
-  console.log("🔗 Creating improved grouped output format (v2)...");
+  console.log('🔗 Creating improved grouped output format (v2)...');
 
   const workflows: WorkflowGroup[] = [];
   const usedRecords = new Set<string>();
   const slackThreads = groupSlackThreads(combined.slack.messages);
 
   // Index records for quick lookup
-  const issuesByNumber = new Map(
-    combined.github.issues.map((i) => [i.number.toString(), i])
-  );
-  const prsByNumber = new Map(
-    combined.github.pullRequests.map((pr) => [pr.number.toString(), pr])
-  );
+  const issuesByNumber = new Map(combined.github.issues.map((i) => [i.number.toString(), i]));
+  const prsByNumber = new Map(combined.github.pullRequests.map((pr) => [pr.number.toString(), pr]));
   const notionPagesById = new Map(combined.notion.pages.map((p) => [p.id, p]));
   const meetingsByTitle = new Map<string, FathomMeeting>();
   for (const meeting of combined.fathom.meetings) {
@@ -292,15 +286,9 @@ export function createGroupedOutput(combined: {
       meetingsByTitle.set(titlePart, meeting);
     }
   }
-  const meetingsById = new Map(
-    combined.fathom.meetings.map((m) => [m.recording_id, m])
-  );
-  const transcriptsById = new Map(
-    combined.fathom.transcripts.map((t) => [t.recording_id, t])
-  );
-  const summariesById = new Map(
-    combined.fathom.summaries.map((s) => [s.recording_id, s])
-  );
+  const meetingsById = new Map(combined.fathom.meetings.map((m) => [m.recording_id, m]));
+  const transcriptsById = new Map(combined.fathom.transcripts.map((t) => [t.recording_id, t]));
+  const summariesById = new Map(combined.fathom.summaries.map((s) => [s.recording_id, s]));
 
   // Strategy: Start with GitHub issues as anchors, then expand
   for (const issue of combined.github.issues) {
@@ -329,7 +317,7 @@ export function createGroupedOutput(combined: {
         totalRecords: 1,
         totalMessages: 0,
         participantCount: 0,
-        servicesCovered: ["github"],
+        servicesCovered: ['github'],
       },
     };
 
@@ -337,15 +325,15 @@ export function createGroupedOutput(combined: {
 
     // Find related PRs (that mention this issue)
     for (const pr of combined.github.pullRequests) {
-      const refs = extractCrossReferences(pr, pr.number.toString(), "pr");
+      const refs = extractCrossReferences(pr, pr.number.toString(), 'pr');
       if (refs.githubIssues.includes(issue.number.toString())) {
         group.records.githubPRs.push(pr);
         usedRecords.add(`pr-${pr.number}`);
         group.crossReferences.push({
-          type: "pr-to-issue",
+          type: 'pr-to-issue',
           from: `pr-${pr.number}`,
           to: `issue-${issue.number}`,
-          context: "PR references issue in body",
+          context: 'PR references issue in body',
         });
       }
     }
@@ -354,7 +342,7 @@ export function createGroupedOutput(combined: {
     for (const [threadId, thread] of slackThreads) {
       const allMessages = [thread.parentMessage, ...thread.replies];
       const hasReference = allMessages.some((msg) => {
-        const refs = extractCrossReferences(msg, msg.ts || "", "slack");
+        const refs = extractCrossReferences(msg, msg.ts || '', 'slack');
         return refs.githubIssues.includes(issue.number.toString());
       });
 
@@ -363,7 +351,7 @@ export function createGroupedOutput(combined: {
         group.metrics.totalMessages += thread.totalMessages;
         usedRecords.add(`slack-thread-${threadId}`);
         group.crossReferences.push({
-          type: "slack-to-issue",
+          type: 'slack-to-issue',
           from: `slack-thread-${threadId}`,
           to: `issue-${issue.number}`,
           context: `Slack thread mentions issue #${issue.number}`,
@@ -373,15 +361,15 @@ export function createGroupedOutput(combined: {
 
     // Find related Notion pages (that mention this issue)
     for (const page of combined.notion.pages) {
-      const refs = extractCrossReferences(page, page.id, "notion");
+      const refs = extractCrossReferences(page, page.id, 'notion');
       if (refs.githubIssues.includes(issue.number.toString())) {
         group.records.notionPages.push(page);
         usedRecords.add(`notion-${page.id}`);
         group.crossReferences.push({
-          type: "notion-to-issue",
+          type: 'notion-to-issue',
           from: `notion-${page.id}`,
           to: `issue-${issue.number}`,
-          context: "Notion page references issue",
+          context: 'Notion page references issue',
         });
       }
     }
@@ -395,7 +383,7 @@ export function createGroupedOutput(combined: {
       const refs = extractCrossReferences(
         { content: meetingContent },
         meeting.recording_id.toString(),
-        "meeting"
+        'meeting',
       );
 
       if (refs.githubIssues.includes(issue.number.toString())) {
@@ -404,10 +392,10 @@ export function createGroupedOutput(combined: {
         if (summary) group.records.fathomSummaries.push(summary);
         usedRecords.add(`meeting-${meeting.recording_id}`);
         group.crossReferences.push({
-          type: "meeting-to-issue",
+          type: 'meeting-to-issue',
           from: `meeting-${meeting.recording_id}`,
           to: `issue-${issue.number}`,
-          context: "Meeting discusses issue",
+          context: 'Meeting discusses issue',
         });
       }
     }
@@ -420,11 +408,11 @@ export function createGroupedOutput(combined: {
       group.records.fathomMeetings.length +
       group.records.slackThreads.length;
 
-    const services = new Set<string>(["github"]);
-    if (group.records.githubPRs.length > 0) services.add("github-pr");
-    if (group.records.slackThreads.length > 0) services.add("slack");
-    if (group.records.notionPages.length > 0) services.add("notion");
-    if (group.records.fathomMeetings.length > 0) services.add("fathom");
+    const services = new Set<string>(['github']);
+    if (group.records.githubPRs.length > 0) services.add('github-pr');
+    if (group.records.slackThreads.length > 0) services.add('slack');
+    if (group.records.notionPages.length > 0) services.add('notion');
+    if (group.records.fathomMeetings.length > 0) services.add('fathom');
     group.metrics.servicesCovered = Array.from(services);
 
     // Calculate participants
@@ -477,7 +465,7 @@ export function createGroupedOutput(combined: {
 
       const allMessages = [thread.parentMessage, ...thread.replies];
       const discussesMeeting = allMessages.some((msg) => {
-        const text = msg.text || "";
+        const text = msg.text || '';
         return meetingTitle && text.includes(meetingTitle);
       });
 
@@ -508,19 +496,16 @@ export function createGroupedOutput(combined: {
           slackThreads: relatedThreads,
         },
         crossReferences: relatedThreads.map((t) => ({
-          type: "slack-to-meeting",
+          type: 'slack-to-meeting',
           from: `slack-thread-${t.threadId}`,
           to: `meeting-${meeting.recording_id}`,
           context: `Slack discussion about ${meetingTitle}`,
         })),
         metrics: {
           totalRecords: 1 + relatedThreads.length,
-          totalMessages: relatedThreads.reduce(
-            (sum, t) => sum + t.totalMessages,
-            0
-          ),
+          totalMessages: relatedThreads.reduce((sum, t) => sum + t.totalMessages, 0),
           participantCount: 0,
-          servicesCovered: ["fathom", "slack"],
+          servicesCovered: ['fathom', 'slack'],
         },
       };
 
@@ -550,13 +535,11 @@ export function createGroupedOutput(combined: {
 
       const allMessages = [thread.parentMessage, ...thread.replies];
       const referencesPage = allMessages.some((msg) => {
-        const refs = extractCrossReferences(msg, msg.ts || "", "slack");
+        const refs = extractCrossReferences(msg, msg.ts || '', 'slack');
         return (
           refs.notionPages.includes(page.id) ||
-          (msg.text || "").includes(page.url) ||
-          (msg.text || "").includes(
-            page.properties?.title?.title?.[0]?.plain_text || ""
-          )
+          (msg.text || '').includes(page.url) ||
+          (msg.text || '').includes(page.properties?.title?.title?.[0]?.plain_text || '')
         );
       });
 
@@ -569,8 +552,7 @@ export function createGroupedOutput(combined: {
     // Only create group if there's a Slack discussion
     if (relatedThreads.length > 0) {
       const groupId = `workflow-notion-${page.id}`;
-      const pageTitle =
-        page.properties?.title?.title?.[0]?.plain_text || "Untitled";
+      const pageTitle = page.properties?.title?.title?.[0]?.plain_text || 'Untitled';
 
       const group: WorkflowGroup = {
         groupId,
@@ -590,19 +572,16 @@ export function createGroupedOutput(combined: {
           slackThreads: relatedThreads,
         },
         crossReferences: relatedThreads.map((t) => ({
-          type: "slack-to-notion",
+          type: 'slack-to-notion',
           from: `slack-thread-${t.threadId}`,
           to: `notion-${page.id}`,
           context: `Slack discussion about ${pageTitle}`,
         })),
         metrics: {
           totalRecords: 1 + relatedThreads.length,
-          totalMessages: relatedThreads.reduce(
-            (sum, t) => sum + t.totalMessages,
-            0
-          ),
+          totalMessages: relatedThreads.reduce((sum, t) => sum + t.totalMessages, 0),
           participantCount: 0,
-          servicesCovered: ["notion", "slack"],
+          servicesCovered: ['notion', 'slack'],
         },
       };
 
@@ -657,17 +636,11 @@ export function createGroupedOutput(combined: {
     },
   };
 
-  const totalRecordsInWorkflows = workflows.reduce(
-    (sum, w) => sum + w.metrics.totalRecords,
-    0
-  );
-  const totalStandaloneRecords =
-    standaloneMessages.length + standaloneThreads.length;
+  const totalRecordsInWorkflows = workflows.reduce((sum, w) => sum + w.metrics.totalRecords, 0);
+  const totalStandaloneRecords = standaloneMessages.length + standaloneThreads.length;
 
   const allServices = new Set<string>();
-  workflows.forEach((w) =>
-    w.metrics.servicesCovered.forEach((s) => allServices.add(s))
-  );
+  workflows.forEach((w) => w.metrics.servicesCovered.forEach((s) => allServices.add(s)));
 
   console.log(`✅ Created ${workflows.length} workflow groups`);
   console.log(`✅ ${totalRecordsInWorkflows} records in workflows`);
@@ -677,7 +650,7 @@ export function createGroupedOutput(combined: {
   return {
     metadata: {
       generatedAt: new Date().toISOString(),
-      version: "2.0",
+      version: '2.0',
       summary: {
         totalWorkflows: workflows.length,
         totalRecordsInWorkflows,

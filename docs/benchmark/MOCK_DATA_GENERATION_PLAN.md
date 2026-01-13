@@ -190,15 +190,13 @@ Work meetings are primarily work-focused but can have casual mentions (realistic
 ```typescript
 const workMeetingContext = {
   githubIssues: foundationData.github.issues,
-  workSlack: foundationData.slack.filter((m) => m.category === "work-related"),
-  casualSlackForMentions: foundationData.slack.filter(
-    (m) => m.category === "casual"
-  ),
+  workSlack: foundationData.slack.filter((m) => m.category === 'work-related'),
+  casualSlackForMentions: foundationData.slack.filter((m) => m.category === 'casual'),
 };
 
 const workMeeting = await generateFathomData({
   context: workMeetingContext,
-  type: "work",
+  type: 'work',
   allowCasualMentions: true,
   casualMentionProbability: 0.2, // 20% chance
 });
@@ -221,26 +219,22 @@ const workMeeting = await generateFathomData({
 async function generateIntegration(
   foundationData: FoundationData,
   connectionData: ConnectionData,
-  config: Config
+  config: Config,
 ): Promise<IntegrationData> {
   // BUILD RICHER CONTEXTS from both stages (separated by category)
   const richWorkContext = {
     githubIssues: foundationData.github.issues,
     githubPRs: foundationData.github.prs,
-    slackWithRefs: connectionData.slack.filter(
-      (m) => m.category === "work-related"
-    ),
+    slackWithRefs: connectionData.slack.filter((m) => m.category === 'work-related'),
     notionWithRefs: connectionData.notion,
   };
 
   const richCasualContext = {
     casualSlack: [
-      ...foundationData.slack.filter((m) => m.category === "casual"),
-      ...connectionData.slack.filter((m) => m.category === "casual"),
+      ...foundationData.slack.filter((m) => m.category === 'casual'),
+      ...connectionData.slack.filter((m) => m.category === 'casual'),
     ],
-    casualMeetings: [
-      ...foundationData.fathom.filter((m) => m.type === "social"),
-    ],
+    casualMeetings: [...foundationData.fathom.filter((m) => m.type === 'social')],
   };
 
   const workChains = await generateDeepLinks(richWorkContext, config);
@@ -259,15 +253,15 @@ async function generateSynthesis(
   foundationData: FoundationData,
   connectionData: ConnectionData,
   integrationData: IntegrationData,
-  config: Config
+  config: Config,
 ): Promise<SynthesisData> {
   // BUILD FULL CONTEXTS from all stages (separated by category)
   const fullWorkContext = {
     allGitHub: [...foundationData.github.issues, ...connectionData.prs],
     allWorkSlack: [
-      ...foundationData.slack.filter((m) => m.category === "work-related"),
-      ...connectionData.slack.filter((m) => m.category === "work-related"),
-      ...integrationData.slack.filter((m) => m.category === "work-related"),
+      ...foundationData.slack.filter((m) => m.category === 'work-related'),
+      ...connectionData.slack.filter((m) => m.category === 'work-related'),
+      ...integrationData.slack.filter((m) => m.category === 'work-related'),
     ],
     allNotion: [...foundationData.notion, ...connectionData.notion],
   };
@@ -548,11 +542,11 @@ pnpm run generate:large    # 365 days
 
 ```typescript
 // src/index.ts
-import { FoundationGenerator } from "./stages/foundation";
-import { ConnectionGenerator } from "./stages/connection";
-import { IntegrationGenerator } from "./stages/integration";
-import { SynthesisGenerator } from "./stages/synthesis";
-import { ContextBuilder } from "./context/builder";
+import { FoundationGenerator } from './stages/foundation';
+import { ConnectionGenerator } from './stages/connection';
+import { IntegrationGenerator } from './stages/integration';
+import { SynthesisGenerator } from './stages/synthesis';
+import { ContextBuilder } from './context/builder';
 
 class MockDataGenerator {
   async generate(config: Config): Promise<void> {
@@ -566,34 +560,18 @@ class MockDataGenerator {
     const connection = await new ConnectionGenerator(config).generate(contexts);
 
     // Stage 3: Integration (20%)
-    const richContexts = ContextBuilder.buildRichContexts(
-      foundation,
-      connection
-    );
-    const integration = await new IntegrationGenerator(config).generate(
-      richContexts
-    );
+    const richContexts = ContextBuilder.buildRichContexts(foundation, connection);
+    const integration = await new IntegrationGenerator(config).generate(richContexts);
 
     // Stage 4: Synthesis (20%)
-    const fullContexts = ContextBuilder.buildFullContexts(
-      foundation,
-      connection,
-      integration
-    );
-    const synthesis = await new SynthesisGenerator(config).generate(
-      fullContexts
-    );
+    const fullContexts = ContextBuilder.buildFullContexts(foundation, connection, integration);
+    const synthesis = await new SynthesisGenerator(config).generate(fullContexts);
 
     // Combine and save
-    const combined = this.combineAllStages(
-      foundation,
-      connection,
-      integration,
-      synthesis
-    );
+    const combined = this.combineAllStages(foundation, connection, integration, synthesis);
     await this.saveCombined(combined);
 
-    console.log("✅ Generation complete!");
+    console.log('✅ Generation complete!');
   }
 }
 ```
@@ -608,22 +586,14 @@ export class ContextBuilder {
       work: {
         githubIssues: foundationData.github.issues,
         githubPRs: foundationData.github.prs,
-        workMeetings: foundationData.fathom.filter((m) => m.type === "work"),
-        workNotion: foundationData.notion.filter((p) => p.category === "work"),
-        workSlack: foundationData.slack.filter(
-          (m) => m.category === "work-related"
-        ),
+        workMeetings: foundationData.fathom.filter((m) => m.type === 'work'),
+        workNotion: foundationData.notion.filter((p) => p.category === 'work'),
+        workSlack: foundationData.slack.filter((m) => m.category === 'work-related'),
       },
       casual: {
-        casualMeetings: foundationData.fathom.filter(
-          (m) => m.type === "social"
-        ),
-        casualNotion: foundationData.notion.filter(
-          (p) => p.category === "personal"
-        ),
-        casualSlack: foundationData.slack.filter(
-          (m) => m.category === "casual"
-        ),
+        casualMeetings: foundationData.fathom.filter((m) => m.type === 'social'),
+        casualNotion: foundationData.notion.filter((p) => p.category === 'personal'),
+        casualSlack: foundationData.slack.filter((m) => m.category === 'casual'),
       },
     };
   }

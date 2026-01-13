@@ -1,21 +1,18 @@
-import { mcpClientManager } from "../../../mcp/client.js";
-import { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse.js";
-import { Channel } from "@slack/web-api/dist/types/response/ConversationsListResponse.js";
-import logger from "../../../utils/logger.js";
-import { env } from "../../../env.js";
-import pThrottle from "p-throttle";
-import { parse } from "csv-parse/sync";
+import { mcpClientManager } from '../../../mcp/client.js';
+import { MessageElement } from '@slack/web-api/dist/types/response/ConversationsHistoryResponse.js';
+import { Channel } from '@slack/web-api/dist/types/response/ConversationsListResponse.js';
+import logger from '../../../utils/logger.js';
+import { env } from '../../../env.js';
+import pThrottle from 'p-throttle';
+import { parse } from 'csv-parse/sync';
 
 /**
  * Slack MCP Client wrapper for data extraction
  * Uses MCP server from https://github.com/korotovsky/slack-mcp-server
  */
 export class SlackMCPClient {
-  private serverName = "slack";
-  private throttledCallTool: <T>(
-    toolName: string,
-    args: Record<string, any>
-  ) => Promise<T>;
+  private serverName = 'slack';
+  private throttledCallTool: <T>(toolName: string, args: Record<string, any>) => Promise<T>;
 
   constructor() {
     // Slack rate limits: Tier 3 = 50+ requests per minute
@@ -45,7 +42,7 @@ export class SlackMCPClient {
 
       return records;
     } catch (err) {
-      logger.error({ err }, "Failed to parse CSV response");
+      logger.error({ err }, 'Failed to parse CSV response');
       throw new Error(`Invalid CSV format: ${err}`);
     }
   }
@@ -54,31 +51,22 @@ export class SlackMCPClient {
    * Internal method to call MCP tool and parse response
    * This is wrapped by throttledCallTool to enforce rate limiting
    */
-  private async callToolInternal<T>(
-    toolName: string,
-    args: Record<string, any>
-  ): Promise<T> {
+  private async callToolInternal<T>(toolName: string, args: Record<string, any>): Promise<T> {
     try {
-      const response = await mcpClientManager.callTool(
-        this.serverName,
-        toolName,
-        args
-      );
+      const response = await mcpClientManager.callTool(this.serverName, toolName, args);
 
       // MCP response format: { content: [{ type: 'text', text: '...' }] }
       if (response && response.content && Array.isArray(response.content)) {
-        const textContent = response.content.find(
-          (c: any) => c.type === "text"
-        );
+        const textContent = response.content.find((c: any) => c.type === 'text');
         if (textContent && textContent.text) {
           const text = textContent.text.trim();
 
           // Try JSON first (for compatibility with mock server)
-          if (text.startsWith("{") || text.startsWith("[")) {
+          if (text.startsWith('{') || text.startsWith('[')) {
             try {
               return JSON.parse(text) as T;
             } catch (jsonErr) {
-              logger.debug("Response is not JSON, trying CSV parsing");
+              logger.debug('Response is not JSON, trying CSV parsing');
             }
           }
 
@@ -90,15 +78,9 @@ export class SlackMCPClient {
             // The Slack MCP server returns CSV with specific structure
             return this.convertCsvToSlackResponse(csvRecords, toolName) as T;
           } catch (csvErr) {
-            logger.error(
-              { err: csvErr, toolName },
-              "Failed to parse MCP response as CSV"
-            );
+            logger.error({ err: csvErr, toolName }, 'Failed to parse MCP response as CSV');
             throw new Error(
-              `Invalid response format (neither JSON nor CSV): ${text.substring(
-                0,
-                100
-              )}...`
+              `Invalid response format (neither JSON nor CSV): ${text.substring(0, 100)}...`,
             );
           }
         }
@@ -107,7 +89,7 @@ export class SlackMCPClient {
       // Fallback: return response as-is if it doesn't match expected format
       return response as T;
     } catch (e) {
-      logger.error({ err: e, toolName, args }, "Failed to call MCP tool");
+      logger.error({ err: e, toolName, args }, 'Failed to call MCP tool');
       throw e;
     }
   }
@@ -117,11 +99,11 @@ export class SlackMCPClient {
    */
   private convertCsvToSlackResponse(csvRecords: any[], toolName: string): any {
     // Extract cursor from last record if present
-    let nextCursor = "";
+    let nextCursor = '';
     const lastRecord = csvRecords[csvRecords.length - 1];
 
     // Convert based on tool type
-    if (toolName === "channels_list") {
+    if (toolName === 'channels_list') {
       // CSV columns: ID, Name, Topic, Purpose, MemberCount, Cursor
       const channels = csvRecords.map((record) => ({
         id: record.ID || record.id,
@@ -143,17 +125,14 @@ export class SlackMCPClient {
           next_cursor: nextCursor,
         },
       };
-    } else if (
-      toolName === "conversations_history" ||
-      toolName === "conversations_replies"
-    ) {
+    } else if (toolName === 'conversations_history' || toolName === 'conversations_replies') {
       // CSV columns: MsgID, UserID, UserName, RealName, Channel, ThreadTs, Text, Time, Reactions, Cursor
       const messages = csvRecords.map((record) => {
         const message: any = {
-          type: "message",
+          type: 'message',
           ts: record.MsgID || record.ts,
           user: record.UserID || record.user,
-          text: record.Text || record.text || "",
+          text: record.Text || record.text || '',
           channel: record.Channel || record.channel,
         };
 
@@ -167,7 +146,7 @@ export class SlackMCPClient {
           try {
             // Reactions might be JSON string or already parsed
             const reactions =
-              typeof record.Reactions === "string"
+              typeof record.Reactions === 'string'
                 ? JSON.parse(record.Reactions)
                 : record.Reactions;
             if (Array.isArray(reactions) && reactions.length > 0) {
@@ -208,10 +187,7 @@ export class SlackMCPClient {
   /**
    * Call MCP tool with rate limiting (40 requests per 60 seconds) and parse response
    */
-  private async callTool<T>(
-    toolName: string,
-    args: Record<string, any>
-  ): Promise<T> {
+  private async callTool<T>(toolName: string, args: Record<string, any>): Promise<T> {
     return this.throttledCallTool<T>(toolName, args);
   }
 
@@ -222,7 +198,7 @@ export class SlackMCPClient {
     toolName: string,
     params: Record<string, any>,
     extractResults: (response: any) => T[],
-    extractCursor: (response: any) => string | undefined
+    extractCursor: (response: any) => string | undefined,
   ): Promise<T[]> {
     const allResults: T[] = [];
     let cursor: string | undefined = undefined;
@@ -233,7 +209,7 @@ export class SlackMCPClient {
       if (limit && allResults.length >= limit) {
         logger.info(
           { limit, fetched: allResults.length },
-          "Reached SYNC_MAX_RECORDS, stopping pagination"
+          'Reached SYNC_MAX_RECORDS, stopping pagination',
         );
         break;
       }
@@ -246,11 +222,8 @@ export class SlackMCPClient {
       const response: any = await this.callTool(toolName, requestParams);
 
       // Validate response structure
-      if (!response || typeof response !== "object") {
-        logger.warn(
-          `MCP tool ${toolName} returned invalid response structure:`,
-          response
-        );
+      if (!response || typeof response !== 'object') {
+        logger.warn(`MCP tool ${toolName} returned invalid response structure:`, response);
         break;
       }
 
@@ -262,10 +235,7 @@ export class SlackMCPClient {
       // Apply limit if specified
       if (limit && allResults.length > limit) {
         allResults.splice(limit);
-        logger.info(
-          { limit, fetched: allResults.length },
-          "Trimmed results to SYNC_MAX_RECORDS"
-        );
+        logger.info({ limit, fetched: allResults.length }, 'Trimmed results to SYNC_MAX_RECORDS');
         break;
       }
 
@@ -284,13 +254,13 @@ export class SlackMCPClient {
    */
   async getAllChannels(): Promise<Channel[]> {
     return this.fetchAllPages<Channel>(
-      "channels_list",
+      'channels_list',
       {
-        channel_types: "public_channel,private_channel",
+        channel_types: 'public_channel,private_channel',
         limit: 999,
       },
       (response) => response.channels || [],
-      (response) => response.response_metadata?.next_cursor
+      (response) => response.response_metadata?.next_cursor,
     );
   }
 
@@ -305,7 +275,7 @@ export class SlackMCPClient {
       /** Unix Timestamp in seconds. Only messages before this Unix timestamp will be included in results. */
       latest?: string;
       limit?: number;
-    } = {}
+    } = {},
   ): Promise<MessageElement[]> {
     const messages: MessageElement[] = [];
     let cursor: string | undefined = undefined;
@@ -313,7 +283,7 @@ export class SlackMCPClient {
     const maxRecords = options.limit || env.SYNC_MAX_RECORDS;
 
     // Convert oldest/latest to time-based limit format if provided
-    let limitParam = "1000"; // Default to large number
+    let limitParam = '1000'; // Default to large number
 
     while (maxRecords ? total < maxRecords : true) {
       const params: Record<string, any> = {
@@ -326,16 +296,10 @@ export class SlackMCPClient {
         params.cursor = cursor;
       }
 
-      const response: any = await this.callTool(
-        "conversations_history",
-        params
-      );
+      const response: any = await this.callTool('conversations_history', params);
 
       if (!response || !response.ok) {
-        logger.warn(
-          { channelId, response },
-          "conversations_history returned error"
-        );
+        logger.warn({ channelId, response }, 'conversations_history returned error');
         break;
       }
 
@@ -345,7 +309,7 @@ export class SlackMCPClient {
       let filteredMessages = newMessages;
       if (options.oldest || options.latest) {
         filteredMessages = newMessages.filter((msg: MessageElement) => {
-          const msgTs = parseFloat(msg.ts || "0");
+          const msgTs = parseFloat(msg.ts || '0');
           if (options.oldest && msgTs < parseFloat(options.oldest)) {
             return false;
           }
@@ -383,7 +347,7 @@ export class SlackMCPClient {
   async getThreadReplies(
     channelId: string,
     threadTs: string,
-    options: { limit?: number } = {}
+    options: { limit?: number } = {},
   ): Promise<MessageElement[]> {
     const allReplies: MessageElement[] = [];
     let cursor: string | undefined = undefined;
@@ -393,7 +357,7 @@ export class SlackMCPClient {
       const params: Record<string, any> = {
         channel_id: channelId,
         thread_ts: threadTs,
-        limit: "1000", // Use large number for limit
+        limit: '1000', // Use large number for limit
         include_activity_messages: false,
       };
 
@@ -401,16 +365,10 @@ export class SlackMCPClient {
         params.cursor = cursor;
       }
 
-      const response: any = await this.callTool(
-        "conversations_replies",
-        params
-      );
+      const response: any = await this.callTool('conversations_replies', params);
 
       if (!response || !response.ok) {
-        logger.warn(
-          { channelId, threadTs, response },
-          "conversations_replies returned error"
-        );
+        logger.warn({ channelId, threadTs, response }, 'conversations_replies returned error');
         break;
       }
 
@@ -442,23 +400,18 @@ export class SlackMCPClient {
    * Note: This functionality is not available in the current MCP server
    * Keeping this method for compatibility but it will throw an error
    */
-  async getAllUsers(): Promise<
-    { UserID: string; UserName: string; RealName: string }[]
-  > {
+  async getAllUsers(): Promise<{ UserID: string; UserName: string; RealName: string }[]> {
     const resources = await mcpClientManager.listResources(this.serverName);
 
-    const userResource = resources.find((r) => r.uri.endsWith("/users"));
+    const userResource = resources.find((r) => r.uri.endsWith('/users'));
 
     if (!userResource) {
-      throw new Error("User resource not found");
+      throw new Error('User resource not found');
     }
 
-    const response = await mcpClientManager.readResource(
-      this.serverName,
-      userResource.uri
-    );
+    const response = await mcpClientManager.readResource(this.serverName, userResource.uri);
 
-    if (response[0] && "text" in response[0]) {
+    if (response[0] && 'text' in response[0]) {
       return this.parseCsvResponse(response[0].text);
     }
 
@@ -474,7 +427,7 @@ export class SlackMCPClient {
       limit?: number;
       oldest?: string;
       latest?: string;
-    } = {}
+    } = {},
   ): Promise<MessageElement[]> {
     const { limit = 1000, oldest, latest } = options;
 
@@ -502,9 +455,7 @@ export class SlackMCPClient {
     for (let i = 0; i < threadParents.length; i++) {
       const parent = threadParents[i];
       logger.info(
-        `Fetching thread ${i + 1}/${threadParents.length} (${
-          parent.reply_count
-        } replies)...`
+        `Fetching thread ${i + 1}/${threadParents.length} (${parent.reply_count} replies)...`,
       );
 
       try {
@@ -512,9 +463,7 @@ export class SlackMCPClient {
 
         // Filter out the parent message and duplicates
         const newReplies = replies.filter(
-          (reply) =>
-            reply.ts !== parent.ts &&
-            !allMessages.find((m) => m.ts === reply.ts)
+          (reply) => reply.ts !== parent.ts && !allMessages.find((m) => m.ts === reply.ts),
         );
 
         allMessages.push(...newReplies);

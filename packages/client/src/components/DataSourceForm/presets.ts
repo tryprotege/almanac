@@ -1,11 +1,11 @@
-import { Settings } from "lucide-react";
+import { Settings } from 'lucide-react';
 
 export interface EnvVariable {
   key: string;
   label: string;
   placeholder: string;
   helpText: string;
-  type: "text" | "password";
+  type: 'text' | 'password';
   validation?: RegExp;
   validationMessage?: string;
 }
@@ -24,7 +24,7 @@ export interface ServicePreset {
   displayName: string;
   description: string;
   icon: typeof Settings;
-  type: "stdio" | "sse" | "streamable-http";
+  type: 'stdio' | 'sse' | 'streamable-http';
   command?: string;
   args?: string[];
   url?: string;
@@ -39,29 +39,29 @@ export interface ServicePreset {
 }
 
 export const CUSTOM_PRESET: ServicePreset = {
-  id: "custom",
-  name: "custom",
-  displayName: "Custom Server",
-  description: "Configure a custom MCP server with advanced options",
+  id: 'custom',
+  name: 'custom',
+  displayName: 'Custom Server',
+  description: 'Configure a custom MCP server with advanced options',
   icon: Settings,
-  type: "stdio",
-  command: "",
+  type: 'stdio',
+  command: '',
   args: [],
   requiredEnv: [],
-  documentation: "https://modelcontextprotocol.io/docs",
-  authGuide: "",
+  documentation: 'https://modelcontextprotocol.io/docs',
+  authGuide: '',
   setupSteps: [
-    "Choose the server type (STDIO, SSE, or Streamable HTTP)",
-    "Enter the command and arguments for STDIO servers",
-    "Or enter the URL for SSE/HTTP servers",
-    "Add any required environment variables or headers",
-    "Test the connection and save",
+    'Choose the server type (STDIO, SSE, or Streamable HTTP)',
+    'Enter the command and arguments for STDIO servers',
+    'Or enter the URL for SSE/HTTP servers',
+    'Add any required environment variables or headers',
+    'Test the connection and save',
   ],
 };
 
 export function getPresetById(id: string): ServicePreset | undefined {
   const lowerId = id.toLowerCase();
-  if (lowerId === "custom") return CUSTOM_PRESET;
+  if (lowerId === 'custom') return CUSTOM_PRESET;
   return undefined;
 }
 

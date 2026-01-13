@@ -4,7 +4,7 @@
  * Supports both generated queries (with evaluation) and hardcoded scenarios
  */
 
-import { executeSDKQuery, type SDKQueryResult } from "./sdk-runner.js";
+import { executeSDKQuery, type SDKQueryResult } from './sdk-runner.js';
 import type {
   MatrixBenchmarkConfig,
   MatrixBenchmarkResults,
@@ -14,30 +14,21 @@ import type {
   MatrixAnalysis,
   MatrixScenario,
   DetailedQueryResult,
-} from "../types/index.js";
-import { loadScenarios } from "../utils/query-loader.js";
-import {
-  evaluateResponse,
-  formatEvaluationResult,
-} from "../utils/evaluation.js";
-import plimit from "p-limit";
+} from '../types/index.js';
+import { loadScenarios } from '../utils/query-loader.js';
+import { evaluateResponse, formatEvaluationResult } from '../utils/evaluation.js';
+import plimit from 'p-limit';
 
 /**
  * Convert SDK result to matrix cell
  * Optionally evaluates response against mustInclude criteria
  */
-function toMatrixCell(
-  result: SDKQueryResult,
-  scenario?: MatrixScenario
-): MatrixCellResult {
+function toMatrixCell(result: SDKQueryResult, scenario?: MatrixScenario): MatrixCellResult {
   let evaluation = undefined;
 
   // Evaluate if scenario has evaluation criteria
   if (scenario?.evaluationCriteria?.mustInclude) {
-    evaluation = evaluateResponse(
-      result.response,
-      scenario.evaluationCriteria.mustInclude
-    );
+    evaluation = evaluateResponse(result.response, scenario.evaluationCriteria.mustInclude);
   }
 
   return {
@@ -54,7 +45,7 @@ function toMatrixCell(
  * Run matrix benchmark for all agent × MCP combinations
  */
 export async function runMatrixBenchmark(
-  config: MatrixBenchmarkConfig
+  config: MatrixBenchmarkConfig,
 ): Promise<MatrixBenchmarkResults> {
   console.log(`\n⚖️  Starting Agent × MCP Matrix Benchmark`);
   console.log(`   Benchmark: ${config.name}`);
@@ -64,7 +55,7 @@ export async function runMatrixBenchmark(
   const scenarios = loadScenarios(config.queriesSource, config.scenarios);
 
   if (scenarios.length === 0) {
-    throw new Error("No scenarios to test. Check your configuration.");
+    throw new Error('No scenarios to test. Check your configuration.');
   }
 
   console.log(`   Scenarios: ${scenarios.length}`);
@@ -92,12 +83,10 @@ export async function runMatrixBenchmark(
               console.log(`   Query: "${scenario.query}"`);
               if (scenario.evaluationCriteria) {
                 console.log(
-                  `   Evaluation: ${scenario.evaluationCriteria.mustInclude.length} required items`
+                  `   Evaluation: ${scenario.evaluationCriteria.mustInclude.length} required items`,
                 );
               }
-              console.log(
-                `   Target Servers: ${scenario.targetServers.join(", ")}\n`
-              );
+              console.log(`   Target Servers: ${scenario.targetServers.join(', ')}\n`);
 
               // Run iterations
               for (let i = 0; i < config.iterations; i++) {
@@ -118,7 +107,7 @@ export async function runMatrixBenchmark(
                         mcpConfig: setup.packages,
                       },
                       scenario.query,
-                      { verbose: config.verbose }
+                      { verbose: config.verbose },
                     );
                   } catch (err) {
                     // Capture error but continue with other tests
@@ -127,7 +116,7 @@ export async function runMatrixBenchmark(
 
                     // Create a minimal result for failed queries
                     result = {
-                      response: "",
+                      response: '',
                       mcpCalls: [],
                       inputTokens: 0,
                       outputTokens: 0,
@@ -136,14 +125,14 @@ export async function runMatrixBenchmark(
                       cacheReadTokens: 0,
                       totalTokens: 0,
                       executionTime: 0,
-                      rawOutput: "",
+                      rawOutput: '',
                       cost: 0,
                       steps: [], // Empty steps for failed queries
                     };
                   }
 
                   const cell = toMatrixCell(result, scenario);
-                  if (setup.name === "ebee") {
+                  if (setup.name === 'ebee') {
                     ebeeResults.push(cell);
                   } else {
                     directResults.push(cell);
@@ -175,21 +164,19 @@ export async function runMatrixBenchmark(
                   detailedResults.push(detailedResult);
 
                   console.log(
-                    `        ✓ Completed in ${result.executionTime}ms, ${result.totalTokens} tokens`
+                    `        ✓ Completed in ${result.executionTime}ms, ${result.totalTokens} tokens`,
                   );
 
                   // Show evaluation results if available
                   if (cell.evaluation) {
-                    console.log(
-                      `        ${formatEvaluationResult(cell.evaluation)}`
-                    );
+                    console.log(`        ${formatEvaluationResult(cell.evaluation)}`);
                   }
                 }
 
-                console.log(""); // Blank line between iterations
+                console.log(''); // Blank line between iterations
               }
-            })
-        )
+            }),
+        ),
       );
 
       // Average results across iterations
@@ -203,46 +190,43 @@ export async function runMatrixBenchmark(
 
       // Show comparison for this agent
       const speedup = avgDirect.time / avgEbee.time;
-      const tokenSavings =
-        ((avgDirect.tokens - avgEbee.tokens) / avgDirect.tokens) * 100;
+      const tokenSavings = ((avgDirect.tokens - avgEbee.tokens) / avgDirect.tokens) * 100;
 
       console.log(`\n  📊 ${agent.name} Summary:`);
       console.log(`     eBee:   ${avgEbee.time}ms, ${avgEbee.tokens} tokens`);
-      console.log(
-        `     Direct: ${avgDirect.time}ms, ${avgDirect.tokens} tokens`
-      );
+      console.log(`     Direct: ${avgDirect.time}ms, ${avgDirect.tokens} tokens`);
       console.log(`     Speedup: ${speedup.toFixed(2)}x`);
       console.log(`     Token Savings: ${tokenSavings.toFixed(1)}%\n`);
-    })
+    }),
   );
 
   // Analyze results
   const analysis = analyzeMatrix(matrix);
 
   // Display final matrix
-  console.log(`\n${"=".repeat(70)}`);
+  console.log(`\n${'='.repeat(70)}`);
   console.log(`📊 Matrix Results Summary`);
-  console.log(`${"=".repeat(70)}\n`);
+  console.log(`${'='.repeat(70)}\n`);
 
   console.table(
     Object.entries(matrix).map(([agent, results]) => ({
       Agent: agent,
-      "eBee Time": `${results.ebee.time}ms`,
-      "eBee Tokens": results.ebee.tokens,
-      "Direct Time": `${results.direct.time}ms`,
-      "Direct Tokens": results.direct.tokens,
+      'eBee Time': `${results.ebee.time}ms`,
+      'eBee Tokens': results.ebee.tokens,
+      'Direct Time': `${results.direct.time}ms`,
+      'Direct Tokens': results.direct.tokens,
       Speedup: `${(results.direct.time / results.ebee.time).toFixed(2)}x`,
-    }))
+    })),
   );
 
-  console.log(`\n${"=".repeat(70)}`);
+  console.log(`\n${'='.repeat(70)}`);
   console.log(`🏆 Analysis`);
-  console.log(`${"=".repeat(70)}`);
+  console.log(`${'='.repeat(70)}`);
   console.log(`Best Overall Combination: ${analysis.bestCombination}`);
   console.log(`Fastest with eBee: ${analysis.fastestWithEbee}`);
   console.log(`Fastest with Direct: ${analysis.fastestWithDirect}`);
   console.log(`Most Efficient: ${analysis.mostEfficient}`);
-  console.log(`${"=".repeat(70)}\n`);
+  console.log(`${'='.repeat(70)}\n`);
 
   return {
     config,
@@ -264,7 +248,7 @@ function average(cells: MatrixCellResult[]): MatrixCellResult {
       cost: acc.cost + cell.cost,
       quality: acc.quality + cell.quality,
     }),
-    { time: 0, tokens: 0, cost: 0, quality: 0 }
+    { time: 0, tokens: 0, cost: 0, quality: 0 },
   );
 
   const count = cells.length;
@@ -283,13 +267,13 @@ function analyzeMatrix(matrix: MatrixResult): MatrixAnalysis {
   const agents = Object.keys(matrix);
 
   // Find best overall combination (fastest + cheapest)
-  let bestCombination = "";
+  let bestCombination = '';
   let bestScore = Infinity;
 
   // Find fastest with each setup
-  let fastestWithEbee = "";
+  let fastestWithEbee = '';
   let fastestEbeeTime = Infinity;
-  let fastestWithDirect = "";
+  let fastestWithDirect = '';
   let fastestDirectTime = Infinity;
 
   // Calculate metrics per agent
@@ -322,24 +306,23 @@ function analyzeMatrix(matrix: MatrixResult): MatrixAnalysis {
     // Calculate per-agent metrics
     speedupByAgent[agent] = results.direct.time / results.ebee.time;
     tokenSavingsByAgent[agent] =
-      ((results.direct.tokens - results.ebee.tokens) / results.direct.tokens) *
-      100;
+      ((results.direct.tokens - results.ebee.tokens) / results.direct.tokens) * 100;
     costSavingsByAgent[agent] =
       ((results.direct.cost - results.ebee.cost) / results.direct.cost) * 100;
   }
 
   // Most efficient = best speedup
   const mostEfficientAgent = agents.reduce((best, agent) =>
-    speedupByAgent[agent] > speedupByAgent[best] ? agent : best
+    speedupByAgent[agent] > speedupByAgent[best] ? agent : best,
   );
 
   return {
     bestCombination,
     fastestWithEbee,
     fastestWithDirect,
-    mostEfficient: `${mostEfficientAgent} (${speedupByAgent[
-      mostEfficientAgent
-    ].toFixed(2)}x speedup)`,
+    mostEfficient: `${mostEfficientAgent} (${speedupByAgent[mostEfficientAgent].toFixed(
+      2,
+    )}x speedup)`,
     speedupByAgent,
     tokenSavingsByAgent,
     costSavingsByAgent,

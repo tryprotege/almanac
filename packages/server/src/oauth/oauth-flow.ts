@@ -1,8 +1,8 @@
-import { OAuthTokenModel } from "../models/oauth-token.model.js";
-import { DataSourceModel } from "../models/data-source.model.js";
-import { generatePKCE, generateState } from "./pkce.js";
-import logger from "../utils/logger.js";
-import mongoose from "mongoose";
+import { OAuthTokenModel } from '../models/oauth-token.model.js';
+import { DataSourceModel } from '../models/data-source.model.js';
+import { generatePKCE, generateState } from './pkce.js';
+import logger from '../utils/logger.js';
+import mongoose from 'mongoose';
 
 /**
  * OAuth configuration for MCP servers
@@ -41,12 +41,12 @@ export class OAuthFlowManager {
    */
   async startFlow(
     mcpServerId: string,
-    config: OAuthConfig
+    config: OAuthConfig,
   ): Promise<{
     authorizationUrl: string;
     state: string;
   }> {
-    logger.info({ mcpServerId }, "Starting OAuth flow");
+    logger.info({ mcpServerId }, 'Starting OAuth flow');
 
     // Validate server exists
     const serverExists = await DataSourceModel.findById(mcpServerId);
@@ -68,29 +68,26 @@ export class OAuthFlowManager {
         state,
         codeVerifier,
         // Temporary placeholder values (will be replaced after callback)
-        accessToken: "pending",
+        accessToken: 'pending',
         salt: state, // Use state as temporary salt
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
 
     // Build authorization URL
     const authUrl = new URL(config.authorizationUrl);
-    authUrl.searchParams.set("client_id", config.clientId);
-    authUrl.searchParams.set("redirect_uri", config.redirectUri);
-    authUrl.searchParams.set("response_type", "code");
-    authUrl.searchParams.set("state", state);
-    authUrl.searchParams.set("scope", config.scopes.join(" "));
+    authUrl.searchParams.set('client_id', config.clientId);
+    authUrl.searchParams.set('redirect_uri', config.redirectUri);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('scope', config.scopes.join(' '));
 
     if (config.usePKCE) {
-      authUrl.searchParams.set("code_challenge", codeChallenge);
-      authUrl.searchParams.set("code_challenge_method", "S256");
+      authUrl.searchParams.set('code_challenge', codeChallenge);
+      authUrl.searchParams.set('code_challenge_method', 'S256');
     }
 
-    logger.debug(
-      { mcpServerId, state },
-      "Generated authorization URL for OAuth flow"
-    );
+    logger.debug({ mcpServerId, state }, 'Generated authorization URL for OAuth flow');
 
     return {
       authorizationUrl: authUrl.toString(),
@@ -104,70 +101,60 @@ export class OAuthFlowManager {
    * @param state - State parameter from callback
    * @returns OAuth tokens
    */
-  async handleCallback(
-    code: string,
-    state: string
-  ): Promise<OAuthTokenResponse> {
-    logger.info({ state }, "Handling OAuth callback");
+  async handleCallback(code: string, state: string): Promise<OAuthTokenResponse> {
+    logger.info({ state }, 'Handling OAuth callback');
 
     // Find OAuth token record by state
     const tokenRecord = await OAuthTokenModel.findOne({ state });
     if (!tokenRecord) {
-      throw new Error("Invalid OAuth state - token record not found");
+      throw new Error('Invalid OAuth state - token record not found');
     }
 
     // Get OAuth config from DataSource
-    const dataSource = await DataSourceModel.findById(
-      tokenRecord.mcpServerConfigId
-    );
+    const dataSource = await DataSourceModel.findById(tokenRecord.mcpServerConfigId);
 
     if (!dataSource || !dataSource.oauth) {
-      throw new Error("OAuth config not found in DataSource");
+      throw new Error('OAuth config not found in DataSource');
     }
 
     const oauthConfig = dataSource.oauth;
     logger.debug(
       { mcpServerConfigId: tokenRecord.mcpServerConfigId },
-      "Found OAuth config in DataSourceModel"
+      'Found OAuth config in DataSourceModel',
     );
 
     // Prepare token exchange request
     const tokenRequestBody = new URLSearchParams({
-      grant_type: "authorization_code",
+      grant_type: 'authorization_code',
       code,
-      redirect_uri: oauthConfig.redirectUri || "",
-      client_id: oauthConfig.clientId || "",
+      redirect_uri: oauthConfig.redirectUri || '',
+      client_id: oauthConfig.clientId || '',
     });
 
     // Add client secret if available
     if (oauthConfig.clientSecret) {
-      tokenRequestBody.set("client_secret", oauthConfig.clientSecret);
+      tokenRequestBody.set('client_secret', oauthConfig.clientSecret);
     }
 
     // Add PKCE code verifier if PKCE is enabled
     if (oauthConfig.usePKCE && tokenRecord.codeVerifier) {
-      tokenRequestBody.set("code_verifier", tokenRecord.codeVerifier);
+      tokenRequestBody.set('code_verifier', tokenRecord.codeVerifier);
     }
 
     // Exchange code for tokens
-    logger.debug({ state }, "Exchanging authorization code for tokens");
-    const response = await fetch(oauthConfig.tokenUrl || "", {
-      method: "POST",
+    logger.debug({ state }, 'Exchanging authorization code for tokens');
+    const response = await fetch(oauthConfig.tokenUrl || '', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: tokenRequestBody,
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      logger.error(
-        { state, status: response.status, error: errorText },
-        "Token exchange failed"
-      );
-      throw new Error(
-        `Token exchange failed: ${response.status} - ${errorText}`
-      );
+      logger.error({ state, status: response.status, error: errorText }, 'Token exchange failed');
+      throw new Error(`Token exchange failed: ${response.status} - ${errorText}`);
     }
 
     const tokenData = (await response.json()) as {
@@ -182,17 +169,15 @@ export class OAuthFlowManager {
     const accessToken = tokenData.access_token;
     const refreshToken = tokenData.refresh_token;
     const expiresIn = tokenData.expires_in;
-    const scope = tokenData.scope?.split(" ");
-    const tokenType = tokenData.token_type || "Bearer";
+    const scope = tokenData.scope?.split(' ');
+    const tokenType = tokenData.token_type || 'Bearer';
 
     if (!accessToken) {
-      throw new Error("Access token not received from authorization server");
+      throw new Error('Access token not received from authorization server');
     }
 
     // Calculate expiration date
-    const expiresAt = expiresIn
-      ? new Date(Date.now() + expiresIn * 1000)
-      : undefined;
+    const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1000) : undefined;
 
     // Update token record with actual tokens
     await OAuthTokenModel.findOneAndUpdate(
@@ -205,12 +190,12 @@ export class OAuthFlowManager {
         expiresAt,
         state: undefined, // Clear state after successful exchange
         codeVerifier: undefined, // Clear code verifier
-      }
+      },
     );
 
     logger.info(
       { mcpServerConfigId: tokenRecord.mcpServerConfigId },
-      "Successfully exchanged authorization code for tokens"
+      'Successfully exchanged authorization code for tokens',
     );
 
     return {
@@ -228,7 +213,7 @@ export class OAuthFlowManager {
    * @returns New OAuth tokens
    */
   async refreshTokens(mcpServerId: string): Promise<OAuthTokenResponse> {
-    logger.info({ mcpServerId }, "Refreshing OAuth tokens");
+    logger.info({ mcpServerId }, 'Refreshing OAuth tokens');
 
     // Get token record
     const tokenRecord = await OAuthTokenModel.findOne({
@@ -236,40 +221,37 @@ export class OAuthFlowManager {
     });
 
     if (!tokenRecord || !tokenRecord.refreshToken) {
-      throw new Error("No refresh token available");
+      throw new Error('No refresh token available');
     }
 
     // Get OAuth config from DataSource
     const dataSource = await DataSourceModel.findById(mcpServerId);
 
     if (!dataSource || !dataSource.oauth) {
-      throw new Error("OAuth config not found in DataSource");
+      throw new Error('OAuth config not found in DataSource');
     }
 
     const oauthConfig = dataSource.oauth;
-    logger.debug(
-      { mcpServerId },
-      "Found OAuth config in DataSourceModel for refresh"
-    );
+    logger.debug({ mcpServerId }, 'Found OAuth config in DataSourceModel for refresh');
 
     // Prepare token refresh request
     const tokenRequestBody = new URLSearchParams({
-      grant_type: "refresh_token",
+      grant_type: 'refresh_token',
       refresh_token: tokenRecord.refreshToken,
-      client_id: oauthConfig.clientId || "",
+      client_id: oauthConfig.clientId || '',
     });
 
     // Add client secret if available
     if (oauthConfig.clientSecret) {
-      tokenRequestBody.set("client_secret", oauthConfig.clientSecret);
+      tokenRequestBody.set('client_secret', oauthConfig.clientSecret);
     }
 
     // Request new tokens
-    logger.debug({ mcpServerId }, "Requesting token refresh");
-    const response = await fetch(oauthConfig.tokenUrl || "", {
-      method: "POST",
+    logger.debug({ mcpServerId }, 'Requesting token refresh');
+    const response = await fetch(oauthConfig.tokenUrl || '', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: tokenRequestBody,
     });
@@ -278,11 +260,9 @@ export class OAuthFlowManager {
       const errorText = await response.text();
       logger.error(
         { mcpServerId, status: response.status, error: errorText },
-        "Token refresh failed"
+        'Token refresh failed',
       );
-      throw new Error(
-        `Token refresh failed: ${response.status} - ${errorText}`
-      );
+      throw new Error(`Token refresh failed: ${response.status} - ${errorText}`);
     }
 
     const tokenData = (await response.json()) as {
@@ -297,17 +277,15 @@ export class OAuthFlowManager {
     const accessToken = tokenData.access_token;
     const refreshToken = tokenData.refresh_token || tokenRecord.refreshToken; // Use old refresh token if not rotated
     const expiresIn = tokenData.expires_in;
-    const scope = tokenData.scope?.split(" ");
-    const tokenType = tokenData.token_type || "Bearer";
+    const scope = tokenData.scope?.split(' ');
+    const tokenType = tokenData.token_type || 'Bearer';
 
     if (!accessToken) {
-      throw new Error("Access token not received from authorization server");
+      throw new Error('Access token not received from authorization server');
     }
 
     // Calculate expiration date
-    const expiresAt = expiresIn
-      ? new Date(Date.now() + expiresIn * 1000)
-      : undefined;
+    const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1000) : undefined;
 
     // Update token record
     await OAuthTokenModel.findOneAndUpdate(
@@ -318,10 +296,10 @@ export class OAuthFlowManager {
         tokenType,
         scope,
         expiresAt,
-      }
+      },
     );
 
-    logger.info({ mcpServerId }, "Successfully refreshed tokens");
+    logger.info({ mcpServerId }, 'Successfully refreshed tokens');
 
     return {
       accessToken,
@@ -337,14 +315,14 @@ export class OAuthFlowManager {
    * @param mcpServerId - MCP server config ID
    */
   async revokeTokens(mcpServerId: string): Promise<void> {
-    logger.info({ mcpServerId }, "Revoking OAuth tokens");
+    logger.info({ mcpServerId }, 'Revoking OAuth tokens');
 
     // Delete token record
     await OAuthTokenModel.findOneAndDelete({
       mcpServerConfigId: new mongoose.Types.ObjectId(mcpServerId),
     });
 
-    logger.info({ mcpServerId }, "Successfully revoked tokens");
+    logger.info({ mcpServerId }, 'Successfully revoked tokens');
   }
 
   /**
@@ -360,13 +338,13 @@ export class OAuthFlowManager {
     });
 
     if (!tokenRecord) {
-      logger.debug({ mcpServerId }, "No OAuth token found");
+      logger.debug({ mcpServerId }, 'No OAuth token found');
       return null;
     }
 
     // Check if access token is still valid
     if (tokenRecord.expiresAt && tokenRecord.expiresAt <= new Date()) {
-      logger.debug({ mcpServerId }, "Access token expired, attempting refresh");
+      logger.debug({ mcpServerId }, 'Access token expired, attempting refresh');
 
       // Token expired, try to refresh
       if (tokenRecord.refreshToken) {
@@ -374,14 +352,11 @@ export class OAuthFlowManager {
           const newTokens = await this.refreshTokens(mcpServerId);
           return newTokens.accessToken;
         } catch (err) {
-          logger.error({ err, mcpServerId }, "Failed to refresh expired token");
+          logger.error({ err, mcpServerId }, 'Failed to refresh expired token');
           return null;
         }
       } else {
-        logger.warn(
-          { mcpServerId },
-          "Access token expired and no refresh token available"
-        );
+        logger.warn({ mcpServerId }, 'Access token expired and no refresh token available');
         return null;
       }
     }

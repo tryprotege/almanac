@@ -1,7 +1,7 @@
-import { LucideIcon } from "lucide-react";
-import { FeaturedIcon } from "./FeaturedIcon";
+import { LucideIcon } from 'lucide-react';
+import { FeaturedIcon } from './FeaturedIcon';
 
-type IconColor = "purple" | "blue" | "orange" | "indigo" | "green" | "gray";
+type IconColor = 'purple' | 'blue' | 'orange' | 'indigo' | 'green' | 'gray';
 
 interface MetricCardProps {
   title: string;
@@ -12,14 +12,7 @@ interface MetricCardProps {
   tooltip?: string;
 }
 
-export function MetricCard({
-  title,
-  value,
-  icon,
-  iconColor,
-  loading,
-  tooltip,
-}: MetricCardProps) {
+export function MetricCard({ title, value, icon, iconColor, loading, tooltip }: MetricCardProps) {
   if (loading) {
     return (
       <div className="metric-card animate-pulse">

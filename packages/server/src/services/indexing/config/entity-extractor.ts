@@ -3,18 +3,18 @@ import type {
   RelationshipConfig,
   ExtractedEntity,
   ExtractedRelationship,
-} from "@ebee-oss/indexing-engine";
-import logger from "../../../utils/logger.js";
+} from '@ebee-oss/indexing-engine';
+import logger from '../../../utils/logger.js';
 
 /**
  * Extract array values from a path containing [*]
  */
 function extractArrayPath(record: any, path: string): any[] {
   // Remove leading $. if present
-  const cleanPath = path.startsWith("$.") ? path.substring(2) : path;
+  const cleanPath = path.startsWith('$.') ? path.substring(2) : path;
 
   // Split path at [*]
-  const arrayMarkerIndex = cleanPath.indexOf("[*]");
+  const arrayMarkerIndex = cleanPath.indexOf('[*]');
   if (arrayMarkerIndex === -1) {
     // No array marker, shouldn't get here
     return [];
@@ -26,7 +26,7 @@ function extractArrayPath(record: any, path: string): any[] {
   const afterArrayPath = cleanPath.substring(arrayMarkerIndex + 3);
 
   // Navigate to array
-  const arrayParts = arrayPath.split(".").filter((p) => p.length > 0);
+  const arrayParts = arrayPath.split('.').filter((p) => p.length > 0);
   let arrayValue = record;
 
   for (const part of arrayParts) {
@@ -47,8 +47,8 @@ function extractArrayPath(record: any, path: string): any[] {
 
   // Navigate into each array element
   const afterParts = afterArrayPath
-    .substring(afterArrayPath.startsWith(".") ? 1 : 0)
-    .split(".")
+    .substring(afterArrayPath.startsWith('.') ? 1 : 0)
+    .split('.')
     .filter((p) => p.length > 0);
 
   return arrayValue
@@ -74,15 +74,15 @@ function extractPath(record: any, path: string): any | any[] {
   }
 
   // Check if path contains array wildcard
-  if (path.includes("[*]")) {
+  if (path.includes('[*]')) {
     return extractArrayPath(record, path);
   }
 
   // Remove leading $. if present
-  const cleanPath = path.startsWith("$.") ? path.substring(2) : path;
+  const cleanPath = path.startsWith('$.') ? path.substring(2) : path;
 
   // Split by dots and navigate
-  const parts = cleanPath.split(".");
+  const parts = cleanPath.split('.');
   let value = record;
 
   for (const part of parts) {
@@ -99,7 +99,7 @@ function extractPath(record: any, path: string): any | any[] {
 export function extractEntities(
   record: any,
   entityConfigs: EntityExtractionConfig[],
-  source: string
+  source: string,
 ): ExtractedEntity[] {
   const entities: ExtractedEntity[] = [];
 
@@ -107,16 +107,10 @@ export function extractEntities(
     // Check condition
     if (config.condition) {
       try {
-        const conditionFn = new Function(
-          "record",
-          `return ${config.condition}`
-        );
+        const conditionFn = new Function('record', `return ${config.condition}`);
         if (!conditionFn(record)) continue;
       } catch (err) {
-        logger.warn(
-          { err, condition: config.condition },
-          "Error evaluating entity condition"
-        );
+        logger.warn({ err, condition: config.condition }, 'Error evaluating entity condition');
         continue;
       }
     }
@@ -126,7 +120,7 @@ export function extractEntities(
     const title = extractPath(record, config.titlePath);
 
     if (!id) {
-      logger.debug({ entityName: config.name }, "Entity ID is null, skipping");
+      logger.debug({ entityName: config.name }, 'Entity ID is null, skipping');
       continue;
     }
 
@@ -146,9 +140,7 @@ export function extractEntities(
         // Extract additional properties (arrays matched by index)
         const properties: Record<string, any> = {};
         if (config.properties) {
-          for (const [propName, propPath] of Object.entries(
-            config.properties
-          )) {
+          for (const [propName, propPath] of Object.entries(config.properties)) {
             const value = extractPath(record, propPath);
             if (value !== undefined) {
               // If property is array and matches entity array length, use indexed value
@@ -165,8 +157,7 @@ export function extractEntities(
           id: `${source}_${config.type.toLowerCase()}_${entityId}`,
           type: config.type,
           title: titles[i] || entityId,
-          properties:
-            Object.keys(properties).length > 0 ? properties : undefined,
+          properties: Object.keys(properties).length > 0 ? properties : undefined,
         });
       }
     } else {
@@ -202,7 +193,7 @@ export function extractRelationships(
   documentId: string,
   documentType: string,
   relationshipConfigs: RelationshipConfig[],
-  source: string
+  source: string,
 ): ExtractedRelationship[] {
   const relationships: ExtractedRelationship[] = [];
 
@@ -210,15 +201,12 @@ export function extractRelationships(
     // Check condition
     if (config.condition) {
       try {
-        const conditionFn = new Function(
-          "record",
-          `return ${config.condition}`
-        );
+        const conditionFn = new Function('record', `return ${config.condition}`);
         if (!conditionFn(record)) continue;
       } catch (err) {
         logger.warn(
           { err, condition: config.condition },
-          "Error evaluating relationship condition"
+          'Error evaluating relationship condition',
         );
         continue;
       }
@@ -228,23 +216,15 @@ export function extractRelationships(
     const targetId = extractPath(record, config.targetIdPath);
 
     if (!targetId) {
-      logger.debug(
-        { relName: config.name },
-        "Target ID is null, skipping relationship"
-      );
+      logger.debug({ relName: config.name }, 'Target ID is null, skipping relationship');
       continue;
     }
 
     // Extract source ID if provided, otherwise use document ID
-    const sourceId = config.sourceIdPath
-      ? extractPath(record, config.sourceIdPath)
-      : documentId;
+    const sourceId = config.sourceIdPath ? extractPath(record, config.sourceIdPath) : documentId;
 
     if (!sourceId) {
-      logger.debug(
-        { relName: config.name },
-        "Source ID is null, skipping relationship"
-      );
+      logger.debug({ relName: config.name }, 'Source ID is null, skipping relationship');
       continue;
     }
 

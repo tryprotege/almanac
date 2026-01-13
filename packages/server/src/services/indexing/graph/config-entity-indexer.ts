@@ -3,15 +3,12 @@
  * Saves entities/relationships extracted from structured data (not LLM)
  */
 
-import type {
-  ExtractedEntity,
-  ExtractedRelationship,
-} from "@ebee-oss/indexing-engine";
-import { GraphStore } from "../../../stores/graph.store.js";
-import { GraphEmbeddingMetadata } from "../../../models/graph-embedding-metadata.model.js";
-import { RelationshipMentionStore } from "../../../stores/relationship-mention.store.js";
-import { calculateEmbeddingChecksum } from "../../../utils/checksum.js";
-import logger from "../../../utils/logger.js";
+import type { ExtractedEntity, ExtractedRelationship } from '@ebee-oss/indexing-engine';
+import { GraphStore } from '../../../stores/graph.store.js';
+import { GraphEmbeddingMetadata } from '../../../models/graph-embedding-metadata.model.js';
+import { RelationshipMentionStore } from '../../../stores/relationship-mention.store.js';
+import { calculateEmbeddingChecksum } from '../../../utils/checksum.js';
+import logger from '../../../utils/logger.js';
 
 /**
  * Save config-extracted entities and relationships to graph
@@ -22,14 +19,14 @@ export async function indexConfigEntities(
   source: string,
   extractedEntities: ExtractedEntity[],
   extractedRelationships: ExtractedRelationship[],
-  graphStore: GraphStore
+  graphStore: GraphStore,
 ): Promise<void> {
   if (extractedEntities.length === 0 && extractedRelationships.length === 0) {
     return; // Nothing to index
   }
 
   logger.info({
-    msg: "💎 Indexing config-extracted entities",
+    msg: '💎 Indexing config-extracted entities',
     documentId,
     entities: extractedEntities.length,
     relationships: extractedRelationships.length,
@@ -43,7 +40,7 @@ export async function indexConfigEntities(
         type: entity.type,
         title: entity.title,
         description: JSON.stringify(entity.properties || {}), // Store properties as JSON
-      }))
+      })),
     );
 
     // 2. Link entities to document (MENTIONED_IN)
@@ -65,7 +62,7 @@ export async function indexConfigEntities(
           .map(([k, v]) => `${k}=${v}`)
           .slice(0, 3); // Limit to 3 properties for brevity
         if (propPairs.length > 0) {
-          entityDescription += ` (${propPairs.join(", ")})`;
+          entityDescription += ` (${propPairs.join(', ')})`;
         }
       }
 
@@ -80,14 +77,14 @@ export async function indexConfigEntities(
           filter: { entityId: entity.id },
           update: {
             $set: {
-              itemType: "entity",
+              itemType: 'entity',
               entityId: entity.id,
               entityType: entity.type,
               entityDescription: entityDescription,
               source: source,
               contentChecksum: contentChecksum,
               lastUpdatedBy: source,
-              extractionMethod: "config", // Mark as config-extracted
+              extractionMethod: 'config', // Mark as config-extracted
             },
             $addToSet: {
               sources: source,
@@ -104,7 +101,7 @@ export async function indexConfigEntities(
     }
 
     logger.info({
-      msg: "✅ Created entity nodes",
+      msg: '✅ Created entity nodes',
       count: extractedEntities.length,
       documentId,
     });
@@ -118,7 +115,7 @@ export async function indexConfigEntities(
         targetId: rel.targetId,
         type: rel.type,
         confidence: rel.confidence,
-      }))
+      })),
     );
 
     // 5. Track relationship mentions in MongoDB
@@ -130,7 +127,7 @@ export async function indexConfigEntities(
         targetEntityId: rel.targetId,
         type: rel.type,
         confidence: rel.confidence,
-      }))
+      })),
     );
 
     // 6. Create MongoDB metadata for relationship embeddings
@@ -150,7 +147,7 @@ export async function indexConfigEntities(
           },
           update: {
             $set: {
-              itemType: "relationship",
+              itemType: 'relationship',
               sourceId: rel.sourceId,
               targetId: rel.targetId,
               relType: rel.type,
@@ -158,7 +155,7 @@ export async function indexConfigEntities(
               source: source,
               contentChecksum: contentChecksum,
               lastUpdatedBy: source,
-              extractionMethod: "config", // Mark as config-extracted
+              extractionMethod: 'config', // Mark as config-extracted
             },
             $addToSet: {
               sources: source,
@@ -175,7 +172,7 @@ export async function indexConfigEntities(
     }
 
     logger.info({
-      msg: "✅ Created relationships",
+      msg: '✅ Created relationships',
       count: extractedRelationships.length,
       documentId,
     });

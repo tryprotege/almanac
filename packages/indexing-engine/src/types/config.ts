@@ -1,7 +1,7 @@
 /**
  * Tool operation category for determining indexing behavior
  */
-export type ToolCategory = "read" | "search" | "write";
+export type ToolCategory = 'read' | 'search' | 'write';
 
 /**
  * LLM-generated classification for an MCP tool
@@ -17,7 +17,7 @@ export interface ToolClassification {
  */
 
 export interface SyncConfig {
-  version: "1.0";
+  version: '1.0';
   source: string; // MCP server name
   displayName: string; // Human-readable name
 
@@ -217,7 +217,7 @@ export interface FetcherConfig {
 }
 
 export interface PaginationConfig {
-  type: "cursor" | "offset" | "none";
+  type: 'cursor' | 'offset' | 'none';
   limitParam?: string; // e.g., "page_size"
   cursorParam?: string; // e.g., "start_cursor"
   cursorPath?: string; // JSONPath to next cursor in response
@@ -227,7 +227,7 @@ export interface PaginationConfig {
 
 export interface IncrementalSyncConfig {
   sinceParam?: string; // e.g., "last_edited_time"
-  sinceFormat?: "iso8601" | "unix" | "unix_ms";
+  sinceFormat?: 'iso8601' | 'unix' | 'unix_ms';
 }
 
 /**
@@ -241,7 +241,7 @@ export interface CutoffDateConfig {
    * - "post_fetch": Filter after fetching (fallback)
    * - "both": Use API param + validate after fetching (safest)
    */
-  strategy: "api" | "post_fetch" | "both";
+  strategy: 'api' | 'post_fetch' | 'both';
 
   /**
    * For API strategy: parameter name in the tool
@@ -252,7 +252,7 @@ export interface CutoffDateConfig {
   /**
    * For API strategy: date format required by API
    */
-  apiFormat?: "unix" | "unix_ms" | "iso8601";
+  apiFormat?: 'unix' | 'unix_ms' | 'iso8601';
 
   /**
    * For post_fetch strategy: JSONPath to date field in record
@@ -290,7 +290,7 @@ export interface RateLimitConfig {
    * - "token_bucket": Proactive rate limiting using token bucket algorithm (proactive)
    * Default: "token_bucket"
    */
-  strategy?: "respect_retry_after" | "exponential_backoff" | "token_bucket";
+  strategy?: 'respect_retry_after' | 'exponential_backoff' | 'token_bucket';
 
   /**
    * Initial backoff delay in milliseconds (for exponential_backoff)
@@ -439,28 +439,28 @@ export type FieldMapping =
   | ProcessorMapping;
 
 export interface PathMapping {
-  type: "path";
+  type: 'path';
   path: string; // JSONPath: "$.properties.Name.title[0].text.content"
 }
 
 export interface PathsMapping {
-  type: "paths";
+  type: 'paths';
   paths: string[]; // Multiple paths to combine
   join?: string; // Join string (default: ' ')
 }
 
 export interface TemplateMapping {
-  type: "template";
+  type: 'template';
   template: string; // Template: "${record.name} - ${record.id}"
 }
 
 export interface CodeMapping {
-  type: "code";
+  type: 'code';
   code: string; // Full TypeScript code
 }
 
 export interface ProcessorMapping {
-  type: "processor";
+  type: 'processor';
   processor: string; // Format processor name
   input: string; // JSONPath to input data
   options?: Record<string, any>; // Processor-specific options
@@ -498,12 +498,7 @@ export interface GroupingConfig {
    * - "user_session": Group by user activity sessions
    * - "hybrid": Combine thread and LLM grouping intelligently
    */
-  strategy:
-    | "thread"
-    | "llm_conversation"
-    | "time_window"
-    | "user_session"
-    | "hybrid";
+  strategy: 'thread' | 'llm_conversation' | 'time_window' | 'user_session' | 'hybrid';
 
   /**
    * Configuration specific to the strategy
@@ -584,7 +579,7 @@ export interface LLMGroupingConfig {
    * Sorting before grouping
    */
   sortBy?: string; // JSONPath, e.g., "$.ts"
-  sortOrder?: "asc" | "desc";
+  sortOrder?: 'asc' | 'desc';
 }
 
 /**
@@ -675,7 +670,7 @@ export interface ParentRecordConfig {
    * - "hash": Hash of child IDs
    * - "template": Use template with variables
    */
-  sourceIdStrategy: "first_child" | "concatenate" | "hash" | "template";
+  sourceIdStrategy: 'first_child' | 'concatenate' | 'hash' | 'template';
 
   /**
    * Template or prefix for sourceId (if applicable)
@@ -726,17 +721,13 @@ export interface ParentFieldMappings {
 /**
  * ParentFieldMapping - Field mapping for parent records
  */
-export type ParentFieldMapping =
-  | PathMapping
-  | AggregateMapping
-  | TemplateMapping
-  | CodeMapping;
+export type ParentFieldMapping = PathMapping | AggregateMapping | TemplateMapping | CodeMapping;
 
 /**
  * AggregateMapping - Aggregate values from child records
  */
 export interface AggregateMapping {
-  type: "aggregate";
+  type: 'aggregate';
   /**
    * Aggregation function
    * - "concat": Concatenate from all children
@@ -745,7 +736,7 @@ export interface AggregateMapping {
    * - "last": Take from last child
    * - "unique": Collect unique values
    */
-  function: "concat" | "merge" | "first" | "last" | "unique";
+  function: 'concat' | 'merge' | 'first' | 'last' | 'unique';
 
   /**
    * JSONPath to extract from each child
@@ -805,7 +796,7 @@ export interface AggregationConfig {
    * - "merge": Deep merge objects/arrays
    * - "append": Append to parent field (for arrays)
    */
-  mergeStrategy?: "replace" | "merge" | "append";
+  mergeStrategy?: 'replace' | 'merge' | 'append';
 
   /** Whether this aggregation is required (fail if it fails) */
   required?: boolean;

@@ -1,26 +1,25 @@
 interface SkeletonProps {
   className?: string;
-  variant?: "text" | "circular" | "rectangular";
+  variant?: 'text' | 'circular' | 'rectangular';
   width?: string | number;
   height?: string | number;
 }
 
 export function Skeleton({
-  className = "",
-  variant = "rectangular",
+  className = '',
+  variant = 'rectangular',
   width,
   height,
 }: SkeletonProps) {
   const variantClasses = {
-    text: "h-4 rounded",
-    circular: "rounded-full",
-    rectangular: "rounded-lg",
+    text: 'h-4 rounded',
+    circular: 'rounded-full',
+    rectangular: 'rounded-lg',
   };
 
   const style: React.CSSProperties = {};
-  if (width) style.width = typeof width === "number" ? `${width}px` : width;
-  if (height)
-    style.height = typeof height === "number" ? `${height}px` : height;
+  if (width) style.width = typeof width === 'number' ? `${width}px` : width;
+  if (height) style.height = typeof height === 'number' ? `${height}px` : height;
 
   return (
     <div

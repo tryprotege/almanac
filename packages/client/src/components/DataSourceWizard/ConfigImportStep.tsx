@@ -1,5 +1,5 @@
-import { AlertCircle, ArrowLeft, CheckCircle, Upload } from "lucide-react";
-import { useState } from "react";
+import { AlertCircle, ArrowLeft, CheckCircle, Upload } from 'lucide-react';
+import { useState } from 'react';
 
 interface ConfigImportStepProps {
   onBack: () => void;
@@ -7,12 +7,8 @@ interface ConfigImportStepProps {
   isLoading: boolean;
 }
 
-export function ConfigImportStep({
-  onBack,
-  onSubmit,
-  isLoading,
-}: ConfigImportStepProps) {
-  const [jsonText, setJsonText] = useState("");
+export function ConfigImportStep({ onBack, onSubmit, isLoading }: ConfigImportStepProps) {
+  const [jsonText, setJsonText] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(false);
 
@@ -27,13 +23,13 @@ export function ConfigImportStep({
       const parsed = JSON.parse(text);
 
       // Basic validation - check for required fields
-      if (!parsed.fetchers || typeof parsed.fetchers !== "object") {
+      if (!parsed.fetchers || typeof parsed.fetchers !== 'object') {
         setValidationError("Config must have a 'fetchers' object");
         setIsValid(false);
         return;
       }
 
-      if (!parsed.recordTypes || typeof parsed.recordTypes !== "object") {
+      if (!parsed.recordTypes || typeof parsed.recordTypes !== 'object') {
         setValidationError("Config must have a 'recordTypes' object");
         setIsValid(false);
         return;
@@ -46,7 +42,7 @@ export function ConfigImportStep({
       if (error instanceof SyntaxError) {
         setValidationError(`Invalid JSON: ${error.message}`);
       } else {
-        setValidationError("Invalid JSON format");
+        setValidationError('Invalid JSON format');
       }
       setIsValid(false);
     }
@@ -76,24 +72,24 @@ export function ConfigImportStep({
       const config = JSON.parse(jsonText);
       onSubmit(config);
     } catch (error) {
-      console.error("Failed to parse JSON:", error);
+      console.error('Failed to parse JSON:', error);
     }
   };
 
   const exampleConfig = {
     fetchers: {
       example_fetcher: {
-        tool: "example_tool",
-        recordType: "example_record",
+        tool: 'example_tool',
+        recordType: 'example_record',
         params: {},
       },
     },
     recordTypes: {
       example_record: {
-        idField: "id",
+        idField: 'id',
         fields: {
-          id: { type: "string" },
-          name: { type: "string" },
+          id: { type: 'string' },
+          name: { type: 'string' },
         },
       },
     },
@@ -102,9 +98,7 @@ export function ConfigImportStep({
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-text-primary mb-2">
-          Import Sync Configuration
-        </h3>
+        <h3 className="text-lg font-semibold text-text-primary mb-2">Import Sync Configuration</h3>
         <p className="text-sm text-text-tertiary">
           Paste your sync config JSON below or upload a JSON file
         </p>
@@ -126,9 +120,7 @@ export function ConfigImportStep({
           onChange={handleFileUpload}
           className="hidden"
         />
-        <p className="mt-2 text-xs text-text-quaternary">
-          Or paste your JSON config below
-        </p>
+        <p className="mt-2 text-xs text-text-quaternary">Or paste your JSON config below</p>
       </div>
 
       {/* JSON Textarea */}
@@ -149,12 +141,8 @@ export function ConfigImportStep({
           <div className="mt-3 p-3 bg-brand-error/10 border border-brand-error/30 rounded-lg flex items-start gap-2">
             <AlertCircle className="w-5 h-5 text-brand-error flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-sm font-medium text-brand-error">
-                Validation Error
-              </h4>
-              <p className="mt-1 text-sm text-brand-error/80">
-                {validationError}
-              </p>
+              <h4 className="text-sm font-medium text-brand-error">Validation Error</h4>
+              <p className="mt-1 text-sm text-brand-error/80">{validationError}</p>
             </div>
           </div>
         )}
@@ -163,9 +151,7 @@ export function ConfigImportStep({
           <div className="mt-3 p-3 bg-brand-success/10 border border-brand-success/30 rounded-lg flex items-start gap-2">
             <CheckCircle className="w-5 h-5 text-brand-success flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-sm font-medium text-brand-success">
-                Valid Configuration
-              </h4>
+              <h4 className="text-sm font-medium text-brand-success">Valid Configuration</h4>
               <p className="mt-1 text-sm text-brand-success/80">
                 Your config passed basic validation and is ready to use
               </p>
@@ -176,19 +162,14 @@ export function ConfigImportStep({
 
       {/* Example Link */}
       <div className="bg-brand-blue/10 border border-brand-blue/30 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-brand-blue mb-2">
-          Need an example?
-        </h4>
+        <h4 className="text-sm font-medium text-brand-blue mb-2">Need an example?</h4>
         <p className="text-xs text-text-secondary mb-2">
-          A sync config must have{" "}
-          <code className="text-brand-purple">fetchers</code> and{" "}
+          A sync config must have <code className="text-brand-purple">fetchers</code> and{' '}
           <code className="text-brand-purple">recordTypes</code> objects.
         </p>
         <button
           type="button"
-          onClick={() =>
-            handleTextChange(JSON.stringify(exampleConfig, null, 2))
-          }
+          onClick={() => handleTextChange(JSON.stringify(exampleConfig, null, 2))}
           className="text-xs text-brand-blue hover:text-brand-blue/80 underline"
         >
           Load example config

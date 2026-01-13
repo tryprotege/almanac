@@ -3,45 +3,36 @@
  * LightRAG-inspired graph extraction with parallelization
  */
 
-import OpenAI from "openai";
-import pLimit from "p-limit";
-import { Record } from "../../../models/record.model.js";
-import { RecordStore } from "../../../stores/record.store.js";
-import { GraphStore } from "../../../stores/graph.store.js";
-import { SourceType } from "../../../types/index.js";
-import { extractGraphFromContent } from "./extraction/content-extractor.js";
-import { processRecordsToGraph } from "./processing/graph-builder.js";
-import {
-  Entity,
-  Relationship,
-  ExtractionResult,
-  IndexingOptions,
-  IndexingStats,
-} from "./types.js";
-import { filterLowValueRelationships } from "./schema/entity-deduplication.js";
-import {
-  isToxicChunk,
-  truncateEntities,
-} from "../../../utils/toxic-chunk-detector.js";
+import OpenAI from 'openai';
+import pLimit from 'p-limit';
+import { Record } from '../../../models/record.model.js';
+import { RecordStore } from '../../../stores/record.store.js';
+import { GraphStore } from '../../../stores/graph.store.js';
+import { SourceType } from '../../../types/index.js';
+import { extractGraphFromContent } from './extraction/content-extractor.js';
+import { processRecordsToGraph } from './processing/graph-builder.js';
+import { Entity, Relationship, ExtractionResult, IndexingOptions, IndexingStats } from './types.js';
+import { filterLowValueRelationships } from './schema/entity-deduplication.js';
+import { isToxicChunk, truncateEntities } from '../../../utils/toxic-chunk-detector.js';
 import {
   entitiesToGraphNodes,
   generateGlobalEntityId,
   GraphRelationship,
-} from "./graph-converter.js";
-import { normalizeEntityName } from "./schema/entity-deduplication.js";
+} from './graph-converter.js';
+import { normalizeEntityName } from './schema/entity-deduplication.js';
 import {
   discoverNewTypes,
   updateSchemaWithDiscovery,
   getCurrentSchemaTypes,
-} from "./schema-auto-discovery.js";
-import { getSchema, createSchema } from "../../../stores/graph-schema.store.js";
-import { GraphEmbeddingMetadata } from "../../../models/graph-embedding-metadata.model.js";
-import { RelationshipMentionStore } from "../../../stores/relationship-mention.store.js";
-import { cleanupDocumentGraph } from "./graph-cleanup.js";
-import logger from "../../../utils/logger.js";
-import { env } from "../../../env.js";
-import { calculateEmbeddingChecksum } from "../../../utils/checksum.js";
-import { sanitizeRelationshipType } from "../../../utils/cypher-escape.js";
+} from './schema-auto-discovery.js';
+import { getSchema, createSchema } from '../../../stores/graph-schema.store.js';
+import { GraphEmbeddingMetadata } from '../../../models/graph-embedding-metadata.model.js';
+import { RelationshipMentionStore } from '../../../stores/relationship-mention.store.js';
+import { cleanupDocumentGraph } from './graph-cleanup.js';
+import logger from '../../../utils/logger.js';
+import { env } from '../../../env.js';
+import { calculateEmbeddingChecksum } from '../../../utils/checksum.js';
+import { sanitizeRelationshipType } from '../../../utils/cypher-escape.js';
 
 // ============================================================================
 // Core Functions
@@ -62,7 +53,7 @@ export const extractGraphFromRecord = async (
     maxEntitiesPerDoc?: number;
     graphStore?: GraphStore;
     force?: boolean;
-  } = {}
+  } = {},
 ): Promise<ExtractionResult> => {
   // Check if record needs re-indexing (skip check if force=true)
   if (
@@ -84,7 +75,7 @@ export const extractGraphFromRecord = async (
   // Skip if no content (similar to embedding indexer behavior)
   if (!record.content || record.content.trim().length === 0) {
     logger.debug({
-      msg: "⏭️  Skipping record with no content",
+      msg: '⏭️  Skipping record with no content',
       recordId: record._id,
       recordTitle: record.title,
     });
@@ -120,7 +111,7 @@ export const extractGraphFromRecord = async (
     {
       recordId: record._id,
       recordTitle: record.title,
-    }
+    },
   );
 
   // Filter out low-value relationships
@@ -128,7 +119,7 @@ export const extractGraphFromRecord = async (
 
   if (relationships.length !== filteredRelationships.length) {
     logger.info({
-      msg: "Filtered low-value relationships",
+      msg: 'Filtered low-value relationships',
       before: relationships.length,
       after: filteredRelationships.length,
       filtered: relationships.length - filteredRelationships.length,
@@ -138,13 +129,13 @@ export const extractGraphFromRecord = async (
   // Log empty extractions (0 entities AND 0 relationships)
   if (entities.length === 0 && filteredRelationships.length === 0) {
     const logData: any = {
-      msg: "⚠️  Empty extraction for record",
+      msg: '⚠️  Empty extraction for record',
       recordId: record._id,
       contentLength: record.content.length,
       title: record.title,
     };
 
-    if (record.rawData && typeof record.rawData === "object") {
+    if (record.rawData && typeof record.rawData === 'object') {
       const rawData = record.rawData as any;
       if (rawData.url) {
         logData.url = rawData.url;
@@ -162,7 +153,7 @@ export const extractGraphFromRecord = async (
         : 0;
 
     logger.warn({
-      msg: "⚠️  Skipping toxic chunk",
+      msg: '⚠️  Skipping toxic chunk',
       recordId: record._id,
       entities: entities.length,
       relationships: relationships.length,
@@ -206,10 +197,10 @@ export const indexAllRecords = async (
   recordStore: RecordStore,
   graphStore: GraphStore,
   openaiClient: OpenAI,
-  options: IndexingOptions = {}
+  options: IndexingOptions = {},
 ): Promise<IndexingStats> => {
   const {
-    recordType = "",
+    recordType = '',
     batchSize = 32,
     concurrency = 32,
     enableToxicFilter = true,
@@ -227,7 +218,7 @@ export const indexAllRecords = async (
     rationInfo: env.ENTITY_CHARS_PER_ENTITY,
     capInfo: maxEntitiesPerDoc,
     forceReIndex: force,
-    limit: recordLimit || "none",
+    limit: recordLimit || 'none',
   });
 
   // Ensure schema exists before indexing
@@ -260,24 +251,18 @@ export const indexAllRecords = async (
   };
 
   // Get schema types (schema already ensured to exist above)
-  const {
-    entityTypes: existingEntityTypes,
-    relationshipTypes: existingRelTypes,
-  } = getCurrentSchemaTypes(currentSchema);
+  const { entityTypes: existingEntityTypes, relationshipTypes: existingRelTypes } =
+    getCurrentSchemaTypes(currentSchema);
 
   // Get total record count for progress tracking
-  const totalRecords = await recordStore.countBySourceAndType(
-    source,
-    recordType,
-    {
-      includeDeleted: false,
-    }
-  );
+  const totalRecords = await recordStore.countBySourceAndType(source, recordType, {
+    includeDeleted: false,
+  });
 
   logger.info({
     msg: `📊 Total records to process: ${totalRecords}`,
     source,
-    recordType: recordType || "all",
+    recordType: recordType || 'all',
   });
 
   // Create concurrency limiter
@@ -319,38 +304,29 @@ export const indexAllRecords = async (
       // Extract in PARALLEL using p-limit with error resilience
       const extractionPromises = records.map((record) =>
         limit(() =>
-          extractGraphFromRecord(
-            record,
-            openaiClient,
-            existingEntityTypes,
-            existingRelTypes,
-            { enableToxicFilter, maxEntitiesPerDoc, graphStore, force }
-          )
+          extractGraphFromRecord(record, openaiClient, existingEntityTypes, existingRelTypes, {
+            enableToxicFilter,
+            maxEntitiesPerDoc,
+            graphStore,
+            force,
+          })
             .then(async (result) => {
               // Log extraction details immediately after each document finishes
-              if (
-                result.entities.length > 0 &&
-                result.relationships.length > 0
-              ) {
+              if (result.entities.length > 0 && result.relationships.length > 0) {
                 // Get entity IDs from result
                 const entityIds = result.entities.map((e) =>
-                  generateGlobalEntityId(e.name, e.type)
+                  generateGlobalEntityId(e.name, e.type),
                 );
 
                 // Query graph store to check which entities already exist
-                const existingEntityIds = await graphStore.getExistingEntityIds(
-                  entityIds
-                );
+                const existingEntityIds = await graphStore.getExistingEntityIds(entityIds);
 
                 // Separate entities into NEW vs EXISTING
                 const newEntities: Entity[] = [];
                 const existingEntities: Entity[] = [];
 
                 for (const entity of result.entities) {
-                  const entityId = generateGlobalEntityId(
-                    entity.name,
-                    entity.type
-                  );
+                  const entityId = generateGlobalEntityId(entity.name, entity.type);
                   if (existingEntityIds.has(entityId)) {
                     existingEntities.push(entity);
                   } else {
@@ -361,20 +337,15 @@ export const indexAllRecords = async (
                 // Build entity name to type map for relationship lookups
                 const entityNameToType = new Map<string, string>();
                 for (const entity of result.entities) {
-                  entityNameToType.set(
-                    normalizeEntityName(entity.name),
-                    entity.type
-                  );
+                  entityNameToType.set(normalizeEntityName(entity.name), entity.type);
                 }
 
                 // Build relationship keys for checking existence
                 const relKeys = result.relationships.map((r) => {
                   const sourceType =
-                    entityNameToType.get(normalizeEntityName(r.source)) ||
-                    "Entity";
+                    entityNameToType.get(normalizeEntityName(r.source)) || 'Entity';
                   const targetType =
-                    entityNameToType.get(normalizeEntityName(r.target)) ||
-                    "Entity";
+                    entityNameToType.get(normalizeEntityName(r.target)) || 'Entity';
                   return {
                     sourceId: generateGlobalEntityId(r.source, sourceType),
                     targetId: generateGlobalEntityId(r.target, targetType),
@@ -383,8 +354,7 @@ export const indexAllRecords = async (
                 });
 
                 // Query graph store to check which relationships already exist
-                const existingRelKeys =
-                  await graphStore.getExistingRelationshipKeys(relKeys);
+                const existingRelKeys = await graphStore.getExistingRelationshipKeys(relKeys);
 
                 // Separate relationships into NEW vs EXISTING
                 const newRelationships: Relationship[] = [];
@@ -392,19 +362,11 @@ export const indexAllRecords = async (
 
                 for (const rel of result.relationships) {
                   const sourceType =
-                    entityNameToType.get(normalizeEntityName(rel.source)) ||
-                    "Entity";
+                    entityNameToType.get(normalizeEntityName(rel.source)) || 'Entity';
                   const targetType =
-                    entityNameToType.get(normalizeEntityName(rel.target)) ||
-                    "Entity";
-                  const sourceId = generateGlobalEntityId(
-                    rel.source,
-                    sourceType
-                  );
-                  const targetId = generateGlobalEntityId(
-                    rel.target,
-                    targetType
-                  );
+                    entityNameToType.get(normalizeEntityName(rel.target)) || 'Entity';
+                  const sourceId = generateGlobalEntityId(rel.source, sourceType);
+                  const targetId = generateGlobalEntityId(rel.target, targetType);
                   const key = `${sourceId}|${rel.type}|${targetId}`;
 
                   if (existingRelKeys.has(key)) {
@@ -416,7 +378,7 @@ export const indexAllRecords = async (
 
                 // Log simplified extraction summary with new entities only
                 logger.info({
-                  msg: "📊 Document extraction",
+                  msg: '📊 Document extraction',
                   docId: result.recordId,
                   entities: {
                     total: result.entities.length,
@@ -443,8 +405,8 @@ export const indexAllRecords = async (
                 adapterRelationships: [],
                 recordChecksum: record.checksum,
               };
-            })
-        )
+            }),
+        ),
       );
 
       const settledResults = await Promise.allSettled(extractionPromises);
@@ -458,11 +420,11 @@ export const indexAllRecords = async (
       }> = [];
 
       settledResults.forEach((result, index) => {
-        if (result.status === "fulfilled") {
+        if (result.status === 'fulfilled') {
           const value = result.value;
 
           // Check if it's an error wrapper
-          if ("error" in value && value.error) {
+          if ('error' in value && value.error) {
             failedExtractions.push({
               recordId: value.recordId as string,
               recordTitle: value.recordTitle as string,
@@ -478,7 +440,7 @@ export const indexAllRecords = async (
           failedExtractions.push({
             recordId: record._id,
             recordTitle: record.title,
-            error: new Error(result.reason || "Unknown error"),
+            error: new Error(result.reason || 'Unknown error'),
           });
         }
       });
@@ -487,7 +449,7 @@ export const indexAllRecords = async (
       if (failedExtractions.length > 0) {
         failedExtractions.forEach(({ recordId, recordTitle, error }) => {
           logger.error({
-            msg: "❌ Failed to extract record",
+            msg: '❌ Failed to extract record',
             err: error,
             recordId,
             recordTitle,
@@ -503,21 +465,16 @@ export const indexAllRecords = async (
 
       // Log batch summary
       logger.debug({
-        msg: "✅ Batch complete",
+        msg: '✅ Batch complete',
         successful: extractionResults.length,
         failed: failedExtractions.length,
         total: records.length,
       });
 
       // Separate toxic-filtered from empty extractions
-      const toxicFiltered = extractionResults.filter(
-        (r) => r.wasFilteredAsToxic === true
-      );
+      const toxicFiltered = extractionResults.filter((r) => r.wasFilteredAsToxic === true);
       const emptyExtractions = extractionResults.filter(
-        (r) =>
-          r.entities.length === 0 &&
-          r.relationships.length === 0 &&
-          !r.wasFilteredAsToxic
+        (r) => r.entities.length === 0 && r.relationships.length === 0 && !r.wasFilteredAsToxic,
       );
 
       stats.skippedToxic += toxicFiltered.length;
@@ -525,7 +482,7 @@ export const indexAllRecords = async (
 
       // Filter out empty results
       const validResults = extractionResults.filter(
-        (r) => r.entities.length > 0 || r.relationships.length > 0
+        (r) => r.entities.length > 0 || r.relationships.length > 0,
       );
 
       if (validResults.length === 0) {
@@ -546,7 +503,7 @@ export const indexAllRecords = async (
             cleanupCount++;
           } catch (err) {
             logger.error({
-              msg: "Failed to cleanup document graph",
+              msg: 'Failed to cleanup document graph',
               err,
               recordId: result.recordId,
             });
@@ -556,7 +513,7 @@ export const indexAllRecords = async (
 
       if (cleanupCount > 0) {
         logger.info({
-          msg: "Cleaned up old graph data for re-indexed records",
+          msg: 'Cleaned up old graph data for re-indexed records',
           cleanupCount,
         });
       }
@@ -592,14 +549,12 @@ export const indexAllRecords = async (
 
       // DEBUG: Log what processRecordsToGraph returned
       logger.info({
-        msg: "🔍 DEBUG: processRecordsToGraph results",
+        msg: '🔍 DEBUG: processRecordsToGraph results',
         nodesCount: nodes.length,
         relationshipsCount: relationships.length,
         documentRelationshipsCount: documentRelationships.length,
         entityMappings: entityNameToId.size,
-        sampleNodes: nodes
-          .slice(0, 3)
-          .map((n) => ({ id: n.id, type: n.type, title: n.title })),
+        sampleNodes: nodes.slice(0, 3).map((n) => ({ id: n.id, type: n.type, title: n.title })),
         sampleRels: relationships.slice(0, 3).map((r) => ({
           source: r.sourceId,
           target: r.targetId,
@@ -620,14 +575,14 @@ export const indexAllRecords = async (
         const { newEntityTypes, newRelationshipTypes } = discoverNewTypes(
           allEntities,
           allRelationships,
-          currentSchema
+          currentSchema,
         );
 
         if (newEntityTypes.length > 0 || newRelationshipTypes.length > 0) {
           await updateSchemaWithDiscovery(
             newEntityTypes,
             newRelationshipTypes,
-            validResults.length
+            validResults.length,
           );
         }
       }
@@ -635,7 +590,7 @@ export const indexAllRecords = async (
       // Store nodes using batch operations (FAST - no write conflicts)
       if (nodes.length > 0) {
         logger.info({
-          msg: "🔍 DEBUG: About to save nodes to Memgraph",
+          msg: '🔍 DEBUG: About to save nodes to Memgraph',
           nodesCount: nodes.length,
         });
 
@@ -647,15 +602,15 @@ export const indexAllRecords = async (
               type: node.type,
               title: node.title,
               description: node.description,
-            }))
+            })),
           );
           logger.info({
-            msg: "✅ DEBUG: Successfully saved nodes to Memgraph",
+            msg: '✅ DEBUG: Successfully saved nodes to Memgraph',
             nodesCount: nodes.length,
           });
         } catch (err) {
           logger.error({
-            msg: "❌ DEBUG: Failed to save nodes to Memgraph",
+            msg: '❌ DEBUG: Failed to save nodes to Memgraph',
             err,
             nodesCount: nodes.length,
           });
@@ -677,12 +632,12 @@ export const indexAllRecords = async (
         try {
           await graphStore.upsertDocumentNodes(documentNodes);
           logger.info({
-            msg: "✅ DEBUG: Successfully saved document nodes to Memgraph",
+            msg: '✅ DEBUG: Successfully saved document nodes to Memgraph',
             documentCount: documentNodes.length,
           });
         } catch (err) {
           logger.error({
-            msg: "❌ DEBUG: Failed to save document nodes to Memgraph",
+            msg: '❌ DEBUG: Failed to save document nodes to Memgraph',
             err,
             documentCount: documentNodes.length,
           });
@@ -706,7 +661,7 @@ export const indexAllRecords = async (
 
         // 3. Link ALL entities to documents in one batch
         logger.info({
-          msg: "🔗 Linking entities to documents (MENTIONED_IN)",
+          msg: '🔗 Linking entities to documents (MENTIONED_IN)',
           totalCount: entityLinks.length,
         });
 
@@ -731,16 +686,14 @@ export const indexAllRecords = async (
 
           // Lookup source documents directly from pre-computed map
           const normalizedName = entityIdToNormalizedName.get(node.id);
-          const recordIds = normalizedName
-            ? entityToDocuments.get(normalizedName) || []
-            : [];
+          const recordIds = normalizedName ? entityToDocuments.get(normalizedName) || [] : [];
 
           return {
             updateOne: {
               filter: { memgraphId: node.id },
               update: {
                 $set: {
-                  itemType: "entity",
+                  itemType: 'entity',
                   memgraphId: node.id,
                   entityType: node.type,
                   entityDescription: node.description, // Store LLM-extracted description
@@ -769,14 +722,14 @@ export const indexAllRecords = async (
       // Store document relationships (document-to-document links from adapters)
       if (documentRelationships.length > 0) {
         logger.info({
-          msg: "🔗 Creating document-to-document relationships",
+          msg: '🔗 Creating document-to-document relationships',
           count: documentRelationships.length,
         });
 
         await graphStore.createDocumentRelationships(documentRelationships);
 
         logger.info({
-          msg: "✅ Successfully created document relationships",
+          msg: '✅ Successfully created document relationships',
           count: documentRelationships.length,
         });
       }
@@ -797,14 +750,12 @@ export const indexAllRecords = async (
             type: r.sanitizedType!, // Use sanitized type
           }));
 
-        const invalidRelationships = sanitizationResults.filter(
-          (r) => r.sanitizedType === null
-        );
+        const invalidRelationships = sanitizationResults.filter((r) => r.sanitizedType === null);
 
         // Log invalid relationships for debugging
         if (invalidRelationships.length > 0) {
           logger.warn({
-            msg: "⚠️  Found invalid relationship types (will be skipped)",
+            msg: '⚠️  Found invalid relationship types (will be skipped)',
             count: invalidRelationships.length,
             invalidRelationships: invalidRelationships.map((r) => ({
               sourceId: r.original.sourceId,
@@ -822,7 +773,7 @@ export const indexAllRecords = async (
         }
 
         logger.info({
-          msg: "� Saving relationships to Memgraph",
+          msg: '� Saving relationships to Memgraph',
           totalCount: validRelationships.length,
           invalidSkipped: invalidRelationships.length,
           summary: Object.fromEntries(relsByType),
@@ -836,11 +787,11 @@ export const indexAllRecords = async (
             targetId: rel.targetId,
             type: rel.type,
             confidence: rel.confidence,
-          }))
+          })),
         );
 
         logger.info({
-          msg: "✅ DEBUG: Successfully saved relationships to Memgraph",
+          msg: '✅ DEBUG: Successfully saved relationships to Memgraph',
           relationshipsCount: validRelationships.length,
         });
 
@@ -862,8 +813,8 @@ export const indexAllRecords = async (
               (adapterRel) =>
                 adapterRel.sourceId === rel.sourceId &&
                 adapterRel.targetId === rel.targetId &&
-                adapterRel.type === rel.type
-            )
+                adapterRel.type === rel.type,
+            ),
           );
 
           if (isAdapterRel) {
@@ -873,8 +824,8 @@ export const indexAllRecords = async (
 
           // Reconstruct the key to lookup source documents
           // We need to reverse-lookup entity names from IDs
-          let sourceEntityName = "";
-          let targetEntityName = "";
+          let sourceEntityName = '';
+          let targetEntityName = '';
 
           // Find entity names by looking through the entityNameToId map
           for (const [name, id] of entityNameToId.entries()) {
@@ -885,7 +836,7 @@ export const indexAllRecords = async (
 
           if (!sourceEntityName || !targetEntityName) {
             logger.warn({
-              msg: "⚠️  Could not find entity names for relationship",
+              msg: '⚠️  Could not find entity names for relationship',
               sourceId: rel.sourceId,
               targetId: rel.targetId,
               relType: rel.type,
@@ -898,7 +849,7 @@ export const indexAllRecords = async (
 
           if (recordIds.length === 0) {
             logger.warn({
-              msg: "⚠️  No source documents found for relationship",
+              msg: '⚠️  No source documents found for relationship',
               sourceId: rel.sourceId,
               targetId: rel.targetId,
               relType: rel.type,
@@ -938,7 +889,7 @@ export const indexAllRecords = async (
 
         // Log document-to-relationship links summary
         logger.info({
-          msg: "🔗 Tracking relationship mentions in MongoDB",
+          msg: '🔗 Tracking relationship mentions in MongoDB',
           totalMentions: relLinks.length,
           llmLinks: relLinks.length - adapterLinksAdded,
           adapterLinks: adapterLinksAdded,
@@ -972,15 +923,12 @@ export const indexAllRecords = async (
         // Add mentions for each document in parallel
         await Promise.all(
           Array.from(mentionsByDocument.entries()).map(([recordId, mentions]) =>
-            relationshipMentionStore.addDocumentMentionsBatch(
-              recordId,
-              mentions
-            )
-          )
+            relationshipMentionStore.addDocumentMentionsBatch(recordId, mentions),
+          ),
         );
 
         logger.info({
-          msg: "✅ Tracked relationship mentions in MongoDB",
+          msg: '✅ Tracked relationship mentions in MongoDB',
           totalMentions: relLinks.length,
           documentsWithMentions: mentionsByDocument.size,
         });
@@ -1022,8 +970,8 @@ export const indexAllRecords = async (
 
           // Find all documents that mention this relationship
           // Use the entity names to lookup in relToDocuments map
-          let sourceEntityName = "";
-          let targetEntityName = "";
+          let sourceEntityName = '';
+          let targetEntityName = '';
           for (const [name, id] of entityNameToId.entries()) {
             if (id === rel.sourceId) sourceEntityName = name;
             if (id === rel.targetId) targetEntityName = name;
@@ -1038,7 +986,7 @@ export const indexAllRecords = async (
               filter: { memgraphId: relId },
               update: {
                 $set: {
-                  itemType: "relationship",
+                  itemType: 'relationship',
                   memgraphId: relId,
                   sourceId: rel.sourceId,
                   targetId: rel.targetId,
@@ -1072,8 +1020,8 @@ export const indexAllRecords = async (
           recordStore.upsert({
             _id: result.recordId,
             lastGraphIndexAt: new Date(),
-          })
-        )
+          }),
+        ),
       );
 
       // Update successful count
@@ -1086,12 +1034,9 @@ export const indexAllRecords = async (
 
       // Calculate progress metrics
       const percentComplete =
-        totalRecords > 0
-          ? ((stats.processedRecords / totalRecords) * 100).toFixed(1)
-          : "0.0";
+        totalRecords > 0 ? ((stats.processedRecords / totalRecords) * 100).toFixed(1) : '0.0';
 
-      const estimatedTotalBatches =
-        totalRecords > 0 ? Math.ceil(totalRecords / batchSize) : 0;
+      const estimatedTotalBatches = totalRecords > 0 ? Math.ceil(totalRecords / batchSize) : 0;
 
       // Calculate estimated time remaining
       const elapsedTimeMs = batchEndTime - startTime;
@@ -1140,7 +1085,7 @@ export const indexAllRecords = async (
         },
       });
     } catch (err) {
-      logger.error({ err }, "Error processing batch");
+      logger.error({ err }, 'Error processing batch');
       stats.errors++;
 
       // Track batch end time even on error
@@ -1155,17 +1100,11 @@ export const indexAllRecords = async (
   const endTime = Date.now();
   stats.totalRuntimeMs = endTime - startTime;
   stats.avgTimePerDocMs =
-    stats.processedRecords > 0
-      ? stats.totalRuntimeMs / stats.processedRecords
-      : 0;
+    stats.processedRecords > 0 ? stats.totalRuntimeMs / stats.processedRecords : 0;
   stats.avgBatchTimeMs =
-    batchTimes.length > 0
-      ? batchTimes.reduce((sum, time) => sum + time, 0) / batchTimes.length
-      : 0;
+    batchTimes.length > 0 ? batchTimes.reduce((sum, time) => sum + time, 0) / batchTimes.length : 0;
   stats.throughputDocsPerSec =
-    stats.totalRuntimeMs > 0
-      ? (stats.processedRecords / stats.totalRuntimeMs) * 1000
-      : 0;
+    stats.totalRuntimeMs > 0 ? (stats.processedRecords / stats.totalRuntimeMs) * 1000 : 0;
 
   // Format time helper
   const formatTime = (ms: number): string => {
@@ -1195,7 +1134,7 @@ export const indexAllRecords = async (
 
   if (stats.failedRecords > 0) {
     logger.warn({
-      msg: "⚠️  Some records failed to index",
+      msg: '⚠️  Some records failed to index',
       failedRecords: stats.failedRecords,
     });
   }
@@ -1216,7 +1155,7 @@ export const indexSingleRecord = async (
   options: {
     enableToxicFilter?: boolean;
     maxEntitiesPerDoc?: number;
-  } = {}
+  } = {},
 ): Promise<{
   nodeId: string;
   relationships: number;
@@ -1229,10 +1168,8 @@ export const indexSingleRecord = async (
       msg: `✅ Schema created with version ${currentSchema.version}`,
     });
   }
-  const {
-    entityTypes: existingEntityTypes,
-    relationshipTypes: existingRelTypes,
-  } = getCurrentSchemaTypes(currentSchema);
+  const { entityTypes: existingEntityTypes, relationshipTypes: existingRelTypes } =
+    getCurrentSchemaTypes(currentSchema);
 
   // Extract from single record
   const extractionResult = await extractGraphFromRecord(
@@ -1240,7 +1177,7 @@ export const indexSingleRecord = async (
     openaiClient,
     existingEntityTypes,
     existingRelTypes,
-    { ...options, graphStore }
+    { ...options, graphStore },
   );
 
   // Process to graph
@@ -1249,7 +1186,7 @@ export const indexSingleRecord = async (
   // Store in graph
   if (nodes.length > 0) {
     const memgraphNodes = nodes.map((node) => ({
-      label: "Entity",
+      label: 'Entity',
       id: node.id,
       type: node.type, // Use actual entity type from GraphNode
       title: node.title, // Use actual title from GraphNode
@@ -1263,7 +1200,7 @@ export const indexSingleRecord = async (
       targetId: rel.targetId,
       type: rel.type,
       confidence: rel.confidence,
-      extractedBy: "llm" as const,
+      extractedBy: 'llm' as const,
     }));
     await graphStore.createRelationships(memgraphRels);
   }
@@ -1273,7 +1210,7 @@ export const indexSingleRecord = async (
     const { newEntityTypes, newRelationshipTypes } = discoverNewTypes(
       extractionResult.entities,
       extractionResult.relationships,
-      currentSchema
+      currentSchema,
     );
 
     if (newEntityTypes.length > 0 || newRelationshipTypes.length > 0) {

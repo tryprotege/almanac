@@ -1,15 +1,15 @@
-import { useState } from "react";
-import { Database, Network, RefreshCw, GitBranch } from "lucide-react";
-import { SchemaVisualization } from "../components/SchemaVisualization";
-import { GraphDataVisualization } from "../components/GraphDataVisualization";
-import { PageHeader } from "../components/ui/PageHeader";
-import { useSchema } from "../hooks/useSchema";
-import { useGraphData } from "../hooks/useGraphData";
+import { useState } from 'react';
+import { Database, Network, RefreshCw, GitBranch } from 'lucide-react';
+import { SchemaVisualization } from '../components/SchemaVisualization';
+import { GraphDataVisualization } from '../components/GraphDataVisualization';
+import { PageHeader } from '../components/ui/PageHeader';
+import { useSchema } from '../hooks/useSchema';
+import { useGraphData } from '../hooks/useGraphData';
 
-type ViewMode = "schema" | "data";
+type ViewMode = 'schema' | 'data';
 
 export default function Schema() {
-  const [viewMode, _setViewMode] = useState<ViewMode>("data");
+  const [viewMode, _setViewMode] = useState<ViewMode>('data');
 
   const { schema, isLoading, error, refetch } = useSchema();
   const {
@@ -18,7 +18,7 @@ export default function Schema() {
     error: graphDataError,
     refetch: refetchGraphData,
   } = useGraphData({
-    enabled: viewMode === "data",
+    enabled: viewMode === 'data',
     limit: 100,
     offset: 0,
   });
@@ -48,9 +48,7 @@ export default function Schema() {
               </div>
               <div>
                 <p className="text-sm text-text-tertiary">Entity Types</p>
-                <p className="text-2xl font-bold text-text-primary">
-                  {schema.entityTypes.length}
-                </p>
+                <p className="text-2xl font-bold text-text-primary">{schema.entityTypes.length}</p>
               </div>
             </div>
           </div>
@@ -74,13 +72,10 @@ export default function Schema() {
               </div>
               <div>
                 <p className="text-sm text-text-tertiary">Schema Version</p>
-                <p className="text-2xl font-bold text-text-primary">
-                  {schema.version}
-                </p>
+                <p className="text-2xl font-bold text-text-primary">{schema.version}</p>
                 {schema.lastLearnedAt && (
                   <p className="text-xs text-text-quaternary mt-1">
-                    Last learned:{" "}
-                    {new Date(schema.lastLearnedAt).toLocaleDateString()}
+                    Last learned: {new Date(schema.lastLearnedAt).toLocaleDateString()}
                   </p>
                 )}
               </div>
@@ -92,7 +87,7 @@ export default function Schema() {
       {/* View Mode Tabs */}
       <div className="card">
         {/* Schema View */}
-        {viewMode === "schema" && (
+        {viewMode === 'schema' && (
           <>
             {isLoading ? (
               <div className="flex items-center justify-center h-96">
@@ -103,16 +98,11 @@ export default function Schema() {
               </div>
             ) : error ? (
               <div className="bg-error-bg border border-error-border rounded-lg p-4">
-                <p className="text-error-text font-medium">
-                  Error loading schema
-                </p>
+                <p className="text-error-text font-medium">Error loading schema</p>
                 <p className="text-error-text/80 text-sm mt-1">
-                  {error instanceof Error ? error.message : "Unknown error"}
+                  {error instanceof Error ? error.message : 'Unknown error'}
                 </p>
-                <button
-                  onClick={() => refetch()}
-                  className="mt-3 btn btn-secondary text-sm"
-                >
+                <button onClick={() => refetch()} className="mt-3 btn btn-secondary text-sm">
                   Retry
                 </button>
               </div>
@@ -130,7 +120,7 @@ export default function Schema() {
         )}
 
         {/* Graph Data View */}
-        {viewMode === "data" && (
+        {viewMode === 'data' && (
           <>
             {isLoadingGraphData ? (
               <div className="flex items-center justify-center h-96">
@@ -141,13 +131,9 @@ export default function Schema() {
               </div>
             ) : graphDataError ? (
               <div className="bg-error-bg border border-error-border rounded-lg p-4">
-                <p className="text-error-text font-medium">
-                  Error loading graph data
-                </p>
+                <p className="text-error-text font-medium">Error loading graph data</p>
                 <p className="text-error-text/80 text-sm mt-1">
-                  {graphDataError instanceof Error
-                    ? graphDataError.message
-                    : "Unknown error"}
+                  {graphDataError instanceof Error ? graphDataError.message : 'Unknown error'}
                 </p>
                 <button
                   onClick={() => refetchGraphData()}
@@ -161,9 +147,7 @@ export default function Schema() {
             ) : (
               <div className="flex items-center justify-center h-96 bg-bg-secondary rounded-lg border-2 border-dashed border-border-secondary">
                 <div className="text-center">
-                  <p className="text-text-secondary mb-2">
-                    No graph data available
-                  </p>
+                  <p className="text-text-secondary mb-2">No graph data available</p>
                   <p className="text-sm text-text-tertiary">
                     Index some data to see nodes and relationships
                   </p>
@@ -175,15 +159,13 @@ export default function Schema() {
       </div>
 
       {/* Entity Types List - Only show if schema exists and in schema view */}
-      {schema && viewMode === "schema" && (
+      {schema && viewMode === 'schema' && (
         <div className="card">
           <h2 className="text-lg font-semibold text-text-primary mb-4">
             Entity Types ({schema.entityTypes.length})
           </h2>
           {schema.entityTypes.length === 0 ? (
-            <p className="text-text-tertiary text-sm">
-              No entity types defined
-            </p>
+            <p className="text-text-tertiary text-sm">No entity types defined</p>
           ) : (
             <div className="space-y-3">
               {schema.entityTypes.map((entityType) => (
@@ -193,30 +175,23 @@ export default function Schema() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-text-primary">
-                        {entityType.name}
-                      </h3>
-                      <p className="text-sm text-text-secondary mt-1">
-                        {entityType.description}
-                      </p>
-                      {entityType.properties &&
-                        entityType.properties.length > 0 && (
-                          <div className="mt-2">
-                            <p className="text-xs text-text-tertiary font-medium">
-                              Properties:
-                            </p>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {entityType.properties.map((prop) => (
-                                <span
-                                  key={prop}
-                                  className="px-2 py-0.5 bg-bg-primary border border-border-secondary rounded text-xs text-text-secondary"
-                                >
-                                  {prop}
-                                </span>
-                              ))}
-                            </div>
+                      <h3 className="font-semibold text-text-primary">{entityType.name}</h3>
+                      <p className="text-sm text-text-secondary mt-1">{entityType.description}</p>
+                      {entityType.properties && entityType.properties.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-xs text-text-tertiary font-medium">Properties:</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {entityType.properties.map((prop) => (
+                              <span
+                                key={prop}
+                                className="px-2 py-0.5 bg-bg-primary border border-border-secondary rounded text-xs text-text-secondary"
+                              >
+                                {prop}
+                              </span>
+                            ))}
                           </div>
-                        )}
+                        </div>
+                      )}
                     </div>
                     {entityType.mcpSource && (
                       <span className="px-2 py-1 bg-brand-purple/10 text-brand-purple text-xs rounded">
@@ -232,15 +207,13 @@ export default function Schema() {
       )}
 
       {/* Relationship Types List - Only show if schema exists and in schema view */}
-      {schema && viewMode === "schema" && (
+      {schema && viewMode === 'schema' && (
         <div className="card">
           <h2 className="text-lg font-semibold text-text-primary mb-4">
             Relationship Types ({schema.relationshipTypes.length})
           </h2>
           {schema.relationshipTypes.length === 0 ? (
-            <p className="text-text-tertiary text-sm">
-              No relationship types defined
-            </p>
+            <p className="text-text-tertiary text-sm">No relationship types defined</p>
           ) : (
             <div className="space-y-3">
               {schema.relationshipTypes.map((relType) => (
@@ -253,14 +226,10 @@ export default function Schema() {
                       <h3 className="font-semibold text-text-primary">
                         {relType.name}
                         {relType.bidirectional && (
-                          <span className="ml-2 text-xs text-brand-purple">
-                            ↔ Bidirectional
-                          </span>
+                          <span className="ml-2 text-xs text-brand-purple">↔ Bidirectional</span>
                         )}
                       </h3>
-                      <p className="text-sm text-text-secondary mt-1">
-                        {relType.description}
-                      </p>
+                      <p className="text-sm text-text-secondary mt-1">{relType.description}</p>
                       <div className="mt-2 flex items-center gap-2 text-sm">
                         <span className="text-text-tertiary">From:</span>
                         <div className="flex flex-wrap gap-1">

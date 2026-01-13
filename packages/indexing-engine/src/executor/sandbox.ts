@@ -2,12 +2,9 @@
  * Sandbox execution environment for user code and processors
  */
 
-import { JSONPath } from "jsonpath-plus";
-import type {
-  SandboxContext,
-  SandboxHelpers,
-} from "../types/format-processors.js";
-import { formatProcessors } from "./format-processors.js";
+import { JSONPath } from 'jsonpath-plus';
+import type { SandboxContext, SandboxHelpers } from '../types/format-processors.js';
+import { formatProcessors } from './format-processors.js';
 
 /**
  * Create sandbox helpers
@@ -20,10 +17,8 @@ function createHelpers(source: string): SandboxHelpers {
     },
 
     extractRichText: (richText: any[]) => {
-      if (!Array.isArray(richText)) return "";
-      return richText
-        .map((rt) => rt.text?.content || rt.plain_text || "")
-        .join("");
+      if (!Array.isArray(richText)) return '';
+      return richText.map((rt) => rt.text?.content || rt.plain_text || '').join('');
     },
 
     formatDate: (date: string | Date) => {
@@ -47,8 +42,8 @@ function createHelpers(source: string): SandboxHelpers {
  */
 export async function executeSandboxCode(
   code: string,
-  context: Omit<SandboxContext, "helpers" | "fetch" | "require">,
-  source: string
+  context: Omit<SandboxContext, 'helpers' | 'fetch' | 'require'>,
+  source: string,
 ): Promise<any> {
   const helpers = createHelpers(source);
 
@@ -59,7 +54,7 @@ export async function executeSandboxCode(
     fetch: globalThis.fetch,
     require: (module: string) => {
       // Only allow specific safe modules
-      const allowedModules = ["crypto", "url", "querystring"];
+      const allowedModules = ['crypto', 'url', 'querystring'];
       if (allowedModules.includes(module)) {
         return require(module);
       }
@@ -69,12 +64,12 @@ export async function executeSandboxCode(
 
   // Create async function with context variables
   const fn = new Function(
-    "record",
-    "enrichments",
-    "helpers",
-    "fetch",
-    "require",
-    `return (async () => { ${code} })()`
+    'record',
+    'enrichments',
+    'helpers',
+    'fetch',
+    'require',
+    `return (async () => { ${code} })()`,
   );
 
   try {
@@ -83,13 +78,11 @@ export async function executeSandboxCode(
       fullContext.enrichments,
       fullContext.helpers,
       fullContext.fetch,
-      fullContext.require
+      fullContext.require,
     );
   } catch (error) {
     throw new Error(
-      `Sandbox execution failed: ${
-        error instanceof Error ? error.message : String(error)
-      }`
+      `Sandbox execution failed: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
@@ -100,7 +93,7 @@ export async function executeSandboxCode(
 export async function executeProcessor(
   processorName: string,
   input: any,
-  options?: any
+  options?: any,
 ): Promise<any> {
   const processor = formatProcessors[processorName];
   if (!processor) {
@@ -113,7 +106,7 @@ export async function executeProcessor(
     throw new Error(
       `Processor '${processorName}' failed: ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
     );
   }
 }

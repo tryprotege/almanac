@@ -3,7 +3,7 @@ import {
   GraphRelationshipType,
   GraphSchema,
   GraphSchemaModel,
-} from "../models/graph-schema.model.js";
+} from '../models/graph-schema.model.js';
 
 // TODO: Add REST API CRUD endpoints for persona management:
 // - GET /api/schema/persona - Get current persona
@@ -14,7 +14,7 @@ import {
 // Constants
 // ============================================================================
 
-const SCHEMA_ID = "default";
+const SCHEMA_ID = 'default';
 
 // ============================================================================
 // Core Schema Functions
@@ -55,16 +55,14 @@ export async function resetSchema(): Promise<GraphSchema> {
 /**
  * Add a new entity type to the schema
  */
-export async function addEntityType(
-  entityType: GraphEntityType
-): Promise<GraphSchema | null> {
+export async function addEntityType(entityType: GraphEntityType): Promise<GraphSchema | null> {
   return await GraphSchemaModel.findByIdAndUpdate(
     SCHEMA_ID,
     {
       $addToSet: { entityTypes: entityType },
       $set: { updatedAt: new Date() },
     },
-    { new: true }
+    { new: true },
   ).exec();
 }
 
@@ -74,7 +72,7 @@ export async function addEntityType(
 export async function updateEntityTypes(
   newTypes: GraphEntityType[],
   reason: string,
-  sampleSize?: number
+  sampleSize?: number,
 ): Promise<GraphSchema | null> {
   const schema = await getSchema();
   if (!schema) return null;
@@ -114,7 +112,7 @@ export async function updateEntityTypes(
         updatedAt: new Date(),
       },
     },
-    { new: true }
+    { new: true },
   ).exec();
 }
 
@@ -134,7 +132,7 @@ export async function hasEntityType(entityTypeName: string): Promise<boolean> {
  * Add a new relationship type to the schema
  */
 export async function addRelationshipType(
-  relationshipType: GraphRelationshipType
+  relationshipType: GraphRelationshipType,
 ): Promise<GraphSchema | null> {
   return await GraphSchemaModel.findByIdAndUpdate(
     SCHEMA_ID,
@@ -142,7 +140,7 @@ export async function addRelationshipType(
       $addToSet: { relationshipTypes: relationshipType },
       $set: { updatedAt: new Date() },
     },
-    { new: true }
+    { new: true },
   ).exec();
 }
 
@@ -152,7 +150,7 @@ export async function addRelationshipType(
 export async function updateRelationshipTypes(
   newTypes: GraphRelationshipType[],
   reason: string,
-  sampleSize?: number
+  sampleSize?: number,
 ): Promise<GraphSchema | null> {
   const schema = await getSchema();
   if (!schema) return null;
@@ -192,21 +190,16 @@ export async function updateRelationshipTypes(
         updatedAt: new Date(),
       },
     },
-    { new: true }
+    { new: true },
   ).exec();
 }
 
 /**
  * Check if a relationship type exists
  */
-export async function hasRelationshipType(
-  relationshipTypeName: string
-): Promise<boolean> {
+export async function hasRelationshipType(relationshipTypeName: string): Promise<boolean> {
   const schema = await getSchema();
-  return (
-    schema?.relationshipTypes.some((r) => r.name === relationshipTypeName) ||
-    false
-  );
+  return schema?.relationshipTypes.some((r) => r.name === relationshipTypeName) || false;
 }
 
 /**
@@ -214,15 +207,13 @@ export async function hasRelationshipType(
  */
 export async function getValidRelationshipTypes(
   sourceType: string,
-  targetType: string
+  targetType: string,
 ): Promise<GraphRelationshipType[]> {
   const schema = await getSchema();
   if (!schema) return [];
 
   return schema.relationshipTypes.filter(
-    (rel) =>
-      rel.sourceTypes.includes(sourceType) &&
-      rel.targetTypes.includes(targetType)
+    (rel) => rel.sourceTypes.includes(sourceType) && rel.targetTypes.includes(targetType),
   );
 }
 
@@ -233,13 +224,11 @@ export async function getValidRelationshipTypes(
 /**
  * Update the persona for AI schema learning
  */
-export async function updatePersona(
-  persona: string
-): Promise<GraphSchema | null> {
+export async function updatePersona(persona: string): Promise<GraphSchema | null> {
   return await GraphSchemaModel.findByIdAndUpdate(
     SCHEMA_ID,
     { $set: { persona, updatedAt: new Date() } },
-    { new: true }
+    { new: true },
   ).exec();
 }
 

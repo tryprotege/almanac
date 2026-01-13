@@ -1,16 +1,12 @@
-import type { GeneratorConfig, RelationshipContext } from "../types.js";
-import type { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse.js";
-import type { Channel } from "@slack/web-api/dist/types/response/ConversationsListResponse.js";
-import type { Member } from "@slack/web-api/dist/types/response/UsersListResponse.js";
-import { COMPANY_DATA } from "../data/company.js";
-import { generateWithLLM } from "../utils/llm.js";
-import {
-  selectRandom,
-  selectRandomMultiple,
-  weightedRandom,
-} from "../utils/random.js";
-import { generateRandomDate } from "../utils/dates.js";
-import { generateRandomStringId } from "../utils/id-generator.js";
+import type { GeneratorConfig, RelationshipContext } from '../types.js';
+import type { MessageElement } from '@slack/web-api/dist/types/response/ConversationsHistoryResponse.js';
+import type { Channel } from '@slack/web-api/dist/types/response/ConversationsListResponse.js';
+import type { Member } from '@slack/web-api/dist/types/response/UsersListResponse.js';
+import { COMPANY_DATA } from '../data/company.js';
+import { generateWithLLM } from '../utils/llm.js';
+import { selectRandom, selectRandomMultiple, weightedRandom } from '../utils/random.js';
+import { generateRandomDate } from '../utils/dates.js';
+import { generateRandomStringId } from '../utils/id-generator.js';
 
 /**
  * Generate Slack messages with realistic conversation threads
@@ -31,9 +27,9 @@ export interface SlackReaction {
 
 // Channel categories for context-aware message generation
 const CHANNEL_CATEGORIES = {
-  work: ["engineering"],
-  workAdjacent: ["general", "product"],
-  casual: ["random"],
+  work: ['engineering'],
+  workAdjacent: ['general', 'product'],
+  casual: ['random'],
 };
 
 // Thread length distribution (weighted random)
@@ -57,232 +53,232 @@ const MESSAGE_LENGTHS = {
 // Common short responses (used for very short messages)
 const SHORT_RESPONSES = {
   acknowledgment: [
-    "Thanks!",
-    "Got it",
-    "👍",
-    "Will do",
-    "On it",
-    "Looking now",
-    "Perfect",
-    "Sounds good",
-    "Thank you!",
-    "Awesome",
-    "k",
-    "thx",
-    "cool",
-    "ok",
-    "yep",
-    "sure",
-    "sure thing",
-    "sounds great",
-    "nice",
-    "great",
-    "ty",
-    "thanks",
-    "got it!",
-    "kk",
-    "roger that",
-    "np",
-    "no prob",
-    "all good",
-    "👌",
-    "alright",
+    'Thanks!',
+    'Got it',
+    '👍',
+    'Will do',
+    'On it',
+    'Looking now',
+    'Perfect',
+    'Sounds good',
+    'Thank you!',
+    'Awesome',
+    'k',
+    'thx',
+    'cool',
+    'ok',
+    'yep',
+    'sure',
+    'sure thing',
+    'sounds great',
+    'nice',
+    'great',
+    'ty',
+    'thanks',
+    'got it!',
+    'kk',
+    'roger that',
+    'np',
+    'no prob',
+    'all good',
+    '👌',
+    'alright',
   ],
   agreement: [
-    "Makes sense",
-    "Good point",
-    "Agreed",
-    "Absolutely",
-    "Exactly",
-    "Same here",
-    "For sure",
-    "💯",
-    "Yep",
-    "True",
-    "totally",
-    "+1",
-    "same",
-    "agreed",
-    "100%",
-    "this",
-    "yeah",
-    "yup",
-    "definitely",
-    "absolutely",
-    "facts",
-    "right on",
+    'Makes sense',
+    'Good point',
+    'Agreed',
+    'Absolutely',
+    'Exactly',
+    'Same here',
+    'For sure',
+    '💯',
+    'Yep',
+    'True',
+    'totally',
+    '+1',
+    'same',
+    'agreed',
+    '100%',
+    'this',
+    'yeah',
+    'yup',
+    'definitely',
+    'absolutely',
+    'facts',
+    'right on',
     "couldn't agree more",
-    "spot on",
-    "exactly right",
+    'spot on',
+    'exactly right',
     "that's it",
-    "you got it",
+    'you got it',
   ],
   quick_update: [
-    "Just merged it",
-    "Done",
-    "Fixed",
-    "Pushed the changes",
-    "Updated",
-    "All set",
-    "Completed",
-    "Deployed",
-    "done ✓",
-    "merged",
-    "shipped",
-    "fixed it",
-    "pushed",
-    "live now",
-    "deployed it",
-    "sorted",
-    "finished",
-    "all done",
-    "✅",
-    "done and done",
-    "shipped it",
+    'Just merged it',
+    'Done',
+    'Fixed',
+    'Pushed the changes',
+    'Updated',
+    'All set',
+    'Completed',
+    'Deployed',
+    'done ✓',
+    'merged',
+    'shipped',
+    'fixed it',
+    'pushed',
+    'live now',
+    'deployed it',
+    'sorted',
+    'finished',
+    'all done',
+    '✅',
+    'done and done',
+    'shipped it',
   ],
   questions: [
-    "Quick question:",
-    "Anyone available?",
-    "Need help with",
-    "Thoughts?",
-    "What do you think?",
-    "Can someone review?",
-    "quick q -",
-    "hey quick thing",
-    "got a sec?",
-    "anyone know",
-    "has anyone",
-    "wondering if",
-    "question:",
-    "anyone else seeing",
-    "am i missing something",
-    "ideas?",
+    'Quick question:',
+    'Anyone available?',
+    'Need help with',
+    'Thoughts?',
+    'What do you think?',
+    'Can someone review?',
+    'quick q -',
+    'hey quick thing',
+    'got a sec?',
+    'anyone know',
+    'has anyone',
+    'wondering if',
+    'question:',
+    'anyone else seeing',
+    'am i missing something',
+    'ideas?',
   ],
   casual: [
-    "Nice!",
-    "Love it",
+    'Nice!',
+    'Love it',
     "That's awesome",
-    "Congrats!",
-    "🎉",
-    "So cool",
-    "Amazing",
-    "Haha nice",
-    "😂",
-    "Same",
-    "lol",
-    "haha",
-    "nice",
-    "sweet",
-    "dope",
-    "sick",
-    "lit",
-    "🔥",
-    "love this",
-    "omg",
-    "wow",
-    "yay!",
-    "woohoo",
-    "hell yeah",
+    'Congrats!',
+    '🎉',
+    'So cool',
+    'Amazing',
+    'Haha nice',
+    '😂',
+    'Same',
+    'lol',
+    'haha',
+    'nice',
+    'sweet',
+    'dope',
+    'sick',
+    'lit',
+    '🔥',
+    'love this',
+    'omg',
+    'wow',
+    'yay!',
+    'woohoo',
+    'hell yeah',
     "let's go",
-    "ayy",
-    "yasss",
+    'ayy',
+    'yasss',
   ],
 };
 
 // Emoji-only responses for very casual/quick reactions
 const EMOJI_ONLY_RESPONSES = [
-  "👍",
-  "🎉",
-  "😂",
-  "🔥",
-  "💯",
-  "✅",
-  "🙌",
-  "👀",
-  "💪",
-  "🚀",
-  "👌",
-  "❤️",
-  "🙏",
-  "😊",
-  "👏",
+  '👍',
+  '🎉',
+  '😂',
+  '🔥',
+  '💯',
+  '✅',
+  '🙌',
+  '👀',
+  '💪',
+  '🚀',
+  '👌',
+  '❤️',
+  '🙏',
+  '😊',
+  '👏',
 ];
 
 // Common Slack reactions with weights
 const COMMON_REACTIONS = [
-  { name: "thumbsup", weight: 30 },
-  { name: "eyes", weight: 15 },
-  { name: "white_check_mark", weight: 20 },
-  { name: "raised_hands", weight: 10 },
-  { name: "fire", weight: 8 },
-  { name: "heart", weight: 7 },
-  { name: "laughing", weight: 10 },
-  { name: "tada", weight: 8 },
-  { name: "rocket", weight: 6 },
-  { name: "100", weight: 5 },
-  { name: "clap", weight: 7 },
-  { name: "pray", weight: 5 },
-  { name: "thinking_face", weight: 4 },
-  { name: "muscle", weight: 3 },
+  { name: 'thumbsup', weight: 30 },
+  { name: 'eyes', weight: 15 },
+  { name: 'white_check_mark', weight: 20 },
+  { name: 'raised_hands', weight: 10 },
+  { name: 'fire', weight: 8 },
+  { name: 'heart', weight: 7 },
+  { name: 'laughing', weight: 10 },
+  { name: 'tada', weight: 8 },
+  { name: 'rocket', weight: 6 },
+  { name: '100', weight: 5 },
+  { name: 'clap', weight: 7 },
+  { name: 'pray', weight: 5 },
+  { name: 'thinking_face', weight: 4 },
+  { name: 'muscle', weight: 3 },
 ];
 
 // Casual conversation topics
 const CASUAL_TOPICS = {
   food: [
-    "tried this new restaurant",
-    "made homemade pizza",
-    "discovered this great coffee shop",
-    "ordered from this place",
-    "cooking experiment",
+    'tried this new restaurant',
+    'made homemade pizza',
+    'discovered this great coffee shop',
+    'ordered from this place',
+    'cooking experiment',
   ],
   movies: [
-    "watched this movie",
-    "started this TV series",
-    "finished binging",
-    "saw this at the theater",
-    "rewatching",
+    'watched this movie',
+    'started this TV series',
+    'finished binging',
+    'saw this at the theater',
+    'rewatching',
   ],
   weekend: [
-    "went hiking",
-    "visited the farmers market",
-    "had a great brunch",
-    "explored a new neighborhood",
-    "day trip to",
+    'went hiking',
+    'visited the farmers market',
+    'had a great brunch',
+    'explored a new neighborhood',
+    'day trip to',
   ],
   life: [
-    "adopted a dog",
-    "got a new apartment",
-    "started learning",
-    "finished my project",
-    "celebrating",
+    'adopted a dog',
+    'got a new apartment',
+    'started learning',
+    'finished my project',
+    'celebrating',
   ],
   gaming: [
     "playing Baldur's Gate 3",
-    "finally beat Elden Ring",
-    "started Tears of the Kingdom",
-    "replaying Mass Effect",
-    "trying out Hades",
+    'finally beat Elden Ring',
+    'started Tears of the Kingdom',
+    'replaying Mass Effect',
+    'trying out Hades',
   ],
   books: [
-    "reading Project Hail Mary",
-    "finished Tomorrow, and Tomorrow, and Tomorrow",
-    "started The Three-Body Problem",
-    "audiobook recommendation",
-    "book club pick",
+    'reading Project Hail Mary',
+    'finished Tomorrow, and Tomorrow, and Tomorrow',
+    'started The Three-Body Problem',
+    'audiobook recommendation',
+    'book club pick',
   ],
   music: [
-    "new album from",
-    "went to this concert",
-    "discovered this artist",
-    "playlist recommendation",
-    "vinyl shopping",
+    'new album from',
+    'went to this concert',
+    'discovered this artist',
+    'playlist recommendation',
+    'vinyl shopping',
   ],
 };
 
 interface ConversationStarter {
   message: MessageWithChannel;
   topic: string;
-  category: "work" | "workAdjacent" | "casual";
+  category: 'work' | 'workAdjacent' | 'casual';
   threadLength: number;
   participants: string[]; // User IDs who participated
   keywords: string[]; // Key topics for cross-referencing
@@ -295,65 +291,54 @@ interface UserPersonality {
   chattiness: number; // 0-1, likelihood to participate in threads
   technicalDepth: number; // 0-1, how technical their responses are
   emojiUsage: number; // 0-1, how often they use emojis
-  responseStyle: "detailed" | "brief" | "balanced";
+  responseStyle: 'detailed' | 'brief' | 'balanced';
   favoriteEmojis: string[]; // Personal emoji preferences
 }
 
 // Conversation mood types
-type ConversationMood =
-  | "urgent"
-  | "casual"
-  | "celebratory"
-  | "problem-solving"
-  | "brainstorming";
+type ConversationMood = 'urgent' | 'casual' | 'celebratory' | 'problem-solving' | 'brainstorming';
 
 // Time of day context
 interface TimeOfDayContext {
   hour: number;
-  period:
-    | "early-morning"
-    | "morning"
-    | "midday"
-    | "afternoon"
-    | "evening"
-    | "late-night";
+  period: 'early-morning' | 'morning' | 'midday' | 'afternoon' | 'evening' | 'late-night';
   isBusinessHours: boolean;
 }
 
 // Helper function to determine message length based on position
 function determineMessageLength(
-  position: "first" | "middle" | "last",
-  category: "work" | "workAdjacent" | "casual",
+  position: 'first' | 'middle' | 'last',
+  category: 'work' | 'workAdjacent' | 'casual',
   messageIndex: number,
-  totalMessages: number
+  totalMessages: number,
 ): keyof typeof MESSAGE_LENGTHS {
   // For more detailed discussions, vary length more naturally
   // Early messages set context (longer), middle has mix, end wraps up (shorter)
 
-  if (position === "first") {
+  if (position === 'first') {
     // First replies can be substantive (not just quick acks)
     return weightedRandom(
       Object.keys(MESSAGE_LENGTHS) as Array<keyof typeof MESSAGE_LENGTHS>,
-      [30, 25, 30, 12, 3] // More medium/long responses to establish discussion
+      [30, 25, 30, 12, 3], // More medium/long responses to establish discussion
     );
-  } else if (position === "last") {
+  } else if (position === 'last') {
     // Last replies wrap up but can still be meaningful
     return weightedRandom(
       Object.keys(MESSAGE_LENGTHS) as Array<keyof typeof MESSAGE_LENGTHS>,
-      [50, 35, 12, 3, 0] // Still mostly short but allow some substance
+      [50, 35, 12, 3, 0], // Still mostly short but allow some substance
     );
   } else {
     // Middle replies - this is where detailed discussion happens
     // Favor longer, more substantive messages for better discussions
-    if (category === "work" || category === "workAdjacent") {
+    if (category === 'work' || category === 'workAdjacent') {
       return weightedRandom(
         Object.keys(MESSAGE_LENGTHS) as Array<keyof typeof MESSAGE_LENGTHS>,
-        [15, 20, 35, 25, 5] // Much more medium/long/very long for work discussions
+        [15, 20, 35, 25, 5], // Much more medium/long/very long for work discussions
       );
     } else {
       return weightedRandom(
         Object.keys(MESSAGE_LENGTHS) as Array<keyof typeof MESSAGE_LENGTHS>,
-        [20, 25, 30, 20, 5] // Casual still has variety but slightly shorter
+        [20, 25, 30, 20, 5], // Casual still has variety but slightly shorter
       );
     }
   }
@@ -361,12 +346,7 @@ function determineMessageLength(
 
 // Helper function to select a short response
 function selectShortResponse(
-  responseType:
-    | "acknowledgment"
-    | "agreement"
-    | "quick_update"
-    | "questions"
-    | "casual"
+  responseType: 'acknowledgment' | 'agreement' | 'quick_update' | 'questions' | 'casual',
 ): string {
   return selectRandom(SHORT_RESPONSES[responseType]);
 }
@@ -374,34 +354,31 @@ function selectShortResponse(
 // Helper function to determine if we should use a pre-defined short response
 function shouldUseShortResponse(
   length: keyof typeof MESSAGE_LENGTHS,
-  position: "first" | "middle" | "last"
+  position: 'first' | 'middle' | 'last',
 ): boolean {
-  if (length !== "veryShort") return false;
+  if (length !== 'veryShort') return false;
 
   // Higher chance for first and last replies (increased for more realism)
-  if (position === "first") return Math.random() < 0.75; // 75% chance (up from 60%)
-  if (position === "last") return Math.random() < 0.85; // 85% chance (up from 70%)
+  if (position === 'first') return Math.random() < 0.75; // 75% chance (up from 60%)
+  if (position === 'last') return Math.random() < 0.85; // 85% chance (up from 70%)
   return Math.random() < 0.6; // 60% chance for middle (up from 40%)
 }
 
 // Add natural imperfections to make messages feel more human
 function addNaturalImperfections(
   text: string,
-  category: "work" | "workAdjacent" | "casual"
+  category: 'work' | 'workAdjacent' | 'casual',
 ): string {
   let processed = text.trim();
 
   // Skip if text is already very short (< 10 chars) or emoji-only
-  if (
-    processed.length < 10 ||
-    /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\s]+$/u.test(processed)
-  ) {
+  if (processed.length < 10 || /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\s]+$/u.test(processed)) {
     return processed;
   }
 
   // Casual messages get more imperfections
   const imperfectionChance =
-    category === "casual" ? 0.35 : category === "workAdjacent" ? 0.25 : 0.15;
+    category === 'casual' ? 0.35 : category === 'workAdjacent' ? 0.25 : 0.15;
 
   if (Math.random() > imperfectionChance) {
     return processed;
@@ -409,7 +386,7 @@ function addNaturalImperfections(
 
   const modifications: Array<(text: string) => string> = [
     // Remove ending punctuation (20% of imperfect messages)
-    (t) => t.replace(/[.!?]$/, ""),
+    (t) => t.replace(/[.!?]$/, ''),
 
     // Lowercase start (15% of imperfect messages)
     (t) => t.charAt(0).toLowerCase() + t.slice(1),
@@ -417,40 +394,37 @@ function addNaturalImperfections(
     // Add casual abbreviations (25% of imperfect messages)
     (t) =>
       t
-        .replace(/\bgoing to\b/gi, "gonna")
-        .replace(/\bwant to\b/gi, "wanna")
-        .replace(/\bkind of\b/gi, "kinda")
-        .replace(/\bgot to\b/gi, "gotta")
-        .replace(/\bI don't know\b/gi, "idk")
-        .replace(/\bprobably\b/gi, "prolly")
-        .replace(/\bthough\b/gi, "tho")
-        .replace(/\bbecause\b/gi, "cause")
-        .replace(/\byou\b/gi, "u")
-        .replace(/\bthanks\b/gi, "thx")
-        .replace(/\btomorrow\b/gi, "tmrw"),
+        .replace(/\bgoing to\b/gi, 'gonna')
+        .replace(/\bwant to\b/gi, 'wanna')
+        .replace(/\bkind of\b/gi, 'kinda')
+        .replace(/\bgot to\b/gi, 'gotta')
+        .replace(/\bI don't know\b/gi, 'idk')
+        .replace(/\bprobably\b/gi, 'prolly')
+        .replace(/\bthough\b/gi, 'tho')
+        .replace(/\bbecause\b/gi, 'cause')
+        .replace(/\byou\b/gi, 'u')
+        .replace(/\bthanks\b/gi, 'thx')
+        .replace(/\btomorrow\b/gi, 'tmrw'),
 
     // Common typos (10% of imperfect messages - subtle ones)
     (t) => {
       const typos = [
-        [/\bthe\b/g, "teh"],
-        [/\bthats\b/gi, "thats"],
-        [/\byour\b/gi, "ur"],
-        [/\bfor\b/g, "fr"],
+        [/\bthe\b/g, 'teh'],
+        [/\bthats\b/gi, 'thats'],
+        [/\byour\b/gi, 'ur'],
+        [/\bfor\b/g, 'fr'],
       ];
       const typo = typos[Math.floor(Math.random() * typos.length)];
       return Math.random() < 0.3 ? t.replace(typo[0], typo[1] as string) : t;
     },
 
     // Remove some punctuation in the middle
-    (t) => t.replace(/,\s/g, " "),
+    (t) => t.replace(/,\s/g, ' '),
   ];
 
   // Apply 1-2 random modifications
   const numMods = Math.random() < 0.7 ? 1 : 2;
-  const selectedMods = selectRandomMultiple(
-    modifications,
-    Math.min(numMods, modifications.length)
-  );
+  const selectedMods = selectRandomMultiple(modifications, Math.min(numMods, modifications.length));
 
   for (const mod of selectedMods) {
     processed = mod(processed);
@@ -460,63 +434,57 @@ function addNaturalImperfections(
 }
 
 // Generate user personalities based on team roles
-function generateUserPersonalities(
-  users: Member[]
-): Map<string, UserPersonality> {
+function generateUserPersonalities(users: Member[]): Map<string, UserPersonality> {
   const personalities = new Map<string, UserPersonality>();
 
   users.forEach((user) => {
-    const name = user.real_name || user.name || "";
+    const name = user.real_name || user.name || '';
     const role = name.toLowerCase();
 
     // Assign personality traits based on role patterns
     let chattiness = 0.5;
     let technicalDepth = 0.5;
     let emojiUsage = 0.3;
-    let responseStyle: "detailed" | "brief" | "balanced" = "balanced";
-    let favoriteEmojis = ["👍", "✅", "🎉"];
+    let responseStyle: 'detailed' | 'brief' | 'balanced' = 'balanced';
+    let favoriteEmojis = ['👍', '✅', '🎉'];
 
     // Leadership (CEO, CTO) - less chatty, more strategic
-    if (
-      role.includes("ceo") ||
-      role.includes("founder") ||
-      role.includes("chen")
-    ) {
+    if (role.includes('ceo') || role.includes('founder') || role.includes('chen')) {
       chattiness = 0.3;
       technicalDepth = 0.4;
       emojiUsage = 0.2;
-      responseStyle = "brief";
-      favoriteEmojis = ["👍", "✅", "🎯"];
-    } else if (role.includes("cto") || role.includes("rodriguez")) {
+      responseStyle = 'brief';
+      favoriteEmojis = ['👍', '✅', '🎯'];
+    } else if (role.includes('cto') || role.includes('rodriguez')) {
       chattiness = 0.4;
       technicalDepth = 0.9;
       emojiUsage = 0.3;
-      responseStyle = "detailed";
-      favoriteEmojis = ["🔧", "💡", "🚀"];
+      responseStyle = 'detailed';
+      favoriteEmojis = ['🔧', '💡', '🚀'];
     }
     // Engineers - technical, varied emoji use
-    else if (role.includes("engineer") || role.includes("developer")) {
+    else if (role.includes('engineer') || role.includes('developer')) {
       chattiness = 0.6;
       technicalDepth = 0.8;
       emojiUsage = 0.4;
-      responseStyle = Math.random() < 0.5 ? "detailed" : "balanced";
-      favoriteEmojis = ["🐛", "🔧", "💻", "🚀", "✅"];
+      responseStyle = Math.random() < 0.5 ? 'detailed' : 'balanced';
+      favoriteEmojis = ['🐛', '🔧', '💻', '🚀', '✅'];
     }
     // Product/Design - more visual, emoji-heavy
-    else if (role.includes("product") || role.includes("design")) {
+    else if (role.includes('product') || role.includes('design')) {
       chattiness = 0.7;
       technicalDepth = 0.4;
       emojiUsage = 0.7;
-      responseStyle = "balanced";
-      favoriteEmojis = ["✨", "🎨", "👀", "💡", "🎉"];
+      responseStyle = 'balanced';
+      favoriteEmojis = ['✨', '🎨', '👀', '💡', '🎉'];
     }
     // Community - very chatty, emoji-heavy
-    else if (role.includes("community")) {
+    else if (role.includes('community')) {
       chattiness = 0.9;
       technicalDepth = 0.3;
       emojiUsage = 0.8;
-      responseStyle = "brief";
-      favoriteEmojis = ["🎉", "❤️", "🙌", "✨", "😊"];
+      responseStyle = 'brief';
+      favoriteEmojis = ['🎉', '❤️', '🙌', '✨', '😊'];
     }
 
     personalities.set(user.id!, {
@@ -537,14 +505,14 @@ function generateUserPersonalities(
 function getTimeOfDayContext(timestamp: Date): TimeOfDayContext {
   const hour = timestamp.getHours();
 
-  let period: TimeOfDayContext["period"];
-  if (hour >= 0 && hour < 6) period = "late-night";
-  else if (hour >= 6 && hour < 9) period = "early-morning";
-  else if (hour >= 9 && hour < 12) period = "morning";
-  else if (hour >= 12 && hour < 14) period = "midday";
-  else if (hour >= 14 && hour < 17) period = "afternoon";
-  else if (hour >= 17 && hour < 21) period = "evening";
-  else period = "late-night";
+  let period: TimeOfDayContext['period'];
+  if (hour >= 0 && hour < 6) period = 'late-night';
+  else if (hour >= 6 && hour < 9) period = 'early-morning';
+  else if (hour >= 9 && hour < 12) period = 'morning';
+  else if (hour >= 12 && hour < 14) period = 'midday';
+  else if (hour >= 14 && hour < 17) period = 'afternoon';
+  else if (hour >= 17 && hour < 21) period = 'evening';
+  else period = 'late-night';
 
   const isBusinessHours = hour >= 9 && hour < 17;
 
@@ -553,32 +521,28 @@ function getTimeOfDayContext(timestamp: Date): TimeOfDayContext {
 
 // Determine conversation mood based on context
 function determineConversationMood(
-  category: "work" | "workAdjacent" | "casual",
+  category: 'work' | 'workAdjacent' | 'casual',
   topic: string,
-  timeContext: TimeOfDayContext
+  timeContext: TimeOfDayContext,
 ): ConversationMood {
-  if (category === "casual") return "casual";
+  if (category === 'casual') return 'casual';
 
   // Work-adjacent can be celebratory
-  if (category === "workAdjacent") {
-    if (topic.includes("celebration")) return "celebratory";
-    return "casual";
+  if (category === 'workAdjacent') {
+    if (topic.includes('celebration')) return 'celebratory';
+    return 'casual';
   }
 
   // Work category - determine based on topic and time
-  if (
-    topic.includes("issue") ||
-    topic.includes("bug") ||
-    topic.includes("problem")
-  ) {
-    return timeContext.isBusinessHours ? "problem-solving" : "urgent";
+  if (topic.includes('issue') || topic.includes('bug') || topic.includes('problem')) {
+    return timeContext.isBusinessHours ? 'problem-solving' : 'urgent';
   }
 
-  if (topic.includes("brainstorm") || topic.includes("architecture")) {
-    return "brainstorming";
+  if (topic.includes('brainstorm') || topic.includes('architecture')) {
+    return 'brainstorming';
   }
 
-  return "problem-solving";
+  return 'problem-solving';
 }
 
 // Add emoji to message based on personality and mood
@@ -586,7 +550,7 @@ function addEmojiToMessage(
   text: string,
   personality: UserPersonality,
   mood: ConversationMood,
-  position: "first" | "middle" | "last"
+  position: 'first' | 'middle' | 'last',
 ): string {
   // Skip if message already has emoji
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]/u;
@@ -596,14 +560,14 @@ function addEmojiToMessage(
   if (Math.random() > personality.emojiUsage) return text;
 
   // Higher chance for celebratory moods
-  if (mood === "celebratory" && Math.random() < 0.8) {
-    const celebratoryEmojis = ["🎉", "🎊", "🙌", "✨", "🎈"];
+  if (mood === 'celebratory' && Math.random() < 0.8) {
+    const celebratoryEmojis = ['🎉', '🎊', '🙌', '✨', '🎈'];
     const emoji = selectRandom(celebratoryEmojis);
     return `${text} ${emoji}`;
   }
 
   // Higher chance for last messages (wrap-up)
-  if (position === "last" && Math.random() < personality.emojiUsage + 0.2) {
+  if (position === 'last' && Math.random() < personality.emojiUsage + 0.2) {
     const emoji = selectRandom(personality.favoriteEmojis);
     return `${text} ${emoji}`;
   }
@@ -628,32 +592,32 @@ function generateReactions(
   message: MessageWithChannel,
   users: Member[],
   personalities: Map<string, UserPersonality>,
-  category: "work" | "workAdjacent" | "casual",
-  position: "starter" | "reply"
+  category: 'work' | 'workAdjacent' | 'casual',
+  position: 'starter' | 'reply',
 ): SlackReaction[] {
   // 40% of messages get reactions (higher for starters, celebrations)
   let reactionChance = 0.4;
 
   // Adjust based on position
-  if (position === "starter") {
+  if (position === 'starter') {
     reactionChance = 0.5; // Thread starters more likely to get reactions
   }
 
   // Adjust based on category
-  if (category === "casual") {
+  if (category === 'casual') {
     reactionChance += 0.15; // Casual messages get more reactions
   }
 
-  const messageText = (message.text || "").toLowerCase();
+  const messageText = (message.text || '').toLowerCase();
 
   // Increase chance for certain content
-  if (messageText.includes("🎉") || messageText.includes("congrat")) {
+  if (messageText.includes('🎉') || messageText.includes('congrat')) {
     reactionChance += 0.3; // Celebrations get lots of reactions
   }
-  if (messageText.includes("shipped") || messageText.includes("merged")) {
+  if (messageText.includes('shipped') || messageText.includes('merged')) {
     reactionChance += 0.2; // Achievements get reactions
   }
-  if (messageText.includes("help") || messageText.includes("?")) {
+  if (messageText.includes('help') || messageText.includes('?')) {
     reactionChance += 0.1; // Questions get some reactions
   }
 
@@ -664,10 +628,7 @@ function generateReactions(
   const reactions: SlackReaction[] = [];
 
   // Select reaction types
-  const selectedReactionTypes = selectRandomMultiple(
-    COMMON_REACTIONS,
-    reactionTypeCount
-  );
+  const selectedReactionTypes = selectRandomMultiple(COMMON_REACTIONS, reactionTypeCount);
 
   for (const reactionType of selectedReactionTypes) {
     // Determine how many users react with this emoji (1-5)
@@ -679,7 +640,7 @@ function generateReactions(
 
     const reactingUsers = selectRandomMultiple(
       availableUsers,
-      Math.min(userCount, availableUsers.length)
+      Math.min(userCount, availableUsers.length),
     );
 
     reactions.push({
@@ -696,9 +657,9 @@ function generateReactions(
 function extractKeywords(text: string): string[] {
   // Remove URLs, mentions, and special chars
   const cleanText = text
-    .replace(/https?:\/\/\S+/gi, "")
-    .replace(/<@\w+>/g, "")
-    .replace(/[^\w\s]/g, " ")
+    .replace(/https?:\/\/\S+/gi, '')
+    .replace(/<@\w+>/g, '')
+    .replace(/[^\w\s]/g, ' ')
     .toLowerCase();
 
   // Split into words and filter
@@ -708,22 +669,22 @@ function extractKeywords(text: string): string[] {
     .filter(
       (word) =>
         ![
-          "this",
-          "that",
-          "with",
-          "from",
-          "have",
-          "been",
-          "were",
-          "will",
-          "your",
-          "they",
-          "what",
-          "when",
-          "where",
-          "there",
-          "their",
-        ].includes(word)
+          'this',
+          'that',
+          'with',
+          'from',
+          'have',
+          'been',
+          'were',
+          'will',
+          'your',
+          'they',
+          'what',
+          'when',
+          'where',
+          'there',
+          'their',
+        ].includes(word),
     );
 
   // Return up to 5 unique keywords
@@ -736,7 +697,7 @@ export async function generateSlackMessages(
   config: GeneratorConfig,
   context: RelationshipContext | undefined,
   existingUsers: Member[],
-  existingChannels: Channel[]
+  existingChannels: Channel[],
 ): Promise<MessageWithChannel[]> {
   const allMessages: MessageWithChannel[] = [];
   const users = existingUsers;
@@ -751,7 +712,7 @@ export async function generateSlackMessages(
     console.log(
       `  With context: ${context.issues?.length || 0} issues, ${
         context.meetings?.length || 0
-      } meetings, ${context.pages?.length || 0} pages`
+      } meetings, ${context.pages?.length || 0} pages`,
     );
   }
 
@@ -765,17 +726,14 @@ export async function generateSlackMessages(
   const CONVERSATION_BATCH_SIZE = 10;
 
   for (const channel of channels) {
-    const channelMessageCount = Math.min(
-      messagesPerChannel,
-      count - allMessages.length
-    );
+    const channelMessageCount = Math.min(messagesPerChannel, count - allMessages.length);
 
     // Determine channel category
-    let category: "work" | "workAdjacent" | "casual" = "work";
-    if (CHANNEL_CATEGORIES.casual.includes(channel.name || "")) {
-      category = "casual";
-    } else if (CHANNEL_CATEGORIES.workAdjacent.includes(channel.name || "")) {
-      category = "workAdjacent";
+    let category: 'work' | 'workAdjacent' | 'casual' = 'work';
+    if (CHANNEL_CATEGORIES.casual.includes(channel.name || '')) {
+      category = 'casual';
+    } else if (CHANNEL_CATEGORIES.workAdjacent.includes(channel.name || '')) {
+      category = 'workAdjacent';
     }
 
     let channelMessages = 0;
@@ -794,19 +752,16 @@ export async function generateSlackMessages(
       for (let i = 0; i < batchSize; i++) {
         const threadType = weightedRandom(
           Object.keys(THREAD_LENGTHS),
-          Object.values(THREAD_LENGTHS).map((t) => t.weight)
+          Object.values(THREAD_LENGTHS).map((t) => t.weight),
         ) as keyof typeof THREAD_LENGTHS;
 
         const { min, max } = THREAD_LENGTHS[threadType];
-        const threadLength =
-          min === max ? min : min + Math.floor(Math.random() * (max - min + 1));
+        const threadLength = min === max ? min : min + Math.floor(Math.random() * (max - min + 1));
 
         // 30% chance to have linear chat (root-level follow-ups)
         const hasLinearChat = Math.random() < 0.3;
         // If has linear chat, generate 1-4 additional root messages
-        const linearChatCount = hasLinearChat
-          ? Math.floor(Math.random() * 4) + 1
-          : 0;
+        const linearChatCount = hasLinearChat ? Math.floor(Math.random() * 4) + 1 : 0;
 
         conversationPlans.push({
           threadLength,
@@ -825,8 +780,8 @@ export async function generateSlackMessages(
           config,
           context,
           previousStarters,
-          personalities
-        )
+          personalities,
+        ),
       );
 
       const starters = await Promise.all(starterPromises);
@@ -835,15 +790,14 @@ export async function generateSlackMessages(
       const threadPromises = starters.map(async (starter, index) => {
         if (!starter) return [];
 
-        const { threadLength, hasLinearChat, linearChatCount } =
-          conversationPlans[index];
+        const { threadLength, hasLinearChat, linearChatCount } = conversationPlans[index];
         const messages: MessageWithChannel[] = [starter.message];
 
         // Extract keywords from the message for cross-referencing
-        const keywords = extractKeywords(starter.message.text || "");
+        const keywords = extractKeywords(starter.message.text || '');
 
         // Get participants (we'll update this after generating replies)
-        const participants = [starter.message.user || ""];
+        const participants = [starter.message.user || ''];
 
         // Track this starter
         const starterData: ConversationStarter = {
@@ -870,7 +824,7 @@ export async function generateSlackMessages(
             category,
             users,
             config,
-            personalities
+            personalities,
           );
           messages.push(...replies);
         }
@@ -884,7 +838,7 @@ export async function generateSlackMessages(
             users,
             config,
             personalities,
-            messages
+            messages,
           );
           messages.push(...linearMessages);
         }
@@ -912,20 +866,20 @@ export async function generateSlackMessages(
   }
 
   // Sort all messages by timestamp to maintain chronological order
-  allMessages.sort((a, b) => parseFloat(a.ts || "0") - parseFloat(b.ts || "0"));
+  allMessages.sort((a, b) => parseFloat(a.ts || '0') - parseFloat(b.ts || '0'));
 
   return allMessages.slice(0, count);
 }
 
 async function generateConversationStarter(
   channel: Channel,
-  category: "work" | "workAdjacent" | "casual",
+  category: 'work' | 'workAdjacent' | 'casual',
   users: Member[],
   dates: Date[],
   config: GeneratorConfig,
   context?: RelationshipContext,
   previousStarters?: ConversationStarter[],
-  personalities?: Map<string, UserPersonality>
+  personalities?: Map<string, UserPersonality>,
 ): Promise<{ message: MessageWithChannel; topic: string } | null> {
   const user = selectRandom(users);
   const timestamp = generateRandomDate(dates[0], dates[dates.length - 1]);
@@ -934,12 +888,11 @@ async function generateConversationStarter(
   // Get time of day context
   const timeContext = getTimeOfDayContext(timestamp);
 
-  let prompt = "";
-  let topic = "";
+  let prompt = '';
+  let topic = '';
 
   // 10-15% chance to reference a previous thread
-  const shouldReference =
-    previousStarters && previousStarters.length > 5 && Math.random() < 0.12;
+  const shouldReference = previousStarters && previousStarters.length > 5 && Math.random() < 0.12;
 
   if (shouldReference) {
     const previousStarter = selectRandom(previousStarters!);
@@ -958,24 +911,24 @@ Create a follow-up message that:
 - Adds new information or a related thought
 - Invites further discussion
 - Keep it ${
-      category === "casual"
-        ? "casual and friendly"
-        : category === "work"
-        ? "professional"
-        : "semi-professional"
+      category === 'casual'
+        ? 'casual and friendly'
+        : category === 'work'
+          ? 'professional'
+          : 'semi-professional'
     }
 
 Return ONLY the message text (no JSON, no quotes):`;
   } else {
     // Generate based on category and context
-    if (category === "work" && context) {
+    if (category === 'work' && context) {
       // Work-related topics with GitHub/Notion/Fathom context
       const contextType = weightedRandom(
-        ["github_issue", "github_pr", "meeting", "notion_page", "general"],
-        [25, 40, 15, 18, 2] // Heavy focus on PRs (40%), GitHub issues (25%), meetings (15%), Notion (18%), minimal general (2%)
+        ['github_issue', 'github_pr', 'meeting', 'notion_page', 'general'],
+        [25, 40, 15, 18, 2], // Heavy focus on PRs (40%), GitHub issues (25%), meetings (15%), Notion (18%), minimal general (2%)
       );
 
-      if (contextType === "github_issue" && context.issues?.length) {
+      if (contextType === 'github_issue' && context.issues?.length) {
         const issue = selectRandom(context.issues);
         topic = `github-issue-${issue.number}`;
         prompt = `Generate a Slack message starting a conversation about a GitHub issue.
@@ -992,7 +945,7 @@ Create a message that:
 - Sounds natural and conversational
 
 Return ONLY the message text (no JSON, no quotes):`;
-      } else if (contextType === "github_pr" && context.pullRequests?.length) {
+      } else if (contextType === 'github_pr' && context.pullRequests?.length) {
         const pr = selectRandom(context.pullRequests);
         topic = `github-pr-${pr.number}`;
         prompt = `Generate a Slack message about a GitHub pull request.
@@ -1007,7 +960,7 @@ Create a message that:
 - Is professional but friendly
 
 Return ONLY the message text (no JSON, no quotes):`;
-      } else if (contextType === "meeting" && context.meetings?.length) {
+      } else if (contextType === 'meeting' && context.meetings?.length) {
         const meeting = selectRandom(context.meetings);
         topic = `meeting-followup-${meeting.recording_id}`;
         prompt = `Generate a Slack message following up on a meeting.
@@ -1024,10 +977,9 @@ Create a message that:
 - Professional tone
 
 Return ONLY the message text (no JSON, no quotes):`;
-      } else if (contextType === "notion_page" && context.pages?.length) {
+      } else if (contextType === 'notion_page' && context.pages?.length) {
         const page = selectRandom(context.pages);
-        const pageTitle =
-          page.properties?.title?.title?.[0]?.plain_text || "Untitled";
+        const pageTitle = page.properties?.title?.title?.[0]?.plain_text || 'Untitled';
         topic = `notion-doc-${pageTitle.slice(0, 20)}`;
         prompt = `Generate a Slack message about a Notion document.
 
@@ -1044,7 +996,7 @@ Create a message that:
 Return ONLY the message text (no JSON, no quotes):`;
       } else {
         // General work message
-        topic = "general-work-question";
+        topic = 'general-work-question';
         prompt = `Generate a Slack message starting a technical discussion.
 
 Channel: #${channel.name}
@@ -1062,16 +1014,16 @@ Keep it professional and specific to game development/backend engineering.
 
 Return ONLY the message text (no JSON, no quotes):`;
       }
-    } else if (category === "casual") {
+    } else if (category === 'casual') {
       // Even in casual channels, 30% should be work-related discussions
       if (context && Math.random() < 0.3) {
         // Work discussion in casual channel
         const contextType = weightedRandom(
-          ["github_issue", "github_pr", "notion_page", "general"],
-          [30, 40, 25, 5] // Focus on GitHub content (70% combined)
+          ['github_issue', 'github_pr', 'notion_page', 'general'],
+          [30, 40, 25, 5], // Focus on GitHub content (70% combined)
         );
 
-        if (contextType === "github_issue" && context.issues?.length) {
+        if (contextType === 'github_issue' && context.issues?.length) {
           const issue = selectRandom(context.issues);
           topic = `casual-github-issue-${issue.number}`;
           prompt = `Generate a casual Slack message in #${channel.name} about a GitHub issue.
@@ -1086,10 +1038,7 @@ Create a casual but work-related message that:
 - Sounds natural like chatting with colleagues
 
 Return ONLY the message text (no JSON, no quotes):`;
-        } else if (
-          contextType === "github_pr" &&
-          context.pullRequests?.length
-        ) {
+        } else if (contextType === 'github_pr' && context.pullRequests?.length) {
           const pr = selectRandom(context.pullRequests);
           topic = `casual-github-pr-${pr.number}`;
           prompt = `Generate a casual Slack message in #${channel.name} about a GitHub PR.
@@ -1104,10 +1053,9 @@ Create a casual message that:
 - Natural tone like chatting with colleagues
 
 Return ONLY the message text (no JSON, no quotes):`;
-        } else if (contextType === "notion_page" && context.pages?.length) {
+        } else if (contextType === 'notion_page' && context.pages?.length) {
           const page = selectRandom(context.pages);
-          const pageTitle =
-            page.properties?.title?.title?.[0]?.plain_text || "Untitled";
+          const pageTitle = page.properties?.title?.title?.[0]?.plain_text || 'Untitled';
           topic = `casual-notion-${pageTitle.slice(0, 20)}`;
           prompt = `Generate a casual Slack message in #${channel.name} about a Notion document.
 
@@ -1122,7 +1070,7 @@ Create a casual message that:
 
 Return ONLY the message text (no JSON, no quotes):`;
         } else {
-          topic = "casual-work-chat";
+          topic = 'casual-work-chat';
           prompt = `Generate a casual work-related Slack message in #${channel.name}.
 
 Author: ${user.real_name} (@${user.name})
@@ -1142,7 +1090,7 @@ Return ONLY the message text (no JSON, no quotes):`;
         // Pure casual topics (now only 70% of casual channel content)
         const topicCategory = weightedRandom(
           Object.keys(CASUAL_TOPICS),
-          [2, 2, 2, 3, 70, 15, 6] // Very heavily favor gaming (70%), minimal other topics
+          [2, 2, 2, 3, 70, 15, 6], // Very heavily favor gaming (70%), minimal other topics
         ) as keyof typeof CASUAL_TOPICS;
 
         const topicPhrase = selectRandom(CASUAL_TOPICS[topicCategory]);
@@ -1155,13 +1103,13 @@ Author: ${user.real_name} (@${user.name})
 Topic: ${topicPhrase}
 
 Create a friendly, conversational message about:
-- ${topicCategory === "food" ? "A restaurant, meal, or food experience" : ""}
-- ${topicCategory === "movies" ? "A movie or TV show" : ""}
-- ${topicCategory === "weekend" ? "A weekend activity or outing" : ""}
-- ${topicCategory === "life" ? "A life update or personal news" : ""}
-- ${topicCategory === "gaming" ? "A video game experience" : ""}
-- ${topicCategory === "books" ? "A book or reading experience" : ""}
-- ${topicCategory === "music" ? "Music, concerts, or artists" : ""}
+- ${topicCategory === 'food' ? 'A restaurant, meal, or food experience' : ''}
+- ${topicCategory === 'movies' ? 'A movie or TV show' : ''}
+- ${topicCategory === 'weekend' ? 'A weekend activity or outing' : ''}
+- ${topicCategory === 'life' ? 'A life update or personal news' : ''}
+- ${topicCategory === 'gaming' ? 'A video game experience' : ''}
+- ${topicCategory === 'books' ? 'A book or reading experience' : ''}
+- ${topicCategory === 'music' ? 'Music, concerts, or artists' : ''}
 
 Make it engaging so others want to respond. Be specific with details.
 
@@ -1173,11 +1121,11 @@ Return ONLY the message text (no JSON, no quotes):`;
       if (context && Math.random() < 0.9) {
         // Work discussion in general/product channel
         const contextType = weightedRandom(
-          ["github_issue", "github_pr", "meeting", "notion_page"],
-          [25, 35, 25, 15] // Balanced work content
+          ['github_issue', 'github_pr', 'meeting', 'notion_page'],
+          [25, 35, 25, 15], // Balanced work content
         );
 
-        if (contextType === "github_issue" && context.issues?.length) {
+        if (contextType === 'github_issue' && context.issues?.length) {
           const issue = selectRandom(context.issues);
           topic = `general-github-issue-${issue.number}`;
           prompt = `Generate a Slack message in #${channel.name} about a GitHub issue.
@@ -1192,10 +1140,7 @@ Create a message that:
 - Encourages collaboration
 
 Return ONLY the message text (no JSON, no quotes):`;
-        } else if (
-          contextType === "github_pr" &&
-          context.pullRequests?.length
-        ) {
+        } else if (contextType === 'github_pr' && context.pullRequests?.length) {
           const pr = selectRandom(context.pullRequests);
           topic = `general-github-pr-${pr.number}`;
           prompt = `Generate a Slack message in #${channel.name} about a GitHub PR.
@@ -1209,7 +1154,7 @@ Create a message that:
 - Professional but friendly tone
 
 Return ONLY the message text (no JSON, no quotes):`;
-        } else if (contextType === "meeting" && context.meetings?.length) {
+        } else if (contextType === 'meeting' && context.meetings?.length) {
           const meeting = selectRandom(context.meetings);
           topic = `general-meeting-${meeting.recording_id}`;
           prompt = `Generate a Slack message in #${channel.name} following up on a meeting.
@@ -1223,10 +1168,9 @@ Create a message that:
 - Professional tone
 
 Return ONLY the message text (no JSON, no quotes):`;
-        } else if (contextType === "notion_page" && context.pages?.length) {
+        } else if (contextType === 'notion_page' && context.pages?.length) {
           const page = selectRandom(context.pages);
-          const pageTitle =
-            page.properties?.title?.title?.[0]?.plain_text || "Untitled";
+          const pageTitle = page.properties?.title?.title?.[0]?.plain_text || 'Untitled';
           topic = `general-notion-${pageTitle.slice(0, 20)}`;
           prompt = `Generate a Slack message in #${channel.name} about a Notion document.
 
@@ -1240,7 +1184,7 @@ Create a message that:
 
 Return ONLY the message text (no JSON, no quotes):`;
         } else {
-          topic = "general-work-discussion";
+          topic = 'general-work-discussion';
           prompt = `Generate a Slack message in #${channel.name} about work.
 
 Author: ${user.real_name} (@${user.name})
@@ -1258,8 +1202,8 @@ Return ONLY the message text (no JSON, no quotes):`;
       } else {
         // Small percentage of announcements/celebrations
         const subtopic = weightedRandom(
-          ["announcement", "celebration"],
-          [60, 40] // Mostly brief announcements, some celebrations
+          ['announcement', 'celebration'],
+          [60, 40], // Mostly brief announcements, some celebrations
         );
         topic = `work-adjacent-${subtopic}`;
 
@@ -1269,9 +1213,9 @@ Author: ${user.real_name} (@${user.name})
 Type: ${subtopic}
 
 Create a ${
-          subtopic === "announcement"
-            ? "short company announcement or team update"
-            : "brief celebration of a team achievement or milestone"
+          subtopic === 'announcement'
+            ? 'short company announcement or team update'
+            : 'brief celebration of a team achievement or milestone'
         }.
 
 Keep it concise, friendly, and positive.
@@ -1283,8 +1227,7 @@ Return ONLY the message text (no JSON, no quotes):`;
 
   try {
     // Vary temperature by category for more natural variation
-    const temperature =
-      category === "casual" ? 1.0 : category === "workAdjacent" ? 0.9 : 0.7;
+    const temperature = category === 'casual' ? 1.0 : category === 'workAdjacent' ? 0.9 : 0.7;
     let messageText = await generateWithLLM(prompt, config, temperature);
     messageText = messageText.trim();
 
@@ -1296,17 +1239,12 @@ Return ONLY the message text (no JSON, no quotes):`;
       const personality = personalities.get(user.id);
       if (personality) {
         const mood = determineConversationMood(category, topic, timeContext);
-        messageText = addEmojiToMessage(
-          messageText,
-          personality,
-          mood,
-          "first"
-        );
+        messageText = addEmojiToMessage(messageText, personality, mood, 'first');
       }
     }
 
     const message: MessageWithChannel = {
-      type: "message",
+      type: 'message',
       user: user.id,
       text: messageText,
       ts,
@@ -1319,12 +1257,12 @@ Return ONLY the message text (no JSON, no quotes):`;
       users,
       personalities || new Map(),
       category,
-      "starter"
+      'starter',
     );
 
     return { message, topic };
   } catch (error) {
-    console.error("Error generating conversation starter:", error);
+    console.error('Error generating conversation starter:', error);
     return null;
   }
 }
@@ -1332,13 +1270,13 @@ Return ONLY the message text (no JSON, no quotes):`;
 async function generateThreadReplies(
   parentMessage: MessageWithChannel,
   replyCount: number,
-  category: "work" | "workAdjacent" | "casual",
+  category: 'work' | 'workAdjacent' | 'casual',
   users: Member[],
   config: GeneratorConfig,
-  personalities?: Map<string, UserPersonality>
+  personalities?: Map<string, UserPersonality>,
 ): Promise<MessageWithChannel[]> {
   const replies: MessageWithChannel[] = [];
-  const parentTimestamp = parseFloat(parentMessage.ts || "0");
+  const parentTimestamp = parseFloat(parentMessage.ts || '0');
 
   // Select participants for this thread (2-7 unique users)
   const participantCount = Math.min(Math.max(2, Math.ceil(replyCount / 3)), 7);
@@ -1356,23 +1294,17 @@ async function generateThreadReplies(
     // Calculate reply timing
     // First reply: 5-30 minutes
     // Subsequent: 10 minutes to 6 hours
-    const delayMinutes =
-      i === 0 ? 5 + Math.random() * 25 : 10 + Math.random() * 350;
+    const delayMinutes = i === 0 ? 5 + Math.random() * 25 : 10 + Math.random() * 350;
 
     currentTimestamp += delayMinutes * 60;
     const ts = currentTimestamp.toFixed(6);
 
     // Determine position for length calculation
-    const position: "first" | "middle" | "last" =
-      i === 0 ? "first" : i === replyCount - 1 ? "last" : "middle";
+    const position: 'first' | 'middle' | 'last' =
+      i === 0 ? 'first' : i === replyCount - 1 ? 'last' : 'middle';
 
     // Determine message length based on position
-    const messageLength = determineMessageLength(
-      position,
-      category,
-      i,
-      replyCount
-    );
+    const messageLength = determineMessageLength(position, category, i, replyCount);
     const { minWords, maxWords } = MESSAGE_LENGTHS[messageLength];
 
     // Check if we should use a pre-defined short response
@@ -1388,23 +1320,23 @@ async function generateThreadReplies(
         // Use a pre-defined short response
         let responseType: keyof typeof SHORT_RESPONSES;
 
-        if (position === "first") {
+        if (position === 'first') {
           // First replies are often acknowledgments or agreements
-          responseType = Math.random() < 0.7 ? "acknowledgment" : "agreement";
-        } else if (position === "last") {
+          responseType = Math.random() < 0.7 ? 'acknowledgment' : 'agreement';
+        } else if (position === 'last') {
           // Last replies are often acknowledgments or casual closures
           responseType =
-            category === "casual"
+            category === 'casual'
               ? Math.random() < 0.5
-                ? "acknowledgment"
-                : "casual"
-              : "acknowledgment";
+                ? 'acknowledgment'
+                : 'casual'
+              : 'acknowledgment';
         } else {
           // Middle replies can be varied
           const types: Array<keyof typeof SHORT_RESPONSES> =
-            category === "work"
-              ? ["acknowledgment", "agreement", "quick_update"]
-              : ["acknowledgment", "agreement", "casual"];
+            category === 'work'
+              ? ['acknowledgment', 'agreement', 'quick_update']
+              : ['acknowledgment', 'agreement', 'casual'];
           responseType = selectRandom(types);
         }
 
@@ -1415,56 +1347,51 @@ async function generateThreadReplies(
       const previousReplies = replies
         .slice(-3)
         .map((r) => r.text)
-        .join("\n");
+        .join('\n');
 
       const lengthGuidance =
-        messageLength === "veryShort"
+        messageLength === 'veryShort'
           ? "VERY SHORT (1-3 words like 'Thanks!', 'Got it', or 'Will do')"
-          : messageLength === "short"
-          ? "SHORT (4-10 words, brief response)"
-          : messageLength === "medium"
-          ? "MEDIUM (11-25 words, brief explanation)"
-          : "LONGER (26-50 words, detailed response)";
+          : messageLength === 'short'
+            ? 'SHORT (4-10 words, brief response)'
+            : messageLength === 'medium'
+              ? 'MEDIUM (11-25 words, brief explanation)'
+              : 'LONGER (26-50 words, detailed response)';
 
       const prompt =
-        messageLength === "veryShort"
+        messageLength === 'veryShort'
           ? `You're ${replyUser.real_name} replying in Slack to: "${parentMessage.text}"
 
 Reply with just 1-3 words. Be casual like texting. Examples: "got it", "on it", "thanks", "sounds good"
 
 Your reply:`
-          : messageLength === "short"
-          ? `You're ${replyUser.real_name} in Slack #${
-              category === "work" ? "engineering" : "general"
-            }.
+          : messageLength === 'short'
+            ? `You're ${replyUser.real_name} in Slack #${
+                category === 'work' ? 'engineering' : 'general'
+              }.
 Someone said: "${parentMessage.text}"
 
 Quick ${
-              category === "casual" ? "casual" : "friendly"
-            } reply (5-10 words). Like texting a coworker. Can have typos.
+                category === 'casual' ? 'casual' : 'friendly'
+              } reply (5-10 words). Like texting a coworker. Can have typos.
 
 Your reply:`
-          : `You're ${replyUser.real_name} replying in Slack.
+            : `You're ${replyUser.real_name} replying in Slack.
 
 Original: "${parentMessage.text}"
-${previousReplies ? `\nRecent replies:\n${previousReplies}` : ""}
+${previousReplies ? `\nRecent replies:\n${previousReplies}` : ''}
 
-Write a ${
-              category === "casual" ? "casual" : "friendly but professional"
-            } reply (${
-              messageLength === "medium" ? "1-2 sentences" : "2-3 sentences"
-            }). ${
-              i === replyCount - 1
-                ? "Could wrap things up."
-                : "Keep conversation going."
-            } Like texting a coworker - can have typos, be brief.
+Write a ${category === 'casual' ? 'casual' : 'friendly but professional'} reply (${
+                messageLength === 'medium' ? '1-2 sentences' : '2-3 sentences'
+              }). ${
+                i === replyCount - 1 ? 'Could wrap things up.' : 'Keep conversation going.'
+              } Like texting a coworker - can have typos, be brief.
 
 Your reply:`;
 
       try {
         // Higher temperature for first replies (more varied), lower for precise responses
-        const temperature =
-          position === "first" ? 0.95 : category === "casual" ? 1.0 : 0.75;
+        const temperature = position === 'first' ? 0.95 : category === 'casual' ? 1.0 : 0.75;
         replyText = await generateWithLLM(prompt, config, temperature);
         replyText = replyText.trim();
 
@@ -1472,12 +1399,11 @@ Your reply:`;
         const wordCount = replyText.split(/\s+/).length;
         if (wordCount < minWords || wordCount > maxWords + 10) {
           console.log(
-            `  ⚠️ Reply word count (${wordCount}) outside range [${minWords}-${maxWords}], using fallback`
+            `  ⚠️ Reply word count (${wordCount}) outside range [${minWords}-${maxWords}], using fallback`,
           );
           // Use a fallback short response if LLM didn't follow length guidance
-          if (messageLength === "veryShort") {
-            const fallbackType =
-              position === "first" ? "acknowledgment" : "agreement";
+          if (messageLength === 'veryShort') {
+            const fallbackType = position === 'first' ? 'acknowledgment' : 'agreement';
             replyText = selectShortResponse(fallbackType);
           }
         }
@@ -1487,7 +1413,7 @@ Your reply:`;
       } catch (error) {
         console.error(`Error generating reply ${i + 1}:`, error);
         // Fallback to short response on error
-        replyText = selectShortResponse("acknowledgment");
+        replyText = selectShortResponse('acknowledgment');
       }
     }
 
@@ -1497,17 +1423,13 @@ Your reply:`;
       if (personality) {
         const replyDate = new Date(currentTimestamp * 1000);
         const timeContext = getTimeOfDayContext(replyDate);
-        const mood = determineConversationMood(
-          category,
-          parentMessage.text || "",
-          timeContext
-        );
+        const mood = determineConversationMood(category, parentMessage.text || '', timeContext);
         replyText = addEmojiToMessage(replyText, personality, mood, position);
       }
     }
 
     const replyMessage: MessageWithChannel = {
-      type: "message",
+      type: 'message',
       user: replyUser.id,
       text: replyText,
       ts,
@@ -1521,7 +1443,7 @@ Your reply:`;
       users,
       personalities || new Map(),
       category,
-      "reply"
+      'reply',
     );
 
     replies.push(replyMessage);
@@ -1534,26 +1456,22 @@ Your reply:`;
 async function generateLinearChatMessages(
   originalMessage: MessageWithChannel,
   count: number,
-  category: "work" | "workAdjacent" | "casual",
+  category: 'work' | 'workAdjacent' | 'casual',
   users: Member[],
   config: GeneratorConfig,
   personalities: Map<string, UserPersonality> | undefined,
-  existingMessages: MessageWithChannel[]
+  existingMessages: MessageWithChannel[],
 ): Promise<MessageWithChannel[]> {
   const linearMessages: MessageWithChannel[] = [];
 
   // Start after the last message in the thread
-  const lastThreadTimestamp = Math.max(
-    ...existingMessages.map((m) => parseFloat(m.ts || "0"))
-  );
+  const lastThreadTimestamp = Math.max(...existingMessages.map((m) => parseFloat(m.ts || '0')));
 
   let currentTimestamp = lastThreadTimestamp;
 
   // Get thread participants
   const threadUsers = Array.from(new Set(existingMessages.map((m) => m.user)));
-  const availableUsers = users.filter(
-    (u) => u.id && threadUsers.includes(u.id)
-  );
+  const availableUsers = users.filter((u) => u.id && threadUsers.includes(u.id));
 
   for (let i = 0; i < count; i++) {
     // Select user (preferably from thread participants, but can be new)
@@ -1571,7 +1489,7 @@ async function generateLinearChatMessages(
     // Linear messages are usually medium length (continuing discussion)
     const messageLength = weightedRandom(
       Object.keys(MESSAGE_LENGTHS) as Array<keyof typeof MESSAGE_LENGTHS>,
-      [10, 20, 40, 25, 5] // Favor medium/long for substantive follow-ups
+      [10, 20, 40, 25, 5], // Favor medium/long for substantive follow-ups
     );
 
     // Build context from recent messages
@@ -1579,18 +1497,18 @@ async function generateLinearChatMessages(
       .slice(-3)
       .concat(linearMessages.slice(-2))
       .map((m, idx) => `${idx + 1}. ${m.text}`)
-      .join("\n");
+      .join('\n');
 
     const lengthDesc =
-      messageLength === "veryShort"
-        ? "very brief (1-3 words)"
-        : messageLength === "short"
-        ? "brief (4-12 words)"
-        : messageLength === "medium"
-        ? "moderate length (13-35 words)"
-        : messageLength === "long"
-        ? "detailed (36-70 words)"
-        : "very detailed (71-120 words)";
+      messageLength === 'veryShort'
+        ? 'very brief (1-3 words)'
+        : messageLength === 'short'
+          ? 'brief (4-12 words)'
+          : messageLength === 'medium'
+            ? 'moderate length (13-35 words)'
+            : messageLength === 'long'
+              ? 'detailed (36-70 words)'
+              : 'very detailed (71-120 words)';
 
     const prompt = `You're ${
       user.real_name || user.name
@@ -1604,15 +1522,11 @@ ${recentContext}
 Write a ${lengthDesc} follow-up message that:
 - Adds new information, thoughts, or questions related to the ongoing discussion
 - Feels like a natural continuation (e.g., "oh also...", "just realized...", "update on this...", "following up -")
-- ${
-      category === "casual"
-        ? "Keeps casual, friendly tone"
-        : "Stays professional but conversational"
-    }
+- ${category === 'casual' ? 'Keeps casual, friendly tone' : 'Stays professional but conversational'}
 - ${
       i === count - 1
-        ? "Could bring the discussion to a natural close"
-        : "Keeps the conversation flowing"
+        ? 'Could bring the discussion to a natural close'
+        : 'Keeps the conversation flowing'
     }
 
 This is a NEW message at the root level, not a threaded reply.
@@ -1620,7 +1534,7 @@ This is a NEW message at the root level, not a threaded reply.
 Your message:`;
 
     try {
-      const temperature = category === "casual" ? 0.95 : 0.85;
+      const temperature = category === 'casual' ? 0.95 : 0.85;
       let messageText = await generateWithLLM(prompt, config, temperature);
       messageText = messageText.trim();
 
@@ -1633,22 +1547,18 @@ Your message:`;
         if (personality) {
           const msgDate = new Date(currentTimestamp * 1000);
           const timeContext = getTimeOfDayContext(msgDate);
-          const mood = determineConversationMood(
-            category,
-            originalMessage.text || "",
-            timeContext
-          );
+          const mood = determineConversationMood(category, originalMessage.text || '', timeContext);
           messageText = addEmojiToMessage(
             messageText,
             personality,
             mood,
-            i === count - 1 ? "last" : "middle"
+            i === count - 1 ? 'last' : 'middle',
           );
         }
       }
 
       const linearMessage: MessageWithChannel = {
-        type: "message",
+        type: 'message',
         user: user.id,
         text: messageText,
         ts,
@@ -1662,7 +1572,7 @@ Your message:`;
         users,
         personalities || new Map(),
         category,
-        "starter"
+        'starter',
       );
 
       linearMessages.push(linearMessage);
@@ -1676,19 +1586,19 @@ Your message:`;
 
 export function generateSlackChannels(): Channel[] {
   return COMPANY_DATA.slackChannels.map((channel, index) => ({
-    id: generateRandomStringId("C", 9),
+    id: generateRandomStringId('C', 9),
     name: channel.name,
     is_channel: true,
     created: Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60, // 1 year ago
-    creator: "U000000001", // Sarah Chen
+    creator: 'U000000001', // Sarah Chen
     is_archived: false,
-    is_general: channel.name === "general",
+    is_general: channel.name === 'general',
   }));
 }
 
 export function generateSlackUsers(): Member[] {
   return COMPANY_DATA.teamMembers.map((member, index) => ({
-    id: generateRandomStringId("U", 9),
+    id: generateRandomStringId('U', 9),
     name: member.slackHandle,
     real_name: member.name,
     profile: {

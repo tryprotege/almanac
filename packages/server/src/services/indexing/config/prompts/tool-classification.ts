@@ -13,9 +13,7 @@ export interface ToolClassificationPromptInput {
 /**
  * Generate prompt for LLM to classify MCP tools
  */
-export function generateToolClassificationPrompt(
-  input: ToolClassificationPromptInput
-): string {
+export function generateToolClassificationPrompt(input: ToolClassificationPromptInput): string {
   const { tools } = input;
 
   return `You are classifying MCP (Model Context Protocol) tools for a data indexing system.
@@ -86,15 +84,15 @@ ${tools
     (tool, index) => `
 ## Tool ${index + 1}: ${tool.name}
 
-**Description:** ${tool.description || "No description provided"}
+**Description:** ${tool.description || 'No description provided'}
 
 **Input Schema:**
 \`\`\`json
 ${JSON.stringify(tool.inputSchema, null, 2)}
 \`\`\`
-`
+`,
   )
-  .join("\n")}
+  .join('\n')}
 
 # Output Format
 

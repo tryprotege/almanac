@@ -1,8 +1,8 @@
-import { X } from "lucide-react";
-import { useEffect, useRef, ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { X } from 'lucide-react';
+import { useEffect, useRef, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
-export type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
+export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 
 interface ModalProps {
   isOpen: boolean;
@@ -22,11 +22,11 @@ interface ModalProps {
 
 // Size to width mapping with explicit values
 const sizeToWidth: Record<ModalSize, { default: string; max: string }> = {
-  sm: { default: "100%", max: "28rem" }, // 448px
-  md: { default: "100%", max: "32rem" }, // 512px
-  lg: { default: "100%", max: "42rem" }, // 672px
-  xl: { default: "100%", max: "56rem" }, // 896px
-  full: { default: "100%", max: "72rem" }, // 1152px
+  sm: { default: '100%', max: '28rem' }, // 448px
+  md: { default: '100%', max: '32rem' }, // 512px
+  lg: { default: '100%', max: '42rem' }, // 672px
+  xl: { default: '100%', max: '56rem' }, // 896px
+  full: { default: '100%', max: '72rem' }, // 1152px
 };
 
 export function Modal({
@@ -34,13 +34,13 @@ export function Modal({
   onClose,
   title,
   subtitle,
-  size = "lg",
+  size = 'lg',
   children,
   disableClose = false,
   hideHeader = false,
-  className = "",
+  className = '',
   width,
-  minWidth = "320px",
+  minWidth = '320px',
   maxWidth,
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
@@ -55,13 +55,13 @@ export function Modal({
     if (!isOpen || disableClose) return;
 
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         onClose();
       }
     };
 
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose, disableClose]);
 
   // Focus management for accessibility
@@ -84,13 +84,13 @@ export function Modal({
   // Prevent body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = "hidden";
+      document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = "";
+      document.body.style.overflow = '';
     }
 
     return () => {
-      document.body.style.overflow = "";
+      document.body.style.overflow = '';
     };
   }, [isOpen]);
 
@@ -108,10 +108,10 @@ export function Modal({
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
-      aria-labelledby={title ? "modal-title" : undefined}
-      aria-describedby={subtitle ? "modal-subtitle" : undefined}
+      aria-labelledby={title ? 'modal-title' : undefined}
+      aria-describedby={subtitle ? 'modal-subtitle' : undefined}
       style={{
-        animation: "fadeIn 0.2s ease-out",
+        animation: 'fadeIn 0.2s ease-out',
       }}
     >
       <div
@@ -123,8 +123,8 @@ export function Modal({
           width: widthStyle,
           minWidth: minWidth,
           maxWidth: maxWidthStyle,
-          maxHeight: "90vh",
-          animation: "scaleIn 0.2s ease-out",
+          maxHeight: '90vh',
+          animation: 'scaleIn 0.2s ease-out',
         }}
       >
         {/* Header */}
@@ -132,18 +132,12 @@ export function Modal({
           <div className="flex items-start justify-between p-6 border-b border-border-secondary flex-shrink-0">
             <div className="flex-1 min-w-0 pr-4">
               {title && (
-                <h2
-                  id="modal-title"
-                  className="text-xl font-semibold text-text-primary"
-                >
+                <h2 id="modal-title" className="text-xl font-semibold text-text-primary">
                   {title}
                 </h2>
               )}
               {subtitle && (
-                <p
-                  id="modal-subtitle"
-                  className="text-sm text-text-tertiary mt-1"
-                >
+                <p id="modal-subtitle" className="text-sm text-text-tertiary mt-1">
                   {subtitle}
                 </p>
               )}
@@ -164,7 +158,7 @@ export function Modal({
         <div
           className="overflow-y-auto flex-1"
           style={{
-            scrollbarWidth: "thin",
+            scrollbarWidth: 'thin',
           }}
         >
           {children}
@@ -184,19 +178,12 @@ interface ModalHeaderProps {
   disableClose?: boolean;
 }
 
-export function ModalHeader({
-  title,
-  subtitle,
-  onClose,
-  disableClose = false,
-}: ModalHeaderProps) {
+export function ModalHeader({ title, subtitle, onClose, disableClose = false }: ModalHeaderProps) {
   return (
     <div className="flex items-start justify-between p-6 border-b border-border-secondary flex-shrink-0">
       <div className="flex-1 min-w-0 pr-4">
         <h2 className="text-xl font-semibold text-text-primary">{title}</h2>
-        {subtitle && (
-          <p className="text-sm text-text-tertiary mt-1">{subtitle}</p>
-        )}
+        {subtitle && <p className="text-sm text-text-tertiary mt-1">{subtitle}</p>}
       </div>
       {onClose && !disableClose && (
         <button
@@ -221,35 +208,30 @@ interface ModalFooterProps {
 
 export function ModalFooter({
   children,
-  className = "",
+  className = '',
   leftContent,
   rightContent,
 }: ModalFooterProps) {
   // If leftContent and rightContent are provided, use justify-between
   // Otherwise, if only children provided, use justify-end
-  const justifyClass =
-    leftContent || rightContent ? "justify-between" : "justify-end";
+  const justifyClass = leftContent || rightContent ? 'justify-between' : 'justify-end';
 
   return (
     <div
       className={`flex items-center gap-3 p-6 border-t border-border-secondary flex-shrink-0 ${justifyClass} ${className}`}
     >
-      {leftContent && (
-        <div className="flex items-center gap-3">{leftContent}</div>
-      )}
+      {leftContent && <div className="flex items-center gap-3">{leftContent}</div>}
       {children && <div className="flex items-center gap-3">{children}</div>}
-      {rightContent && (
-        <div className="flex items-center gap-3">{rightContent}</div>
-      )}
+      {rightContent && <div className="flex items-center gap-3">{rightContent}</div>}
     </div>
   );
 }
 
 // Add keyframe animations to document if not already present
-if (typeof document !== "undefined") {
-  const styleId = "modal-animations";
+if (typeof document !== 'undefined') {
+  const styleId = 'modal-animations';
   if (!document.getElementById(styleId)) {
-    const style = document.createElement("style");
+    const style = document.createElement('style');
     style.id = styleId;
     style.textContent = `
       @keyframes fadeIn {

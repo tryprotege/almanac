@@ -3,7 +3,7 @@
  * LightRAG-inspired filtering for low-quality content
  */
 
-import logger from "./logger.js";
+import logger from './logger.js';
 
 export interface ToxicChunkConfig {
   minEntitiesThreshold: number;
@@ -29,7 +29,7 @@ const DEFAULT_CONFIG: ToxicChunkConfig = {
 export const isToxicChunk = (
   entities: Array<{ name: string }>,
   relationships: Array<any>,
-  config: Partial<ToxicChunkConfig> = {}
+  config: Partial<ToxicChunkConfig> = {},
 ): boolean => {
   const cfg = { ...DEFAULT_CONFIG, ...config };
 
@@ -44,8 +44,7 @@ export const isToxicChunk = (
   }
 
   // Check avg name length (short names = likely list items)
-  const avgNameLength =
-    entities.reduce((sum, e) => sum + e.name.length, 0) / entities.length;
+  const avgNameLength = entities.reduce((sum, e) => sum + e.name.length, 0) / entities.length;
 
   return avgNameLength < cfg.minAvgNameLength;
 };
@@ -94,12 +93,11 @@ export const truncateEntities = <T>({
     const limitReason = charsPerEntity
       ? `${contentLength} chars @ 1:${charsPerEntity} ratio`
       : `static limit`;
-    const capInfo =
-      maxEntities && charsPerEntity ? `, capped at ${maxEntities}` : "";
+    const capInfo = maxEntities && charsPerEntity ? `, capped at ${maxEntities}` : '';
 
     logger.warn(
       `⚠️  Truncating ${entities.length} entities to ${dynamicLimit} ` +
-        `(${limitReason}${capInfo})`
+        `(${limitReason}${capInfo})`,
     );
     return entities.slice(0, dynamicLimit);
   }

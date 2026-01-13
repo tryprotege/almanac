@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Plus, X, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useState, useEffect, useRef } from 'react';
+import { Plus, X, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface StartingPointConfig {
   name: string;
@@ -26,8 +26,7 @@ export function StartingPointsCollector({
     const initialized: Record<string, string[]> = {};
     startingPoints.forEach((sp) => {
       // If no initial values, start with one empty field so user can start typing immediately
-      initialized[sp.name] =
-        initialValues[sp.name]?.length > 0 ? initialValues[sp.name] : [""];
+      initialized[sp.name] = initialValues[sp.name]?.length > 0 ? initialValues[sp.name] : [''];
     });
     return initialized;
   });
@@ -44,7 +43,7 @@ export function StartingPointsCollector({
   const addValue = (name: string) => {
     setValues((prev) => ({
       ...prev,
-      [name]: [...(prev[name] || []), ""],
+      [name]: [...(prev[name] || []), ''],
     }));
   };
 
@@ -72,8 +71,7 @@ export function StartingPointsCollector({
 
   const allRequired = startingPoints.filter((sp) => sp.required).length;
   const configuredCount = getConfiguredCount();
-  const progressPercent =
-    allRequired > 0 ? (configuredCount / allRequired) * 100 : 100;
+  const progressPercent = allRequired > 0 ? (configuredCount / allRequired) * 100 : 100;
 
   if (startingPoints.length === 0) {
     return null;
@@ -96,8 +94,8 @@ export function StartingPointsCollector({
         <div
           className={`rounded-lg p-4 border-2 ${
             progressPercent === 100
-              ? "bg-brand-success/10 border-brand-success/30"
-              : "bg-brand-warning/10 border-brand-warning/30"
+              ? 'bg-brand-success/10 border-brand-success/30'
+              : 'bg-brand-warning/10 border-brand-warning/30'
           }`}
         >
           <div className="flex items-center justify-between gap-4 mb-3">
@@ -110,19 +108,17 @@ export function StartingPointsCollector({
               <div>
                 <p
                   className={`text-sm font-semibold ${
-                    progressPercent === 100
-                      ? "text-brand-success"
-                      : "text-brand-warning"
+                    progressPercent === 100 ? 'text-brand-success' : 'text-brand-warning'
                   }`}
                 >
                   {progressPercent === 100
-                    ? "✓ All Required Fields Complete"
-                    : "⚠️ Required Configuration"}
+                    ? '✓ All Required Fields Complete'
+                    : '⚠️ Required Configuration'}
                 </p>
                 <p className="text-xs text-text-secondary mt-0.5">
                   {progressPercent === 100
-                    ? "You can now save and start indexing"
-                    : "Please complete all required fields before saving"}
+                    ? 'You can now save and start indexing'
+                    : 'Please complete all required fields before saving'}
                 </p>
               </div>
             </div>
@@ -130,16 +126,12 @@ export function StartingPointsCollector({
               <div className="flex items-baseline gap-1">
                 <span
                   className={`text-2xl font-bold ${
-                    progressPercent === 100
-                      ? "text-brand-success"
-                      : "text-brand-warning"
+                    progressPercent === 100 ? 'text-brand-success' : 'text-brand-warning'
                   }`}
                 >
                   {configuredCount}
                 </span>
-                <span className="text-lg text-text-tertiary">
-                  /{allRequired}
-                </span>
+                <span className="text-lg text-text-tertiary">/{allRequired}</span>
               </div>
               <p className="text-xs text-text-secondary">required fields</p>
             </div>
@@ -149,9 +141,7 @@ export function StartingPointsCollector({
             <div className="h-3 bg-bg-tertiary rounded-full overflow-hidden">
               <div
                 className={`h-full transition-all duration-300 ${
-                  progressPercent === 100
-                    ? "bg-brand-success"
-                    : "bg-brand-warning"
+                  progressPercent === 100 ? 'bg-brand-success' : 'bg-brand-warning'
                 }`}
                 style={{ width: `${progressPercent}%` }}
               />
@@ -174,9 +164,9 @@ export function StartingPointsCollector({
               className={`space-y-3 p-4 rounded-lg border-2 ${
                 sp.required
                   ? hasValues
-                    ? "border-brand-success/30 bg-brand-success/5"
-                    : "border-brand-warning/30 bg-brand-warning/5"
-                  : "border-border-secondary bg-bg-secondary"
+                    ? 'border-brand-success/30 bg-brand-success/5'
+                    : 'border-brand-warning/30 bg-brand-warning/5'
+                  : 'border-border-secondary bg-bg-secondary'
               }`}
             >
               {/* Header Row */}
@@ -187,16 +177,14 @@ export function StartingPointsCollector({
                       className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
                         sp.required
                           ? hasValues
-                            ? "bg-brand-success text-white"
-                            : "bg-brand-warning text-white"
-                          : "bg-brand-blue/20 text-brand-blue"
+                            ? 'bg-brand-success text-white'
+                            : 'bg-brand-warning text-white'
+                          : 'bg-brand-blue/20 text-brand-blue'
                       }`}
                     >
                       {stepNumber}
                     </span>
-                    <span className="text-sm font-semibold text-text-primary">
-                      {sp.name}
-                    </span>
+                    <span className="text-sm font-semibold text-text-primary">{sp.name}</span>
                     {sp.required ? (
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-brand-error/20 text-brand-error">
                         Required
@@ -210,9 +198,7 @@ export function StartingPointsCollector({
                       (Step {stepNumber} of {totalSteps})
                     </span>
                   </div>
-                  <p className="text-sm text-text-secondary mb-1">
-                    {sp.description}
-                  </p>
+                  <p className="text-sm text-text-secondary mb-1">{sp.description}</p>
                   {sp.examples && sp.examples.length > 0 && (
                     <p className="text-xs text-text-tertiary mt-2 font-mono bg-bg-tertiary px-2 py-1 rounded">
                       💡 Example: {sp.examples[0]}
@@ -230,9 +216,7 @@ export function StartingPointsCollector({
 
               {/* Input Rows */}
               {spValues.length === 0 ? (
-                <div className="text-sm text-text-tertiary italic py-2">
-                  No values added yet
-                </div>
+                <div className="text-sm text-text-tertiary italic py-2">No values added yet</div>
               ) : (
                 <div className="space-y-2">
                   {spValues.map((value, index) => (
@@ -240,9 +224,7 @@ export function StartingPointsCollector({
                       <input
                         type="text"
                         value={value}
-                        onChange={(e) =>
-                          updateValue(sp.name, index, e.target.value)
-                        }
+                        onChange={(e) => updateValue(sp.name, index, e.target.value)}
                         placeholder={`Enter ${sp.name} value`}
                         className="flex-1 px-3 py-2 bg-bg-primary border border-border-secondary rounded-lg text-text-primary text-sm placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-colors"
                       />
@@ -264,7 +246,7 @@ export function StartingPointsCollector({
                 className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-brand-purple hover:text-brand-purple-dark hover:bg-brand-purple/10 rounded-lg transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                Add {sp.name.replace(/_/g, " ")}
+                Add {sp.name.replace(/_/g, ' ')}
               </button>
             </div>
           );

@@ -11,18 +11,18 @@ import {
   Server,
   Shield,
   FileCode,
-} from "lucide-react";
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { capitalCase } from "change-case";
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { capitalCase } from 'change-case';
 import {
   useDeleteDataSource,
   useDataSourceStatus,
   useSyncDataSource,
-} from "../hooks/useDataSources";
-import { DataSourceConfig, SyncConfigSummary } from "../lib/api";
-import { OAuthConnectButton } from "./OAuthConnectButton";
-import { IconDisplay } from "./ui/IconDisplay";
+} from '../hooks/useDataSources';
+import { DataSourceConfig, SyncConfigSummary } from '../lib/api';
+import { OAuthConnectButton } from './OAuthConnectButton';
+import { IconDisplay } from './ui/IconDisplay';
 
 interface MCPServerCardProps {
   server: DataSourceConfig;
@@ -36,15 +36,15 @@ interface MCPServerCardProps {
 function getServiceIcon(serverName: string) {
   const name = serverName.toLowerCase();
 
-  if (name.includes("slack")) {
+  if (name.includes('slack')) {
     return MessageSquare;
-  } else if (name.includes("github")) {
+  } else if (name.includes('github')) {
     return Github;
-  } else if (name.includes("fathom")) {
+  } else if (name.includes('fathom')) {
     return Video;
-  } else if (name.includes("google") || name.includes("drive")) {
+  } else if (name.includes('google') || name.includes('drive')) {
     return HardDrive;
-  } else if (name.includes("notion")) {
+  } else if (name.includes('notion')) {
     return FileText;
   }
 
@@ -55,15 +55,14 @@ function getServiceIcon(serverName: string) {
 function getConnectionDetails(server: DataSourceConfig): string {
   const parts: string[] = [server.type];
 
-  if (server.type === "stdio" && server.command) {
-    const commandStr =
-      server.command + (server.args?.length ? ` ${server.args.join(" ")}` : "");
+  if (server.type === 'stdio' && server.command) {
+    const commandStr = server.command + (server.args?.length ? ` ${server.args.join(' ')}` : '');
     parts.push(commandStr);
-  } else if (server.type === "sse" && server.url) {
+  } else if (server.type === 'sse' && server.url) {
     parts.push(server.url);
   }
 
-  return parts.join(" • ");
+  return parts.join(' • ');
 }
 
 export function MCPServerCard({
@@ -85,7 +84,7 @@ export function MCPServerCard({
   const syncMutation = useSyncDataSource();
   const { data: statusData, isLoading: statusLoading } = useDataSourceStatus(
     server.name,
-    !server.isDisabled
+    !server.isDisabled,
   );
 
   const isConnected = statusData?.connected || false;
@@ -93,7 +92,7 @@ export function MCPServerCard({
 
   // Check OAuth status if server uses OAuth
   useEffect(() => {
-    if (server.authType === "oauth" && server._id) {
+    if (server.authType === 'oauth' && server._id) {
       fetch(`/api/oauth/status/${server._id}`)
         .then((res) => res.json())
         .then((data) => setOauthStatus(data))
@@ -101,7 +100,7 @@ export function MCPServerCard({
     }
   }, [server._id, server.authType]);
 
-  const requiresOAuth = server.authType === "oauth";
+  const requiresOAuth = server.authType === 'oauth';
   const oauthConnected = oauthStatus?.connected || false;
   const oauthExpired = requiresOAuth && !oauthConnected;
 
@@ -136,11 +135,7 @@ export function MCPServerCard({
       {/* Compact Header */}
       <div className="flex items-start gap-3 mb-3">
         <div className="p-2 rounded-lg text-brand-purple bg-brand-purple/10 flex-shrink-0">
-          <IconDisplay
-            icon={syncConfig?.icon}
-            fallbackIcon={ServiceIcon}
-            size="md"
-          />
+          <IconDisplay icon={syncConfig?.icon} fallbackIcon={ServiceIcon} size="md" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
@@ -174,9 +169,7 @@ export function MCPServerCard({
             )}
           </div>
           {/* Compact Connection Details */}
-          <p className="text-xs text-text-tertiary truncate font-mono">
-            {connectionDetails}
-          </p>
+          <p className="text-xs text-text-tertiary truncate font-mono">{connectionDetails}</p>
         </div>
       </div>
 
@@ -185,9 +178,7 @@ export function MCPServerCard({
         <div className="mb-3 bg-warning-bg border border-warning-border rounded-lg p-3">
           <div className="flex items-center gap-2 mb-2">
             <Shield className="w-4 h-4 text-warning-text flex-shrink-0" />
-            <span className="text-sm font-medium text-warning-text">
-              OAuth session expired
-            </span>
+            <span className="text-sm font-medium text-warning-text">OAuth session expired</span>
           </div>
           <OAuthConnectButton
             mcpServerId={server._id}
@@ -251,11 +242,7 @@ export function MCPServerCard({
               className="btn btn-icon-sm btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
               title="Sync Data"
             >
-              <RefreshCw
-                className={`w-4 h-4 ${
-                  syncMutation.isPending ? "animate-spin" : ""
-                }`}
-              />
+              <RefreshCw className={`w-4 h-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
             </button>
           )}
 

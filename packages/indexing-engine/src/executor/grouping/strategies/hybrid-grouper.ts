@@ -3,9 +3,9 @@ import {
   RecordGroup,
   TransformedRecord,
   HybridGroupingConfig,
-} from "../types.js";
-import { ThreadGrouper } from "./thread-grouper.js";
-import { LLMConversationGrouper } from "./llm-grouper.js";
+} from '../types.js';
+import { ThreadGrouper } from './thread-grouper.js';
+import { LLMConversationGrouper } from './llm-grouper.js';
 
 /**
  * Hybrid grouping strategy
@@ -25,30 +25,24 @@ export class HybridGrouper implements IGroupingStrategy {
             model: string;
             messages: Array<{ role: string; content: string }>;
             temperature?: number;
-            response_format?: { type: "json_object" };
+            response_format?: { type: 'json_object' };
           }) => Promise<{ choices: Array<{ message: { content: string } }> }>;
         };
       };
     },
-    defaultModel?: string
+    defaultModel?: string,
   ) {
     this.threadGrouper = new ThreadGrouper();
     this.llmGrouper = new LLMConversationGrouper(llmClient, defaultModel);
   }
 
-  async group(
-    records: TransformedRecord[],
-    config: HybridGroupingConfig
-  ): Promise<RecordGroup[]> {
+  async group(records: TransformedRecord[], config: HybridGroupingConfig): Promise<RecordGroup[]> {
     if (records.length === 0) {
       return [];
     }
 
     // Phase 1: Group by explicit threads
-    const threadGroups = await this.threadGrouper.group(
-      records,
-      config.threadConfig
-    );
+    const threadGroups = await this.threadGrouper.group(records, config.threadConfig);
 
     // Track which records were grouped by threads
     const groupedRecordIds = new Set<string>();
@@ -59,9 +53,7 @@ export class HybridGrouper implements IGroupingStrategy {
     }
 
     // Phase 2: Identify ungrouped records
-    const ungroupedRecords = records.filter(
-      (r) => !groupedRecordIds.has(r.sourceId)
-    );
+    const ungroupedRecords = records.filter((r) => !groupedRecordIds.has(r.sourceId));
 
     // If no ungrouped records, return thread groups only
     if (ungroupedRecords.length === 0) {
@@ -69,15 +61,12 @@ export class HybridGrouper implements IGroupingStrategy {
     }
 
     // Phase 3: Apply LLM grouping to ungrouped messages
-    const conversationGroups = await this.llmGrouper.group(
-      ungroupedRecords,
-      config.llmConfig
-    );
+    const conversationGroups = await this.llmGrouper.group(ungroupedRecords, config.llmConfig);
 
     // Phase 4: Filter out groups smaller than minConversationSize
     const minSize = config.minConversationSize || 2;
     const filteredConversationGroups = conversationGroups.filter(
-      (group) => group.records.length >= minSize
+      (group) => group.records.length >= minSize,
     );
 
     // Phase 5: Handle filtered-out singles
@@ -95,16 +84,12 @@ export class HybridGrouper implements IGroupingStrategy {
         groupId: `single_${idx}`,
         records: [record],
         metadata: {
-          strategy: "hybrid_single",
+          strategy: 'hybrid_single',
           recordCount: 1,
         },
       }));
 
     // Merge all groups: threads + conversations + singles
-    return [
-      ...threadGroups,
-      ...filteredConversationGroups,
-      ...singleRecordGroups,
-    ];
+    return [...threadGroups, ...filteredConversationGroups, ...singleRecordGroups];
   }
 }

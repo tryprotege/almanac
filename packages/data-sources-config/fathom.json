@@ -145,9 +145,7 @@
           },
           "people": {
             "type": "paths",
-            "paths": [
-              "$.calendar_invitees[*].name"
-            ]
+            "paths": ["$.calendar_invitees[*].name"]
           },
           "primaryDate": {
             "type": "path",

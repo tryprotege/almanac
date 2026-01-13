@@ -1,19 +1,16 @@
-import type {
-  EnrichmentConfig,
-  RateLimitConfig,
-} from "@ebee-oss/indexing-engine";
-import { mcpClientManager } from "../../../mcp/client.js";
-import { JSONPath } from "jsonpath-plus";
-import pLimit from "p-limit";
-import logger from "../../../utils/logger.js";
+import type { EnrichmentConfig, RateLimitConfig } from '@ebee-oss/indexing-engine';
+import { mcpClientManager } from '../../../mcp/client.js';
+import { JSONPath } from 'jsonpath-plus';
+import pLimit from 'p-limit';
+import logger from '../../../utils/logger.js';
 import {
   applyRateLimit,
   handleRateLimitError,
   notifySuccess,
   notifyRateLimitError,
   rateLimiterManager,
-} from "./rate-limiter.js";
-import { detectRateLimitError } from "./mcp-error-parser.js";
+} from './rate-limiter.js';
+import { detectRateLimitError } from './mcp-error-parser.js';
 
 export interface EnrichedRecord {
   [key: string]: any;
@@ -28,7 +25,7 @@ export async function enrich(
   serverName: string,
   record: any,
   configs: EnrichmentConfig[],
-  rateLimitConfig?: RateLimitConfig
+  rateLimitConfig?: RateLimitConfig,
 ): Promise<EnrichedRecord> {
   const enrichments: Record<string, any> = {};
 
@@ -37,7 +34,7 @@ export async function enrich(
       enrichmentCount: configs.length,
       enrichmentNames: configs.map((c) => c.name),
     },
-    "Starting enrichments for record"
+    'Starting enrichments for record',
   );
 
   // Run enrichments in parallel with concurrency limit
@@ -45,19 +42,14 @@ export async function enrich(
     configs.map((config) =>
       concurrencyLimit(async () => {
         try {
-          const result = await executeEnrichment(
-            serverName,
-            record,
-            config,
-            rateLimitConfig
-          );
+          const result = await executeEnrichment(serverName, record, config, rateLimitConfig);
           enrichments[config.name] = result;
           logger.debug(
             {
               enrichmentName: config.name,
               hasResult: result !== null && result !== undefined,
             },
-            "Enrichment completed"
+            'Enrichment completed',
           );
         } catch (err) {
           logger.error(
@@ -66,12 +58,12 @@ export async function enrich(
               enrichmentName: config.name,
               toolName: config.tool || config.fetcher,
             },
-            "Enrichment failed"
+            'Enrichment failed',
           );
           enrichments[config.name] = null;
         }
-      })
-    )
+      }),
+    ),
   );
 
   return enrichments;
@@ -84,7 +76,7 @@ async function executeEnrichment(
   serverName: string,
   record: any,
   config: EnrichmentConfig,
-  rateLimitConfig?: RateLimitConfig
+  rateLimitConfig?: RateLimitConfig,
 ): Promise<any> {
   // Build parameters from paramMapping
   const params = buildParams(record, config.paramMapping);
@@ -105,25 +97,19 @@ async function executeEnrichment(
       toolName,
       params,
     },
-    `[Enrichment] About to call ${config.name} (${toolName})`
+    `[Enrichment] About to call ${config.name} (${toolName})`,
   );
 
   // Apply rate limiting before the call
-  logger.info(
-    { scopeId },
-    `[Enrichment] Applying rate limit for ${scopeId}...`
-  );
+  logger.info({ scopeId }, `[Enrichment] Applying rate limit for ${scopeId}...`);
   const delayMs = await applyRateLimit(rateLimitConfig, scopeId);
   if (delayMs > 0) {
-    logger.info(
-      { delayMs },
-      `[Enrichment] Rate limit applied - waited ${delayMs}ms`
-    );
+    logger.info({ delayMs }, `[Enrichment] Rate limit applied - waited ${delayMs}ms`);
   }
 
   logger.info(
     { enrichmentName: config.name, toolName },
-    `[Enrichment] Making API call to ${toolName}...`
+    `[Enrichment] Making API call to ${toolName}...`,
   );
   const callStartTime = Date.now();
 
@@ -140,13 +126,13 @@ async function executeEnrichment(
     const callDuration = Date.now() - callStartTime;
     logger.info(
       { enrichmentName: config.name, callDuration },
-      `[Enrichment] API call to ${toolName} succeeded in ${callDuration}ms`
+      `[Enrichment] API call to ${toolName} succeeded in ${callDuration}ms`,
     );
   } catch (err: any) {
     const callDuration = Date.now() - callStartTime;
     logger.error(
       { enrichmentName: config.name, callDuration, error: err.message },
-      `[Enrichment] API call to ${toolName} failed after ${callDuration}ms`
+      `[Enrichment] API call to ${toolName} failed after ${callDuration}ms`,
     );
     caughtError = err;
     response = err.response; // MCP errors may have response attached
@@ -162,43 +148,28 @@ async function executeEnrichment(
         toolName,
         errorMessage: rateLimitInfo.errorMessage?.substring(0, 200),
       },
-      "Enrichment hit rate limit, retrying after delay"
+      'Enrichment hit rate limit, retrying after delay',
     );
 
     // Notify rate limiter to adjust
-    notifyRateLimitError(
-      rateLimitConfig,
-      scopeId,
-      serverName,
-      rateLimitInfo.retryAfter
-    );
+    notifyRateLimitError(rateLimitConfig, scopeId, serverName, rateLimitInfo.retryAfter);
 
     // Handle rate limit and wait
-    await handleRateLimitError(
-      rateLimitConfig,
-      scopeId,
-      rateLimitInfo.retryAfter
-    );
+    await handleRateLimitError(rateLimitConfig, scopeId, rateLimitInfo.retryAfter);
 
     // Apply rate limit again before retry
-    logger.info(
-      { scopeId },
-      `[Enrichment] Applying rate limit before retry...`
-    );
+    logger.info({ scopeId }, `[Enrichment] Applying rate limit before retry...`);
     await applyRateLimit(rateLimitConfig, scopeId);
 
     // Retry the request
     try {
       response = await mcpClientManager.callTool(serverName, toolName, params);
-      logger.info(
-        { enrichmentName: config.name },
-        `[Enrichment] Retry succeeded for ${toolName}`
-      );
+      logger.info({ enrichmentName: config.name }, `[Enrichment] Retry succeeded for ${toolName}`);
       notifySuccess(rateLimitConfig, scopeId);
     } catch (retryErr: any) {
       logger.error(
         { enrichmentName: config.name, error: retryErr.message },
-        `[Enrichment] Retry failed for ${toolName}`
+        `[Enrichment] Retry failed for ${toolName}`,
       );
       throw retryErr;
     }
@@ -216,7 +187,7 @@ async function executeEnrichment(
       responseType: typeof response,
       hasContent: response?.content !== undefined,
     },
-    "Received enrichment response"
+    'Received enrichment response',
   );
 
   // Extract result using resultPath if provided
@@ -227,12 +198,9 @@ async function executeEnrichment(
         enrichmentName: config.name,
         resultPath: config.resultPath,
         extractedType: typeof extracted,
-        extractedValue:
-          typeof extracted === "string"
-            ? extracted.substring(0, 100)
-            : extracted,
+        extractedValue: typeof extracted === 'string' ? extracted.substring(0, 100) : extracted,
       },
-      "Extracted enrichment result using resultPath"
+      'Extracted enrichment result using resultPath',
     );
     return extracted;
   }
@@ -245,15 +213,12 @@ async function executeEnrichment(
  * Maps parameter names to values extracted from record using JSONPath
  * or uses literal values directly
  */
-function buildParams(
-  record: any,
-  paramMapping: Record<string, any>
-): Record<string, any> {
+function buildParams(record: any, paramMapping: Record<string, any>): Record<string, any> {
   const result: Record<string, any> = {};
 
   for (const [paramName, value] of Object.entries(paramMapping)) {
     // If it's a string starting with $, treat as JSONPath
-    if (typeof value === "string" && value.startsWith("$")) {
+    if (typeof value === 'string' && value.startsWith('$')) {
       const extracted = extractPath(record, value);
       if (extracted !== undefined) {
         result[paramName] = extracted;
@@ -276,10 +241,7 @@ function extractPath(obj: any, path: string): any {
     const result = JSONPath({ path, json: obj, wrap: false });
     return result;
   } catch (err) {
-    logger.warn(
-      { path, error: err },
-      "Failed to extract path from object, returning undefined"
-    );
+    logger.warn({ path, error: err }, 'Failed to extract path from object, returning undefined');
     return undefined;
   }
 }

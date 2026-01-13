@@ -1,9 +1,9 @@
-import "dotenv/config";
-import { initializeServices } from "../src/mcp/initialization.js";
-import { GraphStore } from "../src/stores/graph.store.js";
-import { RelationshipMentionStore } from "../src/stores/relationship-mention.store.js";
-import { GraphEmbeddingMetadata } from "../src/models/graph-embedding-metadata.model.js";
-import logger from "../src/utils/logger.js";
+import 'dotenv/config';
+import { initializeServices } from '../src/mcp/initialization.js';
+import { GraphStore } from '../src/stores/graph.store.js';
+import { RelationshipMentionStore } from '../src/stores/relationship-mention.store.js';
+import { GraphEmbeddingMetadata } from '../src/models/graph-embedding-metadata.model.js';
+import logger from '../src/utils/logger.js';
 
 /**
  * Script to cleanup orphaned entities and relationships
@@ -30,11 +30,11 @@ function parseArgs(): ScriptOptions {
   };
 
   for (const arg of args) {
-    if (arg === "--dry-run") {
+    if (arg === '--dry-run') {
       options.dryRun = true;
-    } else if (arg === "--entities-only") {
+    } else if (arg === '--entities-only') {
       options.entitiesOnly = true;
-    } else if (arg === "--relationships-only") {
+    } else if (arg === '--relationships-only') {
       options.relationshipsOnly = true;
     }
   }
@@ -44,19 +44,18 @@ function parseArgs(): ScriptOptions {
 
 async function cleanupOrphanedRelationships(
   graphStore: GraphStore,
-  dryRun: boolean
+  dryRun: boolean,
 ): Promise<{
   foundOrphans: number;
   deletedFromMemgraph: number;
   deletedMetadata: number;
 }> {
-  logger.info({ msg: "🔍 Finding orphaned relationships..." });
+  logger.info({ msg: '🔍 Finding orphaned relationships...' });
 
   const relationshipMentionStore = new RelationshipMentionStore();
 
   // 1. Find orphaned relationships in MongoDB
-  const orphanedRels =
-    await relationshipMentionStore.findOrphanedRelationships();
+  const orphanedRels = await relationshipMentionStore.findOrphanedRelationships();
 
   logger.info({
     msg: `Found ${orphanedRels.length} orphaned relationships`,
@@ -72,21 +71,17 @@ async function cleanupOrphanedRelationships(
 
   if (!dryRun && orphanedRels.length > 0) {
     logger.info({
-      msg: "🗑️  Deleting orphaned relationships from Memgraph...",
+      msg: '🗑️  Deleting orphaned relationships from Memgraph...',
     });
 
     // 2. Delete orphaned relationships from Memgraph
     for (const rel of orphanedRels) {
       try {
-        await graphStore.deleteRelationship(
-          rel.sourceEntityId,
-          rel.type,
-          rel.targetEntityId
-        );
+        await graphStore.deleteRelationship(rel.sourceEntityId, rel.type, rel.targetEntityId);
         deletedFromMemgraph++;
       } catch (err) {
         logger.error({
-          msg: "Failed to delete orphaned relationship from Memgraph",
+          msg: 'Failed to delete orphaned relationship from Memgraph',
           err,
           relationship: rel,
         });
@@ -99,10 +94,9 @@ async function cleanupOrphanedRelationships(
 
     // 3. Delete orphaned relationship metadata from MongoDB
     logger.info({
-      msg: "🗑️  Deleting orphaned relationship metadata from MongoDB...",
+      msg: '🗑️  Deleting orphaned relationship metadata from MongoDB...',
     });
-    deletedMetadata =
-      await relationshipMentionStore.deleteOrphanedRelationships();
+    deletedMetadata = await relationshipMentionStore.deleteOrphanedRelationships();
 
     logger.info({
       msg: `✅ Deleted ${deletedMetadata} relationship metadata entries`,
@@ -118,13 +112,13 @@ async function cleanupOrphanedRelationships(
 
 async function cleanupOrphanedEntities(
   graphStore: GraphStore,
-  dryRun: boolean
+  dryRun: boolean,
 ): Promise<{
   foundOrphans: number;
   deletedFromMemgraph: number;
   deletedMetadata: number;
 }> {
-  logger.info({ msg: "🔍 Finding orphaned entities..." });
+  logger.info({ msg: '🔍 Finding orphaned entities...' });
 
   // Query for orphaned entities (entities with no relationships)
   const orphanedEntitiesQuery = `
@@ -133,7 +127,7 @@ async function cleanupOrphanedEntities(
     RETURN entity.id AS id, entity.type AS type, entity.title AS title
   `;
 
-  const orphanedEntities = await graphStore["memgraph"].executeQuery<{
+  const orphanedEntities = await graphStore['memgraph'].executeQuery<{
     id: string;
     type: string;
     title: string;
@@ -155,7 +149,7 @@ async function cleanupOrphanedEntities(
   }
 
   logger.info({
-    msg: "📊 Orphaned entities by type",
+    msg: '📊 Orphaned entities by type',
     summary: Object.fromEntries(entitiesByType),
   });
 
@@ -163,7 +157,7 @@ async function cleanupOrphanedEntities(
   let deletedMetadata = 0;
 
   if (!dryRun && orphanedEntities.length > 0) {
-    logger.info({ msg: "🗑️  Deleting orphaned entities from Memgraph..." });
+    logger.info({ msg: '🗑️  Deleting orphaned entities from Memgraph...' });
 
     // Delete from Memgraph
     for (const entity of orphanedEntities) {
@@ -172,7 +166,7 @@ async function cleanupOrphanedEntities(
         deletedFromMemgraph++;
       } catch (err) {
         logger.error({
-          msg: "Failed to delete orphaned entity from Memgraph",
+          msg: 'Failed to delete orphaned entity from Memgraph',
           err,
           entity,
         });
@@ -185,13 +179,13 @@ async function cleanupOrphanedEntities(
 
     // Delete metadata from MongoDB
     logger.info({
-      msg: "🗑️  Deleting orphaned entity metadata from MongoDB...",
+      msg: '🗑️  Deleting orphaned entity metadata from MongoDB...',
     });
 
     const entityIds = orphanedEntities.map((e) => e.id);
     const result = await GraphEmbeddingMetadata.deleteMany({
       _id: { $in: entityIds },
-      itemType: "entity",
+      itemType: 'entity',
     });
 
     deletedMetadata = result.deletedCount || 0;
@@ -212,7 +206,7 @@ async function cleanupOrphans() {
   const options = parseArgs();
 
   logger.info({
-    msg: "🧹 Orphan Cleanup Script",
+    msg: '🧹 Orphan Cleanup Script',
     dryRun: options.dryRun,
     entitiesOnly: options.entitiesOnly,
     relationshipsOnly: options.relationshipsOnly,
@@ -220,7 +214,7 @@ async function cleanupOrphans() {
 
   if (options.dryRun) {
     logger.warn({
-      msg: "⚠️  DRY RUN MODE - No deletions will be performed",
+      msg: '⚠️  DRY RUN MODE - No deletions will be performed',
     });
   }
 
@@ -242,22 +236,19 @@ async function cleanupOrphans() {
 
   // Cleanup relationships (unless entities-only)
   if (!options.entitiesOnly) {
-    logger.info({ msg: "🔧 Cleaning up orphaned relationships..." });
-    stats.relationships = await cleanupOrphanedRelationships(
-      graphStore,
-      options.dryRun
-    );
+    logger.info({ msg: '🔧 Cleaning up orphaned relationships...' });
+    stats.relationships = await cleanupOrphanedRelationships(graphStore, options.dryRun);
   }
 
   // Cleanup entities (unless relationships-only)
   if (!options.relationshipsOnly) {
-    logger.info({ msg: "🔧 Cleaning up orphaned entities..." });
+    logger.info({ msg: '🔧 Cleaning up orphaned entities...' });
     stats.entities = await cleanupOrphanedEntities(graphStore, options.dryRun);
   }
 
   // Final summary
   logger.info({
-    msg: "✨ Cleanup complete",
+    msg: '✨ Cleanup complete',
     summary: {
       relationships: {
         found: stats.relationships.foundOrphans,
@@ -269,17 +260,14 @@ async function cleanupOrphans() {
         deletedFromMemgraph: stats.entities.deletedFromMemgraph,
         deletedMetadata: stats.entities.deletedMetadata,
       },
-      totalOrphansFound:
-        stats.relationships.foundOrphans + stats.entities.foundOrphans,
-      totalDeleted:
-        stats.relationships.deletedFromMemgraph +
-        stats.entities.deletedFromMemgraph,
+      totalOrphansFound: stats.relationships.foundOrphans + stats.entities.foundOrphans,
+      totalDeleted: stats.relationships.deletedFromMemgraph + stats.entities.deletedFromMemgraph,
     },
   });
 
   if (options.dryRun) {
     logger.warn({
-      msg: "⚠️  DRY RUN - Run without --dry-run to actually delete orphans",
+      msg: '⚠️  DRY RUN - Run without --dry-run to actually delete orphans',
     });
   }
 }
@@ -291,6 +279,6 @@ const run = async () => {
 run()
   .then(() => process.exit(0))
   .catch((err) => {
-    logger.error({ err }, "Script error");
+    logger.error({ err }, 'Script error');
     process.exit(1);
   });

@@ -42,10 +42,7 @@ export interface FathomTeamMember {
 
 export interface ListMeetingsParams {
   calendar_invitees_domains?: string[];
-  calendar_invitees_domains_type?:
-    | "all"
-    | "only_internal"
-    | "one_or_more_external";
+  calendar_invitees_domains_type?: 'all' | 'only_internal' | 'one_or_more_external';
   created_after?: string;
   created_before?: string;
   cursor?: string;
@@ -75,7 +72,7 @@ export interface FathomParticipant {
   id: string;
   name: string;
   email?: string;
-  role: "host" | "participant";
+  role: 'host' | 'participant';
 }
 
 export interface FathomTranscript {

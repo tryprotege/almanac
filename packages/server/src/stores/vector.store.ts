@@ -1,22 +1,22 @@
-import { randomUUID } from "crypto";
+import { randomUUID } from 'crypto';
 import {
   VectorPoint,
   EntityVectorPayload,
   RelationshipVectorPayload,
   SourceType,
-} from "../types/index.js";
-import { QdrantConnection } from "../connections/qdrant.js";
-import { env } from "../env.js";
-import logger from "../utils/logger.js";
-import { QdrantClient } from "@qdrant/js-client-rest";
+} from '../types/index.js';
+import { QdrantConnection } from '../connections/qdrant.js';
+import { env } from '../env.js';
+import logger from '../utils/logger.js';
+import { QdrantClient } from '@qdrant/js-client-rest';
 
-export type QdrantSearchParams = Parameters<QdrantClient["search"]>[1];
+export type QdrantSearchParams = Parameters<QdrantClient['search']>[1];
 
 /**
  * Vector Store - Single-tenant Qdrant operations
  */
 export class VectorStore {
-  private readonly collectionName = "embeddings";
+  private readonly collectionName = 'embeddings';
 
   constructor(private qdrant: QdrantConnection) {}
 
@@ -29,24 +29,18 @@ export class VectorStore {
     try {
       // Check if collection exists
       const collections = await this.qdrant.client.getCollections();
-      const exists = collections.collections.some(
-        (c) => c.name === this.collectionName
-      );
+      const exists = collections.collections.some((c) => c.name === this.collectionName);
 
       if (!exists) {
-        await this.qdrant.createCollection(
-          this.collectionName,
-          dimensions,
-          "Cosine"
-        );
+        await this.qdrant.createCollection(this.collectionName, dimensions, 'Cosine');
         logger.info(
-          `Created Qdrant collection: ${this.collectionName} (${dimensions} dimensions, model: ${env.LLM_EMBEDDING_MODEL})`
+          `Created Qdrant collection: ${this.collectionName} (${dimensions} dimensions, model: ${env.LLM_EMBEDDING_MODEL})`,
         );
       }
     } catch (err) {
       logger.error(
         { err, collectionName: this.collectionName },
-        `Error ensuring collection ${this.collectionName}`
+        `Error ensuring collection ${this.collectionName}`,
       );
       throw err;
     }
@@ -55,9 +49,7 @@ export class VectorStore {
   /**
    * Upsert a single point
    */
-  async upsertPoint(
-    point: Omit<VectorPoint, "id"> & { id?: string }
-  ): Promise<string> {
+  async upsertPoint(point: Omit<VectorPoint, 'id'> & { id?: string }): Promise<string> {
     const id = point.id || randomUUID();
     const fullPoint: VectorPoint = {
       ...point,
@@ -91,12 +83,10 @@ export class VectorStore {
     vector: number[],
     options?: {
       limit?: number;
-      filter?: QdrantSearchParams["filter"];
+      filter?: QdrantSearchParams['filter'];
       scoreThreshold?: number;
-    }
-  ): Promise<
-    Array<{ id: string; score: number; payload: VectorPoint["payload"] }>
-  > {
+    },
+  ): Promise<Array<{ id: string; score: number; payload: VectorPoint['payload'] }>> {
     const searchParams: QdrantSearchParams = {
       vector,
       limit: options?.limit || 20,
@@ -110,31 +100,25 @@ export class VectorStore {
       searchParams.score_threshold = options.scoreThreshold;
     }
 
-    const results = await this.qdrant.client.search(
-      this.collectionName,
-      searchParams
-    );
+    const results = await this.qdrant.client.search(this.collectionName, searchParams);
 
     return results.map((result) => ({
       id: result.id as string,
       score: result.score,
-      payload: result.payload as VectorPoint["payload"],
+      payload: result.payload as VectorPoint['payload'],
     }));
   }
 
   /**
    * Delete points by MongoDB ID
    */
-  async deleteOutdatedPoints(
-    recordId: string,
-    checksum: string
-  ): Promise<void> {
+  async deleteOutdatedPoints(recordId: string, checksum: string): Promise<void> {
     await this.qdrant.client.delete(this.collectionName, {
       wait: true,
       filter: {
         must: [
           {
-            key: "recordId",
+            key: 'recordId',
             match: {
               value: recordId,
             },
@@ -142,7 +126,7 @@ export class VectorStore {
         ],
         must_not: [
           {
-            key: "checksum",
+            key: 'checksum',
             match: {
               value: checksum,
             },
@@ -169,7 +153,7 @@ export class VectorStore {
       return {
         id: point.id as string,
         vector: point.vector as number[],
-        payload: point.payload as VectorPoint["payload"],
+        payload: point.payload as VectorPoint['payload'],
       };
     } catch (err) {
       logger.error({ err, pointId: id }, `Error getting point ${id}`);
@@ -186,16 +170,14 @@ export class VectorStore {
       limit?: number;
       scoreThreshold?: number;
       source?: SourceType;
-    }
-  ): Promise<
-    Array<{ id: string; score: number; payload: EntityVectorPayload }>
-  > {
+    },
+  ): Promise<Array<{ id: string; score: number; payload: EntityVectorPayload }>> {
     const filter = {
-      must: [{ key: "type", match: { value: "entity" } }],
-    } satisfies QdrantSearchParams["filter"];
+      must: [{ key: 'type', match: { value: 'entity' } }],
+    } satisfies QdrantSearchParams['filter'];
 
     if (options?.source) {
-      filter.must.push({ key: "source", match: { value: options.source } });
+      filter.must.push({ key: 'source', match: { value: options.source } });
     }
 
     const results = await this.search(vector, {
@@ -220,16 +202,14 @@ export class VectorStore {
       limit?: number;
       scoreThreshold?: number;
       relType?: string;
-    }
-  ): Promise<
-    Array<{ id: string; score: number; payload: RelationshipVectorPayload }>
-  > {
+    },
+  ): Promise<Array<{ id: string; score: number; payload: RelationshipVectorPayload }>> {
     const filter = {
-      must: [{ key: "type", match: { value: "relationship" } }],
-    } satisfies QdrantSearchParams["filter"];
+      must: [{ key: 'type', match: { value: 'relationship' } }],
+    } satisfies QdrantSearchParams['filter'];
 
     if (options?.relType) {
-      filter.must.push({ key: "relType", match: { value: options.relType } });
+      filter.must.push({ key: 'relType', match: { value: options.relType } });
     }
 
     const results = await this.search(vector, {
@@ -254,7 +234,7 @@ export class VectorStore {
     await this.qdrant.client.delete(this.collectionName, {
       wait: true,
       filter: {
-        must: [{ key: "id", match: { any: ids } }],
+        must: [{ key: 'id', match: { any: ids } }],
       },
     });
   }

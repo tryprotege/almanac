@@ -3,8 +3,8 @@ import {
   RecordGroup,
   TransformedRecord,
   TimeWindowGroupingConfig,
-} from "../types.js";
-import { extractValue } from "../engine.js";
+} from '../types.js';
+import { extractValue } from '../engine.js';
 
 /**
  * Time window grouping strategy
@@ -13,7 +13,7 @@ import { extractValue } from "../engine.js";
 export class TimeWindowGrouper implements IGroupingStrategy {
   async group(
     records: TransformedRecord[],
-    config: TimeWindowGroupingConfig
+    config: TimeWindowGroupingConfig,
   ): Promise<RecordGroup[]> {
     // Sort records by timestamp
     const sortedRecords = [...records].sort((a, b) => {
@@ -31,9 +31,7 @@ export class TimeWindowGrouper implements IGroupingStrategy {
       const timestamp = this.extractTimestamp(record, config.timestampPath);
 
       // Extract optional context fields
-      const userId = config.sameUserPath
-        ? extractValue(record.rawData, config.sameUserPath)
-        : null;
+      const userId = config.sameUserPath ? extractValue(record.rawData, config.sameUserPath) : null;
       const context = config.sameContextPath
         ? extractValue(record.rawData, config.sameContextPath)
         : null;
@@ -41,8 +39,7 @@ export class TimeWindowGrouper implements IGroupingStrategy {
       // Check if we should start a new group
       const shouldStartNewGroup =
         currentGroup.length === 0 ||
-        (groupStartTime !== null &&
-          timestamp - groupStartTime > config.windowSeconds * 1000) ||
+        (groupStartTime !== null && timestamp - groupStartTime > config.windowSeconds * 1000) ||
         (config.sameUserPath && userId !== groupContext?.userId) ||
         (config.sameContextPath && context !== groupContext?.context);
 
@@ -54,7 +51,7 @@ export class TimeWindowGrouper implements IGroupingStrategy {
             records: currentGroup,
             metadata: {
               startTime: groupStartTime,
-              strategy: "time_window",
+              strategy: 'time_window',
               ...groupContext,
             },
           });
@@ -77,7 +74,7 @@ export class TimeWindowGrouper implements IGroupingStrategy {
         records: currentGroup,
         metadata: {
           startTime: groupStartTime,
-          strategy: "time_window",
+          strategy: 'time_window',
           ...groupContext,
         },
       });
@@ -92,12 +89,12 @@ export class TimeWindowGrouper implements IGroupingStrategy {
   private extractTimestamp(record: TransformedRecord, path: string): number {
     const value = extractValue(record.rawData, path);
 
-    if (typeof value === "number") {
+    if (typeof value === 'number') {
       // Assume Unix timestamp
       return value < 10000000000 ? value * 1000 : value;
     }
 
-    if (typeof value === "string") {
+    if (typeof value === 'string') {
       return new Date(value).getTime();
     }
 

@@ -13,10 +13,10 @@ import {
   Code,
   BarChart3,
   PlayCircle,
-} from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
-import toast from "react-hot-toast";
-import { Modal, ModalFooter } from "../components/ui/Modal";
+} from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { Modal, ModalFooter } from '../components/ui/Modal';
 import {
   useSyncConfig,
   useGenerateSyncConfig,
@@ -24,36 +24,34 @@ import {
   useResetSyncState,
   useSyncWithConfig,
   useReloadFromMarketplace,
-} from "../hooks/useSyncConfigs";
-import { useDataSources } from "../hooks/useDataSources";
-import { useState, useEffect } from "react";
-import ConfigTabs from "../components/SyncConfig/ConfigTabs";
-import DataMappingTab from "../components/SyncConfig/DataMappingTab";
-import EntitiesTab from "../components/SyncConfig/EntitiesTab";
-import StartingPointsTab from "../components/SyncConfig/StartingPointsTab";
-import { StartingPointsCollector } from "../components/StartingPointsCollector";
+} from '../hooks/useSyncConfigs';
+import { useDataSources } from '../hooks/useDataSources';
+import { useState, useEffect } from 'react';
+import ConfigTabs from '../components/SyncConfig/ConfigTabs';
+import DataMappingTab from '../components/SyncConfig/DataMappingTab';
+import EntitiesTab from '../components/SyncConfig/EntitiesTab';
+import StartingPointsTab from '../components/SyncConfig/StartingPointsTab';
+import { StartingPointsCollector } from '../components/StartingPointsCollector';
 
-type GenerationStep = "idle" | "generating" | "result";
+type GenerationStep = 'idle' | 'generating' | 'result';
 
 export default function IndexingConfigDetail() {
   const { serverName } = useParams<{ serverName: string }>();
   const navigate = useNavigate();
-  const [generationStep, setGenerationStep] = useState<GenerationStep>("idle");
+  const [generationStep, setGenerationStep] = useState<GenerationStep>('idle');
   const [generatedResult, setGeneratedResult] = useState<any>(null);
 
   // Starting points state for generation result
-  const [startingPointValues, setStartingPointValues] = useState<
-    Record<string, string[]>
-  >({});
+  const [startingPointValues, setStartingPointValues] = useState<Record<string, string[]>>({});
 
   // JSON editor state
   const [isEditing, setIsEditing] = useState(false);
-  const [editedJson, setEditedJson] = useState("");
+  const [editedJson, setEditedJson] = useState('');
   const [parseError, setParseError] = useState<string | null>(null);
 
   // Guidance modal state
   const [showGuidanceModal, setShowGuidanceModal] = useState(false);
-  const [userGuidance, setUserGuidance] = useState("");
+  const [userGuidance, setUserGuidance] = useState('');
 
   // Reset sync modal state
   const [showResetModal, setShowResetModal] = useState(false);
@@ -74,11 +72,9 @@ export default function IndexingConfigDetail() {
   // Helper to check if all required starting points are configured
   const areRequiredStartingPointsFilled = (
     startingPoints: any[],
-    values: Record<string, string[]>
+    values: Record<string, string[]>,
   ): boolean => {
-    const requiredPoints = startingPoints.filter(
-      (sp) => sp.required && sp.userProvided
-    );
+    const requiredPoints = startingPoints.filter((sp) => sp.required && sp.userProvided);
     if (requiredPoints.length === 0) return true;
 
     return requiredPoints.every((sp) => {
@@ -89,7 +85,7 @@ export default function IndexingConfigDetail() {
 
   // Debug logging
   useEffect(() => {
-    console.log("IndexingConfigDetail mounted/updated", {
+    console.log('IndexingConfigDetail mounted/updated', {
       serverName,
       generationStep,
       hasGeneratedResult: !!generatedResult,
@@ -116,7 +112,7 @@ export default function IndexingConfigDetail() {
           {/* Header */}
           <div className="mb-8">
             <button
-              onClick={() => navigate("/data-sources")}
+              onClick={() => navigate('/data-sources')}
               className="flex items-center gap-2 text-text-tertiary hover:text-text-primary mb-4"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -128,46 +124,44 @@ export default function IndexingConfigDetail() {
                   Indexing Config: {serverName}
                 </h1>
                 <p className="mt-2 text-text-tertiary">
-                  {generationStep === "result"
-                    ? "Configuration generated - review and save below"
-                    : generationStep === "generating"
-                    ? "Generating configuration..."
-                    : "No indexing configuration found"}
+                  {generationStep === 'result'
+                    ? 'Configuration generated - review and save below'
+                    : generationStep === 'generating'
+                      ? 'Generating configuration...'
+                      : 'No indexing configuration found'}
                 </p>
               </div>
             </div>
           </div>
 
           {/* No Config - Idle State */}
-          {generationStep === "idle" && (
+          {generationStep === 'idle' && (
             <div className="card text-center py-12">
               <FileJson className="w-12 h-12 text-text-quaternary mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-text-primary mb-2">
-                No Indexing Config
-              </h3>
+              <h3 className="text-lg font-medium text-text-primary mb-2">No Indexing Config</h3>
               <p className="text-text-tertiary mb-6">
-                This data source doesn't have an indexing configuration yet.
-                Generate one to start indexing data.
+                This data source doesn't have an indexing configuration yet. Generate one to start
+                indexing data.
               </p>
               <button
                 onClick={async () => {
-                  console.log("Starting config generation for:", serverName);
-                  setGenerationStep("generating");
+                  console.log('Starting config generation for:', serverName);
+                  setGenerationStep('generating');
                   try {
-                    console.log("Calling generateConfig.mutateAsync...");
+                    console.log('Calling generateConfig.mutateAsync...');
                     const result = await generateConfig.mutateAsync({
                       serverName: serverName!,
                     });
                     console.log(
-                      "Config generation completed successfully:\n",
-                      JSON.stringify(result, null, 2)
+                      'Config generation completed successfully:\n',
+                      JSON.stringify(result, null, 2),
                     );
                     setGeneratedResult(result);
-                    setGenerationStep("result");
-                    console.log("State updated to result");
+                    setGenerationStep('result');
+                    console.log('State updated to result');
                   } catch (error) {
-                    console.error("Failed to generate config:", error);
-                    setGenerationStep("idle");
+                    console.error('Failed to generate config:', error);
+                    setGenerationStep('idle');
                   }
                 }}
                 className="btn btn-primary inline-flex items-center gap-2"
@@ -177,13 +171,9 @@ export default function IndexingConfigDetail() {
               </button>
 
               <div className="mt-8 bg-brand-blue/10 border border-brand-blue/30 rounded-lg p-6 text-left">
-                <h3 className="text-sm font-medium text-brand-blue mb-3">
-                  What happens next?
-                </h3>
+                <h3 className="text-sm font-medium text-brand-blue mb-3">What happens next?</h3>
                 <ul className="text-sm text-text-secondary space-y-2 list-disc list-inside ml-4">
-                  <li>
-                    Tools will be classified using LLM (READ/SEARCH/WRITE)
-                  </li>
+                  <li>Tools will be classified using LLM (READ/SEARCH/WRITE)</li>
                   <li>Only READ tools will be used for indexing</li>
                   <li>Sample data will be fetched to understand structure</li>
                   <li>An IndexingConfig will be generated automatically</li>
@@ -193,12 +183,10 @@ export default function IndexingConfigDetail() {
           )}
 
           {/* Generating State */}
-          {generationStep === "generating" && (
+          {generationStep === 'generating' && (
             <div className="card text-center py-12">
               <Loader2 className="w-12 h-12 text-brand-purple animate-spin mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-text-primary mb-2">
-                Generating Config...
-              </h3>
+              <h3 className="text-lg font-medium text-text-primary mb-2">Generating Config...</h3>
               <p className="text-text-tertiary">
                 Analyzing MCP server and generating indexing configuration
               </p>
@@ -206,7 +194,7 @@ export default function IndexingConfigDetail() {
           )}
 
           {/* Result State */}
-          {generationStep === "result" && generatedResult && (
+          {generationStep === 'result' && generatedResult && (
             <div className="space-y-6">
               {/* Summary Stats */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -259,17 +247,13 @@ export default function IndexingConfigDetail() {
                   <div className="flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-brand-error flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="text-sm font-medium text-brand-error">
-                        Validation Errors
-                      </h3>
+                      <h3 className="text-sm font-medium text-brand-error">Validation Errors</h3>
                       <ul className="mt-2 text-sm text-brand-error/80 space-y-1">
-                        {generatedResult.validation.errors.map(
-                          (error: any, i: number) => (
-                            <li key={i}>
-                              {error.path}: {error.message}
-                            </li>
-                          )
-                        )}
+                        {generatedResult.validation.errors.map((error: any, i: number) => (
+                          <li key={i}>
+                            {error.path}: {error.message}
+                          </li>
+                        ))}
                       </ul>
                     </div>
                   </div>
@@ -281,17 +265,13 @@ export default function IndexingConfigDetail() {
                   <div className="flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-brand-warning flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="text-sm font-medium text-brand-warning">
-                        Warnings
-                      </h3>
+                      <h3 className="text-sm font-medium text-brand-warning">Warnings</h3>
                       <ul className="mt-2 text-sm text-brand-warning/80 space-y-1">
-                        {generatedResult.validation.warnings.map(
-                          (warning: any, i: number) => (
-                            <li key={i}>
-                              {warning.path}: {warning.message}
-                            </li>
-                          )
-                        )}
+                        {generatedResult.validation.warnings.map((warning: any, i: number) => (
+                          <li key={i}>
+                            {warning.path}: {warning.message}
+                          </li>
+                        ))}
                       </ul>
                     </div>
                   </div>
@@ -322,8 +302,7 @@ export default function IndexingConfigDetail() {
                         Config generated successfully!
                       </h3>
                       <p className="mt-1 text-sm text-brand-success/80">
-                        The configuration passed all validation checks and is
-                        ready to use.
+                        The configuration passed all validation checks and is ready to use.
                       </p>
                     </div>
                   </div>
@@ -331,79 +310,72 @@ export default function IndexingConfigDetail() {
               )}
 
               {/* Sync Pipeline */}
-              {generatedResult.config.syncOrder &&
-                generatedResult.config.syncOrder.length > 0 && (
-                  <div className="bg-gradient-to-r from-brand-blue/5 to-brand-purple/5 border border-brand-blue/30 rounded-lg p-4">
-                    <h3 className="text-xs font-medium text-text-tertiary uppercase mb-3">
-                      Sync Pipeline
-                    </h3>
-                    <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                      {generatedResult.config.syncOrder.map(
-                        (fetcherName: string, index: number) => (
-                          <div
-                            key={fetcherName}
-                            className="flex items-center gap-2 flex-shrink-0"
+              {generatedResult.config.syncOrder && generatedResult.config.syncOrder.length > 0 && (
+                <div className="bg-gradient-to-r from-brand-blue/5 to-brand-purple/5 border border-brand-blue/30 rounded-lg p-4">
+                  <h3 className="text-xs font-medium text-text-tertiary uppercase mb-3">
+                    Sync Pipeline
+                  </h3>
+                  <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                    {generatedResult.config.syncOrder.map((fetcherName: string, index: number) => (
+                      <div key={fetcherName} className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-primary border border-brand-blue/40 rounded-lg shadow-sm">
+                          <span className="flex items-center justify-center w-5 h-5 bg-brand-blue text-white text-xs font-bold rounded-full">
+                            {index + 1}
+                          </span>
+                          <span className="text-sm font-medium text-text-primary">
+                            {fetcherName}
+                          </span>
+                        </div>
+                        {index < generatedResult.config.syncOrder.length - 1 && (
+                          <svg
+                            className="w-4 h-4 text-brand-blue"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                           >
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-primary border border-brand-blue/40 rounded-lg shadow-sm">
-                              <span className="flex items-center justify-center w-5 h-5 bg-brand-blue text-white text-xs font-bold rounded-full">
-                                {index + 1}
-                              </span>
-                              <span className="text-sm font-medium text-text-primary">
-                                {fetcherName}
-                              </span>
-                            </div>
-                            {index <
-                              generatedResult.config.syncOrder.length - 1 && (
-                              <svg
-                                className="w-4 h-4 text-brand-blue"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M9 5l7 7-7 7"
-                                />
-                              </svg>
-                            )}
-                          </div>
-                        )
-                      )}
-                    </div>
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5l7 7-7 7"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
 
               {/* Tabbed Config Preview */}
               <div className="card">
                 <ConfigTabs
                   tabs={[
                     {
-                      id: "dataMapping",
-                      label: "Data Mapping",
+                      id: 'dataMapping',
+                      label: 'Data Mapping',
                       icon: <Database className="w-4 h-4" />,
                     },
                     {
-                      id: "entities",
-                      label: "Graph Entities",
+                      id: 'entities',
+                      label: 'Graph Entities',
                       icon: <GitBranch className="w-4 h-4" />,
                     },
                     {
-                      id: "json",
-                      label: "Raw JSON",
+                      id: 'json',
+                      label: 'Raw JSON',
                       icon: <Code className="w-4 h-4" />,
                     },
                   ]}
                 >
                   {(activeTab) => {
-                    if (activeTab === "dataMapping") {
+                    if (activeTab === 'dataMapping') {
                       return <DataMappingTab config={generatedResult.config} />;
                     }
-                    if (activeTab === "entities") {
+                    if (activeTab === 'entities') {
                       return <EntitiesTab config={generatedResult.config} />;
                     }
-                    if (activeTab === "json") {
+                    if (activeTab === 'json') {
                       return (
                         <div className="bg-bg-tertiary rounded-lg overflow-hidden">
                           <pre className="p-4 overflow-x-auto text-sm max-h-96 text-text-primary leading-relaxed">
@@ -434,7 +406,7 @@ export default function IndexingConfigDetail() {
               <div className="flex items-center justify-end gap-3">
                 <button
                   onClick={() => {
-                    setGenerationStep("idle");
+                    setGenerationStep('idle');
                     setGeneratedResult(null);
                   }}
                   className="btn btn-secondary"
@@ -446,11 +418,11 @@ export default function IndexingConfigDetail() {
                     try {
                       await saveConfig.mutateAsync({
                         config: generatedResult.config,
-                        status: "draft",
+                        status: 'draft',
                       });
                       window.location.reload();
                     } catch (error) {
-                      console.error("Failed to save config:", error);
+                      console.error('Failed to save config:', error);
                     }
                   }}
                   disabled={saveConfig.isPending}
@@ -460,34 +432,32 @@ export default function IndexingConfigDetail() {
                 </button>
                 <button
                   onClick={async () => {
-                    console.log("Save & Activate clicked");
+                    console.log('Save & Activate clicked');
                     console.log(
-                      "Config to save:\n",
-                      JSON.stringify(generatedResult.config, null, 2)
+                      'Config to save:\n',
+                      JSON.stringify(generatedResult.config, null, 2),
                     );
                     console.log(
-                      "Starting point values:\n",
-                      JSON.stringify(startingPointValues, null, 2)
+                      'Starting point values:\n',
+                      JSON.stringify(startingPointValues, null, 2),
                     );
                     try {
                       const result = await saveConfig.mutateAsync({
                         config: generatedResult.config,
-                        status: "active",
+                        status: 'active',
                         startingPointValues:
                           Object.keys(startingPointValues).length > 0
                             ? startingPointValues
                             : undefined,
                       });
-                      console.log("Save successful:", result);
+                      console.log('Save successful:', result);
                       // Wait a moment before reloading to ensure save completes
                       setTimeout(() => {
                         window.location.reload();
                       }, 500);
                     } catch (error) {
-                      console.error("Failed to save config:", error);
-                      alert(
-                        "Failed to save config. Check console for details."
-                      );
+                      console.error('Failed to save config:', error);
+                      alert('Failed to save config. Check console for details.');
                     }
                   }}
                   disabled={
@@ -495,7 +465,7 @@ export default function IndexingConfigDetail() {
                     !generatedResult?.validation.valid ||
                     !areRequiredStartingPointsFilled(
                       generatedResult?.config.startingPoints || [],
-                      startingPointValues
+                      startingPointValues,
                     )
                   }
                   className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
@@ -506,7 +476,7 @@ export default function IndexingConfigDetail() {
                       Saving...
                     </>
                   ) : (
-                    "Save & Activate"
+                    'Save & Activate'
                   )}
                 </button>
               </div>
@@ -518,15 +488,13 @@ export default function IndexingConfigDetail() {
   }
 
   // Handle regeneration states even when config exists
-  if (generationStep === "generating") {
+  if (generationStep === 'generating') {
     return (
       <div className="pb-8">
         <div className="w-full py-8">
           <div className="card text-center py-12">
             <Loader2 className="w-12 h-12 text-brand-purple animate-spin mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-text-primary mb-2">
-              Regenerating Config...
-            </h3>
+            <h3 className="text-lg font-medium text-text-primary mb-2">Regenerating Config...</h3>
             <p className="text-text-tertiary">
               Analyzing MCP server and generating new indexing configuration
             </p>
@@ -536,7 +504,7 @@ export default function IndexingConfigDetail() {
     );
   }
 
-  if (generationStep === "result" && generatedResult) {
+  if (generationStep === 'result' && generatedResult) {
     return (
       <div className="pb-8">
         <div className="w-full py-8">
@@ -544,7 +512,7 @@ export default function IndexingConfigDetail() {
           <div className="mb-8">
             <button
               onClick={() => {
-                setGenerationStep("idle");
+                setGenerationStep('idle');
                 setGeneratedResult(null);
               }}
               className="flex items-center gap-2 text-text-tertiary hover:text-text-primary mb-4"
@@ -552,9 +520,7 @@ export default function IndexingConfigDetail() {
               <ArrowLeft className="w-5 h-5" />
               Back to Config
             </button>
-            <h1 className="text-3xl font-bold text-text-primary">
-              Regenerated Configuration
-            </h1>
+            <h1 className="text-3xl font-bold text-text-primary">Regenerated Configuration</h1>
             <p className="mt-2 text-text-tertiary">
               Review and save the new configuration for {config.serverName}
             </p>
@@ -612,17 +578,13 @@ export default function IndexingConfigDetail() {
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-brand-error flex-shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="text-sm font-medium text-brand-error">
-                      Validation Errors
-                    </h3>
+                    <h3 className="text-sm font-medium text-brand-error">Validation Errors</h3>
                     <ul className="mt-2 text-sm text-brand-error/80 space-y-1">
-                      {generatedResult.validation.errors.map(
-                        (error: any, i: number) => (
-                          <li key={i}>
-                            {error.path}: {error.message}
-                          </li>
-                        )
-                      )}
+                      {generatedResult.validation.errors.map((error: any, i: number) => (
+                        <li key={i}>
+                          {error.path}: {error.message}
+                        </li>
+                      ))}
                     </ul>
                   </div>
                 </div>
@@ -634,17 +596,13 @@ export default function IndexingConfigDetail() {
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-brand-warning flex-shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="text-sm font-medium text-brand-warning">
-                      Warnings
-                    </h3>
+                    <h3 className="text-sm font-medium text-brand-warning">Warnings</h3>
                     <ul className="mt-2 text-sm text-brand-warning/80 space-y-1">
-                      {generatedResult.validation.warnings.map(
-                        (warning: any, i: number) => (
-                          <li key={i}>
-                            {warning.path}: {warning.message}
-                          </li>
-                        )
-                      )}
+                      {generatedResult.validation.warnings.map((warning: any, i: number) => (
+                        <li key={i}>
+                          {warning.path}: {warning.message}
+                        </li>
+                      ))}
                     </ul>
                   </div>
                 </div>
@@ -675,8 +633,7 @@ export default function IndexingConfigDetail() {
                       Config generated successfully!
                     </h3>
                     <p className="mt-1 text-sm text-brand-success/80">
-                      The configuration passed all validation checks and is
-                      ready to use.
+                      The configuration passed all validation checks and is ready to use.
                     </p>
                   </div>
                 </div>
@@ -684,79 +641,70 @@ export default function IndexingConfigDetail() {
             )}
 
             {/* Sync Pipeline */}
-            {generatedResult.config.syncOrder &&
-              generatedResult.config.syncOrder.length > 0 && (
-                <div className="bg-gradient-to-r from-brand-blue/5 to-brand-purple/5 border border-brand-blue/30 rounded-lg p-4">
-                  <h3 className="text-xs font-medium text-text-tertiary uppercase mb-3">
-                    Sync Pipeline
-                  </h3>
-                  <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                    {generatedResult.config.syncOrder.map(
-                      (fetcherName: string, index: number) => (
-                        <div
-                          key={fetcherName}
-                          className="flex items-center gap-2 flex-shrink-0"
+            {generatedResult.config.syncOrder && generatedResult.config.syncOrder.length > 0 && (
+              <div className="bg-gradient-to-r from-brand-blue/5 to-brand-purple/5 border border-brand-blue/30 rounded-lg p-4">
+                <h3 className="text-xs font-medium text-text-tertiary uppercase mb-3">
+                  Sync Pipeline
+                </h3>
+                <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                  {generatedResult.config.syncOrder.map((fetcherName: string, index: number) => (
+                    <div key={fetcherName} className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-primary border border-brand-blue/40 rounded-lg shadow-sm">
+                        <span className="flex items-center justify-center w-5 h-5 bg-brand-blue text-white text-xs font-bold rounded-full">
+                          {index + 1}
+                        </span>
+                        <span className="text-sm font-medium text-text-primary">{fetcherName}</span>
+                      </div>
+                      {index < generatedResult.config.syncOrder.length - 1 && (
+                        <svg
+                          className="w-4 h-4 text-brand-blue"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
                         >
-                          <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-primary border border-brand-blue/40 rounded-lg shadow-sm">
-                            <span className="flex items-center justify-center w-5 h-5 bg-brand-blue text-white text-xs font-bold rounded-full">
-                              {index + 1}
-                            </span>
-                            <span className="text-sm font-medium text-text-primary">
-                              {fetcherName}
-                            </span>
-                          </div>
-                          {index <
-                            generatedResult.config.syncOrder.length - 1 && (
-                            <svg
-                              className="w-4 h-4 text-brand-blue"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 5l7 7-7 7"
-                              />
-                            </svg>
-                          )}
-                        </div>
-                      )
-                    )}
-                  </div>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
             {/* Tabbed Config Preview */}
             <div className="card">
               <ConfigTabs
                 tabs={[
                   {
-                    id: "dataMapping",
-                    label: "Data Mapping",
+                    id: 'dataMapping',
+                    label: 'Data Mapping',
                     icon: <Database className="w-4 h-4" />,
                   },
                   {
-                    id: "entities",
-                    label: "Graph Entities",
+                    id: 'entities',
+                    label: 'Graph Entities',
                     icon: <GitBranch className="w-4 h-4" />,
                   },
                   {
-                    id: "json",
-                    label: "Raw JSON",
+                    id: 'json',
+                    label: 'Raw JSON',
                     icon: <Code className="w-4 h-4" />,
                   },
                 ]}
               >
                 {(activeTab) => {
-                  if (activeTab === "dataMapping") {
+                  if (activeTab === 'dataMapping') {
                     return <DataMappingTab config={generatedResult.config} />;
                   }
-                  if (activeTab === "entities") {
+                  if (activeTab === 'entities') {
                     return <EntitiesTab config={generatedResult.config} />;
                   }
-                  if (activeTab === "json") {
+                  if (activeTab === 'json') {
                     return (
                       <div className="bg-bg-tertiary rounded-lg overflow-hidden">
                         <pre className="p-4 overflow-x-auto text-sm max-h-96 text-text-primary leading-relaxed">
@@ -776,7 +724,7 @@ export default function IndexingConfigDetail() {
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => {
-                  setGenerationStep("idle");
+                  setGenerationStep('idle');
                   setGeneratedResult(null);
                 }}
                 className="btn btn-secondary"
@@ -788,11 +736,11 @@ export default function IndexingConfigDetail() {
                   try {
                     await saveConfig.mutateAsync({
                       config: generatedResult.config,
-                      status: "draft",
+                      status: 'draft',
                     });
                     window.location.reload();
                   } catch (error) {
-                    console.error("Failed to save config:", error);
+                    console.error('Failed to save config:', error);
                   }
                 }}
                 disabled={saveConfig.isPending}
@@ -805,19 +753,17 @@ export default function IndexingConfigDetail() {
                   try {
                     await saveConfig.mutateAsync({
                       config: generatedResult.config,
-                      status: "active",
+                      status: 'active',
                     });
                     setTimeout(() => {
                       window.location.reload();
                     }, 500);
                   } catch (error) {
-                    console.error("Failed to save config:", error);
-                    alert("Failed to save config. Check console for details.");
+                    console.error('Failed to save config:', error);
+                    alert('Failed to save config. Check console for details.');
                   }
                 }}
-                disabled={
-                  saveConfig.isPending || !generatedResult?.validation.valid
-                }
+                disabled={saveConfig.isPending || !generatedResult?.validation.valid}
                 className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saveConfig.isPending ? (
@@ -826,7 +772,7 @@ export default function IndexingConfigDetail() {
                     Saving...
                   </>
                 ) : (
-                  "Save & Activate"
+                  'Save & Activate'
                 )}
               </button>
             </div>
@@ -842,7 +788,7 @@ export default function IndexingConfigDetail() {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate("/data-sources")}
+            onClick={() => navigate('/data-sources')}
             className="flex items-center gap-2 text-text-tertiary hover:text-text-primary mb-4"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -862,24 +808,21 @@ export default function IndexingConfigDetail() {
                 <>
                   <button
                     onClick={async () => {
-                      console.log(
-                        "Regenerating config for:",
-                        config.serverName
-                      );
-                      setGenerationStep("generating");
+                      console.log('Regenerating config for:', config.serverName);
+                      setGenerationStep('generating');
                       try {
                         const result = await generateConfig.mutateAsync({
                           serverName: config.serverName,
                         });
                         console.log(
-                          "Config regeneration completed:\n",
-                          JSON.stringify(result, null, 2)
+                          'Config regeneration completed:\n',
+                          JSON.stringify(result, null, 2),
                         );
                         setGeneratedResult(result);
-                        setGenerationStep("result");
+                        setGenerationStep('result');
                       } catch (error) {
-                        console.error("Failed to regenerate config:", error);
-                        setGenerationStep("idle");
+                        console.error('Failed to regenerate config:', error);
+                        setGenerationStep('idle');
                       }
                     }}
                     className="btn btn-secondary inline-flex items-center gap-2"
@@ -904,20 +847,16 @@ export default function IndexingConfigDetail() {
                 Reset & Full Resync
               </button>
               {(() => {
-                const statusText =
-                  config.status.charAt(0).toUpperCase() +
-                  config.status.slice(1);
+                const statusText = config.status.charAt(0).toUpperCase() + config.status.slice(1);
                 const statusClass =
-                  config.status === "active"
-                    ? "bg-brand-success/10 text-brand-success"
-                    : config.status === "draft"
-                    ? "bg-bg-secondary text-text-secondary"
-                    : "bg-brand-error/10 text-brand-error";
+                  config.status === 'active'
+                    ? 'bg-brand-success/10 text-brand-success'
+                    : config.status === 'draft'
+                      ? 'bg-bg-secondary text-text-secondary'
+                      : 'bg-brand-error/10 text-brand-error';
 
                 return (
-                  <span
-                    className={`px-3 py-1 text-sm font-medium rounded-full ${statusClass}`}
-                  >
+                  <span className={`px-3 py-1 text-sm font-medium rounded-full ${statusClass}`}>
                     {statusText}
                   </span>
                 );
@@ -939,18 +878,15 @@ export default function IndexingConfigDetail() {
                 </h3>
                 <p className="text-sm text-text-secondary mb-3">
                   {(config.config as any).postProcessing.description ||
-                    "Additional processing will run after initial indexing"}
+                    'Additional processing will run after initial indexing'}
                 </p>
                 <div className="flex flex-wrap gap-4 text-xs text-text-tertiary">
-                  {(config.config as any).postProcessing
-                    .followRelationships && (
+                  {(config.config as any).postProcessing.followRelationships && (
                     <div className="flex items-center gap-1">
                       <GitBranch className="w-3.5 h-3.5" />
                       <span>
-                        Follows:{" "}
-                        {(
-                          config.config as any
-                        ).postProcessing.followRelationships.join(", ")}
+                        Follows:{' '}
+                        {(config.config as any).postProcessing.followRelationships.join(', ')}
                       </span>
                     </div>
                   )}
@@ -958,8 +894,7 @@ export default function IndexingConfigDetail() {
                     <div className="flex items-center gap-1">
                       <RefreshCw className="w-3.5 h-3.5" />
                       <span>
-                        Max iterations:{" "}
-                        {(config.config as any).postProcessing.maxIterations}
+                        Max iterations: {(config.config as any).postProcessing.maxIterations}
                       </span>
                     </div>
                   )}
@@ -1003,11 +938,9 @@ export default function IndexingConfigDetail() {
                 <p className="text-xl font-bold text-text-primary">
                   {(() => {
                     let total = 0;
-                    Object.values(config.config.recordTypes || {}).forEach(
-                      (rt: any) => {
-                        total += (rt.entities || []).length;
-                      }
-                    );
+                    Object.values(config.config.recordTypes || {}).forEach((rt: any) => {
+                      total += (rt.entities || []).length;
+                    });
                     return total;
                   })()}
                 </p>
@@ -1029,86 +962,76 @@ export default function IndexingConfigDetail() {
         </div>
 
         {/* Sync Pipeline */}
-        {(config.config as any).syncOrder &&
-          (config.config as any).syncOrder.length > 0 && (
-            <div className="mb-6 bg-gradient-to-r from-brand-blue/5 to-brand-purple/5 border border-brand-blue/30 rounded-lg p-4">
-              <h3 className="text-xs font-medium text-text-tertiary uppercase mb-3">
-                Sync Pipeline
-              </h3>
-              <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                {(config.config as any).syncOrder.map(
-                  (fetcherName: string, index: number) => (
-                    <div
-                      key={fetcherName}
-                      className="flex items-center gap-2 flex-shrink-0"
+        {(config.config as any).syncOrder && (config.config as any).syncOrder.length > 0 && (
+          <div className="mb-6 bg-gradient-to-r from-brand-blue/5 to-brand-purple/5 border border-brand-blue/30 rounded-lg p-4">
+            <h3 className="text-xs font-medium text-text-tertiary uppercase mb-3">Sync Pipeline</h3>
+            <div className="flex items-center gap-2 overflow-x-auto pb-2">
+              {(config.config as any).syncOrder.map((fetcherName: string, index: number) => (
+                <div key={fetcherName} className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-primary border border-brand-blue/40 rounded-lg shadow-sm">
+                    <span className="flex items-center justify-center w-5 h-5 bg-brand-blue text-white text-xs font-bold rounded-full">
+                      {index + 1}
+                    </span>
+                    <span className="text-sm font-medium text-text-primary">{fetcherName}</span>
+                  </div>
+                  {index < (config.config as any).syncOrder.length - 1 && (
+                    <svg
+                      className="w-4 h-4 text-brand-blue"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-primary border border-brand-blue/40 rounded-lg shadow-sm">
-                        <span className="flex items-center justify-center w-5 h-5 bg-brand-blue text-white text-xs font-bold rounded-full">
-                          {index + 1}
-                        </span>
-                        <span className="text-sm font-medium text-text-primary">
-                          {fetcherName}
-                        </span>
-                      </div>
-                      {index < (config.config as any).syncOrder.length - 1 && (
-                        <svg
-                          className="w-4 h-4 text-brand-blue"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                  )
-                )}
-              </div>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  )}
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+        )}
 
         {/* Tabbed Config View */}
         <div className="card">
           <ConfigTabs
             tabs={[
               {
-                id: "startingPoints",
-                label: "Starting Points",
+                id: 'startingPoints',
+                label: 'Starting Points',
                 icon: <PlayCircle className="w-4 h-4" />,
               },
               {
-                id: "dataMapping",
-                label: "Data Mapping",
+                id: 'dataMapping',
+                label: 'Data Mapping',
                 icon: <Database className="w-4 h-4" />,
               },
               {
-                id: "entities",
-                label: "Graph Entities",
+                id: 'entities',
+                label: 'Graph Entities',
                 icon: <GitBranch className="w-4 h-4" />,
               },
               {
-                id: "json",
-                label: "Raw JSON",
+                id: 'json',
+                label: 'Raw JSON',
                 icon: <Code className="w-4 h-4" />,
               },
             ]}
           >
             {(activeTab) => {
-              if (activeTab === "startingPoints") {
+              if (activeTab === 'startingPoints') {
                 return <StartingPointsTab serverName={config.serverName} />;
               }
-              if (activeTab === "dataMapping") {
+              if (activeTab === 'dataMapping') {
                 return <DataMappingTab config={config.config} />;
               }
-              if (activeTab === "entities") {
+              if (activeTab === 'entities') {
                 return <EntitiesTab config={config.config} />;
               }
-              if (activeTab === "json") {
+              if (activeTab === 'json') {
                 return (
                   <div>
                     <div className="flex items-center justify-between mb-4">
@@ -1121,25 +1044,15 @@ export default function IndexingConfigDetail() {
                             <button
                               onClick={async () => {
                                 try {
-                                  await reloadFromMarketplace.mutateAsync(
-                                    config.serverName
-                                  );
-                                  toast.success(
-                                    "Config reloaded from marketplace successfully!"
-                                  );
-                                  setTimeout(
-                                    () => window.location.reload(),
-                                    500
-                                  );
+                                  await reloadFromMarketplace.mutateAsync(config.serverName);
+                                  toast.success('Config reloaded from marketplace successfully!');
+                                  setTimeout(() => window.location.reload(), 500);
                                 } catch (error) {
-                                  console.error(
-                                    "Failed to reload config:",
-                                    error
-                                  );
+                                  console.error('Failed to reload config:', error);
                                   toast.error(
                                     error instanceof Error
                                       ? error.message
-                                      : "Failed to reload config from marketplace"
+                                      : 'Failed to reload config from marketplace',
                                   );
                                 }
                               }}
@@ -1148,19 +1061,17 @@ export default function IndexingConfigDetail() {
                             >
                               <RefreshCw
                                 className={`w-4 h-4 ${
-                                  reloadFromMarketplace.isPending
-                                    ? "animate-spin"
-                                    : ""
+                                  reloadFromMarketplace.isPending ? 'animate-spin' : ''
                                 }`}
                               />
                               {reloadFromMarketplace.isPending
-                                ? "Reloading..."
-                                : "Reload from Marketplace"}
+                                ? 'Reloading...'
+                                : 'Reload from Marketplace'}
                             </button>
                             <button
                               onClick={() => {
                                 navigator.clipboard.writeText(
-                                  JSON.stringify(config.config, null, 2)
+                                  JSON.stringify(config.config, null, 2),
                                 );
                               }}
                               className="btn btn-secondary text-sm"
@@ -1171,9 +1082,7 @@ export default function IndexingConfigDetail() {
                               <button
                                 onClick={() => {
                                   setIsEditing(true);
-                                  setEditedJson(
-                                    JSON.stringify(config.config, null, 2)
-                                  );
+                                  setEditedJson(JSON.stringify(config.config, null, 2));
                                   setParseError(null);
                                 }}
                                 className="btn btn-primary text-sm inline-flex items-center gap-2"
@@ -1189,7 +1098,7 @@ export default function IndexingConfigDetail() {
                             <button
                               onClick={() => {
                                 setIsEditing(false);
-                                setEditedJson("");
+                                setEditedJson('');
                                 setParseError(null);
                               }}
                               className="btn btn-secondary text-sm inline-flex items-center gap-2"
@@ -1211,13 +1120,8 @@ export default function IndexingConfigDetail() {
                                   if (error instanceof SyntaxError) {
                                     setParseError(error.message);
                                   } else {
-                                    console.error(
-                                      "Failed to save config:",
-                                      error
-                                    );
-                                    alert(
-                                      "Failed to save config. Check console for details."
-                                    );
+                                    console.error('Failed to save config:', error);
+                                    alert('Failed to save config. Check console for details.');
                                   }
                                 }
                               }}
@@ -1249,9 +1153,7 @@ export default function IndexingConfigDetail() {
                             <h3 className="text-sm font-medium text-brand-error">
                               JSON Syntax Error
                             </h3>
-                            <p className="mt-1 text-sm text-brand-error/80">
-                              {parseError}
-                            </p>
+                            <p className="mt-1 text-sm text-brand-error/80">{parseError}</p>
                           </div>
                         </div>
                       </div>
@@ -1292,16 +1194,15 @@ export default function IndexingConfigDetail() {
           isOpen={showGuidanceModal}
           onClose={() => {
             setShowGuidanceModal(false);
-            setUserGuidance("");
+            setUserGuidance('');
           }}
           title="Regenerate Config with Guidance"
           size="lg"
         >
           <div className="p-6">
             <p className="text-sm text-text-tertiary mb-4">
-              Provide specific instructions to guide the LLM in generating the
-              config. For example, you can request specific entity extractions,
-              field mappings, or data transformations.
+              Provide specific instructions to guide the LLM in generating the config. For example,
+              you can request specific entity extractions, field mappings, or data transformations.
             </p>
 
             <div>
@@ -1321,7 +1222,7 @@ export default function IndexingConfigDetail() {
             <button
               onClick={() => {
                 setShowGuidanceModal(false);
-                setUserGuidance("");
+                setUserGuidance('');
               }}
               className="btn btn-secondary"
             >
@@ -1330,18 +1231,18 @@ export default function IndexingConfigDetail() {
             <button
               onClick={async () => {
                 setShowGuidanceModal(false);
-                setGenerationStep("generating");
+                setGenerationStep('generating');
                 try {
                   const result = await generateConfig.mutateAsync({
                     serverName: config.serverName,
                     userGuidance: userGuidance || undefined,
                   });
                   setGeneratedResult(result);
-                  setGenerationStep("result");
-                  setUserGuidance("");
+                  setGenerationStep('result');
+                  setUserGuidance('');
                 } catch (error) {
-                  console.error("Failed to regenerate config:", error);
-                  setGenerationStep("idle");
+                  console.error('Failed to regenerate config:', error);
+                  setGenerationStep('idle');
                 }
               }}
               disabled={!userGuidance.trim()}
@@ -1366,9 +1267,7 @@ export default function IndexingConfigDetail() {
                 <AlertCircle className="w-6 h-6 text-brand-warning" />
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-medium text-text-primary mb-2">
-                  What will happen:
-                </h3>
+                <h3 className="text-sm font-medium text-text-primary mb-2">What will happen:</h3>
                 <ul className="text-sm text-text-secondary space-y-2">
                   <li className="flex items-start gap-2">
                     <span className="text-brand-warning mt-0.5">•</span>
@@ -1392,18 +1291,15 @@ export default function IndexingConfigDetail() {
           </div>
 
           <ModalFooter>
-            <button
-              onClick={() => setShowResetModal(false)}
-              className="btn btn-secondary"
-            >
+            <button onClick={() => setShowResetModal(false)} className="btn btn-secondary">
               Cancel
             </button>
             <button
               onClick={async () => {
                 try {
-                  console.log("Resetting sync state for:", config.serverName);
+                  console.log('Resetting sync state for:', config.serverName);
                   await resetSyncState.mutateAsync(config.serverName);
-                  console.log("Sync state reset, starting full sync...");
+                  console.log('Sync state reset, starting full sync...');
 
                   await syncWithConfig.mutateAsync({
                     serverName: config.serverName,
@@ -1411,15 +1307,13 @@ export default function IndexingConfigDetail() {
                   });
 
                   setShowResetModal(false);
-                  toast.success(
-                    "Sync state reset and full resync started successfully!"
-                  );
+                  toast.success('Sync state reset and full resync started successfully!');
                 } catch (error) {
-                  console.error("Failed to reset and resync:", error);
+                  console.error('Failed to reset and resync:', error);
                   toast.error(
                     error instanceof Error
                       ? error.message
-                      : "Failed to reset and resync. Check console for details."
+                      : 'Failed to reset and resync. Check console for details.',
                   );
                 }
               }}
@@ -1432,7 +1326,7 @@ export default function IndexingConfigDetail() {
                   Processing...
                 </>
               ) : (
-                "Reset & Resync"
+                'Reset & Resync'
               )}
             </button>
           </ModalFooter>

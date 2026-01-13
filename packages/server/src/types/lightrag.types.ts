@@ -3,14 +3,14 @@
  * Structured retrieval without LLM generation
  */
 
-import { loadProxyConfig } from "../mcp/config-loader.js";
-import { SourceType } from "./index.js";
+import { loadProxyConfig } from '../mcp/config-loader.js';
+import { SourceType } from './index.js';
 
 // ============================================
 // Query Modes
 // ============================================
 
-export type LightRAGMode = "naive" | "local" | "global" | "hybrid" | "mix";
+export type LightRAGMode = 'naive' | 'local' | 'global' | 'hybrid' | 'mix';
 
 // ============================================
 // Query Input
@@ -21,7 +21,7 @@ export interface LightRAGQuery {
   mode?: LightRAGMode;
 
   // Response format
-  response_format?: "compact" | "full"; // default: "compact"
+  response_format?: 'compact' | 'full'; // default: "compact"
 
   // Retrieval parameters
   top_k?: number; // Entities/relations to retrieve (default: 60)
@@ -144,7 +144,7 @@ export const lightragQueryTool = async () => {
   const validConfigs = await loadProxyConfig();
 
   return {
-    name: "ebee_search",
+    name: 'ebee_search',
     description: `🐝 eBee Fast Search - YOUR PRIMARY TOOL FOR INTERNAL KNOWLEDGE
 
 ⚠️ ALWAYS USE THIS FIRST for questions about:
@@ -161,7 +161,7 @@ Only use those for EXTERNAL information not in eBee or for WRITE operations (cre
 ⚡ PERFORMANCE: 10-100x faster than individual MCP calls due to unified graph+vector architecture.
 
 📚 INDEXED SOURCES:
-${validConfigs.map((config) => `- ${config.name}`).join("\n")}
+${validConfigs.map((config) => `- ${config.name}`).join('\n')}
 
 Query Modes:
 - naive: Pure vector similarity search (⚡ FASTEST ~50ms, best for simple keyword lookups)
@@ -173,71 +173,70 @@ Query Modes:
 Returns structured JSON with relevant document chunks, each containing title, snippet, source, score, and metadata.`,
 
     inputSchema: {
-      type: "object" as const,
+      type: 'object' as const,
       properties: {
         query: {
-          type: "string",
+          type: 'string',
           description:
             "Your search query in natural language. Can be a question (e.g., 'Who is working on authentication?') or keywords (e.g., 'API documentation updates'). The system will extract entities and concepts automatically.",
         },
         mode: {
-          type: "string",
-          enum: ["naive", "local", "global", "hybrid", "mix"],
+          type: 'string',
+          enum: ['naive', 'local', 'global', 'hybrid', 'mix'],
           description:
             "Retrieval strategy that determines how the knowledge graph and vector search are combined. 'naive': Pure vector similarity (fastest). 'local': Entity-focused with 1-hop graph expansion (best for who/what/where questions). 'global': Relationship-centric (best for how/why questions). 'hybrid': Combines local + global. 'mix': Parallel graph + vector with reranking (most accurate, default).",
         },
         response_format: {
-          type: "string",
-          enum: ["compact", "full"],
+          type: 'string',
+          enum: ['compact', 'full'],
           description:
             "Output format for retrieved chunks. 'compact': Returns document snippets (200-500 characters) with minimal metadata (faster, smaller payload). 'full': Includes complete document content plus rich metadata (tags, dates, raw data). Default: 'compact'",
         },
         top_k: {
-          type: "number",
+          type: 'number',
           description:
-            "Maximum number of entities and relationships to retrieve from the knowledge graph during the search phase (before final ranking). Higher values provide more comprehensive results but increase processing time. Range: 10-100. Recommended: 20-40 for quick answers, 60-80 for comprehensive coverage, 100+ for exhaustive search. Default: 60",
+            'Maximum number of entities and relationships to retrieve from the knowledge graph during the search phase (before final ranking). Higher values provide more comprehensive results but increase processing time. Range: 10-100. Recommended: 20-40 for quick answers, 60-80 for comprehensive coverage, 100+ for exhaustive search. Default: 60',
         },
         chunk_top_k: {
-          type: "number",
+          type: 'number',
           description:
             "Maximum number of document chunks (text excerpts) to return in the final results. This is the actual number of results you'll receive. Range: 5-50. Recommended: 10-20 for focused context, 30-50 for broad context. Default: 20",
         },
         enable_rerank: {
-          type: "boolean",
+          type: 'boolean',
           description:
             "Whether to use LLM-based reranking to improve result relevance. Reranking re-scores the initial results using semantic understanding, significantly improving accuracy but adding ~200ms processing time. Highly recommended for production. Only has effect when mode is 'mix'. Default: true",
         },
         score_threshold: {
-          type: "number",
+          type: 'number',
           description:
-            "Minimum relevance score (0.0 to 1.0) for results to be included. Lower values return more results but with lower confidence. Higher values return fewer but more relevant results. Range: 0.0-1.0. Recommended: 0.5 for high recall, 0.7 for balanced, 0.8+ for high precision. Default: 0.6",
+            'Minimum relevance score (0.0 to 1.0) for results to be included. Lower values return more results but with lower confidence. Higher values return fewer but more relevant results. Range: 0.0-1.0. Recommended: 0.5 for high recall, 0.7 for balanced, 0.8+ for high precision. Default: 0.6',
         },
         filters: {
-          type: "object",
-          description:
-            "Optional filters to narrow down search results by source or date range.",
+          type: 'object',
+          description: 'Optional filters to narrow down search results by source or date range.',
           properties: {
             sources: {
-              type: "array",
+              type: 'array',
               items: {
-                type: "string",
-                enum: ["notion", "slack", "calendar", "jira", "github"],
+                type: 'string',
+                enum: ['notion', 'slack', 'calendar', 'jira', 'github'],
               },
               description:
                 "Filter results to specific data sources. Example: ['notion', 'slack']. Available sources: notion, slack, calendar, jira",
             },
             dateRange: {
-              type: "object",
+              type: 'object',
               description:
-                "Filter results to documents within a specific date range (based on document creation/update time)",
+                'Filter results to documents within a specific date range (based on document creation/update time)',
               properties: {
                 start: {
-                  type: "string",
+                  type: 'string',
                   description:
                     "Filter results to documents created/updated after this date. ISO 8601 format. Example: '2024-01-01T00:00:00Z'",
                 },
                 end: {
-                  type: "string",
+                  type: 'string',
                   description:
                     "Filter results to documents created/updated before this date. ISO 8601 format. Example: '2024-12-31T23:59:59Z'",
                 },
@@ -246,7 +245,7 @@ Returns structured JSON with relevant document chunks, each containing title, sn
           },
         },
       },
-      required: ["query"],
+      required: ['query'],
     },
   };
 };

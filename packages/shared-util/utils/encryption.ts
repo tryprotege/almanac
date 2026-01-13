@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from 'crypto';
 
 /**
  * Interface for encrypted data structure
@@ -17,11 +17,11 @@ export interface EncryptedData {
  */
 export function encrypt(plaintext: string, key: Buffer): string {
   if (!plaintext) {
-    throw new Error("Plaintext cannot be empty");
+    throw new Error('Plaintext cannot be empty');
   }
 
   if (!key || key.length !== 32) {
-    throw new Error("Encryption key must be 32 bytes (256 bits)");
+    throw new Error('Encryption key must be 32 bytes (256 bits)');
   }
 
   try {
@@ -29,27 +29,25 @@ export function encrypt(plaintext: string, key: Buffer): string {
     const iv = crypto.randomBytes(12);
 
     // Create cipher
-    const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
 
     // Encrypt
-    let encrypted = cipher.update(plaintext, "utf8", "base64");
-    encrypted += cipher.final("base64");
+    let encrypted = cipher.update(plaintext, 'utf8', 'base64');
+    encrypted += cipher.final('base64');
 
     // Get auth tag
-    const authTag = cipher.getAuthTag().toString("base64");
+    const authTag = cipher.getAuthTag().toString('base64');
 
     // Return formatted string
     const encryptedData: EncryptedData = {
       encrypted,
-      iv: iv.toString("base64"),
+      iv: iv.toString('base64'),
       authTag,
     };
 
     return `enc:${JSON.stringify(encryptedData)}`;
   } catch (err) {
-    throw new Error(
-      `Encryption failed: ${err instanceof Error ? err.message : String(err)}`
-    );
+    throw new Error(`Encryption failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -61,15 +59,15 @@ export function encrypt(plaintext: string, key: Buffer): string {
  */
 export function decrypt(encryptedValue: string, key: Buffer): string {
   if (!encryptedValue) {
-    throw new Error("Encrypted value cannot be empty");
+    throw new Error('Encrypted value cannot be empty');
   }
 
   if (!key || key.length !== 32) {
-    throw new Error("Encryption key must be 32 bytes (256 bits)");
+    throw new Error('Encryption key must be 32 bytes (256 bits)');
   }
 
   // Check if encrypted
-  if (!encryptedValue.startsWith("enc:")) {
+  if (!encryptedValue.startsWith('enc:')) {
     throw new Error('Value is not encrypted (must start with "enc:")');
   }
 
@@ -79,32 +77,26 @@ export function decrypt(encryptedValue: string, key: Buffer): string {
     const encryptedData: EncryptedData = JSON.parse(jsonStr);
 
     // Validate structure
-    if (
-      !encryptedData.encrypted ||
-      !encryptedData.iv ||
-      !encryptedData.authTag
-    ) {
-      throw new Error("Invalid encrypted data structure");
+    if (!encryptedData.encrypted || !encryptedData.iv || !encryptedData.authTag) {
+      throw new Error('Invalid encrypted data structure');
     }
 
     // Convert from base64
-    const iv = Buffer.from(encryptedData.iv, "base64");
-    const authTag = Buffer.from(encryptedData.authTag, "base64");
+    const iv = Buffer.from(encryptedData.iv, 'base64');
+    const authTag = Buffer.from(encryptedData.authTag, 'base64');
     const encrypted = encryptedData.encrypted;
 
     // Create decipher
-    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(authTag);
 
     // Decrypt
-    let decrypted = decipher.update(encrypted, "base64", "utf8");
-    decrypted += decipher.final("utf8");
+    let decrypted = decipher.update(encrypted, 'base64', 'utf8');
+    decrypted += decipher.final('utf8');
 
     return decrypted;
   } catch (err) {
-    throw new Error(
-      `Decryption failed: ${err instanceof Error ? err.message : String(err)}`
-    );
+    throw new Error(`Decryption failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -114,7 +106,7 @@ export function decrypt(encryptedValue: string, key: Buffer): string {
  * @returns true if value starts with "enc:", false otherwise
  */
 export function isEncrypted(value: string): boolean {
-  return typeof value === "string" && value.startsWith("enc:");
+  return typeof value === 'string' && value.startsWith('enc:');
 }
 
 /**
@@ -125,12 +117,12 @@ export function isEncrypted(value: string): boolean {
  */
 export function encryptMapValues(
   map: Map<string, string> | Record<string, string> | null | undefined,
-  key: Buffer
+  key: Buffer,
 ): Map<string, string> {
   if (!map) return new Map();
 
   if (!key || key.length !== 32) {
-    throw new Error("Encryption key must be 32 bytes (256 bits)");
+    throw new Error('Encryption key must be 32 bytes (256 bits)');
   }
 
   const result = new Map<string, string>();
@@ -147,7 +139,7 @@ export function encryptMapValues(
         // Log error but continue processing other values
         console.error(
           `Failed to encrypt value for key "${k}":`,
-          err instanceof Error ? err.message : String(err)
+          err instanceof Error ? err.message : String(err),
         );
         // Keep original value if encryption fails
         result.set(k, v);
@@ -166,12 +158,12 @@ export function encryptMapValues(
  */
 export function decryptMapValues(
   map: Map<string, string> | Record<string, string> | null | undefined,
-  key: Buffer
+  key: Buffer,
 ): Map<string, string> {
   if (!map) return new Map();
 
   if (!key || key.length !== 32) {
-    throw new Error("Encryption key must be 32 bytes (256 bits)");
+    throw new Error('Encryption key must be 32 bytes (256 bits)');
   }
 
   const result = new Map<string, string>();
@@ -186,7 +178,7 @@ export function decryptMapValues(
         // Log error but keep encrypted value to prevent data loss
         console.error(
           `Failed to decrypt value for key "${k}":`,
-          err instanceof Error ? err.message : String(err)
+          err instanceof Error ? err.message : String(err),
         );
         result.set(k, v);
       }
@@ -203,7 +195,7 @@ export function decryptMapValues(
  * @returns 64-character hex string (32 bytes)
  */
 export function generateEncryptionKey(): string {
-  return crypto.randomBytes(32).toString("hex");
+  return crypto.randomBytes(32).toString('hex');
 }
 
 /**
@@ -213,14 +205,14 @@ export function generateEncryptionKey(): string {
  */
 export function hexToBuffer(keyHex: string): Buffer {
   if (!keyHex || keyHex.length !== 64) {
-    throw new Error("Encryption key must be 64 hex characters (32 bytes)");
+    throw new Error('Encryption key must be 64 hex characters (32 bytes)');
   }
 
   if (!/^[0-9a-f]{64}$/i.test(keyHex)) {
-    throw new Error("Encryption key must be valid hexadecimal");
+    throw new Error('Encryption key must be valid hexadecimal');
   }
 
-  return Buffer.from(keyHex, "hex");
+  return Buffer.from(keyHex, 'hex');
 }
 
 /**
@@ -229,11 +221,7 @@ export function hexToBuffer(keyHex: string): Buffer {
  * @returns true if valid, false otherwise
  */
 export function isValidEncryptionKey(keyHex: string): boolean {
-  return (
-    typeof keyHex === "string" &&
-    keyHex.length === 64 &&
-    /^[0-9a-f]{64}$/i.test(keyHex)
-  );
+  return typeof keyHex === 'string' && keyHex.length === 64 && /^[0-9a-f]{64}$/i.test(keyHex);
 }
 
 /**
@@ -241,7 +229,7 @@ export function isValidEncryptionKey(keyHex: string): boolean {
  * @returns 32-character hex string (16 bytes)
  */
 export function generateSalt(): string {
-  return crypto.randomBytes(16).toString("hex");
+  return crypto.randomBytes(16).toString('hex');
 }
 
 /**
@@ -252,16 +240,16 @@ export function generateSalt(): string {
  */
 function deriveKey(masterKey: Buffer, salt: string): Buffer {
   if (!masterKey || masterKey.length !== 32) {
-    throw new Error("Master key must be 32 bytes (256 bits)");
+    throw new Error('Master key must be 32 bytes (256 bits)');
   }
 
   if (!salt || salt.length < 16) {
-    throw new Error("Salt must be at least 16 characters");
+    throw new Error('Salt must be at least 16 characters');
   }
 
   // Use PBKDF2 to derive key from master key + salt
   // Iterations set to 10000 for performance balance
-  return crypto.pbkdf2Sync(masterKey, salt, 10000, 32, "sha256");
+  return crypto.pbkdf2Sync(masterKey, salt, 10000, 32, 'sha256');
 }
 
 /**
@@ -271,17 +259,13 @@ function deriveKey(masterKey: Buffer, salt: string): Buffer {
  * @param salt - Salt string for this record
  * @returns Encrypted string in format: enc:{\"encrypted\":\"...\",\"iv\":\"...\",\"authTag\":\"...\""}
  */
-export function encryptWithSalt(
-  plaintext: string,
-  masterKey: Buffer,
-  salt: string
-): string {
+export function encryptWithSalt(plaintext: string, masterKey: Buffer, salt: string): string {
   if (!plaintext) {
-    throw new Error("Plaintext cannot be empty");
+    throw new Error('Plaintext cannot be empty');
   }
 
   if (!salt) {
-    throw new Error("Salt cannot be empty");
+    throw new Error('Salt cannot be empty');
   }
 
   // Derive unique key from master key + salt
@@ -298,17 +282,13 @@ export function encryptWithSalt(
  * @param salt - Salt string used during encryption
  * @returns Decrypted plaintext string
  */
-export function decryptWithSalt(
-  encryptedValue: string,
-  masterKey: Buffer,
-  salt: string
-): string {
+export function decryptWithSalt(encryptedValue: string, masterKey: Buffer, salt: string): string {
   if (!encryptedValue) {
-    throw new Error("Encrypted value cannot be empty");
+    throw new Error('Encrypted value cannot be empty');
   }
 
   if (!salt) {
-    throw new Error("Salt cannot be empty");
+    throw new Error('Salt cannot be empty');
   }
 
   // Derive the same key from master key + salt

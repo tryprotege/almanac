@@ -71,37 +71,37 @@ Both Amp and Claude use Anthropic's API, so you can use the same API key for bot
 The primary benchmark compares different CLI agents with eBee vs Direct MCP setups:
 
 ```typescript
-import { runMatrixBenchmark } from "@ebee-oss/benchmark";
-import type { MatrixBenchmarkConfig } from "@ebee-oss/benchmark";
+import { runMatrixBenchmark } from '@ebee-oss/benchmark';
+import type { MatrixBenchmarkConfig } from '@ebee-oss/benchmark';
 
 const config: MatrixBenchmarkConfig = {
-  name: "Agent × MCP Matrix Comparison",
-  type: "matrix",
+  name: 'Agent × MCP Matrix Comparison',
+  type: 'matrix',
   iterations: 3,
-  outputDir: "./results",
+  outputDir: './results',
 
   // Agents to test
   agents: [
     {
-      name: "amp",
-      model: "claude-haiku-4-5-20251001",
+      name: 'amp',
+      model: 'claude-haiku-4-5-20251001',
     },
     {
-      name: "claude-cli",
-      model: "claude-haiku-4-5-20251001",
+      name: 'claude-cli',
+      model: 'claude-haiku-4-5-20251001',
     },
   ],
 
   // MCP setup configurations
   mcpSetups: {
     ebee: {
-      url: "http://localhost:3000",
+      url: 'http://localhost:3000',
     },
     direct: {
-      servers: ["fathom", "notion"],
+      servers: ['fathom', 'notion'],
       packages: {
-        fathom: "@ebee-oss/fathom-mcp-server",
-        notion: "@notionhq/notion-mcp-server",
+        fathom: '@ebee-oss/fathom-mcp-server',
+        notion: '@notionhq/notion-mcp-server',
       },
     },
   },
@@ -109,9 +109,9 @@ const config: MatrixBenchmarkConfig = {
   // Test scenarios
   scenarios: [
     {
-      id: "decisions",
+      id: 'decisions',
       query: "What were the key decisions from last week's meeting?",
-      targetServers: ["fathom"],
+      targetServers: ['fathom'],
     },
   ],
 };
@@ -211,15 +211,15 @@ Install from https://claude.ai/code
 The benchmark will automatically validate CLI tools are installed before running:
 
 ```typescript
-import { validateCLIAgent, checkCLIAvailable } from "@ebee-oss/benchmark";
+import { validateCLIAgent, checkCLIAvailable } from '@ebee-oss/benchmark';
 
 // Check if tool is available
-const hasAmp = await checkCLIAvailable("amp");
+const hasAmp = await checkCLIAvailable('amp');
 
 // Validate agent configuration
 await validateCLIAgent({
-  name: "amp",
-  model: "claude-3-5-sonnet-20241022",
+  name: 'amp',
+  model: 'claude-3-5-sonnet-20241022',
 });
 ```
 
@@ -246,7 +246,7 @@ Full configuration structure:
 interface MatrixBenchmarkConfig {
   name: string;
   description?: string;
-  type: "matrix";
+  type: 'matrix';
   iterations: number;
   outputDir: string;
   agents: AgentConfig[];

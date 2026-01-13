@@ -2,26 +2,16 @@
  * LLM-based content extraction for entities and relationships
  */
 
-import OpenAI from "openai";
-import { Entity, Relationship } from "../types.js";
-import { normalizeEntityName } from "../schema/entity-deduplication.js";
-import { chat } from "../../../llm/llm.js";
-import logger from "../../../../utils/logger.js";
-import sleep from "../../../../utils/sleep.js";
-import { env } from "../../../../env.js";
-import {
-  buildCombinedExtractionPrompt,
-  buildSingleEntityExtractionPrompt,
-} from "./prompts.js";
-import {
-  COMBINED_EXTRACTION_SCHEMA,
-  SINGLE_ENTITY_EXTRACTION_SCHEMA,
-} from "./schemas.js";
-import {
-  stripExtraQuotes,
-  sanitizeEntityName,
-  inferEntityTypeFromRelationship,
-} from "./utils.js";
+import OpenAI from 'openai';
+import { Entity, Relationship } from '../types.js';
+import { normalizeEntityName } from '../schema/entity-deduplication.js';
+import { chat } from '../../../llm/llm.js';
+import logger from '../../../../utils/logger.js';
+import sleep from '../../../../utils/sleep.js';
+import { env } from '../../../../env.js';
+import { buildCombinedExtractionPrompt, buildSingleEntityExtractionPrompt } from './prompts.js';
+import { COMBINED_EXTRACTION_SCHEMA, SINGLE_ENTITY_EXTRACTION_SCHEMA } from './schemas.js';
+import { stripExtraQuotes, sanitizeEntityName, inferEntityTypeFromRelationship } from './utils.js';
 
 /**
  * Extract entities and relationships using single-pass extraction with fallback
@@ -36,12 +26,12 @@ async function extractBothFromContent(
   recordContext?: {
     recordId: string;
     recordTitle: string;
-  }
+  },
 ): Promise<{
   entities: Entity[];
   relationships: Relationship[];
 }> {
-  let response = "";
+  let response = '';
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -49,18 +39,18 @@ async function extractBothFromContent(
         content,
         existingEntityTypes,
         existingRelationshipTypes,
-        persona
+        persona,
       );
 
       response = await chat(
         client,
         [
           {
-            role: "system",
+            role: 'system',
             content:
-              "You are a knowledge graph extraction system. Extract entities and relationships from content. Always respond with valid JSON.",
+              'You are a knowledge graph extraction system. Extract entities and relationships from content. Always respond with valid JSON.',
           },
-          { role: "user", content: prompt },
+          { role: 'user', content: prompt },
         ],
         {
           model: env.LLM_EXTRACTION_MODEL,
@@ -68,17 +58,17 @@ async function extractBothFromContent(
           maxTokens: 10000,
           frequencyPenalty: 0.1,
           reasoning: {
-            effort: "none",
+            effort: 'none',
           },
           responseFormat: {
-            type: "json_schema",
+            type: 'json_schema',
             json_schema: {
-              name: "combined_extraction",
+              name: 'combined_extraction',
               schema: COMBINED_EXTRACTION_SCHEMA,
               strict: true,
             },
           },
-        }
+        },
       );
 
       const extracted = JSON.parse(response);
@@ -98,7 +88,7 @@ async function extractBothFromContent(
             msg: `⚠️ Skipped invalid entity`,
             original: entity.name,
             type: entity.type,
-            reason: "Failed sanitization",
+            reason: 'Failed sanitization',
           });
           continue;
         }
@@ -147,9 +137,7 @@ async function extractBothFromContent(
             strength: rel.strength,
           } as Relationship;
         })
-        .filter(
-          (rel: Relationship | null): rel is Relationship => rel !== null
-        );
+        .filter((rel: Relationship | null): rel is Relationship => rel !== null);
 
       // Log sanitization summary
       if (sanitizedCount > 0 || skippedCount > 0) {
@@ -164,7 +152,7 @@ async function extractBothFromContent(
       // Log with record context
       const recordInfo = recordContext
         ? ` for "${recordContext.recordTitle}" (ID: ${recordContext.recordId})`
-        : "";
+        : '';
       logger.info({
         msg: `📊 Combined Extraction Results`,
         recordInfo,
@@ -183,7 +171,7 @@ async function extractBothFromContent(
     } catch (err) {
       const recordInfo = recordContext
         ? ` for "${recordContext.recordTitle}" (ID: ${recordContext.recordId})`
-        : "";
+        : '';
 
       logger.error(
         {
@@ -195,20 +183,18 @@ async function extractBothFromContent(
           rawResponse: response,
           responseLength: response?.length,
         },
-        `❌ Failed to parse combined extraction response${recordInfo} (attempt ${attempt}/${maxRetries})`
+        `❌ Failed to parse combined extraction response${recordInfo} (attempt ${attempt}/${maxRetries})`,
       );
 
       if (attempt === maxRetries) {
         logger.error(
-          `❌ Combined extraction failed after ${maxRetries} attempts${recordInfo}. Returning empty results.`
+          `❌ Combined extraction failed after ${maxRetries} attempts${recordInfo}. Returning empty results.`,
         );
         return { entities: [], relationships: [] };
       }
 
       const delayMs = 1000 * Math.pow(2, attempt - 1);
-      logger.warn(
-        `⚠️  Retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})...`
-      );
+      logger.warn(`⚠️  Retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})...`);
       await sleep(delayMs);
     }
   }
@@ -228,14 +214,14 @@ async function extractMissingEntity(
   recordContext?: {
     recordId: string;
     recordTitle: string;
-  }
+  },
 ): Promise<Entity | null> {
   try {
     const prompt = buildSingleEntityExtractionPrompt(
       content,
       entityName,
       existingEntityTypes,
-      relationshipContext
+      relationshipContext,
     );
 
     logger.debug({
@@ -247,11 +233,11 @@ async function extractMissingEntity(
       client,
       [
         {
-          role: "system",
+          role: 'system',
           content:
-            "You are a knowledge graph entity extraction system. Find the specific entity requested in the text. Always respond with valid JSON.",
+            'You are a knowledge graph entity extraction system. Find the specific entity requested in the text. Always respond with valid JSON.',
         },
-        { role: "user", content: prompt },
+        { role: 'user', content: prompt },
       ],
       {
         model: env.LLM_EXTRACTION_MODEL,
@@ -259,17 +245,17 @@ async function extractMissingEntity(
         maxTokens: 1000,
         frequencyPenalty: 0.2,
         reasoning: {
-          effort: "low",
+          effort: 'low',
         },
         responseFormat: {
-          type: "json_schema",
+          type: 'json_schema',
           json_schema: {
-            name: "single_entity_extraction",
+            name: 'single_entity_extraction',
             schema: SINGLE_ENTITY_EXTRACTION_SCHEMA,
             strict: true,
           },
         },
-      }
+      },
     );
 
     logger.debug({
@@ -283,7 +269,7 @@ async function extractMissingEntity(
     } catch (parseErr) {
       const recordInfo = recordContext
         ? ` for "${recordContext.recordTitle}" (ID: ${recordContext.recordId})`
-        : "";
+        : '';
 
       logger.error(
         {
@@ -294,7 +280,7 @@ async function extractMissingEntity(
           rawResponse: response,
           responseLength: response?.length,
         },
-        `❌ Failed to parse fallback extraction JSON response for "${entityName}"${recordInfo}`
+        `❌ Failed to parse fallback extraction JSON response for "${entityName}"${recordInfo}`,
       );
       return null;
     }
@@ -305,17 +291,14 @@ async function extractMissingEntity(
       return {
         name: stripExtraQuotes(result.entity.name),
         type: stripExtraQuotes(result.entity.type),
-        description: result.entity.description || "No description",
+        description: result.entity.description || 'No description',
       };
     }
 
     logger.warn({ msg: `⚠️  LLM returned entity=null for "${entityName}"` });
     return null;
   } catch (err) {
-    logger.error(
-      { err, entityName },
-      `❌ Failed to extract missing entity: "${entityName}"`
-    );
+    logger.error({ err, entityName }, `❌ Failed to extract missing entity: "${entityName}"`);
     return null;
   }
 }
@@ -323,10 +306,7 @@ async function extractMissingEntity(
 /**
  * Create inferential entity when fallback extraction fails
  */
-function createInferentialEntity(
-  entityName: string,
-  relationship: Relationship
-): Entity {
+function createInferentialEntity(entityName: string, relationship: Relationship): Entity {
   // Determine if this is the source or target
   const isSource = relationship.source === entityName;
   const relType = relationship.type;
@@ -356,7 +336,7 @@ export async function extractGraphFromContent(
   recordContext?: {
     recordId: string;
     recordTitle: string;
-  }
+  },
 ): Promise<{
   entities: Entity[];
   relationships: Relationship[];
@@ -369,13 +349,11 @@ export async function extractGraphFromContent(
     existingRelationshipTypes,
     persona,
     maxRetries,
-    recordContext
+    recordContext,
   );
 
   // Build a set of valid entity names (normalized) for validation
-  const validEntityNames = new Set(
-    entities.map((e) => normalizeEntityName(e.name))
-  );
+  const validEntityNames = new Set(entities.map((e) => normalizeEntityName(e.name)));
 
   // Find missing entities referenced in relationships and group by relationship
   const missingEntitiesMap = new Map<string, Relationship[]>();
@@ -402,16 +380,12 @@ export async function extractGraphFromContent(
     const missingEntityNames = Array.from(missingEntitiesMap.keys());
     const recordInfo = recordContext
       ? ` for "${recordContext.recordTitle}" (ID: ${recordContext.recordId})`
-      : "";
+      : '';
 
     logger.warn(
-      `⚠️  Found ${missingEntitiesMap.size} missing entities in relationships${recordInfo}`
+      `⚠️  Found ${missingEntitiesMap.size} missing entities in relationships${recordInfo}`,
     );
-    logger.warn(
-      `   Missing entities: ${missingEntityNames
-        .map((n) => `"${n}"`)
-        .join(", ")}`
-    );
+    logger.warn(`   Missing entities: ${missingEntityNames.map((n) => `"${n}"`).join(', ')}`);
 
     const fallbackLimit = 10;
     let fallbackCount = 0;
@@ -421,7 +395,7 @@ export async function extractGraphFromContent(
     for (const [missingName, relContexts] of missingEntitiesMap) {
       if (fallbackCount >= fallbackLimit) {
         logger.warn(
-          `⚠️  Reached fallback limit (${fallbackLimit}), skipping remaining missing entities`
+          `⚠️  Reached fallback limit (${fallbackLimit}), skipping remaining missing entities`,
         );
         break;
       }
@@ -439,25 +413,20 @@ export async function extractGraphFromContent(
         missingName,
         existingEntityTypes,
         relContext,
-        recordContext
+        recordContext,
       );
 
       if (entity) {
         entities.push(entity);
         validEntityNames.add(normalizeEntityName(entity.name));
-        logger.info(
-          `   ✅ Fallback extracted: "${entity.name}" (${entity.type})`
-        );
+        logger.info(`   ✅ Fallback extracted: "${entity.name}" (${entity.type})`);
         extractedCount++;
       } else {
-        const inferredEntity = createInferentialEntity(
-          missingName,
-          relContexts[0]
-        );
+        const inferredEntity = createInferentialEntity(missingName, relContexts[0]);
         entities.push(inferredEntity);
         validEntityNames.add(normalizeEntityName(inferredEntity.name));
         logger.info(
-          `   🔮 Inferential entity created: "${inferredEntity.name}" (${inferredEntity.type})`
+          `   🔮 Inferential entity created: "${inferredEntity.name}" (${inferredEntity.type})`,
         );
         inferredCount++;
       }
@@ -475,16 +444,12 @@ export async function extractGraphFromContent(
     const hasValidTarget = validEntityNames.has(normalizedTarget);
 
     if (!hasValidSource || !hasValidTarget) {
-      logger.warn(
-        `⚠️  Filtered invalid relationship - entity not found even after fallback:`
-      );
+      logger.warn(`⚠️  Filtered invalid relationship - entity not found even after fallback:`);
       if (recordContext) {
         logger.warn(`   Record ID: ${recordContext.recordId}`);
         logger.warn(`   Record: "${recordContext.recordTitle}"`);
       }
-      logger.warn(
-        `   Relationship: ${rel.source} -[${rel.type}]-> ${rel.target}`
-      );
+      logger.warn(`   Relationship: ${rel.source} -[${rel.type}]-> ${rel.target}`);
       if (!hasValidSource) {
         logger.warn(`   Missing source entity: "${rel.source}"`);
       }
@@ -503,7 +468,7 @@ export async function extractGraphFromContent(
   // Summary logging
   const recordInfo = recordContext
     ? `"${recordContext.recordTitle}" (ID: ${recordContext.recordId})`
-    : "unknown record";
+    : 'unknown record';
   logger.info({
     msg: `✅ Single-pass extraction complete`,
     recordInfo,

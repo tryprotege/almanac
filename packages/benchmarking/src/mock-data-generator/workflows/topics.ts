@@ -1,8 +1,8 @@
-import type { WorkflowTopic } from "./types.js";
-import type { GeneratorConfig } from "../types.js";
-import { generateWithLLM } from "../utils/llm.js";
-import { COMPANY_DATA } from "../data/company.js";
-import { selectRandomMultiple } from "../utils/random.js";
+import type { WorkflowTopic } from './types.js';
+import type { GeneratorConfig } from '../types.js';
+import { generateWithLLM } from '../utils/llm.js';
+import { COMPANY_DATA } from '../data/company.js';
+import { selectRandomMultiple } from '../utils/random.js';
 
 /**
  * Generate workflow topics that will be used across all services
@@ -10,7 +10,7 @@ import { selectRandomMultiple } from "../utils/random.js";
  */
 export async function generateWorkflowTopics(
   count: number,
-  config: GeneratorConfig
+  config: GeneratorConfig,
 ): Promise<WorkflowTopic[]> {
   const prompt = `Generate ${count} realistic software development topics for a gaming startup (${COMPANY_DATA.name}).
 
@@ -47,11 +47,11 @@ Return ONLY the JSON array:`;
       id: `topic-${idx + 1}`,
       participants: selectRandomMultiple(
         COMPANY_DATA.teamMembers.map((m) => m.name),
-        Math.floor(Math.random() * 4) + 2 // 2-5 participants
+        Math.floor(Math.random() * 4) + 2, // 2-5 participants
       ),
     }));
   } catch (error) {
-    console.error("Error generating workflow topics:", error);
+    console.error('Error generating workflow topics:', error);
     // Fallback topics
     return generateFallbackTopics(count);
   }
@@ -61,76 +61,72 @@ Return ONLY the JSON array:`;
  * Fallback topics if LLM generation fails
  */
 function generateFallbackTopics(count: number): WorkflowTopic[] {
-  const fallbackTopics: Omit<WorkflowTopic, "id" | "participants">[] = [
+  const fallbackTopics: Omit<WorkflowTopic, 'id' | 'participants'>[] = [
     {
-      title: "Matchmaking service high latency",
+      title: 'Matchmaking service high latency',
       description:
-        "Players experiencing 5-10 second delays in ranked matchmaking queue. Issue appears to affect primarily EU servers during peak hours.",
-      category: "bug",
+        'Players experiencing 5-10 second delays in ranked matchmaking queue. Issue appears to affect primarily EU servers during peak hours.',
+      category: 'bug',
       technicalDetails:
-        "Redis connection pool exhaustion, timeout errors in matchmaking-service logs",
-      affectedRepo: "gragger-matchmaking",
+        'Redis connection pool exhaustion, timeout errors in matchmaking-service logs',
+      affectedRepo: 'gragger-matchmaking',
     },
     {
-      title: "Add spectator mode to game client",
+      title: 'Add spectator mode to game client',
       description:
-        "Players requesting ability to spectate ongoing matches. Would enhance engagement and help with tournament streaming.",
-      category: "feature",
+        'Players requesting ability to spectate ongoing matches. Would enhance engagement and help with tournament streaming.',
+      category: 'feature',
       technicalDetails:
-        "Requires Unity client changes, backend API for match streaming, WebRTC integration",
-      affectedRepo: "gragger-game",
+        'Requires Unity client changes, backend API for match streaming, WebRTC integration',
+      affectedRepo: 'gragger-game',
     },
     {
-      title: "Database connection pool optimization",
+      title: 'Database connection pool optimization',
       description:
-        "Backend services experiencing intermittent database timeouts under load. Need to optimize connection pooling strategy.",
-      category: "infrastructure",
-      technicalDetails:
-        "PostgreSQL connection limits, node-postgres pool configuration",
-      affectedRepo: "gragger-server",
+        'Backend services experiencing intermittent database timeouts under load. Need to optimize connection pooling strategy.',
+      category: 'infrastructure',
+      technicalDetails: 'PostgreSQL connection limits, node-postgres pool configuration',
+      affectedRepo: 'gragger-server',
     },
     {
-      title: "Player lobby UI redesign",
+      title: 'Player lobby UI redesign',
       description:
-        "Current lobby interface is confusing for new players. Need cleaner design with better UX flow.",
-      category: "design",
-      technicalDetails: "Unity UI prefabs, lobby state management, animations",
-      affectedRepo: "gragger-game",
+        'Current lobby interface is confusing for new players. Need cleaner design with better UX flow.',
+      category: 'design',
+      technicalDetails: 'Unity UI prefabs, lobby state management, animations',
+      affectedRepo: 'gragger-game',
     },
     {
-      title: "Implement automated deployment pipeline",
+      title: 'Implement automated deployment pipeline',
       description:
-        "Manual deployments are error-prone and slow. Need CI/CD pipeline with automated testing and rollback capability.",
-      category: "process",
-      technicalDetails: "GitHub Actions, Terraform, Docker, k8s deployments",
-      affectedRepo: "gragger-infra",
+        'Manual deployments are error-prone and slow. Need CI/CD pipeline with automated testing and rollback capability.',
+      category: 'process',
+      technicalDetails: 'GitHub Actions, Terraform, Docker, k8s deployments',
+      affectedRepo: 'gragger-infra',
     },
     {
-      title: "Memory leak in game server",
+      title: 'Memory leak in game server',
       description:
-        "Game servers show increasing memory usage over time, eventually crashing after ~24 hours of uptime.",
-      category: "bug",
-      technicalDetails:
-        "Node.js heap profiling, possible WebSocket connection cleanup issue",
-      affectedRepo: "gragger-server",
+        'Game servers show increasing memory usage over time, eventually crashing after ~24 hours of uptime.',
+      category: 'bug',
+      technicalDetails: 'Node.js heap profiling, possible WebSocket connection cleanup issue',
+      affectedRepo: 'gragger-server',
     },
     {
-      title: "Add player progression system",
+      title: 'Add player progression system',
       description:
-        "Implement XP, levels, and unlockable content to improve player retention and engagement.",
-      category: "feature",
-      technicalDetails:
-        "Database schema for player stats, achievement system, API endpoints",
-      affectedRepo: "gragger-server",
+        'Implement XP, levels, and unlockable content to improve player retention and engagement.',
+      category: 'feature',
+      technicalDetails: 'Database schema for player stats, achievement system, API endpoints',
+      affectedRepo: 'gragger-server',
     },
     {
-      title: "Upgrade to latest Unity LTS version",
+      title: 'Upgrade to latest Unity LTS version',
       description:
-        "Current Unity version is deprecated. Need to upgrade to latest LTS for security patches and performance improvements.",
-      category: "infrastructure",
-      technicalDetails:
-        "Unity 2021.3 LTS to 2022.3 LTS, potential breaking changes in physics",
-      affectedRepo: "gragger-game",
+        'Current Unity version is deprecated. Need to upgrade to latest LTS for security patches and performance improvements.',
+      category: 'infrastructure',
+      technicalDetails: 'Unity 2021.3 LTS to 2022.3 LTS, potential breaking changes in physics',
+      affectedRepo: 'gragger-game',
     },
   ];
 
@@ -142,7 +138,7 @@ function generateFallbackTopics(count: number): WorkflowTopic[] {
       id: `topic-${i + 1}`,
       participants: selectRandomMultiple(
         COMPANY_DATA.teamMembers.map((m) => m.name),
-        Math.floor(Math.random() * 4) + 2
+        Math.floor(Math.random() * 4) + 2,
       ),
     });
   }

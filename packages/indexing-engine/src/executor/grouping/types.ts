@@ -2,7 +2,7 @@
  * Grouping engine types and interfaces
  */
 
-import type { TransformedRecord } from "../../types/execution.js";
+import type { TransformedRecord } from '../../types/execution.js';
 import type {
   GroupingConfig,
   ThreadGroupingConfig,
@@ -11,7 +11,7 @@ import type {
   SessionGroupingConfig,
   HybridGroupingConfig,
   ParentRecordConfig,
-} from "../../types/config.js";
+} from '../../types/config.js';
 
 // Re-export config types for convenience
 export type {
@@ -51,11 +51,11 @@ export interface RecordGroup {
  * Grouping strategy type (from config)
  */
 export type GroupingStrategy =
-  | "thread"
-  | "llm_conversation"
-  | "time_window"
-  | "user_session"
-  | "hybrid";
+  | 'thread'
+  | 'llm_conversation'
+  | 'time_window'
+  | 'user_session'
+  | 'hybrid';
 
 /**
  * Base interface for grouping strategy implementations
@@ -74,7 +74,7 @@ export interface IGroupingStrategy {
       | LLMGroupingConfig
       | TimeWindowGroupingConfig
       | SessionGroupingConfig
-      | HybridGroupingConfig
+      | HybridGroupingConfig,
   ): Promise<RecordGroup[]>;
 }
 

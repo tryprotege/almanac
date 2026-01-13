@@ -1,10 +1,7 @@
-import logger from "../../../utils/logger.js";
-import type {
-  StartingPointConfig,
-  FetcherConfig,
-} from "@ebee-oss/indexing-engine";
-import { fetchAll } from "./paginated-fetcher.js";
-import { JSONPath } from "jsonpath-plus";
+import logger from '../../../utils/logger.js';
+import type { StartingPointConfig, FetcherConfig } from '@ebee-oss/indexing-engine';
+import { fetchAll } from './paginated-fetcher.js';
+import { JSONPath } from 'jsonpath-plus';
 
 /**
  * Service to resolve starting points from config and user-provided values
@@ -22,7 +19,7 @@ export class StartingPointResolver {
     startingPoints: StartingPointConfig[] | undefined,
     userProvidedValues: Record<string, string[]> | undefined,
     serverName?: string,
-    fetchers?: Record<string, FetcherConfig>
+    fetchers?: Record<string, FetcherConfig>,
   ): Promise<Record<string, string[]>> {
     if (!startingPoints || startingPoints.length === 0) {
       return {};
@@ -36,7 +33,7 @@ export class StartingPointResolver {
           startingPoint,
           userProvidedValues,
           serverName,
-          fetchers
+          fetchers,
         );
         resolved[startingPoint.name] = values;
 
@@ -51,13 +48,10 @@ export class StartingPointResolver {
                 userProvidedValues[startingPoint.name].length === 0),
             valueCount: values.length,
           },
-          "Resolved starting point"
+          'Resolved starting point',
         );
       } catch (error) {
-        logger.error(
-          { err: error, name: startingPoint.name },
-          "Failed to resolve starting point"
-        );
+        logger.error({ err: error, name: startingPoint.name }, 'Failed to resolve starting point');
         throw error;
       }
     }
@@ -72,7 +66,7 @@ export class StartingPointResolver {
     startingPoint: StartingPointConfig,
     userProvidedValues: Record<string, string[]> | undefined,
     serverName?: string,
-    fetchers?: Record<string, FetcherConfig>
+    fetchers?: Record<string, FetcherConfig>,
   ): Promise<string[]> {
     // First, try to get user-provided values
     const userValues = userProvidedValues?.[startingPoint.name].filter(Boolean);
@@ -80,7 +74,7 @@ export class StartingPointResolver {
     if (userValues && userValues.length > 0) {
       logger.info(
         { name: startingPoint.name, count: userValues.length },
-        "Using user-provided starting point values"
+        'Using user-provided starting point values',
       );
       return userValues;
     }
@@ -89,15 +83,11 @@ export class StartingPointResolver {
     if (startingPoint.discovery && serverName && fetchers) {
       logger.info(
         { name: startingPoint.name, fetcher: startingPoint.discovery.fetcher },
-        "No user values, attempting discovery"
+        'No user values, attempting discovery',
       );
 
       try {
-        const discoveredValues = await this.runDiscovery(
-          startingPoint,
-          serverName,
-          fetchers
-        );
+        const discoveredValues = await this.runDiscovery(startingPoint, serverName, fetchers);
 
         if (discoveredValues.length > 0) {
           logger.info(
@@ -106,14 +96,14 @@ export class StartingPointResolver {
               count: discoveredValues.length,
               description: startingPoint.discovery.description,
             },
-            "Successfully discovered starting point values"
+            'Successfully discovered starting point values',
           );
           return discoveredValues;
         }
       } catch (error) {
         logger.error(
           { err: error, name: startingPoint.name },
-          "Discovery failed for starting point"
+          'Discovery failed for starting point',
         );
         // Fall through to required check
       }
@@ -123,7 +113,7 @@ export class StartingPointResolver {
     if (startingPoint.required) {
       throw new Error(
         `Required starting point '${startingPoint.name}' has no values. ` +
-          `User must provide values via the UI before indexing can start.`
+          `User must provide values via the UI before indexing can start.`,
       );
     }
 
@@ -136,7 +126,7 @@ export class StartingPointResolver {
   private static async runDiscovery(
     startingPoint: StartingPointConfig,
     serverName: string,
-    fetchers: Record<string, FetcherConfig>
+    fetchers: Record<string, FetcherConfig>,
   ): Promise<string[]> {
     const { discovery } = startingPoint;
     if (!discovery) {
@@ -146,9 +136,7 @@ export class StartingPointResolver {
     // Get the discovery fetcher config
     const fetcherConfig = fetchers[discovery.fetcher];
     if (!fetcherConfig) {
-      throw new Error(
-        `Discovery fetcher '${discovery.fetcher}' not found in config`
-      );
+      throw new Error(`Discovery fetcher '${discovery.fetcher}' not found in config`);
     }
 
     logger.debug(
@@ -157,7 +145,7 @@ export class StartingPointResolver {
         fetcher: discovery.fetcher,
         tool: fetcherConfig.tool,
       },
-      "Executing discovery fetcher"
+      'Executing discovery fetcher',
     );
 
     // Fetch all records from the discovery fetcher
@@ -171,17 +159,16 @@ export class StartingPointResolver {
         startingPoint: startingPoint.name,
         totalRecords: allRecords.length,
       },
-      "Discovery fetcher returned records"
+      'Discovery fetcher returned records',
     );
 
     // Apply filter if configured
     let filteredRecords = allRecords;
     if (discovery.filter) {
       try {
-        const filterFn = new Function(
-          "record",
-          `return ${discovery.filter}`
-        ) as (record: any) => boolean;
+        const filterFn = new Function('record', `return ${discovery.filter}`) as (
+          record: any,
+        ) => boolean;
         filteredRecords = allRecords.filter(filterFn);
 
         logger.debug(
@@ -191,13 +178,10 @@ export class StartingPointResolver {
             filteredRecords: filteredRecords.length,
             filter: discovery.filter,
           },
-          "Applied discovery filter"
+          'Applied discovery filter',
         );
       } catch (error) {
-        logger.error(
-          { err: error, filter: discovery.filter },
-          "Failed to apply discovery filter"
-        );
+        logger.error({ err: error, filter: discovery.filter }, 'Failed to apply discovery filter');
         throw new Error(`Invalid filter expression: ${discovery.filter}`);
       }
     }
@@ -215,7 +199,7 @@ export class StartingPointResolver {
           valuePath: discovery.valuePath,
           extractedCount: values.length,
         },
-        "Extracted values from discovery results"
+        'Extracted values from discovery results',
       );
 
       // Ensure we return strings
@@ -223,7 +207,7 @@ export class StartingPointResolver {
     } catch (error) {
       logger.error(
         { err: error, valuePath: discovery.valuePath },
-        "Failed to extract values from discovery results"
+        'Failed to extract values from discovery results',
       );
       throw new Error(`Invalid valuePath expression: ${discovery.valuePath}`);
     }
@@ -235,7 +219,7 @@ export class StartingPointResolver {
    */
   static getRequiredInputs(
     startingPoints: StartingPointConfig[] | undefined,
-    currentValues: Record<string, string[]> | undefined
+    currentValues: Record<string, string[]> | undefined,
   ): Array<{
     name: string;
     description: string;

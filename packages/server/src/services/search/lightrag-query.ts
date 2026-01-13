@@ -4,13 +4,13 @@
  * Returns structured chunks (entities, relationships, chunks)
  */
 
-import { RecordModel } from "../../models/record.model.js";
-import { GraphStore } from "../../stores/graph.store.js";
-import { VectorStore } from "../../stores/vector.store.js";
-import { RecordStore } from "../../stores/record.store.js";
-import { embed } from "../../utils/embedding.js";
-import { extractKeywordsNER } from "../../utils/keyword-extractor.js";
-import OpenAI from "openai";
+import { RecordModel } from '../../models/record.model.js';
+import { GraphStore } from '../../stores/graph.store.js';
+import { VectorStore } from '../../stores/vector.store.js';
+import { RecordStore } from '../../stores/record.store.js';
+import { embed } from '../../utils/embedding.js';
+import { extractKeywordsNER } from '../../utils/keyword-extractor.js';
+import OpenAI from 'openai';
 import {
   LightRAGQuery,
   LightRAGResponse,
@@ -19,11 +19,11 @@ import {
   LightRAGEntity,
   LightRAGRelationship,
   ExtractedKeywords,
-} from "../../types/lightrag.types.js";
-import logger from "../../utils/logger.js";
-import { GraphEmbeddingMetadata } from "../../models/graph-embedding-metadata.model.js";
-import { env } from "../../env.js";
-import { rerank } from "../llm/index.js";
+} from '../../types/lightrag.types.js';
+import logger from '../../utils/logger.js';
+import { GraphEmbeddingMetadata } from '../../models/graph-embedding-metadata.model.js';
+import { env } from '../../env.js';
+import { rerank } from '../llm/index.js';
 
 // ============================================
 // Dependencies Interface
@@ -43,11 +43,11 @@ export interface LightRAGDependencies {
 
 export async function lightragQuery(
   query: LightRAGQuery,
-  deps: LightRAGDependencies
+  deps: LightRAGDependencies,
 ): Promise<LightRAGResponse> {
   const startTime = Date.now();
-  const mode = query.mode || "mix";
-  const responseFormat = query.response_format || "compact";
+  const mode = query.mode || 'mix';
+  const responseFormat = query.response_format || 'compact';
 
   logger.info({ msg: `[LightRAG] Query`, query: query.query, mode });
 
@@ -56,13 +56,11 @@ export async function lightragQuery(
 
   // Extract keywords for dual-level retrieval (skip for naive mode)
   const keywords =
-    mode !== "naive"
-      ? extractKeywords(query.query)
-      : { high_level: [], low_level: [] };
+    mode !== 'naive' ? extractKeywords(query.query) : { high_level: [], low_level: [] };
 
-  if (mode !== "naive") {
+  if (mode !== 'naive') {
     logger.info({
-      msg: "[LightRAG] Keywords extracted",
+      msg: '[LightRAG] Keywords extracted',
       high: keywords.high_level,
       low: keywords.low_level,
     });
@@ -72,27 +70,27 @@ export async function lightragQuery(
   let records: LightRAGRecord[];
 
   switch (mode) {
-    case "naive": {
+    case 'naive': {
       const result = await naiveMode(params, deps);
       records = result.chunks;
       break;
     }
-    case "local": {
+    case 'local': {
       const result = await localMode(params, keywords, deps);
       records = result.records;
       break;
     }
-    case "global": {
+    case 'global': {
       const result = await globalMode(params, keywords, deps);
       records = result.records;
       break;
     }
-    case "hybrid": {
+    case 'hybrid': {
       const result = await hybridMode(params, keywords, deps);
       records = result.chunks;
       break;
     }
-    case "mix": {
+    case 'mix': {
       const result = await mixMode(params, keywords, deps);
       records = result.chunks;
       break;
@@ -102,14 +100,14 @@ export async function lightragQuery(
   }
 
   // Add full content if requested
-  if (responseFormat === "full") {
+  if (responseFormat === 'full') {
     records = await enrichWithFullContent(records, deps.recordStore);
   }
 
   const processingTime = Date.now() - startTime;
 
   logger.info({
-    msg: "[LightRAG] Query complete",
+    msg: '[LightRAG] Query complete',
     processingTime,
     chunks: records.length,
     documents: countUniqueDocuments(records),
@@ -123,10 +121,8 @@ export async function lightragQuery(
 
   return results
     .sort((a, b) => {
-      const aScore =
-        sortedChunks.find((c) => c.document_id === a._id)?.score || 0;
-      const bScore =
-        sortedChunks.find((c) => c.document_id === b._id)?.score || 0;
+      const aScore = sortedChunks.find((c) => c.document_id === a._id)?.score || 0;
+      const bScore = sortedChunks.find((c) => c.document_id === b._id)?.score || 0;
       return bScore - aScore;
     })
     .map((r) => ({
@@ -143,7 +139,7 @@ export async function lightragQuery(
 
 async function naiveMode(
   params: LightRAGQuery,
-  deps: LightRAGDependencies
+  deps: LightRAGDependencies,
 ): Promise<{ chunks: LightRAGRecord[]; vectorMatches: number }> {
   logger.info({ msg: `[LightRAG] Running naive mode (vector-only)` });
 
@@ -157,9 +153,9 @@ async function naiveMode(
     filter: {
       must_not: [
         {
-          key: "type",
+          key: 'type',
           match: {
-            any: ["entity", "relationship"],
+            any: ['entity', 'relationship'],
           },
         },
       ],
@@ -179,7 +175,7 @@ async function naiveMode(
 async function localMode(
   params: LightRAGQuery,
   keywords: ExtractedKeywords,
-  deps: LightRAGDependencies
+  deps: LightRAGDependencies,
 ): Promise<{
   records: LightRAGRecord[];
   vectorMatches: number;
@@ -189,34 +185,26 @@ async function localMode(
 
   // PARALLEL: Search entities and relationships simultaneously
   const [entities, entityRelationships] = await Promise.all([
-    searchEntitiesByKeywords(
-      keywords.low_level,
-      params.top_k || 60,
-      deps,
-      params.score_threshold
-    ),
+    searchEntitiesByKeywords(keywords.low_level, params.top_k || 60, deps, params.score_threshold),
     searchRelationshipsByKeywords(
       keywords.low_level,
       (params.top_k || 60) / 2,
       deps,
-      params.score_threshold
+      params.score_threshold,
     ),
   ]);
 
   // Get 1-hop graph relationships
   const graphRelationships = await getEntityRelationships(
     entities.map((e) => e.id),
-    deps.graphStore
+    deps.graphStore,
   );
 
   // Combine relationships from both sources
   const allRelationships = [...entityRelationships, ...graphRelationships];
 
   // Get chunks
-  const records = await getRecordsForEntities(
-    entities,
-    params.chunk_top_k || 20
-  );
+  const records = await getRecordsForEntities(entities, params.chunk_top_k || 20);
 
   return {
     records,
@@ -228,7 +216,7 @@ async function localMode(
 async function globalMode(
   params: LightRAGQuery,
   keywords: ExtractedKeywords,
-  deps: LightRAGDependencies
+  deps: LightRAGDependencies,
 ): Promise<{
   records: LightRAGRecord[];
   vectorMatches: number;
@@ -241,7 +229,7 @@ async function globalMode(
     keywords.high_level,
     params.top_k || 60,
     deps,
-    params.score_threshold
+    params.score_threshold,
   );
 
   // Extract unique entities
@@ -254,10 +242,7 @@ async function globalMode(
   const entities = await getEntitiesByIds(Array.from(entityIds), deps);
 
   // Get chunks
-  const records = await getRecordsForEntities(
-    entities,
-    params.chunk_top_k || 20
-  );
+  const records = await getRecordsForEntities(entities, params.chunk_top_k || 20);
 
   return {
     records,
@@ -269,7 +254,7 @@ async function globalMode(
 async function hybridMode(
   params: LightRAGQuery,
   keywords: ExtractedKeywords,
-  deps: LightRAGDependencies
+  deps: LightRAGDependencies,
 ): Promise<{
   chunks: LightRAGRecord[];
   vectorMatches: number;
@@ -284,10 +269,7 @@ async function hybridMode(
   ]);
 
   // Merge and deduplicate
-  const chunks = deduplicateChunks([
-    ...localResult.records,
-    ...globalResult.records,
-  ]);
+  const chunks = deduplicateChunks([...localResult.records, ...globalResult.records]);
 
   const limitedChunks = chunks.slice(0, params.chunk_top_k || 20);
 
@@ -301,7 +283,7 @@ async function hybridMode(
 async function mixMode(
   params: LightRAGQuery,
   keywords: ExtractedKeywords,
-  deps: LightRAGDependencies
+  deps: LightRAGDependencies,
 ): Promise<{
   chunks: LightRAGRecord[];
   vectorMatches: number;
@@ -314,20 +296,13 @@ async function mixMode(
   const hybridResult = await hybridMode(params, keywords, deps);
 
   // Apply reranking if enabled
-  if (
-    params.enable_rerank !== false &&
-    env.RERANKER_ENABLED &&
-    hybridResult.chunks.length > 0
-  ) {
+  if (params.enable_rerank !== false && env.RERANKER_ENABLED && hybridResult.chunks.length > 0) {
     logger.debug({ msg: `[LightRAG] Applying reranking...` });
-    const rerankedChunks = await rerankChunks(
-      params.query,
-      hybridResult.chunks
-    );
+    const rerankedChunks = await rerankChunks(params.query, hybridResult.chunks);
 
     // Filter by score_threshold after reranking
     const filteredChunks = rerankedChunks.filter(
-      (chunk) => chunk.score >= (params.score_threshold ?? 0)
+      (chunk) => chunk.score >= (params.score_threshold ?? 0),
     );
 
     return { ...hybridResult, chunks: filteredChunks, reranked: true };
@@ -350,8 +325,8 @@ function extractKeywords(query: string): ExtractedKeywords {
 
   logger.info(
     `[LightRAG] NER extraction - High: [${keywords.high_level.join(
-      ", "
-    )}], Low: [${keywords.low_level.join(", ")}]`
+      ', ',
+    )}], Low: [${keywords.low_level.join(', ')}]`,
   );
 
   return keywords;
@@ -361,10 +336,10 @@ async function searchEntitiesByKeywords(
   keywords: string[],
   limit: number,
   deps: LightRAGDependencies,
-  scoreThreshold?: number
+  scoreThreshold?: number,
 ): Promise<LightRAGEntity[]> {
   // Use vector search instead of text search
-  const searchQuery = keywords.join(" ");
+  const searchQuery = keywords.join(' ');
   const queryVector = (await embed([searchQuery]))[0];
 
   // Search entity embeddings in Qdrant
@@ -379,7 +354,7 @@ async function searchEntitiesByKeywords(
 
   // Fetch full records from MongoDB using entityId (which is now the MongoDB document ID)
   const recordIds = Array.from(
-    new Set(graphEmbeddingMetadata.map((i) => i.sourceRecordIds).flat())
+    new Set(graphEmbeddingMetadata.map((i) => i.sourceRecordIds).flat()),
   );
 
   const records = await RecordModel.find({ _id: { $in: recordIds } }).lean();
@@ -388,7 +363,7 @@ async function searchEntitiesByKeywords(
     let relevanceScore = 0;
     results.forEach((r) => {
       const metadata = graphEmbeddingMetadata.find(
-        (i) => i._id.toString() === r.payload.graphEmbeddingMetadataId
+        (i) => i._id.toString() === r.payload.graphEmbeddingMetadataId,
       );
       if (metadata?.sourceRecordIds.includes(record._id)) {
         if (r.score > relevanceScore) {
@@ -401,7 +376,7 @@ async function searchEntitiesByKeywords(
       name: record.title,
       type: record.recordType,
       description: record.content.substring(0, 200),
-      source: record.source as import("../../types/index.js").SourceType,
+      source: record.source as import('../../types/index.js').SourceType,
       sourceId: record.sourceId,
       date: record.primaryDate?.toISOString(),
       relevanceScore,
@@ -415,10 +390,10 @@ async function searchRelationshipsByKeywords(
   keywords: string[],
   limit: number,
   deps: LightRAGDependencies,
-  scoreThreshold?: number
+  scoreThreshold?: number,
 ): Promise<LightRAGRelationship[]> {
   // Use direct relationship vector search
-  const searchQuery = keywords.join(" ");
+  const searchQuery = keywords.join(' ');
   const queryVector = (await embed([searchQuery]))[0];
 
   // Search relationship embeddings in Qdrant
@@ -441,9 +416,7 @@ async function searchRelationshipsByKeywords(
 
   // Build LightRAGRelationship objects (filter out invalid relationships)
   const relationships: LightRAGRelationship[] = results
-    .filter(
-      (r) => r.payload.sourceId && r.payload.targetId && r.payload.relType
-    )
+    .filter((r) => r.payload.sourceId && r.payload.targetId && r.payload.relType)
     .map((result) => {
       const source = recordMap.get(result.payload.sourceId!);
       const target = recordMap.get(result.payload.targetId!);
@@ -452,13 +425,13 @@ async function searchRelationshipsByKeywords(
         id: `${result.payload.sourceId}_${result.payload.relType}_${result.payload.targetId}`,
         source: {
           id: result.payload.sourceId!,
-          name: source?.title || "Unknown",
-          type: source?.recordType || "unknown",
+          name: source?.title || 'Unknown',
+          type: source?.recordType || 'unknown',
         },
         target: {
           id: result.payload.targetId!,
-          name: target?.title || "Unknown",
-          type: target?.recordType || "unknown",
+          name: target?.title || 'Unknown',
+          type: target?.recordType || 'unknown',
         },
         type: result.payload.relType!,
         confidence: result.payload.confidence,
@@ -474,15 +447,13 @@ async function searchRelationshipsByKeywords(
 
 async function getEntitiesByIds(
   ids: string[],
-  deps: LightRAGDependencies
+  deps: LightRAGDependencies,
 ): Promise<LightRAGEntity[]> {
   const records = await RecordModel.find({ _id: { $in: ids } }).lean();
 
   // Batch fetch relationship counts for all entities
   const recordIds = records.map((r) => r._id);
-  const degreeCounts = await deps.graphStore.getNodeRelationshipCounts(
-    recordIds
-  );
+  const degreeCounts = await deps.graphStore.getNodeRelationshipCounts(recordIds);
 
   const entities = records.map<LightRAGEntity>((record) => {
     const degree = degreeCounts.get(record._id) || 0;
@@ -494,7 +465,7 @@ async function getEntitiesByIds(
       description: record.content.substring(0, 200),
       degree,
       rank: calculateNodeRank(degree),
-      source: record.source as import("../../types/index.js").SourceType,
+      source: record.source as import('../../types/index.js').SourceType,
       sourceId: record.sourceId,
       date: record.primaryDate?.toISOString(),
       relevanceScore: 0,
@@ -506,11 +477,11 @@ async function getEntitiesByIds(
 
 async function getEntityRelationships(
   entityIds: string[],
-  graphStore: GraphStore
+  graphStore: GraphStore,
 ): Promise<LightRAGRelationship[]> {
   // Fetch relationships in parallel for all entities
   const relationshipResults = await Promise.all(
-    entityIds.map((entityId) => graphStore.getNodeRelationships(entityId))
+    entityIds.map((entityId) => graphStore.getNodeRelationships(entityId)),
   );
 
   const relationships: LightRAGRelationship[] = [];
@@ -524,8 +495,8 @@ async function getEntityRelationships(
         id: `${rel.relationship.sourceId}_${rel.relationship.type}_${rel.relationship.targetId}`,
         source: {
           id: rel.relationship.sourceId,
-          name: "",
-          type: "",
+          name: '',
+          type: '',
         },
         target: {
           id: rel.relatedNode.id,
@@ -545,7 +516,7 @@ async function getEntityRelationships(
 
 async function getRecordsForEntities(
   entities: LightRAGEntity[],
-  limit: number
+  limit: number,
 ): Promise<LightRAGRecord[]> {
   const records = await RecordModel.find({
     _id: { $in: entities.map((e) => e.id) },
@@ -561,7 +532,7 @@ async function getRecordsForEntities(
       id: record._id,
       document_id: record._id,
       title: record.title,
-      source: record.source as import("../../types/index.js").SourceType,
+      source: record.source as import('../../types/index.js').SourceType,
       source_id: record.sourceId,
       snippet: record.content.substring(0, 500),
       score: entities.find((e) => e.id === record._id)?.relevanceScore ?? 0,
@@ -575,7 +546,7 @@ async function getRecordsForEntities(
 
 async function resultsToChunks(
   results: Array<{ id: string; score: number; payload: any }>,
-  recordStore: RecordStore
+  recordStore: RecordStore,
 ): Promise<LightRAGRecord[]> {
   // Extract MongoDB IDs from payload
   const recordIds = results.map((r) => r.payload.recordId);
@@ -592,7 +563,7 @@ async function resultsToChunks(
       id: record._id,
       document_id: record._id,
       title: record.title,
-      source: record.source as import("../../types/index.js").SourceType,
+      source: record.source as import('../../types/index.js').SourceType,
       source_id: record.sourceId,
       snippet: record.content.substring(0, 500),
       score: result.score,
@@ -604,10 +575,7 @@ async function resultsToChunks(
   return chunks;
 }
 
-async function rerankChunks(
-  query: string,
-  chunks: LightRAGRecord[]
-): Promise<LightRAGRecord[]> {
+async function rerankChunks(query: string, chunks: LightRAGRecord[]): Promise<LightRAGRecord[]> {
   const docs = chunks.map((c) => ({
     id: c.id,
     text: `${c.title}\n${c.snippet}`,
@@ -633,7 +601,7 @@ async function rerankChunks(
 
 async function enrichWithFullContent(
   chunks: LightRAGRecord[],
-  recordStore: RecordStore
+  recordStore: RecordStore,
 ): Promise<LightRAGChunkFull[]> {
   const recordIds = [...new Set(chunks.map((c) => c.document_id))];
   const records = await recordStore.findByIds(recordIds);
@@ -677,9 +645,7 @@ function calculateNodeRank(degree: number): number {
 //   return calculateNodeRank(sourceRels.length + targetRels.length);
 // }
 
-function deduplicateRelationships(
-  relationships: LightRAGRelationship[]
-): LightRAGRelationship[] {
+function deduplicateRelationships(relationships: LightRAGRelationship[]): LightRAGRelationship[] {
   const seen = new Set<string>();
   return relationships.filter((r) => {
     if (seen.has(r.id)) return false;
@@ -704,8 +670,8 @@ function countUniqueDocuments(chunks: LightRAGRecord[]): number {
 function applyDefaults(query: LightRAGQuery): LightRAGQuery {
   return {
     ...query,
-    mode: query.mode || "mix",
-    response_format: query.response_format || "compact",
+    mode: query.mode || 'mix',
+    response_format: query.response_format || 'compact',
     top_k: query.top_k ?? 60,
     chunk_top_k: query.chunk_top_k ?? 20,
     enable_rerank: query.enable_rerank ?? true,

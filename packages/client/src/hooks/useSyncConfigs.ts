@@ -1,10 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { syncConfigApi } from "../lib/api";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { syncConfigApi } from '../lib/api';
 
 // Hook to list all sync configs
 export function useSyncConfigs() {
   return useQuery({
-    queryKey: ["indexing-configs"],
+    queryKey: ['indexing-configs'],
     queryFn: async () => {
       const response = await syncConfigApi.list();
       return response.data.data?.configs || [];
@@ -15,7 +15,7 @@ export function useSyncConfigs() {
 // Hook to get a single sync config
 export function useSyncConfig(serverName: string | null) {
   return useQuery({
-    queryKey: ["indexing-config", serverName],
+    queryKey: ['indexing-config', serverName],
     queryFn: async () => {
       if (!serverName) return null;
       try {
@@ -56,14 +56,14 @@ export function useSaveSyncConfig() {
   return useMutation({
     mutationFn: async (params: {
       config: any;
-      status?: "draft" | "active" | "disabled";
+      status?: 'draft' | 'active' | 'disabled';
       startingPointValues?: Record<string, string[]>;
     }) => {
       const response = await syncConfigApi.save(params);
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["indexing-configs"] });
+      queryClient.invalidateQueries({ queryKey: ['indexing-configs'] });
     },
   });
 }
@@ -71,10 +71,7 @@ export function useSaveSyncConfig() {
 // Hook to sync with a config
 export function useSyncWithConfig() {
   return useMutation({
-    mutationFn: async (params: {
-      serverName: string;
-      incremental?: boolean;
-    }) => {
+    mutationFn: async (params: { serverName: string; incremental?: boolean }) => {
       const response = await syncConfigApi.sync(params);
       return response.data.data;
     },
@@ -91,7 +88,7 @@ export function useDeleteSyncConfig() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["indexing-configs"] });
+      queryClient.invalidateQueries({ queryKey: ['indexing-configs'] });
     },
   });
 }
@@ -99,11 +96,7 @@ export function useDeleteSyncConfig() {
 // Hook to preview transformation
 export function usePreviewTransform() {
   return useMutation({
-    mutationFn: async (params: {
-      config: any;
-      sampleRecords: any[];
-      recordTypeName: string;
-    }) => {
+    mutationFn: async (params: { config: any; sampleRecords: any[]; recordTypeName: string }) => {
       const response = await syncConfigApi.preview(params);
       return response.data.data;
     },
@@ -132,9 +125,9 @@ export function useReloadFromMarketplace() {
     onSuccess: (data, serverName) => {
       // Invalidate the specific config and the list
       queryClient.invalidateQueries({
-        queryKey: ["indexing-config", serverName],
+        queryKey: ['indexing-config', serverName],
       });
-      queryClient.invalidateQueries({ queryKey: ["indexing-configs"] });
+      queryClient.invalidateQueries({ queryKey: ['indexing-configs'] });
     },
   });
 }

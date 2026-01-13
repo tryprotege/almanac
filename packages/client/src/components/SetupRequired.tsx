@@ -1,12 +1,6 @@
-import { useEffect, useState } from "react";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Settings,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
-import { api } from "../lib/api";
+import { useEffect, useState } from 'react';
+import { AlertTriangle, CheckCircle2, Settings, ChevronDown, ChevronUp } from 'lucide-react';
+import { api } from '../lib/api';
 
 interface SchemaInfo {
   default?: string;
@@ -38,12 +32,10 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
   const [polling, setPolling] = useState(false);
   const [pollAttempt, setPollAttempt] = useState(0);
   const [message, setMessage] = useState<{
-    type: "success" | "error";
+    type: 'success' | 'error';
     text: string;
   } | null>(null);
-  const [expandedSections, setExpandedSections] = useState<
-    Record<string, boolean>
-  >({
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     invalid: true,
     application: true,
     infrastructure: false,
@@ -55,7 +47,7 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
 
   const loadData = async (silent: boolean = false) => {
     try {
-      const configRes = await api.get("http://localhost:3000/api/config/env");
+      const configRes = await api.get('http://localhost:3000/api/config/env');
 
       if (configRes.data.success && configRes.data.data) {
         const data = configRes.data.data;
@@ -75,10 +67,10 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
       return false;
     } catch (err) {
       if (!silent) {
-        console.error("Failed to load configuration:", err);
+        console.error('Failed to load configuration:', err);
         setMessage({
-          type: "error",
-          text: "Failed to load configuration. Please ensure the server is running.",
+          type: 'error',
+          text: 'Failed to load configuration. Please ensure the server is running.',
         });
       }
       return false;
@@ -89,10 +81,7 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
     }
   };
 
-  const pollEnvStatus = async (
-    maxAttempts: number = 10,
-    delayMs: number = 2000
-  ) => {
+  const pollEnvStatus = async (maxAttempts: number = 10, delayMs: number = 2000) => {
     setPolling(true);
     setPollAttempt(0);
 
@@ -100,7 +89,7 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
       setPollAttempt(attempt);
 
       setMessage({
-        type: "success",
+        type: 'success',
         text: `Checking environment status... (Attempt ${attempt}/${maxAttempts})`,
       });
 
@@ -108,8 +97,8 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
 
       if (isComplete) {
         setMessage({
-          type: "success",
-          text: "Environment configuration validated successfully! Redirecting...",
+          type: 'success',
+          text: 'Environment configuration validated successfully! Redirecting...',
         });
         setPolling(false);
         setPollAttempt(0);
@@ -131,7 +120,7 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
 
     // Max attempts reached without success
     setMessage({
-      type: "error",
+      type: 'error',
       text: `Environment validation incomplete after ${maxAttempts} attempts. Please check your configuration and ensure the server has restarted.`,
     });
     setPolling(false);
@@ -148,12 +137,11 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
     setMessage(null);
 
     try {
-      const response = await api.put("/config/env", editedValues);
+      const response = await api.put('/config/env', editedValues);
       setMessage({
-        type: "success",
+        type: 'success',
         text:
-          response.data?.message ||
-          "Configuration saved successfully. Validating environment...",
+          response.data?.message || 'Configuration saved successfully. Validating environment...',
       });
 
       setSaving(false);
@@ -165,8 +153,8 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
       }, 1000);
     } catch (error: any) {
       setMessage({
-        type: "error",
-        text: error.response?.data?.error || "Failed to save configuration",
+        type: 'error',
+        text: error.response?.data?.error || 'Failed to save configuration',
       });
       setSaving(false);
     }
@@ -186,30 +174,24 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
     }));
   };
 
-  const renderEnvInput = (
-    key: string,
-    schema: SchemaInfo,
-    isInvalid: boolean
-  ) => {
+  const renderEnvInput = (key: string, schema: SchemaInfo, isInvalid: boolean) => {
     const rawValue = editedValues[key];
-    const isSensitive = ["API_KEY", "PASSWORD", "SECRET", "ENCRYPTION"].some(
-      (s) => key.includes(s)
+    const isSensitive = ['API_KEY', 'PASSWORD', 'SECRET', 'ENCRYPTION'].some((s) =>
+      key.includes(s),
     );
 
     // Check if value is masked
-    const isMasked = typeof rawValue === "string" && rawValue.includes("•");
+    const isMasked = typeof rawValue === 'string' && rawValue.includes('•');
 
     // Determine input type based on schema type
-    const isBoolean = schema.type === "boolean";
-    const isNumber = schema.type === "number";
+    const isBoolean = schema.type === 'boolean';
+    const isNumber = schema.type === 'number';
 
     return (
       <div
         key={key}
         className={`p-3 rounded-lg border ${
-          isInvalid
-            ? "bg-error-bg border-error-border"
-            : "bg-bg-tertiary border-border-primary"
+          isInvalid ? 'bg-error-bg border-error-border' : 'bg-bg-tertiary border-border-primary'
         }`}
       >
         <div className="flex items-start justify-between gap-4">
@@ -217,9 +199,7 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
             <div className="flex items-center gap-2 mb-1">
               <code className="text-sm font-mono font-semibold">{key}</code>
               {schema.required && (
-                <span className="text-xs text-red-500 font-medium">
-                  Required
-                </span>
+                <span className="text-xs text-red-500 font-medium">Required</span>
               )}
               {isInvalid && (
                 <span className="text-xs bg-error-bg text-error-text px-1.5 py-0.5 rounded">
@@ -230,9 +210,7 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
             <div className="flex items-center gap-2 text-xs text-text-secondary">
               <span>Type: {schema.type}</span>
               {schema.default !== undefined && (
-                <span className="text-text-tertiary">
-                  Default: {schema.default}
-                </span>
+                <span className="text-text-tertiary">Default: {schema.default}</span>
               )}
             </div>
           </div>
@@ -241,35 +219,29 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={rawValue === true || rawValue === "true"}
+                  checked={rawValue === true || rawValue === 'true'}
                   onChange={(e) => handleValueChange(key, e.target.checked)}
                   className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
                 />
                 <span className="text-sm">
-                  {rawValue === true || rawValue === "true"
-                    ? "Enabled"
-                    : "Disabled"}
+                  {rawValue === true || rawValue === 'true' ? 'Enabled' : 'Disabled'}
                 </span>
               </label>
             ) : isNumber ? (
               <input
                 type="number"
-                value={rawValue ?? ""}
+                value={rawValue ?? ''}
                 onChange={(e) => handleValueChange(key, e.target.value)}
-                placeholder={schema.default || "Not set"}
-                className={`input w-full text-sm ${
-                  isInvalid ? "border-error-border" : ""
-                }`}
+                placeholder={schema.default || 'Not set'}
+                className={`input w-full text-sm ${isInvalid ? 'border-error-border' : ''}`}
               />
             ) : (
               <input
-                type={isSensitive && !isMasked ? "password" : "text"}
-                value={rawValue ?? ""}
+                type={isSensitive && !isMasked ? 'password' : 'text'}
+                value={rawValue ?? ''}
                 onChange={(e) => handleValueChange(key, e.target.value)}
-                placeholder={schema.default || "Not set"}
-                className={`input w-full text-sm ${
-                  isInvalid ? "border-error-border" : ""
-                }`}
+                placeholder={schema.default || 'Not set'}
+                className={`input w-full text-sm ${isInvalid ? 'border-error-border' : ''}`}
               />
             )}
           </div>
@@ -283,7 +255,7 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
     sectionKey: string,
     schema: Record<string, SchemaInfo>,
     invalidVars: string[],
-    filterInvalid: boolean = false
+    filterInvalid: boolean = false,
   ) => {
     const entries = Object.entries(schema);
     const filteredEntries = filterInvalid
@@ -302,9 +274,7 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
         >
           <h3 className="text-lg font-semibold">{title}</h3>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-text-secondary">
-              {filteredEntries.length} variables
-            </span>
+            <span className="text-sm text-text-secondary">{filteredEntries.length} variables</span>
             {isExpanded ? (
               <ChevronUp className="w-5 h-5 text-text-secondary" />
             ) : (
@@ -316,7 +286,7 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
         {isExpanded && (
           <div className="mt-4 space-y-3">
             {filteredEntries.map(([key, info]) =>
-              renderEnvInput(key, info, invalidVars.includes(key))
+              renderEnvInput(key, info, invalidVars.includes(key)),
             )}
           </div>
         )}
@@ -344,13 +314,9 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
             <div>
               <h3 className="font-semibold mb-2">Connection Error</h3>
               <p className="text-sm text-text-secondary mb-4">
-                Unable to load environment configuration. Please ensure the
-                server is running.
+                Unable to load environment configuration. Please ensure the server is running.
               </p>
-              <button
-                onClick={() => loadData()}
-                className="btn btn-secondary btn-sm"
-              >
+              <button onClick={() => loadData()} className="btn btn-secondary btn-sm">
                 Retry Connection
               </button>
             </div>
@@ -376,9 +342,7 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
             <Settings className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold mb-2">Environment Configuration</h1>
-          <p className="text-text-secondary">
-            Configure your environment variables to get started
-          </p>
+          <p className="text-text-secondary">Configure your environment variables to get started</p>
         </div>
 
         {/* Status Banner */}
@@ -387,12 +351,9 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-error-text mt-0.5 flex-shrink-0" />
               <div>
-                <p className="font-medium text-error-text mb-2">
-                  Configuration Issues Detected
-                </p>
+                <p className="font-medium text-error-text mb-2">Configuration Issues Detected</p>
                 <p className="text-sm text-text-secondary mb-2">
-                  The following environment variables have issues and need to be
-                  fixed:
+                  The following environment variables have issues and need to be fixed:
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {invalidVars.map((key) => (
@@ -412,9 +373,7 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
             <div className="flex items-start gap-3">
               <CheckCircle2 className="w-5 h-5 text-success-text mt-0.5 flex-shrink-0" />
               <div>
-                <p className="font-medium text-success-text">
-                  All Required Configuration Complete
-                </p>
+                <p className="font-medium text-success-text">All Required Configuration Complete</p>
                 <p className="text-sm text-text-secondary">
                   Your environment is properly configured.
                 </p>
@@ -427,9 +386,9 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
         {message && (
           <div
             className={`p-4 rounded-lg mb-6 ${
-              message.type === "success"
-                ? "bg-green-50 text-green-800 border border-green-200"
-                : "bg-red-50 text-red-800 border border-red-200"
+              message.type === 'success'
+                ? 'bg-green-50 text-green-800 border border-green-200'
+                : 'bg-red-50 text-red-800 border border-red-200'
             }`}
           >
             {message.text}
@@ -459,32 +418,28 @@ export function SetupRequired({ onSetupComplete }: SetupRequiredProps) {
 
         {/* Application Configuration */}
         {renderSection(
-          "Application Configuration",
-          "application",
+          'Application Configuration',
+          'application',
           envData.schema.application,
-          invalidVars
+          invalidVars,
         )}
 
         {/* Infrastructure Configuration */}
         {renderSection(
-          "Infrastructure Configuration",
-          "infrastructure",
+          'Infrastructure Configuration',
+          'infrastructure',
           envData.schema.infrastructure,
-          invalidVars
+          invalidVars,
         )}
 
         {/* Action Buttons */}
         <div className="flex gap-4 mt-6">
-          <button
-            onClick={handleSave}
-            disabled={saving || polling}
-            className="btn btn-primary"
-          >
+          <button onClick={handleSave} disabled={saving || polling} className="btn btn-primary">
             {saving
-              ? "Saving..."
+              ? 'Saving...'
               : polling
-              ? `Validating... (${pollAttempt}/10)`
-              : "Save Configuration"}
+                ? `Validating... (${pollAttempt}/10)`
+                : 'Save Configuration'}
           </button>
         </div>
 

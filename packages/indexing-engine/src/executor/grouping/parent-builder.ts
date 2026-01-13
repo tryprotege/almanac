@@ -1,10 +1,7 @@
-import { createHash } from "crypto";
-import { RecordGroup, TransformedRecord, ParentRecordConfig } from "./types.js";
-import { extractValue } from "./engine.js";
-import type {
-  EntityExtractionConfig,
-  RelationshipConfig,
-} from "../../types/config.js";
+import { createHash } from 'crypto';
+import { RecordGroup, TransformedRecord, ParentRecordConfig } from './types.js';
+import { extractValue } from './engine.js';
+import type { EntityExtractionConfig, RelationshipConfig } from '../../types/config.js';
 
 /**
  * Builds parent records from grouped child records
@@ -13,10 +10,7 @@ export class ParentRecordBuilder {
   /**
    * Build parent records and update children with references
    */
-  async build(
-    groups: RecordGroup[],
-    config: ParentRecordConfig
-  ): Promise<TransformedRecord[]> {
+  async build(groups: RecordGroup[], config: ParentRecordConfig): Promise<TransformedRecord[]> {
     const allRecords: TransformedRecord[] = [];
 
     for (const group of groups) {
@@ -24,11 +18,7 @@ export class ParentRecordBuilder {
       const parentSourceId = this.generateParentSourceId(group, config);
 
       // Build parent record
-      const parentRecord = await this.buildParentRecord(
-        group,
-        parentSourceId,
-        config
-      );
+      const parentRecord = await this.buildParentRecord(group, parentSourceId, config);
 
       // Update children with groupId and parentId
       const children = group.records.map((child) => ({
@@ -49,7 +39,7 @@ export class ParentRecordBuilder {
   private async buildParentRecord(
     group: RecordGroup,
     sourceId: string,
-    config: ParentRecordConfig
+    config: ParentRecordConfig,
   ): Promise<TransformedRecord> {
     const firstChild = group.records[0];
     const lastChild = group.records[group.records.length - 1];
@@ -61,14 +51,14 @@ export class ParentRecordBuilder {
         group.records,
         firstChild,
         lastChild,
-        group.groupId
+        group.groupId,
       ),
       content: await this.buildField(
         config.fields.content,
         group.records,
         firstChild,
         lastChild,
-        group.groupId
+        group.groupId,
       ),
       people: config.fields.people
         ? await this.buildField(
@@ -76,7 +66,7 @@ export class ParentRecordBuilder {
             group.records,
             firstChild,
             lastChild,
-            group.groupId
+            group.groupId,
           )
         : undefined,
       primaryDate: config.fields.primaryDate
@@ -85,7 +75,7 @@ export class ParentRecordBuilder {
             group.records,
             firstChild,
             lastChild,
-            group.groupId
+            group.groupId,
           )
         : undefined,
       tags: config.fields.tags
@@ -94,7 +84,7 @@ export class ParentRecordBuilder {
             group.records,
             firstChild,
             lastChild,
-            group.groupId
+            group.groupId,
           )
         : undefined,
     };
@@ -106,17 +96,13 @@ export class ParentRecordBuilder {
     };
 
     if (config.storeChildIds !== false) {
-      const childIdsField = config.childIdsField || "childIds";
+      const childIdsField = config.childIdsField || 'childIds';
       rawData[childIdsField] = group.records.map((r) => r.sourceId);
     }
 
     // Extract entities from children if configured
     const extractedEntities = config.entities
-      ? await this.extractEntitiesFromChildren(
-          group.records,
-          config.entities,
-          firstChild.source
-        )
+      ? await this.extractEntitiesFromChildren(group.records, config.entities, firstChild.source)
       : undefined;
 
     // Extract relationships from children if configured
@@ -124,7 +110,7 @@ export class ParentRecordBuilder {
       ? await this.extractRelationshipsFromChildren(
           group.records,
           config.relationships,
-          `${firstChild.source}_${config.recordType}_${sourceId}`
+          `${firstChild.source}_${config.recordType}_${sourceId}`,
         )
       : undefined;
 
@@ -136,8 +122,8 @@ export class ParentRecordBuilder {
       source: firstChild.source,
       sourceId,
       recordType: config.recordType,
-      title: String(fields.title || ""),
-      content: String(fields.content || ""),
+      title: String(fields.title || ''),
+      content: String(fields.content || ''),
       people: fields.people as string[] | undefined,
       primaryDate: fields.primaryDate as Date | null | undefined,
       tags: fields.tags as string[] | undefined,
@@ -159,17 +145,17 @@ export class ParentRecordBuilder {
     children: TransformedRecord[],
     firstChild: TransformedRecord,
     lastChild: TransformedRecord,
-    groupId: string
+    groupId: string,
   ): Promise<any> {
     switch (mapping.type) {
-      case "path":
+      case 'path':
         // Extract from first child
         return extractValue(firstChild, mapping.path);
 
-      case "aggregate":
+      case 'aggregate':
         return this.aggregateField(mapping, children);
 
-      case "template":
+      case 'template':
         return this.evaluateTemplate(mapping.template, {
           firstChild,
           lastChild,
@@ -178,7 +164,7 @@ export class ParentRecordBuilder {
           childCount: children.length,
         });
 
-      case "code":
+      case 'code':
         // Execute custom code (similar to field mapping code)
         return this.executeCode(mapping.code, {
           firstChild,
@@ -201,7 +187,7 @@ export class ParentRecordBuilder {
       .filter((v) => v != null);
 
     switch (mapping.function) {
-      case "concat":
+      case 'concat':
         if (mapping.itemTemplate) {
           // Apply template to each item
           const formatted = children
@@ -214,27 +200,27 @@ export class ParentRecordBuilder {
               });
             })
             .filter((v) => v != null);
-          return formatted.join(mapping.separator || "\n");
+          return formatted.join(mapping.separator || '\n');
         } else {
-          return values.join(mapping.separator || "\n");
+          return values.join(mapping.separator || '\n');
         }
 
-      case "merge":
+      case 'merge':
         // Merge arrays or objects
         if (Array.isArray(values[0])) {
           return values.flat();
-        } else if (typeof values[0] === "object") {
+        } else if (typeof values[0] === 'object') {
           return Object.assign({}, ...values);
         }
         return values;
 
-      case "first":
+      case 'first':
         return values[0];
 
-      case "last":
+      case 'last':
         return values[values.length - 1];
 
-      case "unique":
+      case 'unique':
         return Array.from(new Set(values.flat()));
 
       default:
@@ -249,12 +235,12 @@ export class ParentRecordBuilder {
     return template.replace(/\$\{([^}]+)\}/g, (_, expr) => {
       try {
         // Simple property access evaluation
-        const value = expr.split(".").reduce((obj: any, key: string) => {
+        const value = expr.split('.').reduce((obj: any, key: string) => {
           return obj?.[key];
         }, context);
-        return value != null ? String(value) : "";
+        return value != null ? String(value) : '';
       } catch {
-        return "";
+        return '';
       }
     });
   }
@@ -268,7 +254,7 @@ export class ParentRecordBuilder {
       const func = new Function(...Object.keys(context), code);
       return func(...Object.values(context));
     } catch (error) {
-      console.error("Error executing code:", error);
+      console.error('Error executing code:', error);
       return undefined;
     }
   }
@@ -276,32 +262,28 @@ export class ParentRecordBuilder {
   /**
    * Generate parent sourceId based on strategy
    */
-  private generateParentSourceId(
-    group: RecordGroup,
-    config: ParentRecordConfig
-  ): string {
+  private generateParentSourceId(group: RecordGroup, config: ParentRecordConfig): string {
     const firstChild = group.records[0];
 
     switch (config.sourceIdStrategy) {
-      case "first_child":
-        const template =
-          config.sourceIdTemplate || "parent-${firstChild.sourceId}";
+      case 'first_child':
+        const template = config.sourceIdTemplate || 'parent-${firstChild.sourceId}';
         return this.evaluateTemplate(template, {
           firstChild,
           groupId: group.groupId,
         });
 
-      case "concatenate":
+      case 'concatenate':
         const ids = group.records.map((r) => r.sourceId);
-        return ids.join("-");
+        return ids.join('-');
 
-      case "hash":
-        const ids2 = group.records.map((r) => r.sourceId).join(",");
-        return createHash("sha256").update(ids2).digest("hex").substring(0, 16);
+      case 'hash':
+        const ids2 = group.records.map((r) => r.sourceId).join(',');
+        return createHash('sha256').update(ids2).digest('hex').substring(0, 16);
 
-      case "template":
+      case 'template':
         if (!config.sourceIdTemplate) {
-          throw new Error("sourceIdTemplate required for template strategy");
+          throw new Error('sourceIdTemplate required for template strategy');
         }
         return this.evaluateTemplate(config.sourceIdTemplate, {
           firstChild,
@@ -321,7 +303,7 @@ export class ParentRecordBuilder {
   private async extractEntitiesFromChildren(
     children: TransformedRecord[],
     entityConfigs: EntityExtractionConfig[],
-    _source: string
+    _source: string,
   ): Promise<any[]> {
     const allEntities: any[] = [];
     const seenEntities = new Set<string>();
@@ -331,10 +313,7 @@ export class ParentRecordBuilder {
         // Check condition if specified
         if (entityConfig.condition) {
           try {
-            const func = new Function(
-              "record",
-              `return ${entityConfig.condition}`
-            );
+            const func = new Function('record', `return ${entityConfig.condition}`);
             if (!func(child.rawData)) {
               continue;
             }
@@ -386,7 +365,7 @@ export class ParentRecordBuilder {
   private async extractRelationshipsFromChildren(
     children: TransformedRecord[],
     relationshipConfigs: RelationshipConfig[],
-    parentId: string
+    parentId: string,
   ): Promise<any[]> {
     const allRelationships: any[] = [];
     const seenRelationships = new Set<string>();
@@ -396,10 +375,7 @@ export class ParentRecordBuilder {
         // Check condition if specified
         if (relConfig.condition) {
           try {
-            const func = new Function(
-              "record",
-              `return ${relConfig.condition}`
-            );
+            const func = new Function('record', `return ${relConfig.condition}`);
             if (!func(child.rawData)) {
               continue;
             }

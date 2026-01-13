@@ -1,4 +1,4 @@
-import { JSONPath } from "jsonpath-plus";
+import { JSONPath } from 'jsonpath-plus';
 import {
   GroupingConfig,
   GroupingStrategy,
@@ -7,27 +7,27 @@ import {
   RecordGroup,
   GroupingResult,
   GroupingStatistics,
-} from "./types.js";
-import { ThreadGrouper } from "./strategies/thread-grouper.js";
-import { TimeWindowGrouper } from "./strategies/time-window-grouper.js";
-import { UserSessionGrouper } from "./strategies/session-grouper.js";
-import { LLMConversationGrouper } from "./strategies/llm-grouper.js";
-import { HybridGrouper } from "./strategies/hybrid-grouper.js";
-import { ParentRecordBuilder } from "./parent-builder.js";
+} from './types.js';
+import { ThreadGrouper } from './strategies/thread-grouper.js';
+import { TimeWindowGrouper } from './strategies/time-window-grouper.js';
+import { UserSessionGrouper } from './strategies/session-grouper.js';
+import { LLMConversationGrouper } from './strategies/llm-grouper.js';
+import { HybridGrouper } from './strategies/hybrid-grouper.js';
+import { ParentRecordBuilder } from './parent-builder.js';
 
 /**
  * Main grouping engine that orchestrates record grouping
  */
 export class GroupingEngine {
-  constructor(private llmClient?: any, private defaultModel?: string) {}
+  constructor(
+    private llmClient?: any,
+    private defaultModel?: string,
+  ) {}
 
   /**
    * Group records according to the provided configuration
    */
-  async group(
-    records: TransformedRecord[],
-    config: GroupingConfig
-  ): Promise<GroupingResult> {
+  async group(records: TransformedRecord[], config: GroupingConfig): Promise<GroupingResult> {
     const startTime = Date.now();
 
     // Get the appropriate strategy
@@ -57,7 +57,7 @@ export class GroupingEngine {
       records,
       filteredGroups,
       config.parentRecord ? allRecords.filter((r) => r.isParentRecord) : [],
-      Date.now() - startTime
+      Date.now() - startTime,
     );
 
     return {
@@ -71,24 +71,20 @@ export class GroupingEngine {
    */
   private getStrategy(strategyType: GroupingStrategy): IGroupingStrategy {
     switch (strategyType) {
-      case "thread":
+      case 'thread':
         return new ThreadGrouper();
-      case "time_window":
+      case 'time_window':
         return new TimeWindowGrouper();
-      case "user_session":
+      case 'user_session':
         return new UserSessionGrouper();
-      case "llm_conversation":
+      case 'llm_conversation':
         if (!this.llmClient) {
-          throw new Error(
-            "LLM conversation grouper requires an LLM client to be provided"
-          );
+          throw new Error('LLM conversation grouper requires an LLM client to be provided');
         }
         return new LLMConversationGrouper(this.llmClient, this.defaultModel);
-      case "hybrid":
+      case 'hybrid':
         if (!this.llmClient) {
-          throw new Error(
-            "Hybrid grouper requires an LLM client to be provided"
-          );
+          throw new Error('Hybrid grouper requires an LLM client to be provided');
         }
         return new HybridGrouper(this.llmClient, this.defaultModel);
       default:
@@ -103,7 +99,7 @@ export class GroupingEngine {
     originalRecords: TransformedRecord[],
     groups: RecordGroup[],
     parentRecords: TransformedRecord[],
-    durationMs: number
+    durationMs: number,
   ): GroupingStatistics {
     const childRecords = groups.flatMap((g) => g.records);
     const ungroupedRecords = originalRecords.length - childRecords.length;
@@ -114,8 +110,7 @@ export class GroupingEngine {
       parentRecordsCreated: parentRecords.length,
       childRecordsGrouped: childRecords.length,
       ungroupedRecords,
-      averageGroupSize:
-        groups.length > 0 ? childRecords.length / groups.length : 0,
+      averageGroupSize: groups.length > 0 ? childRecords.length / groups.length : 0,
       durationMs,
     };
   }

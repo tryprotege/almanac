@@ -1,4 +1,4 @@
-import { ArrowLeft, FileJson, Sparkles } from "lucide-react";
+import { ArrowLeft, FileJson, Sparkles } from 'lucide-react';
 
 interface ConfigChoiceStepProps {
   onBack: () => void;
@@ -38,13 +38,10 @@ export function ConfigChoiceStep({
             <div className="flex-1">
               <h4 className="text-base font-semibold text-text-primary mb-2">
                 🤖 Auto-Generate
-                <span className="ml-2 text-xs font-normal text-brand-purple">
-                  (Recommended)
-                </span>
+                <span className="ml-2 text-xs font-normal text-brand-purple">(Recommended)</span>
               </h4>
               <p className="text-sm text-text-secondary mb-3">
-                Let AI analyze your MCP server and generate a configuration
-                automatically.
+                Let AI analyze your MCP server and generate a configuration automatically.
               </p>
               <div className="text-xs text-text-tertiary space-y-1">
                 <p>✓ Connects to your server</p>
@@ -69,9 +66,7 @@ export function ConfigChoiceStep({
               <FileJson className="w-6 h-6" />
             </div>
             <div className="flex-1">
-              <h4 className="text-base font-semibold text-text-primary mb-2">
-                📝 Import Existing
-              </h4>
+              <h4 className="text-base font-semibold text-text-primary mb-2">📝 Import Existing</h4>
               <p className="text-sm text-text-secondary mb-3">
                 Paste or upload your pre-written sync config JSON file.
               </p>
@@ -79,9 +74,7 @@ export function ConfigChoiceStep({
                 <p>✓ Skip LLM generation</p>
                 <p>✓ Use your existing config</p>
                 <p>✓ Real-time validation</p>
-                <p className="mt-2 text-brand-blue">
-                  ⚡ Instant - no AI wait time
-                </p>
+                <p className="mt-2 text-brand-blue">⚡ Instant - no AI wait time</p>
               </div>
             </div>
           </div>

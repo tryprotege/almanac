@@ -1,4 +1,4 @@
-import mongoose, { InferSchemaType } from "mongoose";
+import mongoose, { InferSchemaType } from 'mongoose';
 
 /**
  * Unified entity model for multi-source synchronization
@@ -50,10 +50,10 @@ const RecordSchema = new mongoose.Schema(
     embeddingModelVersion: { type: String }, // Model used for embeddings (e.g., "text-embedding-3-large")
   },
   {
-    collection: "records",
+    collection: 'records',
     timestamps: true,
     _id: false, // We provide our own _id
-  }
+  },
 );
 
 export type Record = InferSchemaType<typeof RecordSchema>;
@@ -63,6 +63,6 @@ RecordSchema.index({ source: 1, recordType: 1 });
 RecordSchema.index({ source: 1, sourceId: 1 }, { unique: true }); // Unique constraint on source+sourceId
 RecordSchema.index({ deletedAt: 1, syncedAt: -1 });
 RecordSchema.index({ sourceUpdatedAt: -1 });
-RecordSchema.index({ content: "text", title: "text" }); // Full-text search
+RecordSchema.index({ content: 'text', title: 'text' }); // Full-text search
 
-export const RecordModel = mongoose.model<Record>("SyncedRecord", RecordSchema);
+export const RecordModel = mongoose.model<Record>('SyncedRecord', RecordSchema);

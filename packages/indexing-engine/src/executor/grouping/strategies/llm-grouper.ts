@@ -5,8 +5,8 @@ import {
   LLMGroupingConfig,
   Batch,
   BatchResult,
-} from "../types.js";
-import { extractValue } from "../engine.js";
+} from '../types.js';
+import { extractValue } from '../engine.js';
 
 /**
  * LLM-based conversation grouping strategy
@@ -21,18 +21,15 @@ export class LLMConversationGrouper implements IGroupingStrategy {
             model: string;
             messages: Array<{ role: string; content: string }>;
             temperature?: number;
-            response_format?: { type: "json_object" };
+            response_format?: { type: 'json_object' };
           }) => Promise<{ choices: Array<{ message: { content: string } }> }>;
         };
       };
     },
-    private defaultModel?: string
+    private defaultModel?: string,
   ) {}
 
-  async group(
-    records: TransformedRecord[],
-    config: LLMGroupingConfig
-  ): Promise<RecordGroup[]> {
+  async group(records: TransformedRecord[], config: LLMGroupingConfig): Promise<RecordGroup[]> {
     if (records.length === 0) {
       return [];
     }
@@ -45,7 +42,7 @@ export class LLMConversationGrouper implements IGroupingStrategy {
 
     // Extract analysis data from records
     const analysisData = sortedRecords.map((record) =>
-      this.extractAnalysisData(record, config.analysisFields)
+      this.extractAnalysisData(record, config.analysisFields),
     );
 
     // Split into batches with overlap
@@ -53,7 +50,7 @@ export class LLMConversationGrouper implements IGroupingStrategy {
       sortedRecords,
       analysisData,
       config.batchSize || 50,
-      config.batchOverlap || 10
+      config.batchOverlap || 10,
     );
 
     // Process batches with concurrency control
@@ -63,9 +60,7 @@ export class LLMConversationGrouper implements IGroupingStrategy {
     for (let i = 0; i < batches.length; i += concurrency) {
       const batchGroup = batches.slice(i, i + concurrency);
       const results = await Promise.all(
-        batchGroup.map((batch) =>
-          this.processBatch(batch, config.model, config.systemPrompt)
-        )
+        batchGroup.map((batch) => this.processBatch(batch, config.model, config.systemPrompt)),
       );
       batchResults.push(...results);
     }
@@ -82,7 +77,7 @@ export class LLMConversationGrouper implements IGroupingStrategy {
    */
   private sortRecords(
     records: TransformedRecord[],
-    config: LLMGroupingConfig
+    config: LLMGroupingConfig,
   ): TransformedRecord[] {
     if (!config.sortBy) return records;
 
@@ -92,34 +87,31 @@ export class LLMConversationGrouper implements IGroupingStrategy {
 
       // Handle timestamps
       const tsA =
-        typeof valueA === "number"
+        typeof valueA === 'number'
           ? valueA
           : valueA instanceof Date
-          ? valueA.getTime()
-          : new Date(valueA).getTime();
+            ? valueA.getTime()
+            : new Date(valueA).getTime();
       const tsB =
-        typeof valueB === "number"
+        typeof valueB === 'number'
           ? valueB
           : valueB instanceof Date
-          ? valueB.getTime()
-          : new Date(valueB).getTime();
+            ? valueB.getTime()
+            : new Date(valueB).getTime();
 
-      return config.sortOrder === "desc" ? tsB - tsA : tsA - tsB;
+      return config.sortOrder === 'desc' ? tsB - tsA : tsA - tsB;
     });
   }
 
   /**
    * Extract analysis data from a record
    */
-  private extractAnalysisData(
-    record: TransformedRecord,
-    fields: string[]
-  ): Record<string, any> {
+  private extractAnalysisData(record: TransformedRecord, fields: string[]): Record<string, any> {
     const data: Record<string, any> = {};
 
     for (const field of fields) {
       const value = extractValue(record.rawData, field);
-      const fieldName = field.split(".").pop() || field;
+      const fieldName = field.split('.').pop() || field;
       data[fieldName] = value;
     }
 
@@ -133,7 +125,7 @@ export class LLMConversationGrouper implements IGroupingStrategy {
     records: TransformedRecord[],
     _analysisData: Record<string, any>[],
     batchSize: number,
-    overlap: number
+    overlap: number,
   ): Batch[] {
     const batches: Batch[] = [];
     let startIndex = 0;
@@ -163,7 +155,7 @@ export class LLMConversationGrouper implements IGroupingStrategy {
   private async processBatch(
     batch: Batch,
     model: string | undefined,
-    systemPrompt: string
+    systemPrompt: string,
   ): Promise<BatchResult> {
     // Format messages for LLM
     const messagesText = batch.records
@@ -171,7 +163,7 @@ export class LLMConversationGrouper implements IGroupingStrategy {
         const localIdx = idx;
         return `[${localIdx}] ${JSON.stringify(record.rawData)}`;
       })
-      .join("\n");
+      .join('\n');
 
     const userPrompt = `Analyze these ${batch.records.length} messages and group them into conversations. Each message is prefixed with its index.
 
@@ -189,16 +181,16 @@ Where groupId identifies which conversation each message belongs to. Messages in
 
     try {
       const response = await this.llmClient.chat.completions.create({
-        model: model || this.defaultModel || "gpt-4o-mini",
+        model: model || this.defaultModel || 'gpt-4o-mini',
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
         ],
         temperature: 0.3,
-        response_format: { type: "json_object" },
+        response_format: { type: 'json_object' },
       });
 
-      const content = response.choices[0]?.message?.content || "{}";
+      const content = response.choices[0]?.message?.content || '{}';
       const parsed = JSON.parse(content);
 
       // Handle both array and object with groupings key
@@ -213,7 +205,7 @@ Where groupId identifies which conversation each message belongs to. Messages in
         })),
       };
     } catch (error) {
-      console.error("LLM grouping failed for batch:", error);
+      console.error('LLM grouping failed for batch:', error);
       // Fallback: each message in its own group
       return {
         startIndex: batch.startIndex,
@@ -231,7 +223,7 @@ Where groupId identifies which conversation each message belongs to. Messages in
    */
   private mergeBatchResults(
     batchResults: BatchResult[],
-    totalRecords: number
+    totalRecords: number,
   ): Map<number, number> {
     const grouping = new Map<number, number>();
 
@@ -259,9 +251,7 @@ Where groupId identifies which conversation each message belongs to. Messages in
   /**
    * Normalize group IDs to sequential numbers
    */
-  private normalizeGroupIds(
-    grouping: Map<number, number>
-  ): Map<number, number> {
+  private normalizeGroupIds(grouping: Map<number, number>): Map<number, number> {
     const uniqueGroupIds = new Set(grouping.values());
     const groupIdMap = new Map<number, number>();
     let nextId = 0;
@@ -281,10 +271,7 @@ Where groupId identifies which conversation each message belongs to. Messages in
   /**
    * Create RecordGroup array from grouping assignments
    */
-  private createGroups(
-    records: TransformedRecord[],
-    grouping: Map<number, number>
-  ): RecordGroup[] {
+  private createGroups(records: TransformedRecord[], grouping: Map<number, number>): RecordGroup[] {
     const groups = new Map<number, TransformedRecord[]>();
 
     for (let i = 0; i < records.length; i++) {
@@ -301,7 +288,7 @@ Where groupId identifies which conversation each message belongs to. Messages in
       records,
       metadata: {
         groupId,
-        strategy: "llm_conversation",
+        strategy: 'llm_conversation',
         recordCount: records.length,
       },
     }));

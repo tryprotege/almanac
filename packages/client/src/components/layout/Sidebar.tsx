@@ -1,6 +1,6 @@
-import { BarChart2, GitBranch, Link, Settings } from "lucide-react";
-import { Logomark } from "./Logomark";
-import { NavItem } from "./NavItem";
+import { BarChart2, GitBranch, Link, Settings } from 'lucide-react';
+import { Logomark } from './Logomark';
+import { NavItem } from './NavItem';
 
 export function Sidebar() {
   return (
@@ -19,9 +19,7 @@ export function Sidebar() {
       </nav>
 
       {/* Footer - simplified per user request */}
-      <div className="sidebar-footer">
-        {/* No user card or help card per requirements */}
-      </div>
+      <div className="sidebar-footer">{/* No user card or help card per requirements */}</div>
     </aside>
   );
 }

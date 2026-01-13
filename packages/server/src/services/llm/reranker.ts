@@ -1,5 +1,5 @@
-import { env } from "../../env.js";
-import logger from "../../utils/logger.js";
+import { env } from '../../env.js';
+import logger from '../../utils/logger.js';
 
 /**
  * Document to be reranked
@@ -49,13 +49,13 @@ function extractScores(data: any): number[] {
   // Handle direct array response
   if (Array.isArray(data)) {
     return data.map((item: any) =>
-      typeof item === "number" ? item : item.score || item.relevance_score || 0
+      typeof item === 'number' ? item : item.score || item.relevance_score || 0,
     );
   }
 
   // Log unexpected format for debugging
-  logger.error({ responseData: data }, "Unexpected reranker response format");
-  throw new Error("Could not extract scores from reranker response");
+  logger.error({ responseData: data }, 'Unexpected reranker response format');
+  throw new Error('Could not extract scores from reranker response');
 }
 
 /**
@@ -64,10 +64,10 @@ function extractScores(data: any): number[] {
 export async function rerank(
   query: string,
   documents: RerankDocument[],
-  options?: RerankOptions
+  options?: RerankOptions,
 ): Promise<RerankResult[]> {
   if (!env.RERANKER_ENABLED) {
-    logger.warn("Reranker is disabled. Returning documents as-is.");
+    logger.warn('Reranker is disabled. Returning documents as-is.');
     return documents.map((doc, i) => ({
       id: doc.id,
       score: 1.0 - i * 0.01, // Simple descending score
@@ -79,21 +79,21 @@ export async function rerank(
   }
 
   if (!env.RERANKER_MODEL) {
-    throw new Error("RERANKER_MODEL is required when RERANKER_ENABLED is true");
+    throw new Error('RERANKER_MODEL is required when RERANKER_ENABLED is true');
   }
 
   try {
     const url = env.RERANKER_BASE_URL;
 
     if (!url) {
-      throw new Error("Reranker URL is not configured");
+      throw new Error('Reranker URL is not configured');
     }
 
     const response = await fetch(url, {
-      method: "POST",
+      method: 'POST',
       headers: {
         Authorization: `Bearer ${env.LLM_API_KEY}`,
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model: env.RERANKER_MODEL,
@@ -112,15 +112,13 @@ export async function rerank(
     const data = await response.json();
 
     // Log the response for debugging
-    logger.info({ data }, "Reranker API response");
+    logger.info({ data }, 'Reranker API response');
 
     // Handle different response formats
     const scores = extractScores(data);
 
     if (scores.length !== documents.length) {
-      throw new Error(
-        `Reranker returned ${scores.length} scores but expected ${documents.length}`
-      );
+      throw new Error(`Reranker returned ${scores.length} scores but expected ${documents.length}`);
     }
 
     // Combine scores with document IDs
@@ -144,7 +142,7 @@ export async function rerank(
 
     return results;
   } catch (err) {
-    logger.error({ err, query }, "Reranker error");
+    logger.error({ err, query }, 'Reranker error');
     throw err;
   }
 }

@@ -4,8 +4,8 @@ import type {
   NotionPage,
   FathomMeeting,
   FathomTranscript,
-} from "@ebee-oss/shared-util";
-import type { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse.js";
+} from '@ebee-oss/shared-util';
+import type { MessageElement } from '@slack/web-api/dist/types/response/ConversationsHistoryResponse.js';
 
 /**
  * Workflow templates define common patterns of cross-service interactions
@@ -20,7 +20,7 @@ export interface WorkflowTemplate {
 
 export interface WorkflowStage {
   order: number;
-  service: "github" | "slack" | "notion" | "fathom";
+  service: 'github' | 'slack' | 'notion' | 'fathom';
   type: string; // "issue", "message", "page", "meeting", etc.
   delayFromPrevious: { min: number; max: number }; // hours
   references: string[]; // Which previous stages this references (by order number as string)
@@ -40,7 +40,7 @@ export interface WorkflowTopic {
   id: string;
   title: string;
   description: string;
-  category: "bug" | "feature" | "infrastructure" | "design" | "process";
+  category: 'bug' | 'feature' | 'infrastructure' | 'design' | 'process';
   technicalDetails: string;
   affectedRepo: string;
   participants: string[]; // Team member names

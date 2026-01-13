@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from 'react';
 
 interface Tab {
   id: string;
@@ -12,14 +12,8 @@ interface ConfigTabsProps {
   defaultTab?: string;
 }
 
-export default function ConfigTabs({
-  tabs,
-  children,
-  defaultTab,
-}: ConfigTabsProps) {
-  const [activeTab, setActiveTab] = useState(
-    defaultTab || tabs[0]?.id || "overview"
-  );
+export default function ConfigTabs({ tabs, children, defaultTab }: ConfigTabsProps) {
+  const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id || 'overview');
 
   return (
     <div className="w-full">
@@ -34,8 +28,8 @@ export default function ConfigTabs({
                 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
                 ${
                   activeTab === tab.id
-                    ? "border-brand-purple text-brand-purple"
-                    : "border-transparent text-text-tertiary hover:text-text-secondary hover:border-border-primary"
+                    ? 'border-brand-purple text-brand-purple'
+                    : 'border-transparent text-text-tertiary hover:text-text-secondary hover:border-border-primary'
                 }
               `}
             >

@@ -3,18 +3,15 @@ import {
   RecordGroup,
   TransformedRecord,
   SessionGroupingConfig,
-} from "../types.js";
-import { extractValue } from "../engine.js";
+} from '../types.js';
+import { extractValue } from '../engine.js';
 
 /**
  * User session grouping strategy
  * Groups records by user activity sessions with configurable timeout
  */
 export class UserSessionGrouper implements IGroupingStrategy {
-  async group(
-    records: TransformedRecord[],
-    config: SessionGroupingConfig
-  ): Promise<RecordGroup[]> {
+  async group(records: TransformedRecord[], config: SessionGroupingConfig): Promise<RecordGroup[]> {
     const sessionTimeout = (config.sessionTimeoutSeconds || 1800) * 1000; // Default 30 min
 
     // Sort records by timestamp
@@ -55,8 +52,7 @@ export class UserSessionGrouper implements IGroupingStrategy {
         // Check if we should start a new session
         const shouldStartNewSession =
           currentSession.length === 0 ||
-          (lastActivityTime !== null &&
-            timestamp - lastActivityTime > sessionTimeout) ||
+          (lastActivityTime !== null && timestamp - lastActivityTime > sessionTimeout) ||
           (config.contextPath && context !== sessionContext);
 
         if (shouldStartNewSession) {
@@ -69,7 +65,7 @@ export class UserSessionGrouper implements IGroupingStrategy {
                 userId,
                 sessionStart: sessionStartTime,
                 sessionEnd: lastActivityTime,
-                strategy: "user_session",
+                strategy: 'user_session',
                 context: sessionContext,
               },
             });
@@ -96,7 +92,7 @@ export class UserSessionGrouper implements IGroupingStrategy {
             userId,
             sessionStart: sessionStartTime,
             sessionEnd: lastActivityTime,
-            strategy: "user_session",
+            strategy: 'user_session',
             context: sessionContext,
           },
         });
@@ -112,12 +108,12 @@ export class UserSessionGrouper implements IGroupingStrategy {
   private extractTimestamp(record: TransformedRecord, path: string): number {
     const value = extractValue(record.rawData, path);
 
-    if (typeof value === "number") {
+    if (typeof value === 'number') {
       // Assume Unix timestamp
       return value < 10000000000 ? value * 1000 : value;
     }
 
-    if (typeof value === "string") {
+    if (typeof value === 'string') {
       return new Date(value).getTime();
     }
 

@@ -3,16 +3,16 @@
  * Validates and provides access to environment variables
  */
 
-import dotenv from "dotenv";
-import { z } from "zod";
+import dotenv from 'dotenv';
+import { z } from 'zod';
 
 // Load .env file from benchmark package directory
-dotenv.config({ path: new URL("../.env", import.meta.url).pathname });
+dotenv.config({ path: new URL('../.env', import.meta.url).pathname });
 
 const envSchema = z.object({
   // API Keys - Each platform has its own key (no defaults)
-  AMP_API_KEY: z.string().min(1, "AMP_API_KEY is required"),
-  CLAUDE_API_KEY: z.string().min(1, "CLAUDE_API_KEY is required"),
+  AMP_API_KEY: z.string().min(1, 'AMP_API_KEY is required'),
+  CLAUDE_API_KEY: z.string().min(1, 'CLAUDE_API_KEY is required'),
 
   // eBee Configuration
   EBEE_URL: z.string().url(),
@@ -29,10 +29,10 @@ let env: Env;
 try {
   env = envSchema.parse(process.env);
 } catch (error) {
-  console.error("❌ Environment validation failed:");
+  console.error('❌ Environment validation failed:');
   console.error(error);
-  console.error("\n💡 Make sure you have a .env file in packages/benchmark/");
-  console.error("   Copy .env.example to .env and fill in your API keys.\n");
+  console.error('\n💡 Make sure you have a .env file in packages/benchmark/');
+  console.error('   Copy .env.example to .env and fill in your API keys.\n');
   process.exit(1);
 }
 
@@ -44,15 +44,13 @@ export function getApiKeyForAgent(agentName: string): string {
   const normalizedName = agentName.toLowerCase();
 
   switch (normalizedName) {
-    case "amp":
+    case 'amp':
       return env.AMP_API_KEY;
-    case "claude-cli":
-    case "claude":
+    case 'claude-cli':
+    case 'claude':
       return env.CLAUDE_API_KEY;
     default:
-      throw new Error(
-        `Unknown agent: ${agentName}. Supported agents: amp, claude-cli`
-      );
+      throw new Error(`Unknown agent: ${agentName}. Supported agents: amp, claude-cli`);
   }
 }
 

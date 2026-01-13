@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from 'crypto';
 
 /**
  * PKCE (Proof Key for Code Exchange) pair
@@ -18,13 +18,10 @@ export function generatePKCE(): PKCEPair {
   // Must be 43-128 characters, use cryptographically random bytes
   const codeVerifier = crypto
     .randomBytes(64) // 64 bytes = 128 hex characters
-    .toString("hex");
+    .toString('hex');
 
   // Generate code_challenge: Base64-URL-encoded SHA256 hash of code_verifier
-  const codeChallenge = crypto
-    .createHash("sha256")
-    .update(codeVerifier)
-    .digest("base64url"); // base64url encoding (URL-safe)
+  const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url'); // base64url encoding (URL-safe)
 
   return {
     codeVerifier,
@@ -38,10 +35,7 @@ export function generatePKCE(): PKCEPair {
  * @param codeChallenge - The code challenge from authorization request
  * @returns true if valid, false otherwise
  */
-export function validatePKCE(
-  codeVerifier: string,
-  codeChallenge: string
-): boolean {
+export function validatePKCE(codeVerifier: string, codeChallenge: string): boolean {
   if (!codeVerifier || !codeChallenge) {
     return false;
   }
@@ -52,10 +46,7 @@ export function validatePKCE(
   }
 
   // Regenerate code_challenge from code_verifier
-  const computedChallenge = crypto
-    .createHash("sha256")
-    .update(codeVerifier)
-    .digest("base64url");
+  const computedChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
 
   // Compare with provided code_challenge
   return computedChallenge === codeChallenge;
@@ -67,7 +58,7 @@ export function validatePKCE(
  * @returns Random 32-character hex string
  */
 export function generateState(): string {
-  return crypto.randomBytes(16).toString("hex");
+  return crypto.randomBytes(16).toString('hex');
 }
 
 /**
@@ -76,5 +67,5 @@ export function generateState(): string {
  * @returns true if state is valid format
  */
 export function isValidState(state: string): boolean {
-  return typeof state === "string" && state.length >= 16;
+  return typeof state === 'string' && state.length >= 16;
 }

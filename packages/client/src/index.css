@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @variant dark (.dark &);
 
@@ -83,7 +83,12 @@
     font-family: var(--font-family-body);
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-family-display);
   }
 }
@@ -486,7 +491,11 @@
 
   /* Gradient Utilities */
   .gradient-purple {
-    background: linear-gradient(135deg, var(--color-brand-purple) 0%, var(--color-brand-indigo) 100%);
+    background: linear-gradient(
+      135deg,
+      var(--color-brand-purple) 0%,
+      var(--color-brand-indigo) 100%
+    );
   }
 
   .gradient-subtle {
@@ -495,8 +504,9 @@
 
   .gradient-border {
     @apply relative;
-    background: linear-gradient(var(--color-bg-primary), var(--color-bg-primary)) padding-box,
-                linear-gradient(135deg, var(--color-brand-purple), var(--color-brand-blue)) border-box;
+    background:
+      linear-gradient(var(--color-bg-primary), var(--color-bg-primary)) padding-box,
+      linear-gradient(135deg, var(--color-brand-purple), var(--color-brand-blue)) border-box;
     border: 1px solid transparent;
   }
 

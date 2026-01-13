@@ -7,13 +7,10 @@ import {
   GraphEntityType,
   GraphRelationshipType,
   GraphSchema,
-} from "../../../models/graph-schema.model.js";
-import {
-  updateEntityTypes,
-  updateRelationshipTypes,
-} from "../../../stores/graph-schema.store.js";
-import logger from "../../../utils/logger.js";
-import { Entity, Relationship } from "./schema/entity-deduplication.js";
+} from '../../../models/graph-schema.model.js';
+import { updateEntityTypes, updateRelationshipTypes } from '../../../stores/graph-schema.store.js';
+import logger from '../../../utils/logger.js';
+import { Entity, Relationship } from './schema/entity-deduplication.js';
 
 // ============================================================================
 // Pure Functions
@@ -26,7 +23,7 @@ import { Entity, Relationship } from "./schema/entity-deduplication.js";
 export const discoverNewTypes = (
   entities: Entity[],
   relationships: Relationship[],
-  currentSchema: GraphSchema
+  currentSchema: GraphSchema,
 ): {
   newEntityTypes: GraphEntityType[];
   newRelationshipTypes: GraphRelationshipType[];
@@ -35,18 +32,16 @@ export const discoverNewTypes = (
   const extractedEntityTypes = new Set(entities.map((e) => e.type));
 
   // Filter to only types not in current schema
-  const existingEntityTypes = new Set(
-    currentSchema.entityTypes.map((e) => e.name)
-  );
+  const existingEntityTypes = new Set(currentSchema.entityTypes.map((e) => e.name));
 
   const newEntityTypeNames = Array.from(extractedEntityTypes).filter(
-    (type) => !existingEntityTypes.has(type)
+    (type) => !existingEntityTypes.has(type),
   );
 
   const newEntityTypes: GraphEntityType[] = newEntityTypeNames.map((name) => ({
     name,
     description: `Auto-discovered entity type: ${name}`,
-    mcpSource: "auto_discovery",
+    mcpSource: 'auto_discovery',
     properties: [],
   }));
 
@@ -54,24 +49,20 @@ export const discoverNewTypes = (
   const extractedRelTypes = new Set(relationships.map((r) => r.type));
 
   // Filter to only types not in current schema
-  const existingRelTypes = new Set(
-    currentSchema.relationshipTypes.map((r) => r.name)
-  );
+  const existingRelTypes = new Set(currentSchema.relationshipTypes.map((r) => r.name));
 
   const newRelTypeNames = Array.from(extractedRelTypes).filter(
-    (type) => !existingRelTypes.has(type)
+    (type) => !existingRelTypes.has(type),
   );
 
-  const newRelationshipTypes: GraphRelationshipType[] = newRelTypeNames.map(
-    (name) => ({
-      name,
-      description: `Auto-discovered relationship type: ${name}`,
-      sourceTypes: ["*"], // Accept any source type
-      targetTypes: ["*"], // Accept any target type
-      bidirectional: false,
-      mcpSource: "auto_discovery",
-    })
-  );
+  const newRelationshipTypes: GraphRelationshipType[] = newRelTypeNames.map((name) => ({
+    name,
+    description: `Auto-discovered relationship type: ${name}`,
+    sourceTypes: ['*'], // Accept any source type
+    targetTypes: ['*'], // Accept any target type
+    bidirectional: false,
+    mcpSource: 'auto_discovery',
+  }));
 
   return {
     newEntityTypes,
@@ -86,7 +77,7 @@ export const discoverNewTypes = (
 export const updateSchemaWithDiscovery = async (
   newEntityTypes: GraphEntityType[],
   newRelationshipTypes: GraphRelationshipType[],
-  sampleSize?: number
+  sampleSize?: number,
 ): Promise<{
   entityTypesAdded: number;
   relationshipTypesAdded: number;
@@ -97,18 +88,12 @@ export const updateSchemaWithDiscovery = async (
   // Update entity types if any new ones found
   if (newEntityTypes.length > 0) {
     logger.info(
-      `🔍 Auto-discovered ${
-        newEntityTypes.length
-      } new entity types: ${JSON.stringify(
-        newEntityTypes.map((e) => e.name).join(", ")
-      )}`
+      `🔍 Auto-discovered ${newEntityTypes.length} new entity types: ${JSON.stringify(
+        newEntityTypes.map((e) => e.name).join(', '),
+      )}`,
     );
 
-    await updateEntityTypes(
-      newEntityTypes,
-      "auto_discovery_during_indexing",
-      sampleSize
-    );
+    await updateEntityTypes(newEntityTypes, 'auto_discovery_during_indexing', sampleSize);
 
     entityTypesAdded = newEntityTypes.length;
   }
@@ -116,17 +101,15 @@ export const updateSchemaWithDiscovery = async (
   // Update relationship types if any new ones found
   if (newRelationshipTypes.length > 0) {
     logger.info(
-      `🔍 Auto-discovered ${
-        newRelationshipTypes.length
-      } new relationship types: ${JSON.stringify(
-        newRelationshipTypes.map((r) => r.name).join(", ")
-      )}`
+      `🔍 Auto-discovered ${newRelationshipTypes.length} new relationship types: ${JSON.stringify(
+        newRelationshipTypes.map((r) => r.name).join(', '),
+      )}`,
     );
 
     await updateRelationshipTypes(
       newRelationshipTypes,
-      "auto_discovery_during_indexing",
-      sampleSize
+      'auto_discovery_during_indexing',
+      sampleSize,
     );
 
     relationshipTypesAdded = newRelationshipTypes.length;
@@ -143,7 +126,7 @@ export const updateSchemaWithDiscovery = async (
  * Helper function for indexer
  */
 export const getCurrentSchemaTypes = (
-  schema: GraphSchema | null
+  schema: GraphSchema | null,
 ): {
   entityTypes: string[];
   relationshipTypes: string[];
@@ -151,33 +134,33 @@ export const getCurrentSchemaTypes = (
 } => {
   if (!schema) {
     return {
-      entityTypes: ["Person", "Organization", "Project", "Task", "Document"],
+      entityTypes: ['Person', 'Organization', 'Project', 'Task', 'Document'],
       relationshipTypes: [
         // Hierarchical
-        "REPORTS_TO",
-        "MANAGES",
-        "PART_OF",
-        "MEMBER_OF",
+        'REPORTS_TO',
+        'MANAGES',
+        'PART_OF',
+        'MEMBER_OF',
         // Dependencies
-        "BLOCKS",
-        "BLOCKED_BY",
-        "REQUIRES",
-        "DEPENDS_ON",
+        'BLOCKS',
+        'BLOCKED_BY',
+        'REQUIRES',
+        'DEPENDS_ON',
         // Actions
-        "ASSIGNED_TO",
-        "CREATED_BY",
-        "APPROVED_BY",
-        "REVIEWED_BY",
-        "WORKS_ON",
+        'ASSIGNED_TO',
+        'CREATED_BY',
+        'APPROVED_BY',
+        'REVIEWED_BY',
+        'WORKS_ON',
         // Temporal
-        "SUPERSEDES",
-        "REPLACES",
-        "VERSION_OF",
+        'SUPERSEDES',
+        'REPLACES',
+        'VERSION_OF',
         // Domain-specific
-        "REGULATES",
-        "APPLIES_TO",
-        "IMPLEMENTS",
-        "CITES",
+        'REGULATES',
+        'APPLIES_TO',
+        'IMPLEMENTS',
+        'CITES',
       ],
       version: 0,
     };

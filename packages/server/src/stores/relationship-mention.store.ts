@@ -1,5 +1,5 @@
-import { GraphEmbeddingMetadata } from "../models/graph-embedding-metadata.model.js";
-import logger from "../utils/logger.js";
+import { GraphEmbeddingMetadata } from '../models/graph-embedding-metadata.model.js';
+import logger from '../utils/logger.js';
 
 /**
  * Store for managing relationship mention tracking in MongoDB
@@ -11,11 +11,7 @@ export class RelationshipMentionStore {
    * Generate consistent relationship key
    * Format: "sourceId|type|targetId"
    */
-  private getRelationshipKey(
-    sourceEntityId: string,
-    type: string,
-    targetEntityId: string
-  ): string {
+  private getRelationshipKey(sourceEntityId: string, type: string, targetEntityId: string): string {
     return `${sourceEntityId}|${type}|${targetEntityId}`;
   }
 
@@ -30,12 +26,12 @@ export class RelationshipMentionStore {
       type: string;
       confidence: number;
     },
-    recordId: string
+    recordId: string,
   ): Promise<void> {
     const relationshipKey = this.getRelationshipKey(
       relationship.sourceEntityId,
       relationship.type,
-      relationship.targetEntityId
+      relationship.targetEntityId,
     );
 
     const _id = `rel_${relationshipKey}`;
@@ -45,7 +41,7 @@ export class RelationshipMentionStore {
       {
         $setOnInsert: {
           _id,
-          itemType: "relationship",
+          itemType: 'relationship',
           sourceId: relationship.sourceEntityId,
           targetId: relationship.targetEntityId,
           relType: relationship.type,
@@ -60,7 +56,7 @@ export class RelationshipMentionStore {
           },
         },
       },
-      { upsert: true }
+      { upsert: true },
     );
   }
 
@@ -75,7 +71,7 @@ export class RelationshipMentionStore {
       targetEntityId: string;
       type: string;
       confidence: number;
-    }>
+    }>,
   ): Promise<void> {
     if (relationships.length === 0) return;
 
@@ -83,7 +79,7 @@ export class RelationshipMentionStore {
       const relationshipKey = this.getRelationshipKey(
         rel.sourceEntityId,
         rel.type,
-        rel.targetEntityId
+        rel.targetEntityId,
       );
       const memgraphId = `rel_${relationshipKey}`;
 
@@ -93,7 +89,7 @@ export class RelationshipMentionStore {
           update: {
             $setOnInsert: {
               memgraphId,
-              itemType: "relationship",
+              itemType: 'relationship',
               sourceId: rel.sourceEntityId,
               targetId: rel.targetEntityId,
               relType: rel.type,
@@ -116,7 +112,7 @@ export class RelationshipMentionStore {
     const result = await GraphEmbeddingMetadata.bulkWrite(bulkOps);
 
     logger.debug({
-      msg: "Added relationship mentions in batch",
+      msg: 'Added relationship mentions in batch',
       recordId,
       relationshipCount: relationships.length,
       upserted: result.upsertedCount,
@@ -131,18 +127,18 @@ export class RelationshipMentionStore {
   async removeDocumentMentions(recordId: string): Promise<number> {
     const result = await GraphEmbeddingMetadata.updateMany(
       {
-        itemType: "relationship",
-        "mentionedInRecords.recordId": recordId,
+        itemType: 'relationship',
+        'mentionedInRecords.recordId': recordId,
       },
       {
         $pull: {
           mentionedInRecords: { recordId } as any,
         },
-      }
+      },
     );
 
     logger.debug({
-      msg: "Removed document mentions",
+      msg: 'Removed document mentions',
       recordId,
       modifiedCount: result.modifiedCount,
     });
@@ -162,11 +158,8 @@ export class RelationshipMentionStore {
     }>
   > {
     const orphans = await GraphEmbeddingMetadata.find({
-      itemType: "relationship",
-      $or: [
-        { mentionedInRecords: { $exists: false } },
-        { mentionedInRecords: { $size: 0 } },
-      ],
+      itemType: 'relationship',
+      $or: [{ mentionedInRecords: { $exists: false } }, { mentionedInRecords: { $size: 0 } }],
     }).lean();
 
     return orphans.map((o) => ({
@@ -182,15 +175,12 @@ export class RelationshipMentionStore {
    */
   async deleteOrphanedRelationships(): Promise<number> {
     const result = await GraphEmbeddingMetadata.deleteMany({
-      itemType: "relationship",
-      $or: [
-        { mentionedInRecords: { $exists: false } },
-        { mentionedInRecords: { $size: 0 } },
-      ],
+      itemType: 'relationship',
+      $or: [{ mentionedInRecords: { $exists: false } }, { mentionedInRecords: { $size: 0 } }],
     });
 
     logger.debug({
-      msg: "Deleted orphaned relationship metadata",
+      msg: 'Deleted orphaned relationship metadata',
       deletedCount: result.deletedCount,
     });
 
@@ -210,14 +200,12 @@ export class RelationshipMentionStore {
     }>
   > {
     const relationships = await GraphEmbeddingMetadata.find({
-      itemType: "relationship",
-      "mentionedInRecords.recordId": recordId,
+      itemType: 'relationship',
+      'mentionedInRecords.recordId': recordId,
     }).lean();
 
     return relationships.map((r) => {
-      const mention = r.mentionedInRecords?.find(
-        (m) => m.recordId === recordId
-      );
+      const mention = r.mentionedInRecords?.find((m) => m.recordId === recordId);
 
       return {
         sourceEntityId: r.sourceId!,
@@ -238,32 +226,28 @@ export class RelationshipMentionStore {
     orphanedRelationships: number;
     averageMentionsPerRelationship: number;
   }> {
-    const [totalResult, withMentionsResult, orphanedResult, avgResult] =
-      await Promise.all([
-        GraphEmbeddingMetadata.countDocuments({ itemType: "relationship" }),
-        GraphEmbeddingMetadata.countDocuments({
-          itemType: "relationship",
-          "mentionedInRecords.0": { $exists: true },
-        }),
-        GraphEmbeddingMetadata.countDocuments({
-          itemType: "relationship",
-          $or: [
-            { mentionedInRecords: { $exists: false } },
-            { mentionedInRecords: { $size: 0 } },
-          ],
-        }),
-        GraphEmbeddingMetadata.aggregate([
-          { $match: { itemType: "relationship" } },
-          {
-            $project: {
-              mentionCount: {
-                $size: { $ifNull: ["$mentionedInRecords", []] },
-              },
+    const [totalResult, withMentionsResult, orphanedResult, avgResult] = await Promise.all([
+      GraphEmbeddingMetadata.countDocuments({ itemType: 'relationship' }),
+      GraphEmbeddingMetadata.countDocuments({
+        itemType: 'relationship',
+        'mentionedInRecords.0': { $exists: true },
+      }),
+      GraphEmbeddingMetadata.countDocuments({
+        itemType: 'relationship',
+        $or: [{ mentionedInRecords: { $exists: false } }, { mentionedInRecords: { $size: 0 } }],
+      }),
+      GraphEmbeddingMetadata.aggregate([
+        { $match: { itemType: 'relationship' } },
+        {
+          $project: {
+            mentionCount: {
+              $size: { $ifNull: ['$mentionedInRecords', []] },
             },
           },
-          { $group: { _id: null, avgMentions: { $avg: "$mentionCount" } } },
-        ]),
-      ]);
+        },
+        { $group: { _id: null, avgMentions: { $avg: '$mentionCount' } } },
+      ]),
+    ]);
 
     return {
       totalRelationships: totalResult,

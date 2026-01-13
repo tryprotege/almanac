@@ -1,33 +1,23 @@
-import { AlertCircle, Database, Loader2, Plus, Store } from "lucide-react";
-import { useState } from "react";
-import { useDataSources } from "../hooks/useDataSources";
-import { useSyncConfigs } from "../hooks/useSyncConfigs";
-import { useSyncStatuses } from "../hooks/useSyncStatus";
-import { DataSourceWizard } from "../components/DataSourceWizard";
-import { MarketplaceModal } from "../components/MarketplaceModal";
-import { MCPServerCard } from "../components/MCPServerCard";
-import { PageHeader } from "../components/ui/PageHeader";
-import { Badge } from "../components/ui/Badge";
-import type { DataSourceConfig } from "../lib/api";
+import { AlertCircle, Database, Loader2, Plus, Store } from 'lucide-react';
+import { useState } from 'react';
+import { useDataSources } from '../hooks/useDataSources';
+import { useSyncConfigs } from '../hooks/useSyncConfigs';
+import { useSyncStatuses } from '../hooks/useSyncStatus';
+import { DataSourceWizard } from '../components/DataSourceWizard';
+import { MarketplaceModal } from '../components/MarketplaceModal';
+import { MCPServerCard } from '../components/MCPServerCard';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Badge } from '../components/ui/Badge';
+import type { DataSourceConfig } from '../lib/api';
 
 export default function DataSources() {
-  const {
-    servers,
-    isLoading: serversLoading,
-    error: serversError,
-  } = useDataSources();
-  const {
-    data: configs,
-    isLoading: configsLoading,
-    error: configsError,
-  } = useSyncConfigs();
+  const { servers, isLoading: serversLoading, error: serversError } = useDataSources();
+  const { data: configs, isLoading: configsLoading, error: configsError } = useSyncConfigs();
 
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
-  const [editingSource, setEditingSource] = useState<DataSourceConfig | null>(
-    null
-  );
+  const [editingSource, setEditingSource] = useState<DataSourceConfig | null>(null);
 
   // Fetch sync statuses with polling
   const { data: syncStatuses } = useSyncStatuses();
@@ -43,13 +33,12 @@ export default function DataSources() {
         id: server.name,
         name: server.name,
         type:
-          server.name.includes("notion") ||
-          server.name.includes("github") ||
-          server.name.includes("slack")
-            ? ("preset" as const)
-            : ("custom" as const),
-        status:
-          config?.status || (server.isDisabled ? "disabled" : "connected"),
+          server.name.includes('notion') ||
+          server.name.includes('github') ||
+          server.name.includes('slack')
+            ? ('preset' as const)
+            : ('custom' as const),
+        status: config?.status || (server.isDisabled ? 'disabled' : 'connected'),
         recordCount: 0, // TODO: Get from stats API
         hasIndexing: !!config,
         server,
@@ -75,11 +64,11 @@ export default function DataSources() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "active":
+      case 'active':
         return <Badge variant="success">Active</Badge>;
-      case "connected":
+      case 'connected':
         return <Badge variant="success">Connected</Badge>;
-      case "disabled":
+      case 'disabled':
         return <Badge variant="neutral">Disabled</Badge>;
       default:
         return null;
@@ -90,10 +79,7 @@ export default function DataSources() {
     <div className="pb-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
-        <PageHeader
-          title="Data Sources"
-          subtitle="Connect and index data from MCP servers"
-        />
+        <PageHeader title="Data Sources" subtitle="Connect and index data from MCP servers" />
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsMarketplaceOpen(true)}
@@ -122,9 +108,7 @@ export default function DataSources() {
               </div>
               <div>
                 <p className="text-sm text-text-tertiary">Total Sources</p>
-                <p className="text-2xl font-bold text-text-primary">
-                  {dataSources.length}
-                </p>
+                <p className="text-2xl font-bold text-text-primary">{dataSources.length}</p>
               </div>
             </div>
           </div>
@@ -137,7 +121,7 @@ export default function DataSources() {
               <div>
                 <p className="text-sm text-text-tertiary">Active & Indexing</p>
                 <p className="text-2xl font-bold text-text-primary">
-                  {dataSources.filter((s) => s.status === "active").length}
+                  {dataSources.filter((s) => s.status === 'active').length}
                 </p>
               </div>
             </div>
@@ -151,7 +135,7 @@ export default function DataSources() {
               <div>
                 <p className="text-sm text-text-tertiary">Connected Only</p>
                 <p className="text-2xl font-bold text-text-primary">
-                  {dataSources.filter((s) => s.status === "connected").length}
+                  {dataSources.filter((s) => s.status === 'connected').length}
                 </p>
               </div>
             </div>
@@ -172,11 +156,9 @@ export default function DataSources() {
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-error-text flex-shrink-0 mt-0.5" />
             <div>
-              <h3 className="text-sm font-medium text-error-text">
-                Error loading data sources
-              </h3>
+              <h3 className="text-sm font-medium text-error-text">Error loading data sources</h3>
               <p className="mt-1 text-sm text-error-text/80">
-                {error instanceof Error ? error.message : "Unknown error"}
+                {error instanceof Error ? error.message : 'Unknown error'}
               </p>
             </div>
           </div>
@@ -187,9 +169,7 @@ export default function DataSources() {
       {!isLoading && !error && dataSources.length === 0 && (
         <div className="card text-center py-12">
           <Database className="w-12 h-12 text-text-quaternary mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-text-primary mb-2">
-            No Data Sources
-          </h3>
+          <h3 className="text-lg font-medium text-text-primary mb-2">No Data Sources</h3>
           <p className="text-text-tertiary mb-6">
             Connect your first data source to start indexing
           </p>
@@ -215,18 +195,12 @@ export default function DataSources() {
       {/* Data Sources Grid */}
       {!isLoading && !error && dataSources.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold text-text-primary mb-4">
-            Your Data Sources
-          </h2>
+          <h2 className="text-lg font-semibold text-text-primary mb-4">Your Data Sources</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {dataSources.map((source) => {
               // Check if this server is currently syncing or queued
-              const isSyncing = syncStatuses?.syncing.some(
-                (s) => s.serverName === source.name
-              );
-              const isQueued = syncStatuses?.queued.some(
-                (s) => s.serverName === source.name
-              );
+              const isSyncing = syncStatuses?.syncing.some((s) => s.serverName === source.name);
+              const isQueued = syncStatuses?.queued.some((s) => s.serverName === source.name);
 
               return (
                 <MCPServerCard

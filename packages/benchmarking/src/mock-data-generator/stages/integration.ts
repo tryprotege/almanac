@@ -3,20 +3,17 @@ import type {
   GeneratorConfig,
   VolumeConfig,
   GenerationContext,
-} from "../types.js";
-import { generateTimeline, generateTimelineFromDate } from "../utils/dates.js";
-import { generateSlackMessages } from "../generators/slack.js";
-import {
-  generateGitHubIssues,
-  generateGitHubPRs,
-} from "../generators/github.js";
-import { generateNotionPages } from "../generators/notion.js";
+} from '../types.js';
+import { generateTimeline, generateTimelineFromDate } from '../utils/dates.js';
+import { generateSlackMessages } from '../generators/slack.js';
+import { generateGitHubIssues, generateGitHubPRs } from '../generators/github.js';
+import { generateNotionPages } from '../generators/notion.js';
 import {
   generateFathomMeetings,
   generateFathomTranscripts,
   generateFathomSummaries,
-} from "../generators/fathom.js";
-import { buildIntegrationContext } from "../context/builder.js";
+} from '../generators/fathom.js';
+import { buildIntegrationContext } from '../context/builder.js';
 
 /**
  * Stage 3: Integration - Generate data with deep links
@@ -35,7 +32,7 @@ export async function generateIntegration(
   },
   config: GeneratorConfig,
   volumes: VolumeConfig,
-  startDate?: Date
+  startDate?: Date,
 ): Promise<{
   slack: any[];
   github: { issues: any[]; prs: any[] };
@@ -44,7 +41,7 @@ export async function generateIntegration(
   fathomTranscripts: any[];
   fathomSummaries: any[];
 }> {
-  console.log("🔀 Stage 3: Integration (20% of data)");
+  console.log('🔀 Stage 3: Integration (20% of data)');
 
   // Build enriched context from foundation + connection
   const categorizedContext = buildIntegrationContext(foundation, connection);
@@ -70,21 +67,20 @@ export async function generateIntegration(
 
   // Split Fathom meetings: 80% work, 20% casual
   const workMeetingsCount = Math.floor(integrationVolumes.fathomMeetings * 0.8);
-  const casualMeetingsCount =
-    integrationVolumes.fathomMeetings - workMeetingsCount;
+  const casualMeetingsCount = integrationVolumes.fathomMeetings - workMeetingsCount;
 
   const [workMeetings, casualMeetings] = await Promise.all([
     generateFathomMeetings(
       workMeetingsCount,
       foundation.fathom.teamMembers,
       generationContext,
-      3000 // Integration: IDs 3000+
+      3000, // Integration: IDs 3000+
     ),
     generateFathomMeetings(
       casualMeetingsCount,
       foundation.fathom.teamMembers,
       generationContext,
-      3000 + workMeetingsCount // Integration casual: IDs 3000 + work count
+      3000 + workMeetingsCount, // Integration casual: IDs 3000 + work count
     ),
   ]);
 
@@ -108,32 +104,18 @@ export async function generateIntegration(
       config,
       categorizedContext.work,
       foundation.slack.users,
-      foundation.slack.channels
+      foundation.slack.channels,
     ),
     generateGitHubIssues(
       integrationVolumes.githubIssues,
       timeline,
       config,
-      categorizedContext.work
+      categorizedContext.work,
     ),
-    generateGitHubPRs(
-      integrationVolumes.githubPRs,
-      timeline,
-      config,
-      categorizedContext.work
-    ),
-    generateNotionPages(
-      integrationVolumes.notionPages,
-      timeline,
-      config,
-      categorizedContext.work
-    ),
+    generateGitHubPRs(integrationVolumes.githubPRs, timeline, config, categorizedContext.work),
+    generateNotionPages(integrationVolumes.notionPages, timeline, config, categorizedContext.work),
     generateFathomTranscripts(workMeetings, config, categorizedContext.work),
-    generateFathomTranscripts(
-      casualMeetings,
-      config,
-      categorizedContext.casual
-    ),
+    generateFathomTranscripts(casualMeetings, config, categorizedContext.casual),
     generateFathomSummaries(workMeetings, config, categorizedContext.work),
     generateFathomSummaries(casualMeetings, config, categorizedContext.casual),
   ]);
@@ -146,14 +128,10 @@ export async function generateIntegration(
   console.log(`✅ Generated ${githubPRs.length} integrated GitHub PRs`);
   console.log(`✅ Generated ${notionPages.length} integrated Notion pages`);
   console.log(
-    `✅ Generated ${fathomMeetings.length} integrated Fathom meetings (${workMeetingsCount} work, ${casualMeetingsCount} casual)`
+    `✅ Generated ${fathomMeetings.length} integrated Fathom meetings (${workMeetingsCount} work, ${casualMeetingsCount} casual)`,
   );
-  console.log(
-    `✅ Generated ${fathomTranscripts.length} Fathom transcripts with richer context`
-  );
-  console.log(
-    `✅ Generated ${fathomSummaries.length} Fathom summaries with richer context`
-  );
+  console.log(`✅ Generated ${fathomTranscripts.length} Fathom transcripts with richer context`);
+  console.log(`✅ Generated ${fathomSummaries.length} Fathom summaries with richer context`);
 
   return {
     slack: slackMessages,

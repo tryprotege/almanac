@@ -1,9 +1,9 @@
-import Cypher from "@neo4j/cypher-builder";
-import { MemgraphNode, MemgraphRelationship } from "../types/index.js";
-import { MemgraphConnection } from "../connections/memgraph.js";
-import sleep from "../utils/sleep.js";
-import logger from "../utils/logger.js";
-import { sanitizeRelationshipType } from "../utils/cypher-escape.js";
+import Cypher from '@neo4j/cypher-builder';
+import { MemgraphNode, MemgraphRelationship } from '../types/index.js';
+import { MemgraphConnection } from '../connections/memgraph.js';
+import sleep from '../utils/sleep.js';
+import logger from '../utils/logger.js';
+import { sanitizeRelationshipType } from '../utils/cypher-escape.js';
 
 /**
  * Generate Memgraph label from type
@@ -49,10 +49,10 @@ export class GraphStore {
       new Cypher.Pattern(nodeVar, {
         labels: [label],
         properties: { id: new Cypher.Param(node.id) },
-      })
+      }),
     ).set(
-      [nodeVar.property("title"), new Cypher.Param(node.title)],
-      [nodeVar.property("type"), new Cypher.Param(node.type)]
+      [nodeVar.property('title'), new Cypher.Param(node.title)],
+      [nodeVar.property('type'), new Cypher.Param(node.type)],
     );
 
     const { cypher, params } = query.build();
@@ -91,7 +91,7 @@ export class GraphStore {
             type: n.type,
           })),
         });
-      })
+      }),
     );
   }
 
@@ -106,23 +106,18 @@ export class GraphStore {
     const matchSource = new Cypher.Match(
       new Cypher.Pattern(sourceNode, {
         properties: { id: new Cypher.Param(relationship.sourceId) },
-      })
+      }),
     );
 
     const matchTarget = new Cypher.Match(
       new Cypher.Pattern(targetNode, {
         properties: { id: new Cypher.Param(relationship.targetId) },
-      })
+      }),
     );
 
     const mergeRel = new Cypher.Merge(
-      new Cypher.Pattern(sourceNode)
-        .related(rel, { type: relationship.type })
-        .to(targetNode)
-    ).set([
-      rel.property("confidence"),
-      new Cypher.Param(relationship.confidence),
-    ]);
+      new Cypher.Pattern(sourceNode).related(rel, { type: relationship.type }).to(targetNode),
+    ).set([rel.property('confidence'), new Cypher.Param(relationship.confidence)]);
 
     const query = Cypher.utils.concat(matchSource, matchTarget, mergeRel);
     const { cypher, params } = query.build();
@@ -133,9 +128,7 @@ export class GraphStore {
    * Create multiple relationships in batch
    * Uses sequential processing to avoid transaction conflicts in Memgraph
    */
-  async createRelationships(
-    relationships: MemgraphRelationship[]
-  ): Promise<void> {
+  async createRelationships(relationships: MemgraphRelationship[]): Promise<void> {
     if (relationships.length === 0) return;
 
     // Group by relationship type
@@ -173,14 +166,11 @@ export class GraphStore {
     const node = new Cypher.Node();
 
     const query = new Cypher.Match(new Cypher.Pattern(node))
-      .where(Cypher.eq(node.property("id"), new Cypher.Param(id)))
-      .return([Cypher.gt(Cypher.count(node), new Cypher.Literal(0)), "exists"]);
+      .where(Cypher.eq(node.property('id'), new Cypher.Param(id)))
+      .return([Cypher.gt(Cypher.count(node), new Cypher.Literal(0)), 'exists']);
 
     const { cypher, params } = query.build();
-    const results = await this.memgraph.executeQuery<{ exists: boolean }>(
-      cypher,
-      params
-    );
+    const results = await this.memgraph.executeQuery<{ exists: boolean }>(cypher, params);
 
     return results[0]?.exists || false;
   }
@@ -188,31 +178,24 @@ export class GraphStore {
   /**
    * Check if a relationship exists between two nodes
    */
-  async relationshipExists(
-    sourceId: string,
-    type: string,
-    targetId: string
-  ): Promise<boolean> {
+  async relationshipExists(sourceId: string, type: string, targetId: string): Promise<boolean> {
     const sourceNode = new Cypher.Node();
     const targetNode = new Cypher.Node();
     const rel = new Cypher.Relationship();
 
     const query = new Cypher.Match(
-      new Cypher.Pattern(sourceNode).related(rel, { type }).to(targetNode)
+      new Cypher.Pattern(sourceNode).related(rel, { type }).to(targetNode),
     )
       .where(
         Cypher.and(
-          Cypher.eq(sourceNode.property("id"), new Cypher.Param(sourceId)),
-          Cypher.eq(targetNode.property("id"), new Cypher.Param(targetId))
-        )
+          Cypher.eq(sourceNode.property('id'), new Cypher.Param(sourceId)),
+          Cypher.eq(targetNode.property('id'), new Cypher.Param(targetId)),
+        ),
       )
-      .return([Cypher.gt(Cypher.count(rel), new Cypher.Literal(0)), "exists"]);
+      .return([Cypher.gt(Cypher.count(rel), new Cypher.Literal(0)), 'exists']);
 
     const { cypher, params } = query.build();
-    const results = await this.memgraph.executeQuery<{ exists: boolean }>(
-      cypher,
-      params
-    );
+    const results = await this.memgraph.executeQuery<{ exists: boolean }>(cypher, params);
 
     return results[0]?.exists || false;
   }
@@ -224,12 +207,12 @@ export class GraphStore {
     const node = new Cypher.Node();
 
     const query = new Cypher.Match(new Cypher.Pattern(node))
-      .where(Cypher.eq(node.property("id"), new Cypher.Param(id)))
+      .where(Cypher.eq(node.property('id'), new Cypher.Param(id)))
       .return(
-        [node.property("id"), "id"],
-        [node.property("type"), "type"],
-        [node.property("title"), "title"],
-        [Cypher.labels(node), "labels"]
+        [node.property('id'), 'id'],
+        [node.property('type'), 'type'],
+        [node.property('title'), 'title'],
+        [Cypher.labels(node), 'labels'],
       );
 
     const { cypher, params } = query.build();
@@ -255,19 +238,15 @@ export class GraphStore {
    * Get relationship counts for multiple nodes in a single query
    * Much more efficient than calling getNodeRelationships for each node
    */
-  async getNodeRelationshipCounts(
-    nodeIds: string[]
-  ): Promise<Map<string, number>> {
+  async getNodeRelationshipCounts(nodeIds: string[]): Promise<Map<string, number>> {
     if (nodeIds.length === 0) return new Map();
 
     const node = new Cypher.Node();
     const rel = new Cypher.Relationship();
 
-    const query = new Cypher.Match(
-      new Cypher.Pattern(node).related(rel).to(new Cypher.Node())
-    )
-      .where(Cypher.in(node.property("id"), new Cypher.Param(nodeIds)))
-      .return([node.property("id"), "nodeId"], [Cypher.count(rel), "degree"]);
+    const query = new Cypher.Match(new Cypher.Pattern(node).related(rel).to(new Cypher.Node()))
+      .where(Cypher.in(node.property('id'), new Cypher.Param(nodeIds)))
+      .return([node.property('id'), 'nodeId'], [Cypher.count(rel), 'degree']);
 
     const { cypher, params } = query.build();
     const results = await this.memgraph.executeQuery<{
@@ -279,9 +258,7 @@ export class GraphStore {
     results.forEach((r) => {
       // Handle both Neo4j Integer objects and regular numbers
       const degree =
-        typeof r.degree === "object" &&
-        r.degree !== null &&
-        "toNumber" in r.degree
+        typeof r.degree === 'object' && r.degree !== null && 'toNumber' in r.degree
           ? (r.degree as any).toNumber()
           : r.degree || 0;
       countMap.set(r.nodeId, degree);
@@ -354,9 +331,9 @@ export class GraphStore {
   async getNodeRelationshipsBatch(
     nodeIds: string[],
     options?: {
-      direction?: "outgoing" | "incoming" | "both";
+      direction?: 'outgoing' | 'incoming' | 'both';
       relationshipTypes?: string[];
-    }
+    },
   ): Promise<
     Map<
       string,
@@ -368,19 +345,16 @@ export class GraphStore {
   > {
     if (nodeIds.length === 0) return new Map();
 
-    const direction = options?.direction || "both";
+    const direction = options?.direction || 'both';
     const types = options?.relationshipTypes || [];
 
-    let relationshipPattern = "";
-    if (direction === "outgoing") {
-      relationshipPattern =
-        types.length > 0 ? `-[r:${types.join("|")}]->` : "-[r]->";
-    } else if (direction === "incoming") {
-      relationshipPattern =
-        types.length > 0 ? `<-[r:${types.join("|")}]-` : "<-[r]-";
+    let relationshipPattern = '';
+    if (direction === 'outgoing') {
+      relationshipPattern = types.length > 0 ? `-[r:${types.join('|')}]->` : '-[r]->';
+    } else if (direction === 'incoming') {
+      relationshipPattern = types.length > 0 ? `<-[r:${types.join('|')}]-` : '<-[r]-';
     } else {
-      relationshipPattern =
-        types.length > 0 ? `-[r:${types.join("|")}]-` : "-[r]-";
+      relationshipPattern = types.length > 0 ? `-[r:${types.join('|')}]-` : '-[r]-';
     }
 
     const query = `
@@ -449,28 +423,25 @@ export class GraphStore {
   async getNodeRelationships(
     nodeId: string,
     options?: {
-      direction?: "outgoing" | "incoming" | "both";
+      direction?: 'outgoing' | 'incoming' | 'both';
       relationshipTypes?: string[];
-    }
+    },
   ): Promise<
     Array<{
       relationship: MemgraphRelationship;
       relatedNode: MemgraphNode;
     }>
   > {
-    const direction = options?.direction || "both";
+    const direction = options?.direction || 'both';
     const types = options?.relationshipTypes || [];
 
-    let relationshipPattern = "";
-    if (direction === "outgoing") {
-      relationshipPattern =
-        types.length > 0 ? `-[r:${types.join("|")}]->` : "-[r]->";
-    } else if (direction === "incoming") {
-      relationshipPattern =
-        types.length > 0 ? `<-[r:${types.join("|")}]-` : "<-[r]-";
+    let relationshipPattern = '';
+    if (direction === 'outgoing') {
+      relationshipPattern = types.length > 0 ? `-[r:${types.join('|')}]->` : '-[r]->';
+    } else if (direction === 'incoming') {
+      relationshipPattern = types.length > 0 ? `<-[r:${types.join('|')}]-` : '<-[r]-';
     } else {
-      relationshipPattern =
-        types.length > 0 ? `-[r:${types.join("|")}]-` : "-[r]-";
+      relationshipPattern = types.length > 0 ? `-[r:${types.join('|')}]-` : '-[r]-';
     }
 
     const query = `
@@ -519,7 +490,7 @@ export class GraphStore {
     targetId: string,
     options?: {
       maxDepth?: number;
-    }
+    },
   ): Promise<
     Array<{
       nodes: MemgraphNode[];
@@ -580,9 +551,9 @@ export class GraphStore {
     const relationshipTypes = options?.relationshipTypes || [];
 
     // Build node query with optional type filter
-    let nodeQuery = "MATCH (n)";
+    let nodeQuery = 'MATCH (n)';
     if (nodeTypes.length > 0) {
-      const labels = nodeTypes.map((type) => getNodeLabel(type)).join("|");
+      const labels = nodeTypes.map((type) => getNodeLabel(type)).join('|');
       nodeQuery = `MATCH (n:${labels})`;
     }
     nodeQuery += `
@@ -591,18 +562,18 @@ export class GraphStore {
     `;
 
     // Get total counts
-    let countNodeQuery = "MATCH (n)";
+    let countNodeQuery = 'MATCH (n)';
     if (nodeTypes.length > 0) {
-      const labels = nodeTypes.map((type) => getNodeLabel(type)).join("|");
+      const labels = nodeTypes.map((type) => getNodeLabel(type)).join('|');
       countNodeQuery = `MATCH (n:${labels})`;
     }
-    countNodeQuery += " RETURN count(n) AS count";
+    countNodeQuery += ' RETURN count(n) AS count';
 
-    let countRelQuery = "MATCH ()-[r]-()";
+    let countRelQuery = 'MATCH ()-[r]-()';
     if (relationshipTypes.length > 0) {
-      countRelQuery = `MATCH ()-[r:${relationshipTypes.join("|")}]-()`;
+      countRelQuery = `MATCH ()-[r:${relationshipTypes.join('|')}]-()`;
     }
-    countRelQuery += " RETURN count(r) AS count";
+    countRelQuery += ' RETURN count(r) AS count';
 
     // Execute node query first
     const [nodeResults, nodeCountResults, relCountResults] = await Promise.all([
@@ -627,7 +598,7 @@ export class GraphStore {
     const nodeIds = nodes.map((n) => n.id);
 
     // Build relationship query that only includes relationships between fetched nodes
-    let relQuery = "";
+    let relQuery = '';
     if (nodeIds.length === 0) {
       // No nodes, no relationships
       return {
@@ -641,7 +612,7 @@ export class GraphStore {
     // Query for relationships where both source and target are in our node set
     if (relationshipTypes.length > 0) {
       relQuery = `
-        MATCH (source)-[r:${relationshipTypes.join("|")}]->(target)
+        MATCH (source)-[r:${relationshipTypes.join('|')}]->(target)
         WHERE source.id IN $nodeIds AND target.id IN $nodeIds
         RETURN
           source.id AS sourceId,
@@ -690,7 +661,7 @@ export class GraphStore {
     const node = new Cypher.Node();
 
     const query = new Cypher.Match(new Cypher.Pattern(node))
-      .where(Cypher.eq(node.property("id"), new Cypher.Param(id)))
+      .where(Cypher.eq(node.property('id'), new Cypher.Param(id)))
       .detachDelete(node);
 
     const { cypher, params } = query.build();
@@ -712,14 +683,13 @@ export class GraphStore {
       RETURN nodeCount
     `;
 
-    const results = await this.memgraph.executeQuery<{ nodeCount: number }>(
-      query,
-      { prefix: `${recordId}_` }
-    );
+    const results = await this.memgraph.executeQuery<{ nodeCount: number }>(query, {
+      prefix: `${recordId}_`,
+    });
 
     // Handle both Neo4j Integer objects and regular numbers
     const count = results[0]?.nodeCount || 0;
-    return typeof count === "object" && count !== null && "toNumber" in count
+    return typeof count === 'object' && count !== null && 'toNumber' in count
       ? (count as any).toNumber()
       : count || 0;
   }
@@ -737,13 +707,13 @@ export class GraphStore {
 
     const query = new Cypher.Merge(
       new Cypher.Pattern(entityNode, {
-        labels: ["Entity"],
+        labels: ['Entity'],
         properties: { id: new Cypher.Param(entity.id) },
-      })
+      }),
     ).set(
-      [entityNode.property("type"), new Cypher.Param(entity.type)],
-      [entityNode.property("title"), new Cypher.Param(entity.title)],
-      [entityNode.property("description"), new Cypher.Param(entity.description)]
+      [entityNode.property('type'), new Cypher.Param(entity.type)],
+      [entityNode.property('title'), new Cypher.Param(entity.title)],
+      [entityNode.property('description'), new Cypher.Param(entity.description)],
     );
 
     const { cypher, params } = query.build();
@@ -760,7 +730,7 @@ export class GraphStore {
       type: string;
       title: string;
       description?: string;
-    }>
+    }>,
   ): Promise<void> {
     if (entities.length === 0) return;
 
@@ -784,7 +754,7 @@ export class GraphStore {
       id: string;
       title: string;
       source: string;
-    }>
+    }>,
   ): Promise<void> {
     if (documents.length === 0) return;
 
@@ -804,7 +774,7 @@ export class GraphStore {
   async linkEntityToDocument(
     entityId: string,
     recordId: string,
-    metadata?: { confidence?: number }
+    metadata?: { confidence?: number },
   ): Promise<void> {
     const entityNode = new Cypher.Node();
     const docNode = new Cypher.Node();
@@ -812,27 +782,22 @@ export class GraphStore {
 
     const matchEntity = new Cypher.Match(
       new Cypher.Pattern(entityNode, {
-        labels: ["Entity"],
+        labels: ['Entity'],
         properties: { id: new Cypher.Param(entityId) },
-      })
+      }),
     );
 
     const matchDoc = new Cypher.Match(
       new Cypher.Pattern(docNode, {
         properties: { id: new Cypher.Param(recordId) },
-      })
+      }),
     );
 
     const mergeRel = new Cypher.Merge(
-      new Cypher.Pattern(entityNode)
-        .related(rel, { type: "MENTIONED_IN" })
-        .to(docNode)
+      new Cypher.Pattern(entityNode).related(rel, { type: 'MENTIONED_IN' }).to(docNode),
     ).set(
-      [rel.property("extractedAt"), Cypher.datetime()],
-      [
-        rel.property("confidence"),
-        new Cypher.Param(metadata?.confidence || 1.0),
-      ]
+      [rel.property('extractedAt'), Cypher.datetime()],
+      [rel.property('confidence'), new Cypher.Param(metadata?.confidence || 1.0)],
     );
 
     const query = Cypher.utils.concat(matchEntity, matchDoc, mergeRel);
@@ -852,7 +817,7 @@ export class GraphStore {
       sourceEntityId: string;
       targetEntityId: string;
       confidence: number;
-    }>
+    }>,
   ): Promise<void> {
     if (links.length === 0) return;
 
@@ -888,22 +853,19 @@ export class GraphStore {
           RETURN source.id AS sourceId
         `;
 
-        const result = await this.memgraph.executeQuery<{ sourceId: string }>(
-          query,
-          {
-            recordId: link.recordId,
-            sourceEntityId: link.sourceEntityId,
-            relationshipType: link.relationshipType,
-            targetEntityId: link.targetEntityId,
-            confidence: link.confidence,
-          }
-        );
+        const result = await this.memgraph.executeQuery<{ sourceId: string }>(query, {
+          recordId: link.recordId,
+          sourceEntityId: link.sourceEntityId,
+          relationshipType: link.relationshipType,
+          targetEntityId: link.targetEntityId,
+          confidence: link.confidence,
+        });
 
         // Check if MATCH actually found the source entity
         if (result.length === 0) {
           failureCount++;
           logger.error({
-            msg: "❌ MENTIONS_REL failed: Source entity does not exist in graph",
+            msg: '❌ MENTIONS_REL failed: Source entity does not exist in graph',
             recordId: link.recordId,
             relationshipType: link.relationshipType,
             sourceEntityId: link.sourceEntityId,
@@ -916,7 +878,7 @@ export class GraphStore {
       } catch (err) {
         failureCount++;
         logger.error({
-          msg: "❌ Failed to create MENTIONS_REL relationship (exception)",
+          msg: '❌ Failed to create MENTIONS_REL relationship (exception)',
           err,
           recordId: link.recordId,
           relationshipType: link.relationshipType,
@@ -955,10 +917,7 @@ export class GraphStore {
       RETURN entity.id AS entityId
     `;
 
-    const results = await this.memgraph.executeQuery<{ entityId: string }>(
-      query,
-      { recordId }
-    );
+    const results = await this.memgraph.executeQuery<{ entityId: string }>(query, { recordId });
 
     return results.map((r) => r.entityId);
   }
@@ -970,7 +929,7 @@ export class GraphStore {
    * Includes retry logic for Memgraph transaction conflicts
    */
   async deleteOrphanedEntities(
-    maxRetries: number = 3
+    maxRetries: number = 3,
   ): Promise<{ count: number; entities: OrphanedEntityDetails[] }> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -988,13 +947,11 @@ export class GraphStore {
           title: string;
         }>(detailsQuery, {});
 
-        const orphanedEntities: OrphanedEntityDetails[] = detailsResults.map(
-          (e) => ({
-            id: e.id,
-            type: e.type,
-            title: e.title,
-          })
-        );
+        const orphanedEntities: OrphanedEntityDetails[] = detailsResults.map((e) => ({
+          id: e.id,
+          type: e.type,
+          title: e.title,
+        }));
 
         const finalCount = orphanedEntities.length;
 
@@ -1012,23 +969,21 @@ export class GraphStore {
       } catch (err: any) {
         // Check if it's a retriable Memgraph transaction conflict
         const isTransientError =
-          err.code?.includes("TransientError") ||
-          err.retriable === true ||
-          err.retryable === true;
+          err.code?.includes('TransientError') || err.retriable === true || err.retryable === true;
 
         if (isTransientError && attempt < maxRetries) {
           const delayMs = 1000 * Math.pow(2, attempt - 1); // 1s, 2s, 4s
           logger.warn(
             `⚠️  Memgraph transaction conflict in deleteOrphanedEntities, retrying in ${delayMs}ms (attempt ${
               attempt + 1
-            }/${maxRetries})`
+            }/${maxRetries})`,
           );
           await sleep(delayMs);
         } else {
           // Not retriable or max retries reached
           logger.error(
             { err, attempt, maxRetries },
-            `❌ Failed to delete orphaned entities after ${attempt} attempts`
+            `❌ Failed to delete orphaned entities after ${attempt} attempts`,
           );
           throw err;
         }
@@ -1054,15 +1009,15 @@ export class GraphStore {
     const rel = new Cypher.Relationship();
 
     const query = new Cypher.Match(
-      new Cypher.Pattern(entityNode, { labels: ["Entity"] })
-        .related(rel, { type: "MENTIONED_IN" })
-        .to(docNode)
+      new Cypher.Pattern(entityNode, { labels: ['Entity'] })
+        .related(rel, { type: 'MENTIONED_IN' })
+        .to(docNode),
     )
-      .where(Cypher.eq(docNode.property("id"), new Cypher.Param(recordId)))
+      .where(Cypher.eq(docNode.property('id'), new Cypher.Param(recordId)))
       .return(
-        [entityNode.property("id"), "id"],
-        [entityNode.property("type"), "type"],
-        [entityNode.property("title"), "title"]
+        [entityNode.property('id'), 'id'],
+        [entityNode.property('type'), 'type'],
+        [entityNode.property('title'), 'title'],
       );
 
     const { cypher, params } = query.build();
@@ -1084,26 +1039,21 @@ export class GraphStore {
 
     const matchSource = new Cypher.Match(
       new Cypher.Pattern(sourceNode, {
-        labels: ["Entity"],
+        labels: ['Entity'],
         properties: { id: new Cypher.Param(relationship.sourceId) },
-      })
+      }),
     );
 
     const matchTarget = new Cypher.Match(
       new Cypher.Pattern(targetNode, {
-        labels: ["Entity"],
+        labels: ['Entity'],
         properties: { id: new Cypher.Param(relationship.targetId) },
-      })
+      }),
     );
 
     const mergeRel = new Cypher.Merge(
-      new Cypher.Pattern(sourceNode)
-        .related(rel, { type: relationship.type })
-        .to(targetNode)
-    ).set([
-      rel.property("confidence"),
-      new Cypher.Param(relationship.confidence || 1.0),
-    ]);
+      new Cypher.Pattern(sourceNode).related(rel, { type: relationship.type }).to(targetNode),
+    ).set([rel.property('confidence'), new Cypher.Param(relationship.confidence || 1.0)]);
 
     const query = Cypher.utils.concat(matchSource, matchTarget, mergeRel);
     const { cypher, params } = query.build();
@@ -1121,7 +1071,7 @@ export class GraphStore {
       targetId: string;
       type: string;
       confidence?: number;
-    }>
+    }>,
   ): Promise<void> {
     if (relationships.length === 0) return;
 
@@ -1136,7 +1086,7 @@ export class GraphStore {
       if (!sanitizedType) {
         // Invalid type - log warning and skip
         logger.warn({
-          msg: "⚠️  Skipping relationship with invalid type during upsert",
+          msg: '⚠️  Skipping relationship with invalid type during upsert',
           originalType: rel.type,
           sourceId: rel.sourceId,
           targetId: rel.targetId,
@@ -1179,7 +1129,7 @@ export class GraphStore {
       } catch (err) {
         // Log the error but don't crash - other relationship types can still be processed
         logger.error({
-          msg: "❌ Error upserting relationships",
+          msg: '❌ Error upserting relationships',
           err,
           sanitizedType,
           relationshipCount: typeRels.length,
@@ -1192,16 +1142,12 @@ export class GraphStore {
    * Delete a specific semantic relationship
    * Used by cleanup logic to remove orphaned relationships
    */
-  async deleteRelationship(
-    sourceId: string,
-    type: string,
-    targetId: string
-  ): Promise<void> {
+  async deleteRelationship(sourceId: string, type: string, targetId: string): Promise<void> {
     const sanitizedType = sanitizeRelationshipType(type);
 
     if (!sanitizedType) {
       logger.warn({
-        msg: "⚠️  Cannot delete relationship with invalid type",
+        msg: '⚠️  Cannot delete relationship with invalid type',
         originalType: type,
         sourceId,
         targetId,
@@ -1226,7 +1172,7 @@ export class GraphStore {
     relationshipType: string,
     sourceEntityId: string,
     targetEntityId: string,
-    metadata: { confidence: number }
+    metadata: { confidence: number },
   ): Promise<void> {
     const docNode = new Cypher.Node();
     const sourceNode = new Cypher.Node();
@@ -1235,26 +1181,24 @@ export class GraphStore {
     const matchDoc = new Cypher.Match(
       new Cypher.Pattern(docNode, {
         properties: { id: new Cypher.Param(recordId) },
-      })
+      }),
     );
 
     const matchSource = new Cypher.Match(
       new Cypher.Pattern(sourceNode, {
-        labels: ["Entity"],
+        labels: ['Entity'],
         properties: { id: new Cypher.Param(sourceEntityId) },
-      })
+      }),
     );
 
     const mergeRel = new Cypher.Merge(
-      new Cypher.Pattern(docNode)
-        .related(rel, { type: "MENTIONS_REL" })
-        .to(sourceNode)
+      new Cypher.Pattern(docNode).related(rel, { type: 'MENTIONS_REL' }).to(sourceNode),
     ).set(
-      [rel.property("relationshipType"), new Cypher.Param(relationshipType)],
-      [rel.property("sourceEntityId"), new Cypher.Param(sourceEntityId)],
-      [rel.property("targetEntityId"), new Cypher.Param(targetEntityId)],
-      [rel.property("confidence"), new Cypher.Param(metadata.confidence)],
-      [rel.property("extractedAt"), Cypher.datetime()]
+      [rel.property('relationshipType'), new Cypher.Param(relationshipType)],
+      [rel.property('sourceEntityId'), new Cypher.Param(sourceEntityId)],
+      [rel.property('targetEntityId'), new Cypher.Param(targetEntityId)],
+      [rel.property('confidence'), new Cypher.Param(metadata.confidence)],
+      [rel.property('extractedAt'), Cypher.datetime()],
     );
 
     const query = Cypher.utils.concat(matchDoc, matchSource, mergeRel);
@@ -1271,7 +1215,7 @@ export class GraphStore {
       entityId: string;
       recordId: string;
       confidence?: number;
-    }>
+    }>,
   ): Promise<void> {
     if (links.length === 0) return;
 
@@ -1310,7 +1254,7 @@ export class GraphStore {
     });
 
     const count = results[0]?.count || 0;
-    return typeof count === "object" && count !== null && "toNumber" in count
+    return typeof count === 'object' && count !== null && 'toNumber' in count
       ? (count as any).toNumber()
       : count || 0;
   }
@@ -1346,13 +1290,12 @@ export class GraphStore {
       confidence: number;
     }>(detailsQuery, {});
 
-    const orphanedRelationships: OrphanedRelationshipDetails[] =
-      detailsResults.map((r) => ({
-        sourceId: r.sourceId,
-        targetId: r.targetId,
-        type: r.relType,
-        confidence: r.confidence,
-      }));
+    const orphanedRelationships: OrphanedRelationshipDetails[] = detailsResults.map((r) => ({
+      sourceId: r.sourceId,
+      targetId: r.targetId,
+      type: r.relType,
+      confidence: r.confidence,
+    }));
 
     const finalCount = orphanedRelationships.length;
 
@@ -1393,16 +1336,14 @@ export class GraphStore {
     const targetNode = new Cypher.Node();
 
     const query = new Cypher.Match(
-      new Cypher.Pattern(docNode)
-        .related(rel, { type: "MENTIONS_REL" })
-        .to(targetNode)
+      new Cypher.Pattern(docNode).related(rel, { type: 'MENTIONS_REL' }).to(targetNode),
     )
-      .where(Cypher.eq(docNode.property("id"), new Cypher.Param(recordId)))
+      .where(Cypher.eq(docNode.property('id'), new Cypher.Param(recordId)))
       .return(
-        [rel.property("relationshipType"), "type"],
-        [rel.property("sourceEntityId"), "sourceId"],
-        [rel.property("targetEntityId"), "targetId"],
-        [rel.property("confidence"), "confidence"]
+        [rel.property('relationshipType'), 'type'],
+        [rel.property('sourceEntityId'), 'sourceId'],
+        [rel.property('targetEntityId'), 'targetId'],
+        [rel.property('confidence'), 'confidence'],
       );
 
     const { cypher, params } = query.build();
@@ -1420,7 +1361,7 @@ export class GraphStore {
       targetId: string;
       type: string;
       confidence: number;
-    }>
+    }>,
   ): Promise<void> {
     if (relationships.length === 0) return;
 
@@ -1433,7 +1374,7 @@ export class GraphStore {
 
       if (!sanitizedType) {
         logger.warn({
-          msg: "⚠️  Skipping document relationship with invalid type",
+          msg: '⚠️  Skipping document relationship with invalid type',
           originalType: rel.type,
           sourceId: rel.sourceId,
           targetId: rel.targetId,
@@ -1481,7 +1422,7 @@ export class GraphStore {
         });
       } catch (err) {
         logger.error({
-          msg: "❌ Error creating document relationships",
+          msg: '❌ Error creating document relationships',
           err,
           sanitizedType,
           relationshipCount: typeRels.length,
@@ -1527,7 +1468,7 @@ export class GraphStore {
    * Used to determine which relationships are new vs existing during extraction
    */
   async getExistingRelationshipKeys(
-    relationships: Array<{ sourceId: string; targetId: string; type: string }>
+    relationships: Array<{ sourceId: string; targetId: string; type: string }>,
   ): Promise<Set<string>> {
     if (relationships.length === 0) return new Set();
 
@@ -1544,7 +1485,7 @@ export class GraphStore {
       if (!sanitizedType) {
         // Invalid type - log warning and skip
         logger.warn({
-          msg: "⚠️  Skipping relationship with invalid type",
+          msg: '⚠️  Skipping relationship with invalid type',
           originalType: rel.type,
           sourceId: rel.sourceId,
           targetId: rel.targetId,
@@ -1581,7 +1522,7 @@ export class GraphStore {
         for (const r of results) {
           // Find the original type for this relationship
           const relData = rels.find(
-            (rel) => rel.sourceId === r.sourceId && rel.targetId === r.targetId
+            (rel) => rel.sourceId === r.sourceId && rel.targetId === r.targetId,
           );
           const originalType = relData?.originalType || sanitizedType;
           existingKeys.add(`${r.sourceId}|${originalType}|${r.targetId}`);
@@ -1589,7 +1530,7 @@ export class GraphStore {
       } catch (err) {
         // Log the error but don't crash - other relationship types can still be processed
         logger.error({
-          msg: "❌ Error querying existing relationships",
+          msg: '❌ Error querying existing relationships',
           err,
           sanitizedType,
           relationshipCount: rels.length,

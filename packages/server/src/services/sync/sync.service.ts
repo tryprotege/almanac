@@ -1,33 +1,29 @@
-import { loadProxyConfig } from "../../mcp/config-loader.js";
-import type { DataSource } from "../../models/data-source.model.js";
-import { IndexingConfigModel } from "../../models/indexing-config.model.js";
-import { RecordStore } from "../../stores/record.store.js";
-import logger from "../../utils/logger.js";
-import { indexAll } from "../indexing/config/config-indexer.service.js";
-import { RecordModel } from "../../models/record.model.js";
-import { VectorStore } from "../../stores/vector.store.js";
-import { insertRecordToVectorDB } from "../indexing/embeddings/vector-indexer.service.js";
-import { connectQdrant } from "../../connections/qdrant.js";
-import { createHash } from "crypto";
-import type { TransformedRecord } from "@ebee-oss/indexing-engine";
+import { loadProxyConfig } from '../../mcp/config-loader.js';
+import type { DataSource } from '../../models/data-source.model.js';
+import { IndexingConfigModel } from '../../models/indexing-config.model.js';
+import { RecordStore } from '../../stores/record.store.js';
+import logger from '../../utils/logger.js';
+import { indexAll } from '../indexing/config/config-indexer.service.js';
+import { RecordModel } from '../../models/record.model.js';
+import { VectorStore } from '../../stores/vector.store.js';
+import { insertRecordToVectorDB } from '../indexing/embeddings/vector-indexer.service.js';
+import { connectQdrant } from '../../connections/qdrant.js';
+import { createHash } from 'crypto';
+import type { TransformedRecord } from '@ebee-oss/indexing-engine';
 
 /**
  * Helper: Persist transformed records to MongoDB
  */
 async function persistToMongo(records: TransformedRecord[]): Promise<void> {
   const mongoOps = records.map((record) => {
-    const normalizedContent = `${record.title || ""}\n${
-      record.content || ""
-    }`.trim();
-    const checksum = createHash("sha256")
-      .update(normalizedContent)
-      .digest("hex");
+    const normalizedContent = `${record.title || ''}\n${record.content || ''}`.trim();
+    const checksum = createHash('sha256').update(normalizedContent).digest('hex');
 
     const sourceUpdatedAt = record.rawData?.updated_time
       ? new Date(record.rawData.updated_time)
       : record.rawData?.last_edited_time
-      ? new Date(record.rawData.last_edited_time)
-      : new Date();
+        ? new Date(record.rawData.last_edited_time)
+        : new Date();
 
     return {
       updateOne: {
@@ -41,8 +37,8 @@ async function persistToMongo(records: TransformedRecord[]): Promise<void> {
             parentId: record.parentId,
             childIds: record.childIds || [],
             isParentRecord: record.isParentRecord || false,
-            title: record.title || "",
-            content: record.content || "",
+            title: record.title || '',
+            content: record.content || '',
             people: record.people || [],
             primaryDate: record.primaryDate || new Date(),
             tags: record.tags || [],
@@ -67,7 +63,7 @@ async function persistToMongo(records: TransformedRecord[]): Promise<void> {
 async function indexToVectors(
   records: TransformedRecord[],
   recordStore: RecordStore,
-  vectorStore: VectorStore
+  vectorStore: VectorStore,
 ): Promise<void> {
   for (const record of records) {
     try {
@@ -76,10 +72,7 @@ async function indexToVectors(
         await insertRecordToVectorDB(recordStore, vectorStore, mongoRecord);
       }
     } catch (error) {
-      logger.error(
-        { error, recordId: record.sourceId },
-        "Failed to index record to vector store"
-      );
+      logger.error({ error, recordId: record.sourceId }, 'Failed to index record to vector store');
     }
   }
 }
@@ -90,21 +83,21 @@ async function indexToVectors(
  */
 export const syncMcpServer = async (
   dataSource: DataSource & { _id: any },
-  _options?: { limit?: number }
+  _options?: { limit?: number },
 ) => {
   // 1. Get IndexingConfig (required - no fallback)
   const syncConfig = await IndexingConfigModel.findOne({
     serverName: dataSource.name,
-    status: "active",
+    status: 'active',
   });
 
   if (!syncConfig) {
     throw new Error(
-      `No active IndexingConfig found for '${dataSource.name}'. Please create an indexing configuration first via the UI or config generation API.`
+      `No active IndexingConfig found for '${dataSource.name}'. Please create an indexing configuration first via the UI or config generation API.`,
     );
   }
 
-  logger.info({ serverName: dataSource.name }, "Starting config-based sync");
+  logger.info({ serverName: dataSource.name }, 'Starting config-based sync');
 
   // 2. Initialize stores
   const recordStore = new RecordStore();
@@ -117,9 +110,7 @@ export const syncMcpServer = async (
   const syncGenerator = indexAll(
     syncConfig.config,
     dataSource.name,
-    syncConfig.startingPointValues
-      ? Object.fromEntries(syncConfig.startingPointValues)
-      : undefined
+    syncConfig.startingPointValues ? Object.fromEntries(syncConfig.startingPointValues) : undefined,
   );
 
   // 4. Process records in batches
@@ -131,9 +122,7 @@ export const syncMcpServer = async (
     await indexToVectors(records, recordStore, vectorStore);
 
     recordsProcessed += records.length;
-    logger.info(
-      `Processed ${recordsProcessed} records from ${dataSource.name}`
-    );
+    logger.info(`Processed ${recordsProcessed} records from ${dataSource.name}`);
   }
 
   logger.info({
@@ -147,14 +136,12 @@ export const syncMcpServer = async (
  * This bypasses the queue and runs synchronously - useful for testing or single-run scripts
  * @deprecated Use queueAllRemoteMcpServers() with the worker for production
  */
-export async function syncAllRemoteMcpServers(options?: {
-  limit?: number;
-}): Promise<void> {
+export async function syncAllRemoteMcpServers(options?: { limit?: number }): Promise<void> {
   const validConfigs = await loadProxyConfig();
 
   // Use allSettled to continue syncing even if one source fails
   const results = await Promise.allSettled(
-    validConfigs.map((config) => syncMcpServer(config, options))
+    validConfigs.map((config) => syncMcpServer(config, options)),
   );
 
   // Log results
@@ -165,20 +152,17 @@ export async function syncAllRemoteMcpServers(options?: {
 
   results.forEach((result, index) => {
     const config = validConfigs[index];
-    if (result.status === "fulfilled") {
+    if (result.status === 'fulfilled') {
       successCount++;
     } else {
       failureCount++;
       failures.push({ source: config.name, error: result.reason });
-      logger.error(
-        { err: result.reason, source: config.name },
-        `❌ Failed to sync source`
-      );
+      logger.error({ err: result.reason, source: config.name }, `❌ Failed to sync source`);
     }
   });
 
   logger.info({
-    msg: "📊 Sync Summary",
+    msg: '📊 Sync Summary',
     successful: successCount,
     failed: failureCount,
     total: validConfigs.length,

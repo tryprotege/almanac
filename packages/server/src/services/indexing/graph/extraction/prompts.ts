@@ -13,20 +13,20 @@ export function buildCombinedExtractionPrompt(
   content: string,
   entityTypes: string[],
   relationshipTypes: string[],
-  persona?: string
+  persona?: string,
 ): string {
-  const personaContext = persona ? `USER CONTEXT:\n${persona}\n\n` : "";
+  const personaContext = persona ? `USER CONTEXT:\n${persona}\n\n` : '';
 
   return `${personaContext}---Goal---
 Extract named entities AND their relationships from the text document for a knowledge graph.
 
 ---Entity Types---
-${entityTypes.join(", ")}
+${entityTypes.join(', ')}
 
 You may discover new entity types not in this list.
 
 ---Relationship Types---
-${relationshipTypes.join(", ")}
+${relationshipTypes.join(', ')}
 
 PRIORITIZE these high-value relationship patterns:
 - Hierarchical: REPORTS_TO, MANAGES, PART_OF, MEMBER_OF
@@ -129,7 +129,7 @@ export function buildSingleEntityExtractionPrompt(
   content: string,
   entityName: string,
   existingEntityTypes: string[],
-  relationshipContext?: string
+  relationshipContext?: string,
 ): string {
   const contextSection = relationshipContext
     ? `---Why We're Looking---
@@ -139,7 +139,7 @@ ${relationshipContext}
 This suggests the entity exists in the text.
 
 `
-    : "";
+    : '';
 
   return `---Goal---
 Find and extract information about a specific entity from the text.
@@ -148,7 +148,7 @@ Find and extract information about a specific entity from the text.
 "${entityName}"
 
 ${contextSection}---Known Entity Types---
-${existingEntityTypes.join(", ")}
+${existingEntityTypes.join(', ')}
 
 ---Instructions---
 1. Search the text for "${entityName}" or variations of it:

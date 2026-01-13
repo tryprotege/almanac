@@ -1,9 +1,9 @@
-import { AlertCircle, Check, Loader2, Package } from "lucide-react";
-import { Modal } from "./ui/Modal";
-import { usePresets } from "../hooks/usePresets";
-import { useDataSources } from "../hooks/useDataSources";
-import { IconDisplay } from "./ui/IconDisplay";
-import type { PresetSummary } from "../lib/api";
+import { AlertCircle, Check, Loader2, Package } from 'lucide-react';
+import { Modal } from './ui/Modal';
+import { usePresets } from '../hooks/usePresets';
+import { useDataSources } from '../hooks/useDataSources';
+import { IconDisplay } from './ui/IconDisplay';
+import type { PresetSummary } from '../lib/api';
 
 interface MarketplaceModalProps {
   isOpen: boolean;
@@ -11,11 +11,7 @@ interface MarketplaceModalProps {
   onSelectPreset: (presetId: string) => void;
 }
 
-export function MarketplaceModal({
-  isOpen,
-  onClose,
-  onSelectPreset,
-}: MarketplaceModalProps) {
+export function MarketplaceModal({ isOpen, onClose, onSelectPreset }: MarketplaceModalProps) {
   const { data: presets, isLoading, error } = usePresets();
   const { servers } = useDataSources();
 
@@ -51,11 +47,9 @@ export function MarketplaceModal({
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-error-text flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="text-sm font-medium text-error-text">
-                  Error loading presets
-                </h3>
+                <h3 className="text-sm font-medium text-error-text">Error loading presets</h3>
                 <p className="mt-1 text-sm text-error-text/80">
-                  {error instanceof Error ? error.message : "Unknown error"}
+                  {error instanceof Error ? error.message : 'Unknown error'}
                 </p>
               </div>
             </div>
@@ -66,12 +60,8 @@ export function MarketplaceModal({
         {!isLoading && !error && (!presets || presets.data.length === 0) && (
           <div className="text-center py-12">
             <Package className="w-12 h-12 text-text-quaternary mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-text-primary mb-2">
-              No Presets Available
-            </h3>
-            <p className="text-text-tertiary">
-              No marketplace presets are currently available
-            </p>
+            <h3 className="text-lg font-medium text-text-primary mb-2">No Presets Available</h3>
+            <p className="text-text-tertiary">No marketplace presets are currently available</p>
           </div>
         )}
 
@@ -122,7 +112,7 @@ export function MarketplaceModal({
                   {/* Connect indicator */}
                   <div className="mt-4 pt-4 border-t border-border-primary">
                     <span className="text-sm font-medium text-brand-purple group-hover:underline">
-                      {isConnected ? "Manage →" : "Connect →"}
+                      {isConnected ? 'Manage →' : 'Connect →'}
                     </span>
                   </div>
                 </button>

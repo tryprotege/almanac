@@ -4,10 +4,10 @@
  * for debugging purposes
  */
 
-import fs from "fs";
-import path from "path";
-import type { MatrixBenchmarkResults } from "../types/index.js";
-import type { AgentStep } from "../runners/sdk-runner.js";
+import fs from 'fs';
+import path from 'path';
+import type { MatrixBenchmarkResults } from '../types/index.js';
+import type { AgentStep } from '../runners/sdk-runner.js';
 
 /**
  * Debug trace for a single query execution
@@ -32,14 +32,14 @@ export interface DebugTrace {
  */
 export async function exportDebugReportJSON(
   results: MatrixBenchmarkResults,
-  outputDir: string
+  outputDir: string,
 ): Promise<void> {
   // Create output directory if it doesn't exist
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const filepath = path.join(outputDir, `debug-report-${timestamp}.json`);
 
   // Create detailed debug report structure
@@ -101,7 +101,7 @@ export async function exportDebugReportJSON(
               // Fallback for results without captured steps
               {
                 stepNumber: 1,
-                type: "final_result",
+                type: 'final_result',
                 timestamp: result.timestamp,
                 content: result.response,
                 tokens: {

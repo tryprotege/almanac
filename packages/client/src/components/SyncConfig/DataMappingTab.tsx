@@ -1,12 +1,5 @@
-import {
-  Database,
-  FileJson,
-  ArrowRight,
-  ChevronDown,
-  ChevronRight,
-  RefreshCw,
-} from "lucide-react";
-import { useState } from "react";
+import { Database, FileJson, ArrowRight, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 
 interface DataMappingTabProps {
   config: any;
@@ -16,9 +9,7 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
   const fetchers = config.fetchers || {};
   const recordTypes = config.recordTypes || {};
   const fetcherNames = Object.keys(fetchers);
-  const [expandedFetchers, setExpandedFetchers] = useState<Set<string>>(
-    new Set()
-  );
+  const [expandedFetchers, setExpandedFetchers] = useState<Set<string>>(new Set());
 
   const toggleFetcher = (fetcherName: string) => {
     const newExpanded = new Set(expandedFetchers);
@@ -31,9 +22,7 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
   };
 
   const getRecordTypesForFetcher = (fetcherName: string) => {
-    return Object.values(recordTypes).filter(
-      (rt: any) => rt.fetcher === fetcherName
-    );
+    return Object.values(recordTypes).filter((rt: any) => rt.fetcher === fetcherName);
   };
 
   if (fetcherNames.length === 0) {
@@ -65,9 +54,7 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
               <div className="flex items-center gap-3">
                 <Database className="w-5 h-5 text-brand-blue" />
                 <div className="text-left">
-                  <h3 className="font-semibold text-text-primary">
-                    {fetcherName}
-                  </h3>
+                  <h3 className="font-semibold text-text-primary">{fetcherName}</h3>
                   <p className="text-sm text-text-tertiary">{fetcher.tool}</p>
                 </div>
               </div>
@@ -80,7 +67,7 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
                 )}
                 <span className="px-2 py-1 bg-bg-secondary rounded text-xs text-text-secondary">
                   {recordTypesForFetcher.length} record type
-                  {recordTypesForFetcher.length !== 1 ? "s" : ""}
+                  {recordTypesForFetcher.length !== 1 ? 's' : ''}
                 </span>
                 {isExpanded ? (
                   <ChevronDown className="w-5 h-5 text-text-quaternary" />
@@ -111,11 +98,8 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
                           {fetcherName}
                         </span>
                         <span className="text-text-tertiary">
-                          (1 call per{" "}
-                          {fetcher.forEach.path === "$[*]"
-                            ? "item"
-                            : fetcher.forEach.path}
-                          )
+                          (1 call per{' '}
+                          {fetcher.forEach.path === '$[*]' ? 'item' : fetcher.forEach.path})
                         </span>
                       </div>
 
@@ -126,25 +110,17 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
                         </span>
                         <div className="mt-1 bg-bg-tertiary rounded p-2">
                           <pre className="text-xs text-text-primary">
-                            {JSON.stringify(
-                              fetcher.forEach.paramMapping,
-                              null,
-                              2
-                            )}
+                            {JSON.stringify(fetcher.forEach.paramMapping, null, 2)}
                           </pre>
                         </div>
                       </div>
 
                       {/* Settings */}
                       <div className="flex gap-4 text-xs text-text-secondary">
-                        <span>
-                          Concurrency: {fetcher.forEach.concurrency || 3}
-                        </span>
+                        <span>Concurrency: {fetcher.forEach.concurrency || 3}</span>
                         <span>Retries: {fetcher.forEach.retries || 2}</span>
                         {fetcher.forEach.continueOnError !== false && (
-                          <span className="text-brand-success">
-                            ✓ Continue on error
-                          </span>
+                          <span className="text-brand-success">✓ Continue on error</span>
                         )}
                       </div>
                     </div>
@@ -176,15 +152,10 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
                       const fieldNames = Object.keys(fields);
 
                       return (
-                        <div
-                          key={recordType.name}
-                          className="bg-bg-secondary rounded-lg p-3"
-                        >
+                        <div key={recordType.name} className="bg-bg-secondary rounded-lg p-3">
                           <div className="flex items-center gap-2 mb-3">
                             <FileJson className="w-4 h-4 text-brand-success" />
-                            <span className="font-medium text-text-primary">
-                              {recordType.name}
-                            </span>
+                            <span className="font-medium text-text-primary">{recordType.name}</span>
                             <span className="text-xs text-text-tertiary">
                               {fieldNames.length} fields
                             </span>
@@ -209,19 +180,19 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
                               <tbody className="divide-y divide-border-primary">
                                 {fieldNames.map((fieldName) => {
                                   const field = fields[fieldName];
-                                  const fieldType = field.type || "unknown";
-                                  let source = "";
+                                  const fieldType = field.type || 'unknown';
+                                  let source = '';
 
-                                  if (fieldType === "path") {
+                                  if (fieldType === 'path') {
                                     source = field.path;
-                                  } else if (fieldType === "paths") {
-                                    source = (field.paths || []).join(", ");
-                                  } else if (fieldType === "template") {
+                                  } else if (fieldType === 'paths') {
+                                    source = (field.paths || []).join(', ');
+                                  } else if (fieldType === 'template') {
                                     source = field.template;
-                                  } else if (fieldType === "processor") {
+                                  } else if (fieldType === 'processor') {
                                     source = `${field.processor}(${field.input})`;
-                                  } else if (fieldType === "code") {
-                                    source = "Custom code";
+                                  } else if (fieldType === 'code') {
+                                    source = 'Custom code';
                                   }
 
                                   return (
@@ -235,9 +206,7 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
                                         </span>
                                       </td>
                                       <td className="py-2 text-text-secondary">
-                                        <code className="text-xs">
-                                          {source}
-                                        </code>
+                                        <code className="text-xs">{source}</code>
                                       </td>
                                     </tr>
                                   );

@@ -1,33 +1,30 @@
-import neo4j, { Driver, Session, AuthToken } from "neo4j-driver";
-import { env } from "../env.js";
-import logger from "../utils/logger.js";
+import neo4j, { Driver, Session, AuthToken } from 'neo4j-driver';
+import { env } from '../env.js';
+import logger from '../utils/logger.js';
 
 export const MEMGRAPH_SCHEMAS = {
   // Node constraints
-  constraints: ["CREATE CONSTRAINT ON (n:Resource) ASSERT n.id IS UNIQUE"],
+  constraints: ['CREATE CONSTRAINT ON (n:Resource) ASSERT n.id IS UNIQUE'],
 
   // Indexes for efficient queries
   indexes: [
-    "CREATE INDEX ON :Resource(id)",
-    "CREATE INDEX ON :Resource(type)",
-    "CREATE INDEX ON :Resource(source)",
+    'CREATE INDEX ON :Resource(id)',
+    'CREATE INDEX ON :Resource(type)',
+    'CREATE INDEX ON :Resource(source)',
   ],
 } as const;
 
 export interface MemgraphConnection {
   driver: Driver;
   getSession: () => Session;
-  executeQuery: <T = any>(
-    query: string,
-    parameters?: Record<string, any>
-  ) => Promise<T[]>;
+  executeQuery: <T = any>(query: string, parameters?: Record<string, any>) => Promise<T[]>;
   close: () => Promise<void>;
 }
 
 const createAuthToken = (username?: string, password?: string): AuthToken => {
   return username && password
     ? neo4j.auth.basic(username, password)
-    : { scheme: "none", principal: "", credentials: "" };
+    : { scheme: 'none', principal: '', credentials: '' };
 };
 
 const createDriver = (): Driver => {
@@ -43,12 +40,12 @@ export const connectMemgraph = async (): Promise<MemgraphConnection> => {
 
     // Test connection
     await driver.verifyConnectivity();
-    logger.info({ msg: "Memgraph connected successfully" });
+    logger.info({ msg: 'Memgraph connected successfully' });
     const getSession = (): Session => driver.session();
 
     const executeQuery = async <T = any>(
       query: string,
-      parameters?: Record<string, any>
+      parameters?: Record<string, any>,
     ): Promise<T[]> => {
       const session = getSession();
 
@@ -65,7 +62,7 @@ export const connectMemgraph = async (): Promise<MemgraphConnection> => {
             errorMessage: (err as any)?.message,
             errorCode: (err as any)?.code,
           },
-          "Memgraph query error"
+          'Memgraph query error',
         );
         throw err;
       } finally {
@@ -75,7 +72,7 @@ export const connectMemgraph = async (): Promise<MemgraphConnection> => {
 
     const close = async (): Promise<void> => {
       await driver.close();
-      logger.info({ msg: "Memgraph disconnected" });
+      logger.info({ msg: 'Memgraph disconnected' });
     };
 
     return {
@@ -85,7 +82,7 @@ export const connectMemgraph = async (): Promise<MemgraphConnection> => {
       close,
     };
   } catch (err) {
-    logger.error({ err }, "Memgraph connection error");
+    logger.error({ err }, 'Memgraph connection error');
     throw err;
   }
 };

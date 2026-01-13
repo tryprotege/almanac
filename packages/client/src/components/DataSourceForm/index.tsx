@@ -1,14 +1,11 @@
-import { useEffect, useState } from "react";
-import { X } from "lucide-react";
-import {
-  useCreateDataSource,
-  useUpdateDataSource,
-} from "../../hooks/useDataSources";
-import { DataSourceConfig } from "../../lib/api";
-import { AdvancedConfigForm } from "./AdvancedConfigForm";
-import { ServiceSelector } from "./ServiceSelector";
-import { ServiceConfigForm } from "./ServiceConfigForm";
-import { ServicePreset, getPresetById, CUSTOM_PRESET } from "./presets";
+import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
+import { useCreateDataSource, useUpdateDataSource } from '../../hooks/useDataSources';
+import { DataSourceConfig } from '../../lib/api';
+import { AdvancedConfigForm } from './AdvancedConfigForm';
+import { ServiceSelector } from './ServiceSelector';
+import { ServiceConfigForm } from './ServiceConfigForm';
+import { ServicePreset, getPresetById, CUSTOM_PRESET } from './presets';
 
 interface MCPServerFormProps {
   isOpen: boolean;
@@ -16,16 +13,14 @@ interface MCPServerFormProps {
   server?: DataSourceConfig | null;
 }
 
-type FormStep = "select" | "configure" | "advanced";
+type FormStep = 'select' | 'configure' | 'advanced';
 
 export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
   const createMutation = useCreateDataSource();
   const updateMutation = useUpdateDataSource();
 
-  const [step, setStep] = useState<FormStep>("select");
-  const [selectedPreset, setSelectedPreset] = useState<ServicePreset | null>(
-    null
-  );
+  const [step, setStep] = useState<FormStep>('select');
+  const [selectedPreset, setSelectedPreset] = useState<ServicePreset | null>(null);
 
   // Initialize form when server prop changes
   useEffect(() => {
@@ -34,25 +29,25 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
       const preset = getPresetById(server.name);
       if (preset) {
         setSelectedPreset(preset);
-        setStep("configure");
+        setStep('configure');
       } else {
         // Custom server
         setSelectedPreset(CUSTOM_PRESET);
-        setStep("advanced");
+        setStep('advanced');
       }
     } else {
       // Creating new server - start at selection
-      setStep("select");
+      setStep('select');
       setSelectedPreset(null);
     }
   }, [server, isOpen]);
 
   const handleSelectService = (preset: ServicePreset) => {
     setSelectedPreset(preset);
-    if (preset.id === "custom") {
-      setStep("advanced");
+    if (preset.id === 'custom') {
+      setStep('advanced');
     } else {
-      setStep("configure");
+      setStep('configure');
     }
   };
 
@@ -62,13 +57,13 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
       onClose();
     } else {
       // If creating, go back to selection
-      setStep("select");
+      setStep('select');
       setSelectedPreset(null);
     }
   };
 
   const handleSubmit = async (
-    config: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt">
+    config: Omit<DataSourceConfig, '_id' | 'createdAt' | 'updatedAt'>,
   ) => {
     try {
       if (server) {
@@ -81,7 +76,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
       }
       onClose();
     } catch (error) {
-      console.error("Failed to save data source:", error);
+      console.error('Failed to save data source:', error);
     }
   };
 
@@ -96,9 +91,9 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
         <div className="flex items-center justify-between p-6 border-b border-border-secondary">
           <div>
             <h2 className="text-xl font-semibold text-text-primary">
-              {server ? "Edit Data Source" : "Add Data Source"}
+              {server ? 'Edit Data Source' : 'Add Data Source'}
             </h2>
-            {step === "configure" && selectedPreset && (
+            {step === 'configure' && selectedPreset && (
               <p className="text-sm text-text-tertiary mt-1">
                 Configuring {selectedPreset.displayName}
               </p>
@@ -115,22 +110,18 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
 
         {/* Content */}
         <div className="overflow-y-auto flex-1">
-          {step === "select" && (
-            <ServiceSelector onSelect={handleSelectService} />
+          {step === 'select' && <ServiceSelector onSelect={handleSelectService} />}
+
+          {step === 'configure' && selectedPreset && selectedPreset.id !== 'custom' && (
+            <ServiceConfigForm
+              preset={selectedPreset}
+              onBack={handleBack}
+              onSubmit={handleSubmit}
+              isLoading={isLoading}
+            />
           )}
 
-          {step === "configure" &&
-            selectedPreset &&
-            selectedPreset.id !== "custom" && (
-              <ServiceConfigForm
-                preset={selectedPreset}
-                onBack={handleBack}
-                onSubmit={handleSubmit}
-                isLoading={isLoading}
-              />
-            )}
-
-          {step === "advanced" && (
+          {step === 'advanced' && (
             <AdvancedConfigForm
               server={server}
               onBack={handleBack}

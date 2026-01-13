@@ -1,4 +1,4 @@
-import mongoose, { InferSchemaType } from "mongoose";
+import mongoose, { InferSchemaType } from 'mongoose';
 import {
   encryptMapValues,
   decryptMapValues,
@@ -6,16 +6,16 @@ import {
   encrypt,
   decrypt,
   isEncrypted,
-} from "@ebee-oss/shared-util";
-import logger from "../utils/logger.js";
-import { env } from "../env.js";
+} from '@ebee-oss/shared-util';
+import logger from '../utils/logger.js';
+import { env } from '../env.js';
 
 // Get encryption key once at module load
 let encryptionKey: Buffer;
 try {
   if (env.ENCRYPTION_KEY) encryptionKey = hexToBuffer(env.ENCRYPTION_KEY);
 } catch (err) {
-  logger.error({ err }, "Failed to load encryption key");
+  logger.error({ err }, 'Failed to load encryption key');
   throw err;
 }
 
@@ -32,7 +32,7 @@ const DataSourceSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ["stdio", "sse", "streamable-http"],
+      enum: ['stdio', 'sse', 'streamable-http'],
     },
     presetId: {
       type: String,
@@ -51,19 +51,19 @@ const DataSourceSchema = new mongoose.Schema(
     lastSyncAt: { type: Date },
     lastSyncStatus: {
       type: String,
-      enum: ["success", "failed", "in-progress"],
+      enum: ['success', 'failed', 'in-progress'],
     },
 
     // OAuth configuration for delegated authentication
     authType: {
       type: String,
-      enum: ["none", "api-key", "oauth"],
-      default: "none",
+      enum: ['none', 'api-key', 'oauth'],
+      default: 'none',
     },
     oauth: {
       // Discovery fields
       issuerUrl: { type: String },
-      discoverySource: { type: String, enum: ["rfc8414", "oidc", "manual"] },
+      discoverySource: { type: String, enum: ['rfc8414', 'oidc', 'manual'] },
 
       // OAuth endpoints
       authorizationUrl: { type: String },
@@ -80,8 +80,8 @@ const DataSourceSchema = new mongoose.Schema(
       },
       registrationStatus: {
         type: String,
-        enum: ["pending", "registered", "manual"],
-        default: "manual",
+        enum: ['pending', 'registered', 'manual'],
+        default: 'manual',
       },
 
       // Static client credentials
@@ -98,94 +98,78 @@ const DataSourceSchema = new mongoose.Schema(
     },
   },
   {
-    collection: "data_sources",
+    collection: 'data_sources',
     timestamps: true,
-  }
+  },
 );
 
 // Create indexes
 DataSourceSchema.index({ name: 1 }, { unique: true });
 
 // Add validation for type-specific required fields and encrypt sensitive data
-DataSourceSchema.pre("save", function () {
+DataSourceSchema.pre('save', function () {
   // Validate type-specific fields
-  if (this.type === "stdio" && !this.command) {
+  if (this.type === 'stdio' && !this.command) {
     throw new Error("stdio server requires 'command' field");
-  } else if (
-    (this.type === "sse" || this.type === "streamable-http") &&
-    !this.url
-  ) {
+  } else if ((this.type === 'sse' || this.type === 'streamable-http') && !this.url) {
     throw new Error(`${this.type} server requires 'url' field`);
   }
 
   // Encrypt env values if modified
-  if (this.isModified("env") && this.env && encryptionKey) {
+  if (this.isModified('env') && this.env && encryptionKey) {
     this.env = encryptMapValues(this.env, encryptionKey);
-    logger.debug({ configName: this.name }, "Encrypted env values for config");
+    logger.debug({ configName: this.name }, 'Encrypted env values for config');
   }
 
   // Encrypt headers values if modified
-  if (this.isModified("headers") && this.headers && encryptionKey) {
+  if (this.isModified('headers') && this.headers && encryptionKey) {
     this.headers = encryptMapValues(this.headers, encryptionKey);
-    logger.debug(
-      { configName: this.name },
-      "Encrypted headers values for config"
-    );
+    logger.debug({ configName: this.name }, 'Encrypted headers values for config');
   }
 
   // Encrypt OAuth clientSecret if modified
-  if (
-    this.isModified("oauth.clientSecret") &&
-    this.oauth?.clientSecret &&
-    encryptionKey
-  ) {
+  if (this.isModified('oauth.clientSecret') && this.oauth?.clientSecret && encryptionKey) {
     if (!isEncrypted(this.oauth.clientSecret)) {
       this.oauth.clientSecret = encrypt(this.oauth.clientSecret, encryptionKey);
-      logger.debug(
-        { configName: this.name },
-        "Encrypted OAuth clientSecret for config"
-      );
+      logger.debug({ configName: this.name }, 'Encrypted OAuth clientSecret for config');
     }
   }
 
   // Encrypt dynamic client registration secrets
   if (
-    this.isModified("oauth.clientMetadata.clientSecret") &&
+    this.isModified('oauth.clientMetadata.clientSecret') &&
     this.oauth?.clientMetadata?.clientSecret &&
     encryptionKey
   ) {
     if (!isEncrypted(this.oauth.clientMetadata.clientSecret)) {
       this.oauth.clientMetadata.clientSecret = encrypt(
         this.oauth.clientMetadata.clientSecret,
-        encryptionKey
+        encryptionKey,
       );
       logger.debug(
         { configName: this.name },
-        "Encrypted OAuth clientMetadata.clientSecret for config"
+        'Encrypted OAuth clientMetadata.clientSecret for config',
       );
     }
   }
 
   if (
-    this.isModified("oauth.clientMetadata.registrationAccessToken") &&
+    this.isModified('oauth.clientMetadata.registrationAccessToken') &&
     this.oauth?.clientMetadata?.registrationAccessToken &&
     encryptionKey
   ) {
     if (!isEncrypted(this.oauth.clientMetadata.registrationAccessToken)) {
       this.oauth.clientMetadata.registrationAccessToken = encrypt(
         this.oauth.clientMetadata.registrationAccessToken,
-        encryptionKey
+        encryptionKey,
       );
-      logger.debug(
-        { configName: this.name },
-        "Encrypted OAuth registrationAccessToken for config"
-      );
+      logger.debug({ configName: this.name }, 'Encrypted OAuth registrationAccessToken for config');
     }
   }
 });
 
 // Decrypt after finding multiple documents
-DataSourceSchema.post("find", function (docs: any[]) {
+DataSourceSchema.post('find', function (docs: any[]) {
   if (encryptionKey) {
     docs.forEach((doc) => {
       if (doc.env) {
@@ -196,15 +180,9 @@ DataSourceSchema.post("find", function (docs: any[]) {
       }
       if (doc.oauth?.clientSecret && isEncrypted(doc.oauth.clientSecret)) {
         try {
-          doc.oauth.clientSecret = decrypt(
-            doc.oauth.clientSecret,
-            encryptionKey
-          );
+          doc.oauth.clientSecret = decrypt(doc.oauth.clientSecret, encryptionKey);
         } catch (err) {
-          logger.error(
-            { err, configName: doc.name },
-            "Failed to decrypt OAuth clientSecret"
-          );
+          logger.error({ err, configName: doc.name }, 'Failed to decrypt OAuth clientSecret');
         }
       }
       if (
@@ -214,12 +192,12 @@ DataSourceSchema.post("find", function (docs: any[]) {
         try {
           doc.oauth.clientMetadata.clientSecret = decrypt(
             doc.oauth.clientMetadata.clientSecret,
-            encryptionKey
+            encryptionKey,
           );
         } catch (err) {
           logger.error(
             { err, configName: doc.name },
-            "Failed to decrypt OAuth clientMetadata.clientSecret"
+            'Failed to decrypt OAuth clientMetadata.clientSecret',
           );
         }
       }
@@ -230,12 +208,12 @@ DataSourceSchema.post("find", function (docs: any[]) {
         try {
           doc.oauth.clientMetadata.registrationAccessToken = decrypt(
             doc.oauth.clientMetadata.registrationAccessToken,
-            encryptionKey
+            encryptionKey,
           );
         } catch (err) {
           logger.error(
             { err, configName: doc.name },
-            "Failed to decrypt OAuth registrationAccessToken"
+            'Failed to decrypt OAuth registrationAccessToken',
           );
         }
       }
@@ -244,7 +222,7 @@ DataSourceSchema.post("find", function (docs: any[]) {
 });
 
 // Decrypt after finding single document
-DataSourceSchema.post("findOne", function (doc: any) {
+DataSourceSchema.post('findOne', function (doc: any) {
   if (doc && encryptionKey) {
     if (doc.env && encryptionKey) {
       doc.env = decryptMapValues(doc.env, encryptionKey);
@@ -256,10 +234,7 @@ DataSourceSchema.post("findOne", function (doc: any) {
       try {
         doc.oauth.clientSecret = decrypt(doc.oauth.clientSecret, encryptionKey);
       } catch (err) {
-        logger.error(
-          { err, configName: doc.name },
-          "Failed to decrypt OAuth clientSecret"
-        );
+        logger.error({ err, configName: doc.name }, 'Failed to decrypt OAuth clientSecret');
       }
     }
     if (
@@ -269,12 +244,12 @@ DataSourceSchema.post("findOne", function (doc: any) {
       try {
         doc.oauth.clientMetadata.clientSecret = decrypt(
           doc.oauth.clientMetadata.clientSecret,
-          encryptionKey
+          encryptionKey,
         );
       } catch (err) {
         logger.error(
           { err, configName: doc.name },
-          "Failed to decrypt OAuth clientMetadata.clientSecret"
+          'Failed to decrypt OAuth clientMetadata.clientSecret',
         );
       }
     }
@@ -285,12 +260,12 @@ DataSourceSchema.post("findOne", function (doc: any) {
       try {
         doc.oauth.clientMetadata.registrationAccessToken = decrypt(
           doc.oauth.clientMetadata.registrationAccessToken,
-          encryptionKey
+          encryptionKey,
         );
       } catch (err) {
         logger.error(
           { err, configName: doc.name },
-          "Failed to decrypt OAuth registrationAccessToken"
+          'Failed to decrypt OAuth registrationAccessToken',
         );
       }
     }
@@ -298,7 +273,7 @@ DataSourceSchema.post("findOne", function (doc: any) {
 });
 
 // Decrypt after findOneAndUpdate
-DataSourceSchema.post("findOneAndUpdate", function (doc: any) {
+DataSourceSchema.post('findOneAndUpdate', function (doc: any) {
   if (doc && encryptionKey) {
     if (doc.env) {
       doc.env = decryptMapValues(doc.env, encryptionKey);
@@ -310,10 +285,7 @@ DataSourceSchema.post("findOneAndUpdate", function (doc: any) {
       try {
         doc.oauth.clientSecret = decrypt(doc.oauth.clientSecret, encryptionKey);
       } catch (err) {
-        logger.error(
-          { err, configName: doc.name },
-          "Failed to decrypt OAuth clientSecret"
-        );
+        logger.error({ err, configName: doc.name }, 'Failed to decrypt OAuth clientSecret');
       }
     }
     if (
@@ -323,12 +295,12 @@ DataSourceSchema.post("findOneAndUpdate", function (doc: any) {
       try {
         doc.oauth.clientMetadata.clientSecret = decrypt(
           doc.oauth.clientMetadata.clientSecret,
-          encryptionKey
+          encryptionKey,
         );
       } catch (err) {
         logger.error(
           { err, configName: doc.name },
-          "Failed to decrypt OAuth clientMetadata.clientSecret"
+          'Failed to decrypt OAuth clientMetadata.clientSecret',
         );
       }
     }
@@ -339,12 +311,12 @@ DataSourceSchema.post("findOneAndUpdate", function (doc: any) {
       try {
         doc.oauth.clientMetadata.registrationAccessToken = decrypt(
           doc.oauth.clientMetadata.registrationAccessToken,
-          encryptionKey
+          encryptionKey,
         );
       } catch (err) {
         logger.error(
           { err, configName: doc.name },
-          "Failed to decrypt OAuth registrationAccessToken"
+          'Failed to decrypt OAuth registrationAccessToken',
         );
       }
     }
@@ -357,28 +329,25 @@ DataSourceSchema.methods.getEnv = function (): Record<string, string> | null {
   return Object.fromEntries(this.env);
 };
 
-DataSourceSchema.methods.getHeaders = function (): Record<
-  string,
-  string
-> | null {
+DataSourceSchema.methods.getHeaders = function (): Record<string, string> | null {
   if (!this.headers) return null;
   return Object.fromEntries(this.headers);
 };
 
 DataSourceSchema.methods.validateMCPConfig = function (): string | null {
   if (!this.name) {
-    return "Server name is required";
+    return 'Server name is required';
   }
 
-  if (!this.type || !["stdio", "sse", "streamable-http"].includes(this.type)) {
+  if (!this.type || !['stdio', 'sse', 'streamable-http'].includes(this.type)) {
     return "Server type must be 'stdio' or 'sse' or 'streamable-http'";
   }
 
-  if (this.type === "stdio" && !this.command) {
+  if (this.type === 'stdio' && !this.command) {
     return "stdio server requires 'command' field";
   }
 
-  if (["sse", "streamable-http"].includes(this.type) && !this.url) {
+  if (['sse', 'streamable-http'].includes(this.type) && !this.url) {
     return `${this.type} server requires 'url' field`;
   }
 
@@ -386,7 +355,7 @@ DataSourceSchema.methods.validateMCPConfig = function (): string | null {
 };
 
 // Virtual property for _id as string
-DataSourceSchema.virtual("idString").get(function () {
+DataSourceSchema.virtual('idString').get(function () {
   return this._id?.toString();
 });
 
@@ -401,7 +370,7 @@ DataSourceSchema.statics.loadMCPServers = async function () {
     if (error) {
       logger.error(
         { configName: dataSource.name, error },
-        `Invalid config for ${dataSource.name}: ${error}`
+        `Invalid config for ${dataSource.name}: ${error}`,
       );
       return false;
     }
@@ -420,13 +389,11 @@ export type DataSource = InferSchemaType<typeof DataSourceSchema> & {
 };
 
 export interface DataSourceModel extends mongoose.Model<DataSource> {
-  loadMCPServers(): Promise<
-    (mongoose.Document<unknown, {}, DataSource> & DataSource)[]
-  >;
+  loadMCPServers(): Promise<(mongoose.Document<unknown, {}, DataSource> & DataSource)[]>;
 }
 
 // Export the model
 export const DataSourceModel = mongoose.model<DataSource, DataSourceModel>(
-  "DataSource",
-  DataSourceSchema
+  'DataSource',
+  DataSourceSchema,
 );

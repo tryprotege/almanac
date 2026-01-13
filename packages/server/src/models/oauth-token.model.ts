@@ -1,19 +1,14 @@
-import mongoose, { InferSchemaType } from "mongoose";
-import {
-  encryptWithSalt,
-  decryptWithSalt,
-  generateSalt,
-  hexToBuffer,
-} from "@ebee-oss/shared-util";
-import logger from "../utils/logger.js";
-import { env } from "../env.js";
+import mongoose, { InferSchemaType } from 'mongoose';
+import { encryptWithSalt, decryptWithSalt, generateSalt, hexToBuffer } from '@ebee-oss/shared-util';
+import logger from '../utils/logger.js';
+import { env } from '../env.js';
 
 // Get encryption key once at module load
 let encryptionKey: Buffer;
 try {
   if (env.ENCRYPTION_KEY) encryptionKey = hexToBuffer(env.ENCRYPTION_KEY);
 } catch (err) {
-  logger.error({ err }, "Failed to load encryption key");
+  logger.error({ err }, 'Failed to load encryption key');
   throw err;
 }
 
@@ -26,7 +21,7 @@ const OAuthTokenSchema = new mongoose.Schema(
     // Reference to Data Source (MCP server config)
     mcpServerConfigId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "DataSource",
+      ref: 'DataSource',
       required: true,
       index: true,
     },
@@ -50,7 +45,7 @@ const OAuthTokenSchema = new mongoose.Schema(
     // Token Metadata
     tokenType: {
       type: String,
-      default: "Bearer",
+      default: 'Bearer',
     },
     scope: [{ type: String }],
     expiresAt: {
@@ -73,9 +68,9 @@ const OAuthTokenSchema = new mongoose.Schema(
     },
   },
   {
-    collection: "oauth_tokens",
+    collection: 'oauth_tokens',
     timestamps: true,
-  }
+  },
 );
 
 // Create indexes
@@ -84,9 +79,9 @@ OAuthTokenSchema.index({ expiresAt: 1 });
 OAuthTokenSchema.index({ state: 1 });
 
 // Pre-save hook to encrypt tokens
-OAuthTokenSchema.pre("save", function () {
+OAuthTokenSchema.pre('save', function () {
   if (!encryptionKey) {
-    throw new Error("Encryption key not configured");
+    throw new Error('Encryption key not configured');
   }
 
   // Generate salt if this is a new document
@@ -94,104 +89,71 @@ OAuthTokenSchema.pre("save", function () {
     this.salt = generateSalt();
     logger.debug(
       { mcpServerConfigId: this.mcpServerConfigId },
-      "Generated salt for new OAuth token"
+      'Generated salt for new OAuth token',
     );
   }
 
   // Encrypt access token if modified
-  if (this.isModified("accessToken") && this.accessToken && this.salt) {
+  if (this.isModified('accessToken') && this.accessToken && this.salt) {
     // Only encrypt if not already encrypted
-    if (!this.accessToken.startsWith("enc:")) {
-      this.accessToken = encryptWithSalt(
-        this.accessToken,
-        encryptionKey,
-        this.salt
-      );
-      logger.debug(
-        { mcpServerConfigId: this.mcpServerConfigId },
-        "Encrypted access token"
-      );
+    if (!this.accessToken.startsWith('enc:')) {
+      this.accessToken = encryptWithSalt(this.accessToken, encryptionKey, this.salt);
+      logger.debug({ mcpServerConfigId: this.mcpServerConfigId }, 'Encrypted access token');
     }
   }
 
   // Encrypt refresh token if modified
-  if (this.isModified("refreshToken") && this.refreshToken && this.salt) {
+  if (this.isModified('refreshToken') && this.refreshToken && this.salt) {
     // Only encrypt if not already encrypted
-    if (!this.refreshToken.startsWith("enc:")) {
-      this.refreshToken = encryptWithSalt(
-        this.refreshToken,
-        encryptionKey,
-        this.salt
-      );
-      logger.debug(
-        { mcpServerConfigId: this.mcpServerConfigId },
-        "Encrypted refresh token"
-      );
+    if (!this.refreshToken.startsWith('enc:')) {
+      this.refreshToken = encryptWithSalt(this.refreshToken, encryptionKey, this.salt);
+      logger.debug({ mcpServerConfigId: this.mcpServerConfigId }, 'Encrypted refresh token');
     }
   }
 
   // Encrypt code verifier if modified
-  if (this.isModified("codeVerifier") && this.codeVerifier && this.salt) {
+  if (this.isModified('codeVerifier') && this.codeVerifier && this.salt) {
     // Only encrypt if not already encrypted
-    if (!this.codeVerifier.startsWith("enc:")) {
-      this.codeVerifier = encryptWithSalt(
-        this.codeVerifier,
-        encryptionKey,
-        this.salt
-      );
-      logger.debug(
-        { mcpServerConfigId: this.mcpServerConfigId },
-        "Encrypted code verifier"
-      );
+    if (!this.codeVerifier.startsWith('enc:')) {
+      this.codeVerifier = encryptWithSalt(this.codeVerifier, encryptionKey, this.salt);
+      logger.debug({ mcpServerConfigId: this.mcpServerConfigId }, 'Encrypted code verifier');
     }
   }
 });
 
 // Post-find hook to decrypt tokens
-OAuthTokenSchema.post("find", function (docs: any[]) {
+OAuthTokenSchema.post('find', function (docs: any[]) {
   if (encryptionKey) {
     docs.forEach((doc) => {
-      if (doc.accessToken && doc.salt && doc.accessToken.startsWith("enc:")) {
+      if (doc.accessToken && doc.salt && doc.accessToken.startsWith('enc:')) {
         try {
-          doc.accessToken = decryptWithSalt(
-            doc.accessToken,
-            encryptionKey,
-            doc.salt
-          );
+          doc.accessToken = decryptWithSalt(doc.accessToken, encryptionKey, doc.salt);
         } catch (err) {
           logger.error(
             { err, mcpServerConfigId: doc.mcpServerConfigId },
-            "Failed to decrypt access token"
+            'Failed to decrypt access token',
           );
         }
       }
 
-      if (doc.refreshToken && doc.salt && doc.refreshToken.startsWith("enc:")) {
+      if (doc.refreshToken && doc.salt && doc.refreshToken.startsWith('enc:')) {
         try {
-          doc.refreshToken = decryptWithSalt(
-            doc.refreshToken,
-            encryptionKey,
-            doc.salt
-          );
+          doc.refreshToken = decryptWithSalt(doc.refreshToken, encryptionKey, doc.salt);
         } catch (err) {
           logger.error(
             { err, mcpServerConfigId: doc.mcpServerConfigId },
-            "Failed to decrypt refresh token"
+            'Failed to decrypt refresh token',
           );
         }
       }
 
-      if (doc.codeVerifier && doc.salt && doc.codeVerifier.startsWith("enc:")) {
+      if (doc.codeVerifier && doc.salt && doc.codeVerifier.startsWith('enc:')) {
         try {
-          doc.codeVerifier = decryptWithSalt(
-            doc.codeVerifier,
-            encryptionKey,
-            doc.salt
-          );
+          doc.codeVerifier = decryptWithSalt(doc.codeVerifier, encryptionKey, doc.salt);
         } catch (err) {
           logger.error(
             { err, mcpServerConfigId: doc.mcpServerConfigId },
-            "Failed to decrypt code verifier"
+            'Failed to decrypt code verifier',
           );
         }
       }
@@ -200,49 +162,37 @@ OAuthTokenSchema.post("find", function (docs: any[]) {
 });
 
 // Post-findOne hook to decrypt tokens
-OAuthTokenSchema.post("findOne", function (doc: any) {
+OAuthTokenSchema.post('findOne', function (doc: any) {
   if (doc && encryptionKey && doc.salt) {
-    if (doc.accessToken && doc.accessToken.startsWith("enc:")) {
+    if (doc.accessToken && doc.accessToken.startsWith('enc:')) {
       try {
-        doc.accessToken = decryptWithSalt(
-          doc.accessToken,
-          encryptionKey,
-          doc.salt
-        );
+        doc.accessToken = decryptWithSalt(doc.accessToken, encryptionKey, doc.salt);
       } catch (err) {
         logger.error(
           { err, mcpServerConfigId: doc.mcpServerConfigId },
-          "Failed to decrypt access token"
+          'Failed to decrypt access token',
         );
       }
     }
 
-    if (doc.refreshToken && doc.refreshToken.startsWith("enc:")) {
+    if (doc.refreshToken && doc.refreshToken.startsWith('enc:')) {
       try {
-        doc.refreshToken = decryptWithSalt(
-          doc.refreshToken,
-          encryptionKey,
-          doc.salt
-        );
+        doc.refreshToken = decryptWithSalt(doc.refreshToken, encryptionKey, doc.salt);
       } catch (err) {
         logger.error(
           { err, mcpServerConfigId: doc.mcpServerConfigId },
-          "Failed to decrypt refresh token"
+          'Failed to decrypt refresh token',
         );
       }
     }
 
-    if (doc.codeVerifier && doc.codeVerifier.startsWith("enc:")) {
+    if (doc.codeVerifier && doc.codeVerifier.startsWith('enc:')) {
       try {
-        doc.codeVerifier = decryptWithSalt(
-          doc.codeVerifier,
-          encryptionKey,
-          doc.salt
-        );
+        doc.codeVerifier = decryptWithSalt(doc.codeVerifier, encryptionKey, doc.salt);
       } catch (err) {
         logger.error(
           { err, mcpServerConfigId: doc.mcpServerConfigId },
-          "Failed to decrypt code verifier"
+          'Failed to decrypt code verifier',
         );
       }
     }
@@ -250,49 +200,37 @@ OAuthTokenSchema.post("findOne", function (doc: any) {
 });
 
 // Post-findOneAndUpdate hook to decrypt tokens
-OAuthTokenSchema.post("findOneAndUpdate", function (doc: any) {
+OAuthTokenSchema.post('findOneAndUpdate', function (doc: any) {
   if (doc && encryptionKey && doc.salt) {
-    if (doc.accessToken && doc.accessToken.startsWith("enc:")) {
+    if (doc.accessToken && doc.accessToken.startsWith('enc:')) {
       try {
-        doc.accessToken = decryptWithSalt(
-          doc.accessToken,
-          encryptionKey,
-          doc.salt
-        );
+        doc.accessToken = decryptWithSalt(doc.accessToken, encryptionKey, doc.salt);
       } catch (err) {
         logger.error(
           { err, mcpServerConfigId: doc.mcpServerConfigId },
-          "Failed to decrypt access token"
+          'Failed to decrypt access token',
         );
       }
     }
 
-    if (doc.refreshToken && doc.refreshToken.startsWith("enc:")) {
+    if (doc.refreshToken && doc.refreshToken.startsWith('enc:')) {
       try {
-        doc.refreshToken = decryptWithSalt(
-          doc.refreshToken,
-          encryptionKey,
-          doc.salt
-        );
+        doc.refreshToken = decryptWithSalt(doc.refreshToken, encryptionKey, doc.salt);
       } catch (err) {
         logger.error(
           { err, mcpServerConfigId: doc.mcpServerConfigId },
-          "Failed to decrypt refresh token"
+          'Failed to decrypt refresh token',
         );
       }
     }
 
-    if (doc.codeVerifier && doc.codeVerifier.startsWith("enc:")) {
+    if (doc.codeVerifier && doc.codeVerifier.startsWith('enc:')) {
       try {
-        doc.codeVerifier = decryptWithSalt(
-          doc.codeVerifier,
-          encryptionKey,
-          doc.salt
-        );
+        doc.codeVerifier = decryptWithSalt(doc.codeVerifier, encryptionKey, doc.salt);
       } catch (err) {
         logger.error(
           { err, mcpServerConfigId: doc.mcpServerConfigId },
-          "Failed to decrypt code verifier"
+          'Failed to decrypt code verifier',
         );
       }
     }
@@ -302,7 +240,4 @@ OAuthTokenSchema.post("findOneAndUpdate", function (doc: any) {
 export type OAuthToken = InferSchemaType<typeof OAuthTokenSchema>;
 
 // Export the model
-export const OAuthTokenModel = mongoose.model<OAuthToken>(
-  "OAuthToken",
-  OAuthTokenSchema
-);
+export const OAuthTokenModel = mongoose.model<OAuthToken>('OAuthToken', OAuthTokenSchema);

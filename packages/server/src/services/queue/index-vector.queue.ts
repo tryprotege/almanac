@@ -1,18 +1,16 @@
-import { Processor, Queue, Worker } from "bullmq";
+import { Processor, Queue, Worker } from 'bullmq';
 
-import { insertAllRecordsToVectorDB } from "../indexing/embeddings/vector-indexer.service.js";
-import { RecordStore } from "../../stores/record.store.js";
-import { VectorStore } from "../../stores/vector.store.js";
-import { initializeServices } from "../../mcp/initialization.js";
-import { createRedisConnection, QUEUE_NAME } from "./config.js";
-import { SourceType } from "../../types/index.js";
-import logger from "../../utils/logger.js";
+import { insertAllRecordsToVectorDB } from '../indexing/embeddings/vector-indexer.service.js';
+import { RecordStore } from '../../stores/record.store.js';
+import { VectorStore } from '../../stores/vector.store.js';
+import { initializeServices } from '../../mcp/initialization.js';
+import { createRedisConnection, QUEUE_NAME } from './config.js';
+import { SourceType } from '../../types/index.js';
+import logger from '../../utils/logger.js';
 
-const processor: Processor<
-  IndexVectorJobData,
-  IndexVectorJobResult,
-  string
-> = async ({ data: { source } }) => {
+const processor: Processor<IndexVectorJobData, IndexVectorJobResult, string> = async ({
+  data: { source },
+}) => {
   // Initialize services
   const { qdrant } = await initializeServices();
 
@@ -22,7 +20,7 @@ const processor: Processor<
 
   await insertAllRecordsToVectorDB(recordStore, vectorStore, source);
 
-  console.log("✅ vector", source);
+  console.log('✅ vector', source);
 };
 
 type IndexVectorJobData = {
@@ -31,44 +29,42 @@ type IndexVectorJobData = {
 
 type IndexVectorJobResult = void;
 
-export const indexVectorWorker = new Worker<
-  IndexVectorJobData,
-  IndexVectorJobResult
->(QUEUE_NAME.INDEX_VECTOR, processor, {
-  connection: createRedisConnection(),
-  concurrency: 2,
-  autorun: false,
-  skipLockRenewal: true,
-  skipStalledCheck: true,
-});
+export const indexVectorWorker = new Worker<IndexVectorJobData, IndexVectorJobResult>(
+  QUEUE_NAME.INDEX_VECTOR,
+  processor,
+  {
+    connection: createRedisConnection(),
+    concurrency: 2,
+    autorun: false,
+    skipLockRenewal: true,
+    skipStalledCheck: true,
+  },
+);
 
 // Set up worker event handlers
-indexVectorWorker.on("completed", (job) => {
+indexVectorWorker.on('completed', (job) => {
   logger.info({
     msg: `✅ Vector index job completed: jobId: ${job.id} for ${job.data.source}`,
   });
 });
 
-indexVectorWorker.on("failed", (job, err) => {
-  logger.error(
-    { err },
-    `❌ Vector index job failed: jobId: ${job?.id} for ${job?.data.source}`
-  );
+indexVectorWorker.on('failed', (job, err) => {
+  logger.error({ err }, `❌ Vector index job failed: jobId: ${job?.id} for ${job?.data.source}`);
 });
 
-indexVectorWorker.on("error", (err) => {
-  logger.error({ err }, "Vector index worker error:");
+indexVectorWorker.on('error', (err) => {
+  logger.error({ err }, 'Vector index worker error:');
 });
 
-indexVectorWorker.on("active", (job) => {
+indexVectorWorker.on('active', (job) => {
   logger.info({
     msg: `🔄 Vector index job started: jobId: ${job.id} for ${job.data.source}`,
   });
 });
 
-export const indexVectorQueue = new Queue<
-  IndexVectorJobData,
-  IndexVectorJobResult
->(QUEUE_NAME.INDEX_VECTOR, {
-  connection: createRedisConnection(),
-});
+export const indexVectorQueue = new Queue<IndexVectorJobData, IndexVectorJobResult>(
+  QUEUE_NAME.INDEX_VECTOR,
+  {
+    connection: createRedisConnection(),
+  },
+);

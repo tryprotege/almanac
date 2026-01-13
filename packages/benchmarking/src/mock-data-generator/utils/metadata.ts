@@ -2,8 +2,8 @@
  * Metadata utilities for tracking dataset state across runs
  */
 
-import { readFileSync, writeFileSync, existsSync } from "fs";
-import { join } from "path";
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { join } from 'path';
 
 export interface DatasetMetadata {
   startDate: string; // ISO string
@@ -26,17 +26,17 @@ export interface DatasetMetadata {
  * Load metadata from file, or return null if it doesn't exist
  */
 export function loadMetadata(outputDir: string): DatasetMetadata | null {
-  const metadataPath = join(outputDir, "metadata.json");
+  const metadataPath = join(outputDir, 'metadata.json');
 
   if (!existsSync(metadataPath)) {
     return null;
   }
 
   try {
-    const content = readFileSync(metadataPath, "utf-8");
+    const content = readFileSync(metadataPath, 'utf-8');
     return JSON.parse(content);
   } catch (error) {
-    console.warn("⚠️  Failed to load metadata, starting fresh:", error);
+    console.warn('⚠️  Failed to load metadata, starting fresh:', error);
     return null;
   }
 }
@@ -44,11 +44,8 @@ export function loadMetadata(outputDir: string): DatasetMetadata | null {
 /**
  * Save metadata to file
  */
-export function saveMetadata(
-  outputDir: string,
-  metadata: DatasetMetadata
-): void {
-  const metadataPath = join(outputDir, "metadata.json");
+export function saveMetadata(outputDir: string, metadata: DatasetMetadata): void {
+  const metadataPath = join(outputDir, 'metadata.json');
   writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
 }
 
@@ -71,8 +68,8 @@ export function createInitialMetadata(startDate: Date): DatasetMetadata {
 export function updateMetadata(
   metadata: DatasetMetadata,
   daysGenerated: number,
-  recordsAdded: DatasetMetadata["runs"][0]["recordsAdded"],
-  newStartDate?: Date
+  recordsAdded: DatasetMetadata['runs'][0]['recordsAdded'],
+  newStartDate?: Date,
 ): DatasetMetadata {
   const now = new Date();
 
@@ -97,7 +94,7 @@ export function updateMetadata(
  */
 export function calculateDateRange(
   metadata: DatasetMetadata | null,
-  timelineDays: number
+  timelineDays: number,
 ): { startDate: Date; endDate: Date; isInitialRun: boolean } {
   if (!metadata) {
     // Initial run - generate from now going back timelineDays

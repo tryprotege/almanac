@@ -1,20 +1,13 @@
-import { Loader2, Save, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { usePersona } from "../hooks/usePersona";
+import { Loader2, Save, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { usePersona } from '../hooks/usePersona';
 
 const MAX_CHARS = 1000;
 
 export function PersonaEditor() {
-  const {
-    persona,
-    updatedAt,
-    isLoading,
-    updatePersona,
-    deletePersona,
-    isUpdating,
-    isDeleting,
-  } = usePersona();
-  const [localPersona, setLocalPersona] = useState("");
+  const { persona, updatedAt, isLoading, updatePersona, deletePersona, isUpdating, isDeleting } =
+    usePersona();
+  const [localPersona, setLocalPersona] = useState('');
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   // Initialize local state when persona loads
@@ -27,7 +20,7 @@ export function PersonaEditor() {
   const handleClear = useCallback(() => {
     setShowConfirmDelete(false);
     deletePersona();
-    setLocalPersona("");
+    setLocalPersona('');
   }, [deletePersona]);
 
   const handleManualSave = useCallback(() => {
@@ -37,22 +30,20 @@ export function PersonaEditor() {
   }, [localPersona, persona, updatePersona]);
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return "Never";
+    if (!dateString) return 'Never';
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
 
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60)
-      return `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
 
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24)
-      return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
 
     const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
   };
 
   if (isLoading) {
@@ -70,12 +61,9 @@ export function PersonaEditor() {
     <div className="card">
       <div className="flex items-center justify-between mb-4">
         <div className="w-full">
-          <h3 className="text-lg font-semibold text-text-primary">
-            👤 User Persona
-          </h3>
+          <h3 className="text-lg font-semibold text-text-primary">👤 User Persona</h3>
           <p className="text-sm text-text-tertiary mt-1">
-            Define your role and context to help eBee understand your data
-            better
+            Define your role and context to help eBee understand your data better
           </p>
         </div>
         {(isUpdating || isDeleting) && (
@@ -93,9 +81,7 @@ export function PersonaEditor() {
             className="textarea"
             rows={8}
             value={localPersona}
-            onChange={(e) =>
-              setLocalPersona(e.target.value.slice(0, MAX_CHARS))
-            }
+            onChange={(e) => setLocalPersona(e.target.value.slice(0, MAX_CHARS))}
             placeholder="I am a [product manager] working on [SaaS products] at [TechCorp]. I collaborate with [engineering and design teams] and track [feature requests, bugs, and customer feedback] across [Notion, Slack, and Jira].
 
 Key entities I care about:
@@ -122,8 +108,7 @@ Key entities I care about:
 
         <div className="flex items-center justify-between pt-4 border-t border-border-secondary">
           <div className="text-sm text-text-tertiary">
-            Last updated:{" "}
-            <span className="font-medium">{formatDate(updatedAt)}</span>
+            Last updated: <span className="font-medium">{formatDate(updatedAt)}</span>
           </div>
           <div className="flex gap-2">
             {localPersona && (

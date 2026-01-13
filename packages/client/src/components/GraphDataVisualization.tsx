@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import {
   ReactFlow,
   Background,
@@ -14,11 +14,11 @@ import {
   useEdgesState,
   useNodesState,
   useReactFlow,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
-import { Filter, RefreshCw, Info } from "lucide-react";
-import { GraphDataResponse } from "../lib/api";
-import { useTheme } from "../contexts/ThemeContext";
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { Filter, RefreshCw, Info } from 'lucide-react';
+import { GraphDataResponse } from '../lib/api';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface GraphDataVisualizationProps {
   graphData: GraphDataResponse;
@@ -32,12 +32,12 @@ interface GraphDataVisualizationProps {
 function DataNode({ data }: { data: any }) {
   const getNodeColor = (type: string) => {
     const colors: Record<string, string> = {
-      page: "bg-brand-blue",
-      task: "bg-brand-success",
-      person: "bg-brand-purple",
-      project: "bg-brand-warning",
-      database: "bg-brand-error",
-      default: "bg-text-tertiary",
+      page: 'bg-brand-blue',
+      task: 'bg-brand-success',
+      person: 'bg-brand-purple',
+      project: 'bg-brand-warning',
+      database: 'bg-brand-error',
+      default: 'bg-text-tertiary',
     };
     return colors[type.toLowerCase()] || colors.default;
   };
@@ -50,12 +50,10 @@ function DataNode({ data }: { data: any }) {
 
       <div
         className={`px-4 py-3 ${getNodeColor(
-          data.type
+          data.type,
         )} text-white rounded-lg shadow-lg min-w-[120px] border-2 border-bg-primary`}
       >
-        <div className="font-semibold text-center text-sm mb-1">
-          {data.title || data.id}
-        </div>
+        <div className="font-semibold text-center text-sm mb-1">{data.title || data.id}</div>
         <div className="text-xs text-center opacity-80 border-t border-white/30 pt-1 mt-1">
           {data.type}
         </div>
@@ -97,144 +95,128 @@ function GraphDataVisualizationInner({
   // Click outside handler for filter dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        filterRef.current &&
-        !filterRef.current.contains(event.target as HTMLElement)
-      ) {
+      if (filterRef.current && !filterRef.current.contains(event.target as HTMLElement)) {
         setShowTypeFilter(false);
       }
-      if (
-        legendRef.current &&
-        !legendRef.current.contains(event.target as HTMLElement)
-      ) {
+      if (legendRef.current && !legendRef.current.contains(event.target as HTMLElement)) {
         setShowLegend(false);
       }
     };
 
     if (showTypeFilter || showLegend) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showTypeFilter, showLegend]);
 
   // Convert graph data to React Flow nodes and edges
-  const { initialNodes, initialEdges, connectedNodeCount, totalNodeCount } =
-    useMemo(() => {
-      const nodes: Node[] = [];
-      const edges: Edge[] = [];
+  const { initialNodes, initialEdges, connectedNodeCount, totalNodeCount } = useMemo(() => {
+    const nodes: Node[] = [];
+    const edges: Edge[] = [];
 
-      if (!graphData || !graphData.nodes) {
-        return {
-          initialNodes: [],
-          initialEdges: [],
-          connectedNodeCount: 0,
-          totalNodeCount: 0,
-        };
-      }
-
-      // First, identify which nodes have relationships
-      const connectedNodeIds = new Set<string>();
-      graphData.relationships.forEach((rel) => {
-        connectedNodeIds.add(rel.sourceId);
-        connectedNodeIds.add(rel.targetId);
-      });
-
-      // Filter by visibility (show all or only connected)
-      let nodesToShow = showAllNodes
-        ? graphData.nodes
-        : graphData.nodes.filter((node) => connectedNodeIds.has(node.id));
-
-      // Filter by selected node types
-      if (selectedNodeTypes.length > 0) {
-        nodesToShow = nodesToShow.filter((node) =>
-          selectedNodeTypes.includes(node.type)
-        );
-      }
-
-      // Create nodes with force-directed layout positions
-      const nodeCount = nodesToShow.length;
-      const radius = Math.min(300, 150 + nodeCount * 10);
-
-      nodesToShow.forEach((node, index) => {
-        const angle = (index / nodeCount) * 2 * Math.PI;
-        const x = 400 + radius * Math.cos(angle);
-        const y = 300 + radius * Math.sin(angle);
-
-        nodes.push({
-          id: node.id,
-          type: "dataNode",
-          position: { x, y },
-          data: {
-            id: node.id,
-            title: node.title,
-            type: node.type,
-            label: node.label,
-          },
-        });
-      });
-
-      // Create edges for relationships
-      graphData.relationships.forEach((rel, index) => {
-        // Check if both source and target nodes exist
-        const sourceExists = nodes.some((n) => n.id === rel.sourceId);
-        const targetExists = nodes.some((n) => n.id === rel.targetId);
-
-        if (sourceExists && targetExists) {
-          // Handle null confidence values
-          const confidence = rel.confidence ?? 0.5;
-          const confidenceColor =
-            confidence > 0.8
-              ? "#10b981"
-              : confidence > 0.5
-              ? "#f59e0b"
-              : "#ef4444";
-
-          // Create label with or without confidence
-          const label =
-            rel.confidence !== null && rel.confidence !== undefined
-              ? `${rel.type} (${Math.round(confidence * 100)}%)`
-              : rel.type;
-
-          edges.push({
-            id: `${rel.sourceId}-${rel.targetId}-${index}`,
-            source: rel.sourceId,
-            target: rel.targetId,
-            label,
-            type: "default",
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-              width: 20,
-              height: 20,
-              color: confidenceColor,
-            },
-            style: {
-              stroke: confidenceColor,
-              strokeWidth: 2,
-            },
-            labelStyle: {
-              fill: theme === "dark" ? "#e5e7eb" : "#374151",
-              fontWeight: 500,
-              fontSize: 11,
-            },
-            labelBgStyle: {
-              fill: theme === "dark" ? "#1f2937" : "#f3f4f6",
-              fillOpacity: 0.9,
-            },
-            animated: rel.extractedBy === "llm",
-          });
-        }
-      });
-
+    if (!graphData || !graphData.nodes) {
       return {
-        initialNodes: nodes,
-        initialEdges: edges,
-        connectedNodeCount: graphData.nodes.filter((node) =>
-          connectedNodeIds.has(node.id)
-        ).length,
-        totalNodeCount: graphData.nodes.length,
+        initialNodes: [],
+        initialEdges: [],
+        connectedNodeCount: 0,
+        totalNodeCount: 0,
       };
-    }, [graphData, theme, showAllNodes, selectedNodeTypes]);
+    }
+
+    // First, identify which nodes have relationships
+    const connectedNodeIds = new Set<string>();
+    graphData.relationships.forEach((rel) => {
+      connectedNodeIds.add(rel.sourceId);
+      connectedNodeIds.add(rel.targetId);
+    });
+
+    // Filter by visibility (show all or only connected)
+    let nodesToShow = showAllNodes
+      ? graphData.nodes
+      : graphData.nodes.filter((node) => connectedNodeIds.has(node.id));
+
+    // Filter by selected node types
+    if (selectedNodeTypes.length > 0) {
+      nodesToShow = nodesToShow.filter((node) => selectedNodeTypes.includes(node.type));
+    }
+
+    // Create nodes with force-directed layout positions
+    const nodeCount = nodesToShow.length;
+    const radius = Math.min(300, 150 + nodeCount * 10);
+
+    nodesToShow.forEach((node, index) => {
+      const angle = (index / nodeCount) * 2 * Math.PI;
+      const x = 400 + radius * Math.cos(angle);
+      const y = 300 + radius * Math.sin(angle);
+
+      nodes.push({
+        id: node.id,
+        type: 'dataNode',
+        position: { x, y },
+        data: {
+          id: node.id,
+          title: node.title,
+          type: node.type,
+          label: node.label,
+        },
+      });
+    });
+
+    // Create edges for relationships
+    graphData.relationships.forEach((rel, index) => {
+      // Check if both source and target nodes exist
+      const sourceExists = nodes.some((n) => n.id === rel.sourceId);
+      const targetExists = nodes.some((n) => n.id === rel.targetId);
+
+      if (sourceExists && targetExists) {
+        // Handle null confidence values
+        const confidence = rel.confidence ?? 0.5;
+        const confidenceColor =
+          confidence > 0.8 ? '#10b981' : confidence > 0.5 ? '#f59e0b' : '#ef4444';
+
+        // Create label with or without confidence
+        const label =
+          rel.confidence !== null && rel.confidence !== undefined
+            ? `${rel.type} (${Math.round(confidence * 100)}%)`
+            : rel.type;
+
+        edges.push({
+          id: `${rel.sourceId}-${rel.targetId}-${index}`,
+          source: rel.sourceId,
+          target: rel.targetId,
+          label,
+          type: 'default',
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 20,
+            height: 20,
+            color: confidenceColor,
+          },
+          style: {
+            stroke: confidenceColor,
+            strokeWidth: 2,
+          },
+          labelStyle: {
+            fill: theme === 'dark' ? '#e5e7eb' : '#374151',
+            fontWeight: 500,
+            fontSize: 11,
+          },
+          labelBgStyle: {
+            fill: theme === 'dark' ? '#1f2937' : '#f3f4f6',
+            fillOpacity: 0.9,
+          },
+          animated: rel.extractedBy === 'llm',
+        });
+      }
+    });
+
+    return {
+      initialNodes: nodes,
+      initialEdges: edges,
+      connectedNodeCount: graphData.nodes.filter((node) => connectedNodeIds.has(node.id)).length,
+      totalNodeCount: graphData.nodes.length,
+    };
+  }, [graphData, theme, showAllNodes, selectedNodeTypes]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -246,7 +228,7 @@ function GraphDataVisualizationInner({
   }, [initialNodes, initialEdges, setNodes, setEdges]);
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
-    console.log("Node clicked:", node);
+    console.log('Node clicked:', node);
   }, []);
 
   if (!graphData || graphData.nodes.length === 0) {
@@ -269,9 +251,7 @@ function GraphDataVisualizationInner({
         <div className="flex items-center gap-4 flex-wrap">
           {/* Preview Badge */}
           <div className="px-2.5 py-1 bg-brand-blue/10 text-brand-blue rounded-md border border-brand-blue/20">
-            <span className="text-sm font-medium">
-              Preview (First 100 nodes)
-            </span>
+            <span className="text-sm font-medium">Preview (First 100 nodes)</span>
           </div>
 
           {/* Node Type Filter */}
@@ -309,9 +289,7 @@ function GraphDataVisualizationInner({
                         if (e.target.checked) {
                           setSelectedNodeTypes([...selectedNodeTypes, type]);
                         } else {
-                          setSelectedNodeTypes(
-                            selectedNodeTypes.filter((t) => t !== type)
-                          );
+                          setSelectedNodeTypes(selectedNodeTypes.filter((t) => t !== type));
                         }
                       }}
                       className="w-3 h-3 text-brand-purple bg-bg-secondary border-border-secondary rounded"
@@ -336,7 +314,7 @@ function GraphDataVisualizationInner({
             <div className="px-2 py-1 bg-brand-blue/10 text-brand-blue rounded">
               <span className="font-semibold">
                 {showAllNodes ? totalNodeCount : connectedNodeCount}
-              </span>{" "}
+              </span>{' '}
               nodes
             </div>
             {!showAllNodes && connectedNodeCount < totalNodeCount && (
@@ -345,10 +323,7 @@ function GraphDataVisualizationInner({
               </div>
             )}
             <div className="px-2 py-1 bg-brand-purple/10 text-brand-purple rounded">
-              <span className="font-semibold">
-                {graphData.relationships.length}
-              </span>{" "}
-              edges
+              <span className="font-semibold">{graphData.relationships.length}</span> edges
             </div>
           </div>
         </div>
@@ -367,36 +342,28 @@ function GraphDataVisualizationInner({
 
             {showLegend && (
               <div className="absolute top-full right-0 mt-1 bg-bg-primary border border-border-primary rounded-lg shadow-lg p-3 z-10 min-w-[240px]">
-                <h4 className="text-xs font-semibold text-text-primary mb-2">
-                  Legend
-                </h4>
+                <h4 className="text-xs font-semibold text-text-primary mb-2">Legend</h4>
                 <div className="flex flex-col gap-2 text-xs">
                   <div className="flex items-center gap-2">
                     <div
                       className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: "#10b981" }}
+                      style={{ backgroundColor: '#10b981' }}
                     ></div>
-                    <span className="text-text-secondary">
-                      High confidence ({">"}80%)
-                    </span>
+                    <span className="text-text-secondary">High confidence ({'>'}80%)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div
                       className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: "#f59e0b" }}
+                      style={{ backgroundColor: '#f59e0b' }}
                     ></div>
-                    <span className="text-text-secondary">
-                      Medium confidence (50-80%)
-                    </span>
+                    <span className="text-text-secondary">Medium confidence (50-80%)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div
                       className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: "#ef4444" }}
+                      style={{ backgroundColor: '#ef4444' }}
                     ></div>
-                    <span className="text-text-secondary">
-                      Low confidence ({"<"}50%)
-                    </span>
+                    <span className="text-text-secondary">Low confidence ({'<'}50%)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="text-text-secondary">~~~~~</div>
@@ -408,11 +375,7 @@ function GraphDataVisualizationInner({
           </div>
 
           {onRefresh && (
-            <button
-              onClick={onRefresh}
-              className="btn btn-ghost btn-sm"
-              title="Refresh graph data"
-            >
+            <button onClick={onRefresh} className="btn btn-ghost btn-sm" title="Refresh graph data">
               <RefreshCw className="w-4 h-4" />
             </button>
           )}
@@ -421,11 +384,9 @@ function GraphDataVisualizationInner({
             <button
               onClick={onLoadMore}
               disabled={isLoadingMore}
-              className={`btn btn-secondary btn-sm ${
-                isLoadingMore ? "btn-loading" : ""
-              }`}
+              className={`btn btn-secondary btn-sm ${isLoadingMore ? 'btn-loading' : ''}`}
             >
-              {isLoadingMore ? "Loading..." : "Load More"}
+              {isLoadingMore ? 'Loading...' : 'Load More'}
             </button>
           )}
         </div>
@@ -451,15 +412,14 @@ function GraphDataVisualizationInner({
           <Controls showInteractive={false} />
           <MiniMap
             nodeColor={(node: Node) => {
-              const type =
-                (node.data.type as string)?.toLowerCase() || "default";
+              const type = (node.data.type as string)?.toLowerCase() || 'default';
               const colors: Record<string, string> = {
-                page: "#3b82f6",
-                task: "#10b981",
-                person: "#a855f7",
-                project: "#f97316",
-                database: "#ef4444",
-                default: "#6b7280",
+                page: '#3b82f6',
+                task: '#10b981',
+                person: '#a855f7',
+                project: '#f97316',
+                database: '#ef4444',
+                default: '#6b7280',
               };
               return colors[type] || colors.default;
             }}

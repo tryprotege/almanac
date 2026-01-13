@@ -1,13 +1,13 @@
-import type { OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
+import type { OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import type {
   OAuthClientMetadata,
   OAuthClientInformationMixed,
   OAuthTokens,
-} from "@modelcontextprotocol/sdk/shared/auth.js";
-import { DataSourceModel } from "../models/data-source.model.js";
-import { OAuthTokenModel } from "../models/oauth-token.model.js";
-import logger from "../utils/logger.js";
-import { env } from "../env.js";
+} from '@modelcontextprotocol/sdk/shared/auth.js';
+import { DataSourceModel } from '../models/data-source.model.js';
+import { OAuthTokenModel } from '../models/oauth-token.model.js';
+import logger from '../utils/logger.js';
+import { env } from '../env.js';
 
 /**
  * MCP OAuth Provider - implements MCP SDK's OAuthClientProvider interface
@@ -24,15 +24,12 @@ export class MCPOAuthProvider implements OAuthClientProvider {
     private mcpServerId: string,
     _mcpServerUrl: string,
     onRedirect?: (url: URL) => void,
-    public readonly clientMetadataUrl?: string
+    public readonly clientMetadataUrl?: string,
   ) {
     this.redirectCallback = onRedirect;
     // Initialize cache asynchronously
     this.initializeCache().catch((err) => {
-      logger.error(
-        { err, mcpServerId },
-        "Failed to initialize OAuth provider cache"
-      );
+      logger.error({ err, mcpServerId }, 'Failed to initialize OAuth provider cache');
     });
   }
 
@@ -62,12 +59,12 @@ export class MCPOAuthProvider implements OAuthClientProvider {
           hasTokens: !!this.tokensCache,
           hasClientInfo: !!this.clientInfoCache,
         },
-        "OAuth provider cache initialized"
+        'OAuth provider cache initialized',
       );
     } catch (err) {
       logger.error(
         { err, mcpServerId: this.mcpServerId },
-        "Failed to initialize OAuth provider cache"
+        'Failed to initialize OAuth provider cache',
       );
     }
   }
@@ -77,7 +74,7 @@ export class MCPOAuthProvider implements OAuthClientProvider {
    */
   get redirectUrl(): string {
     // Use environment variable or default callback URL
-    return env.OAUTH_REDIRECT_URI || "http://localhost:3001/api/oauth/callback";
+    return env.OAUTH_REDIRECT_URI || 'http://localhost:3001/api/oauth/callback';
   }
 
   /**
@@ -85,11 +82,11 @@ export class MCPOAuthProvider implements OAuthClientProvider {
    */
   get clientMetadata(): OAuthClientMetadata {
     return {
-      client_name: "Ebee MCP Client",
+      client_name: 'Ebee MCP Client',
       redirect_uris: [this.redirectUrl],
-      grant_types: ["authorization_code", "refresh_token"],
-      response_types: ["code"],
-      token_endpoint_auth_method: "client_secret_post",
+      grant_types: ['authorization_code', 'refresh_token'],
+      response_types: ['code'],
+      token_endpoint_auth_method: 'client_secret_post',
     };
   }
 
@@ -100,17 +97,11 @@ export class MCPOAuthProvider implements OAuthClientProvider {
   clientInformation(): OAuthClientInformationMixed | undefined {
     // Return cached value
     if (this.clientInfoCache) {
-      logger.debug(
-        { mcpServerId: this.mcpServerId },
-        "Returning cached client information"
-      );
+      logger.debug({ mcpServerId: this.mcpServerId }, 'Returning cached client information');
       return this.clientInfoCache;
     }
 
-    logger.debug(
-      { mcpServerId: this.mcpServerId },
-      "No cached client information available"
-    );
+    logger.debug({ mcpServerId: this.mcpServerId }, 'No cached client information available');
     return undefined;
   }
 
@@ -120,7 +111,7 @@ export class MCPOAuthProvider implements OAuthClientProvider {
   saveClientInformation(clientInfo: OAuthClientInformationMixed): void {
     logger.info(
       { mcpServerId: this.mcpServerId, clientId: clientInfo.client_id },
-      "Saving OAuth client information"
+      'Saving OAuth client information',
     );
 
     // Update cache immediately
@@ -128,9 +119,7 @@ export class MCPOAuthProvider implements OAuthClientProvider {
 
     // Extract registration_access_token if it exists (only on full response)
     const registrationAccessToken =
-      "registration_access_token" in clientInfo
-        ? clientInfo.registration_access_token
-        : undefined;
+      'registration_access_token' in clientInfo ? clientInfo.registration_access_token : undefined;
 
     const clientMetadata = {
       clientId: clientInfo.client_id,
@@ -145,30 +134,27 @@ export class MCPOAuthProvider implements OAuthClientProvider {
       this.mcpServerId,
       {
         $set: {
-          "oauth.registrationStatus": "registered",
-          "oauth.clientMetadata": clientMetadata,
+          'oauth.registrationStatus': 'registered',
+          'oauth.clientMetadata': clientMetadata,
         },
       },
-      { new: true }
+      { new: true },
     )
       .then((updated) => {
         if (updated) {
           logger.info(
             { mcpServerId: this.mcpServerId },
-            "Successfully saved client information to DataSource"
+            'Successfully saved client information to DataSource',
           );
         } else {
           logger.warn(
             { mcpServerId: this.mcpServerId },
-            "Failed to save client information - DataSource not found"
+            'Failed to save client information - DataSource not found',
           );
         }
       })
       .catch((err) => {
-        logger.error(
-          { err, mcpServerId: this.mcpServerId },
-          "Failed to save client information"
-        );
+        logger.error({ err, mcpServerId: this.mcpServerId }, 'Failed to save client information');
       });
   }
 
@@ -178,17 +164,11 @@ export class MCPOAuthProvider implements OAuthClientProvider {
   tokens(): OAuthTokens | undefined {
     // Return cached value
     if (this.tokensCache) {
-      logger.debug(
-        { mcpServerId: this.mcpServerId },
-        "Returning cached OAuth tokens"
-      );
+      logger.debug({ mcpServerId: this.mcpServerId }, 'Returning cached OAuth tokens');
       return this.tokensCache;
     }
 
-    logger.debug(
-      { mcpServerId: this.mcpServerId },
-      "No cached OAuth tokens available"
-    );
+    logger.debug({ mcpServerId: this.mcpServerId }, 'No cached OAuth tokens available');
     return undefined;
   }
 
@@ -196,7 +176,7 @@ export class MCPOAuthProvider implements OAuthClientProvider {
    * Save OAuth tokens to database
    */
   saveTokens(tokens: OAuthTokens): void {
-    logger.info({ mcpServerId: this.mcpServerId }, "Saving OAuth tokens");
+    logger.info({ mcpServerId: this.mcpServerId }, 'Saving OAuth tokens');
 
     // Update cache immediately
     this.tokensCache = tokens;
@@ -212,24 +192,18 @@ export class MCPOAuthProvider implements OAuthClientProvider {
         $set: {
           accessToken: tokens.access_token,
           refreshToken: tokens.refresh_token,
-          tokenType: tokens.token_type || "Bearer",
-          scope: tokens.scope?.split(" ") || [],
+          tokenType: tokens.token_type || 'Bearer',
+          scope: tokens.scope?.split(' ') || [],
           expiresAt,
         },
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     )
       .then(() => {
-        logger.info(
-          { mcpServerId: this.mcpServerId },
-          "Successfully saved OAuth tokens"
-        );
+        logger.info({ mcpServerId: this.mcpServerId }, 'Successfully saved OAuth tokens');
       })
       .catch((err) => {
-        logger.error(
-          { err, mcpServerId: this.mcpServerId },
-          "Failed to save OAuth tokens"
-        );
+        logger.error({ err, mcpServerId: this.mcpServerId }, 'Failed to save OAuth tokens');
       });
   }
 
@@ -239,7 +213,7 @@ export class MCPOAuthProvider implements OAuthClientProvider {
   redirectToAuthorization(authorizationUrl: URL): void {
     logger.info(
       { mcpServerId: this.mcpServerId, authUrl: authorizationUrl.toString() },
-      "OAuth redirect required"
+      'OAuth redirect required',
     );
 
     if (this.redirectCallback) {
@@ -247,7 +221,7 @@ export class MCPOAuthProvider implements OAuthClientProvider {
     } else {
       logger.warn(
         { mcpServerId: this.mcpServerId },
-        "No redirect callback configured - OAuth flow cannot proceed"
+        'No redirect callback configured - OAuth flow cannot proceed',
       );
     }
   }
@@ -256,10 +230,7 @@ export class MCPOAuthProvider implements OAuthClientProvider {
    * Save PKCE code verifier
    */
   saveCodeVerifier(codeVerifier: string): void {
-    logger.debug(
-      { mcpServerId: this.mcpServerId },
-      "Saving PKCE code verifier"
-    );
+    logger.debug({ mcpServerId: this.mcpServerId }, 'Saving PKCE code verifier');
 
     // Update cache immediately
     this.codeVerifierCache = codeVerifier;
@@ -268,19 +239,13 @@ export class MCPOAuthProvider implements OAuthClientProvider {
     OAuthTokenModel.findOneAndUpdate(
       { mcpServerConfigId: this.mcpServerId },
       { $set: { codeVerifier } },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     )
       .then(() => {
-        logger.debug(
-          { mcpServerId: this.mcpServerId },
-          "Successfully saved code verifier"
-        );
+        logger.debug({ mcpServerId: this.mcpServerId }, 'Successfully saved code verifier');
       })
       .catch((err) => {
-        logger.error(
-          { err, mcpServerId: this.mcpServerId },
-          "Failed to save code verifier"
-        );
+        logger.error({ err, mcpServerId: this.mcpServerId }, 'Failed to save code verifier');
       });
   }
 
@@ -290,26 +255,18 @@ export class MCPOAuthProvider implements OAuthClientProvider {
   codeVerifier(): string {
     // Return cached value
     if (this.codeVerifierCache) {
-      logger.debug(
-        { mcpServerId: this.mcpServerId },
-        "Returning cached code verifier"
-      );
+      logger.debug({ mcpServerId: this.mcpServerId }, 'Returning cached code verifier');
       return this.codeVerifierCache;
     }
 
-    logger.debug(
-      { mcpServerId: this.mcpServerId },
-      "No cached code verifier available"
-    );
-    return "";
+    logger.debug({ mcpServerId: this.mcpServerId }, 'No cached code verifier available');
+    return '';
   }
 
   /**
    * Async helper to load client information from database
    */
-  async loadClientInformation(): Promise<
-    OAuthClientInformationMixed | undefined
-  > {
+  async loadClientInformation(): Promise<OAuthClientInformationMixed | undefined> {
     try {
       const dataSource = await DataSourceModel.findById(this.mcpServerId);
 
@@ -318,16 +275,11 @@ export class MCPOAuthProvider implements OAuthClientProvider {
       }
 
       // Return dynamic registration if available
-      if (
-        dataSource.oauth.registrationStatus === "registered" &&
-        dataSource.oauth.clientMetadata
-      ) {
+      if (dataSource.oauth.registrationStatus === 'registered' && dataSource.oauth.clientMetadata) {
         return {
           client_id: dataSource.oauth.clientMetadata.clientId!,
-          client_secret:
-            dataSource.oauth.clientMetadata.clientSecret ?? undefined,
-          client_id_issued_at:
-            dataSource.oauth.clientMetadata.clientIdIssuedAt ?? undefined,
+          client_secret: dataSource.oauth.clientMetadata.clientSecret ?? undefined,
+          client_id_issued_at: dataSource.oauth.clientMetadata.clientIdIssuedAt ?? undefined,
           client_secret_expires_at:
             dataSource.oauth.clientMetadata.clientSecretExpiresAt ?? undefined,
         };
@@ -343,10 +295,7 @@ export class MCPOAuthProvider implements OAuthClientProvider {
 
       return undefined;
     } catch (err) {
-      logger.error(
-        { err, mcpServerId: this.mcpServerId },
-        "Failed to load client information"
-      );
+      logger.error({ err, mcpServerId: this.mcpServerId }, 'Failed to load client information');
       return undefined;
     }
   }
@@ -367,17 +316,14 @@ export class MCPOAuthProvider implements OAuthClientProvider {
       return {
         access_token: tokenDoc.accessToken,
         refresh_token: tokenDoc.refreshToken ?? undefined,
-        token_type: tokenDoc.tokenType || "Bearer",
+        token_type: tokenDoc.tokenType || 'Bearer',
         expires_in: tokenDoc.expiresAt
           ? Math.floor((tokenDoc.expiresAt.getTime() - Date.now()) / 1000)
           : undefined,
-        scope: tokenDoc.scope?.join(" ") ?? undefined,
+        scope: tokenDoc.scope?.join(' ') ?? undefined,
       };
     } catch (err) {
-      logger.error(
-        { err, mcpServerId: this.mcpServerId },
-        "Failed to load OAuth tokens"
-      );
+      logger.error({ err, mcpServerId: this.mcpServerId }, 'Failed to load OAuth tokens');
       return undefined;
     }
   }
@@ -393,10 +339,7 @@ export class MCPOAuthProvider implements OAuthClientProvider {
 
       return tokenDoc?.codeVerifier ?? undefined;
     } catch (err) {
-      logger.error(
-        { err, mcpServerId: this.mcpServerId },
-        "Failed to load code verifier"
-      );
+      logger.error({ err, mcpServerId: this.mcpServerId }, 'Failed to load code verifier');
       return undefined;
     }
   }
@@ -415,19 +358,14 @@ export class MCPOAuthProviderFactory {
     mcpServerId: string,
     serverUrl: string,
     onRedirect: (url: URL) => void,
-    clientMetadataUrl?: string
+    clientMetadataUrl?: string,
   ): MCPOAuthProvider {
     let provider = this.providers.get(mcpServerId);
 
     if (!provider) {
-      provider = new MCPOAuthProvider(
-        mcpServerId,
-        serverUrl,
-        onRedirect,
-        clientMetadataUrl
-      );
+      provider = new MCPOAuthProvider(mcpServerId, serverUrl, onRedirect, clientMetadataUrl);
       this.providers.set(mcpServerId, provider);
-      logger.debug({ mcpServerId }, "Created new OAuth provider instance");
+      logger.debug({ mcpServerId }, 'Created new OAuth provider instance');
     }
 
     return provider;
@@ -445,7 +383,7 @@ export class MCPOAuthProviderFactory {
    */
   removeProvider(mcpServerId: string): void {
     this.providers.delete(mcpServerId);
-    logger.debug({ mcpServerId }, "Removed OAuth provider instance");
+    logger.debug({ mcpServerId }, 'Removed OAuth provider instance');
   }
 }
 

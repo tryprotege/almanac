@@ -36,14 +36,14 @@ All core features are complete and operational.
 
 ### ✅ Format Processors
 
-| Processor | Purpose | Example Use Case |
-|-----------|---------|------------------|
-| `notion-rich-text` | Rich text → Markdown | Notion property values |
-| `notion-blocks` | Block array → Formatted doc | Notion page content |
-| `slack-mrkdwn` | Slack markdown → Standard MD | Slack messages |
-| `fathom-transcript` | Structured transcript | Fathom meeting notes |
-| `html-to-markdown` | HTML → Markdown | Web content |
-| `extract-text` | Plain text extraction | Any text content |
+| Processor           | Purpose                      | Example Use Case       |
+| ------------------- | ---------------------------- | ---------------------- |
+| `notion-rich-text`  | Rich text → Markdown         | Notion property values |
+| `notion-blocks`     | Block array → Formatted doc  | Notion page content    |
+| `slack-mrkdwn`      | Slack markdown → Standard MD | Slack messages         |
+| `fathom-transcript` | Structured transcript        | Fathom meeting notes   |
+| `html-to-markdown`  | HTML → Markdown              | Web content            |
+| `extract-text`      | Plain text extraction        | Any text content       |
 
 ## Installation
 
@@ -64,19 +64,19 @@ const recordTypeConfig = {
   name: 'page',
   fetcher: 'list_pages',
   detection: {
-    condition: "record.object === 'page'"
+    condition: "record.object === 'page'",
   },
   fields: {
     title: {
       type: 'path',
-      path: '$.properties.title.title[0].plain_text'
+      path: '$.properties.title.title[0].plain_text',
     },
     content: {
       type: 'processor',
       processor: 'notion-blocks',
-      input: 'enrichments.blocks'
-    }
-  }
+      input: 'enrichments.blocks',
+    },
+  },
 };
 
 const transformer = new RecordTransformer(recordTypeConfig, 'notion');
@@ -84,8 +84,8 @@ const transformer = new RecordTransformer(recordTypeConfig, 'notion');
 const result = await transformer.transform({
   record: rawNotionPage,
   enrichments: {
-    blocks: pageBlocks
-  }
+    blocks: pageBlocks,
+  },
 });
 
 // result = {
@@ -111,9 +111,9 @@ const markdown = processor(notionBlocks);
 ### IndexingConfig Example
 
 ```yaml
-version: "1.0"
-source: "notion"
-displayName: "Notion Workspace"
+version: '1.0'
+source: 'notion'
+displayName: 'Notion Workspace'
 
 fetchers:
   list_pages:
@@ -130,34 +130,34 @@ recordTypes:
     fetcher: list_pages
     detection:
       condition: "record.object === 'page'"
-    
+
     enrichments:
       - name: blocks
         tool: get_page_blocks
         paramMapping:
           page_id: $.id
         resultPath: $.results
-    
+
     fields:
       title:
         type: path
         path: $.properties.title.title[0].plain_text
-      
+
       content:
         type: processor
         processor: notion-blocks
         input: enrichments.blocks
-      
+
       people:
         type: paths
         paths:
           - $.created_by.email
           - $.last_edited_by.email
-      
+
       primaryDate:
         type: path
         path: $.created_time
-      
+
       tags:
         type: code
         code: |
@@ -265,7 +265,7 @@ interface IndexingConfig {
   version: string;
   source: string;
   displayName?: string;
-  
+
   fetchers: Record<string, FetcherConfig>;
   recordTypes: Record<string, RecordTypeConfig>;
 }
@@ -279,7 +279,7 @@ interface RecordTypeConfig {
   relationships?: RelationshipMapping[];
 }
 
-type FieldMapping = 
+type FieldMapping =
   | { type: 'path'; path: string }
   | { type: 'paths'; paths: string[]; join?: string }
   | { type: 'template'; template: string }
@@ -296,7 +296,7 @@ type FieldMapping =
 ✅ **Safe execution** - Sandboxed TypeScript code  
 ✅ **Pagination** - Cursor and offset support  
 ✅ **Enrichment** - Fetch additional data per record  
-✅ **Incremental sync** - Only fetch updates  
+✅ **Incremental sync** - Only fetch updates
 
 ## Development
 

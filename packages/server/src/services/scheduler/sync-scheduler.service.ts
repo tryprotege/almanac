@@ -1,12 +1,9 @@
-import { DataSourceModel } from "../../models/data-source.model.js";
-import {
-  SyncMcpServerJobData,
-  syncMcpServerQueue,
-} from "../queue/sync.queue.js";
-import { env } from "../../env.js";
-import logger from "../../utils/logger.js";
-import { JobSchedulerJson } from "bullmq";
-import cronParser from "cron-parser";
+import { DataSourceModel } from '../../models/data-source.model.js';
+import { SyncMcpServerJobData, syncMcpServerQueue } from '../queue/sync.queue.js';
+import { env } from '../../env.js';
+import logger from '../../utils/logger.js';
+import { JobSchedulerJson } from 'bullmq';
+import cronParser from 'cron-parser';
 
 // ============================================================================
 // Types
@@ -66,8 +63,7 @@ const validateCronExpression = (expression: string): boolean => {
 /**
  * Convert milliseconds to hours with one decimal place
  */
-const millisecondsToHours = (ms: number): string =>
-  (ms / (1000 * 60 * 60)).toFixed(1);
+const millisecondsToHours = (ms: number): string => (ms / (1000 * 60 * 60)).toFixed(1);
 
 /**
  * Get previous scheduled sync time from cron expression
@@ -75,7 +71,7 @@ const millisecondsToHours = (ms: number): string =>
 const getPreviousScheduledSync = (
   cronExpression: string,
   timezone: string,
-  currentDate: Date = new Date()
+  currentDate: Date = new Date(),
 ): Date | null => {
   try {
     const interval = cronParser.parseExpression(cronExpression, {
@@ -84,10 +80,7 @@ const getPreviousScheduledSync = (
     });
     return interval.prev().toDate();
   } catch (err) {
-    logger.error(
-      { err, cronExpression, timezone },
-      "Failed to parse cron expression"
-    );
+    logger.error({ err, cronExpression, timezone }, 'Failed to parse cron expression');
     return null;
   }
 };
@@ -98,24 +91,21 @@ const getPreviousScheduledSync = (
 const decideSyncNeed = (
   lastSyncAt: Date | null | undefined,
   cronExpression: string,
-  timezone: string
+  timezone: string,
 ): SyncDecision => {
   if (!lastSyncAt) {
     return {
       needsSync: true,
-      reason: "never synced",
+      reason: 'never synced',
     };
   }
 
-  const previousScheduledSync = getPreviousScheduledSync(
-    cronExpression,
-    timezone
-  );
+  const previousScheduledSync = getPreviousScheduledSync(cronExpression, timezone);
 
   if (!previousScheduledSync) {
     return {
       needsSync: false,
-      reason: "invalid cron expression",
+      reason: 'invalid cron expression',
     };
   }
 
@@ -126,9 +116,7 @@ const decideSyncNeed = (
 
   return {
     needsSync,
-    reason: needsSync
-      ? "missed scheduled sync"
-      : "synced after last scheduled time",
+    reason: needsSync ? 'missed scheduled sync' : 'synced after last scheduled time',
     hoursSinceLastSync,
   };
 };
@@ -139,12 +127,10 @@ const decideSyncNeed = (
 const filterDataSourcesNeedingSync = (
   dataSources: DataSource[],
   cronExpression: string,
-  timezone: string
+  timezone: string,
 ): string[] =>
   dataSources
-    .filter(
-      (ds) => decideSyncNeed(ds.lastSyncAt, cronExpression, timezone).needsSync
-    )
+    .filter((ds) => decideSyncNeed(ds.lastSyncAt, cronExpression, timezone).needsSync)
     .map((ds) => ds.name);
 
 /**
@@ -153,7 +139,7 @@ const filterDataSourcesNeedingSync = (
 const logSyncDecision = (
   dataSourceName: string,
   decision: SyncDecision,
-  lastSyncAt: Date | null | undefined
+  lastSyncAt: Date | null | undefined,
 ): void => {
   if (decision.needsSync) {
     logger.debug(
@@ -162,7 +148,7 @@ const logSyncDecision = (
         lastSyncAt: lastSyncAt?.toISOString(),
         hoursSinceLastSync: decision.hoursSinceLastSync,
       },
-      `Data source ${decision.reason} - needs startup sync`
+      `Data source ${decision.reason} - needs startup sync`,
     );
   } else {
     logger.debug(
@@ -171,7 +157,7 @@ const logSyncDecision = (
         lastSyncAt: lastSyncAt?.toISOString(),
         hoursSinceLastSync: decision.hoursSinceLastSync,
       },
-      "Data source synced recently - skipping startup sync"
+      'Data source synced recently - skipping startup sync',
     );
   }
 };
@@ -193,34 +179,29 @@ const generateJobId = (prefix: string, dataSourceName: string): string =>
 /**
  * Generate schedule job ID
  */
-const generateScheduleJobId = (dataSourceName: string): string =>
-  `schedule-${dataSourceName}`;
+const generateScheduleJobId = (dataSourceName: string): string => `schedule-${dataSourceName}`;
 
 /**
  * Check if job matches data source
  */
 const isJobForDataSource = (
   job: { name: string; id?: string | null },
-  dataSourceName: string
-): boolean =>
-  job.name === dataSourceName ||
-  job.id === generateScheduleJobId(dataSourceName);
+  dataSourceName: string,
+): boolean => job.name === dataSourceName || job.id === generateScheduleJobId(dataSourceName);
 
 /**
  * Filter jobs for a specific data source
  */
 const filterJobsForDataSource = (
   jobs: Array<{ name: string; id?: string | null; key: string }>,
-  dataSourceName: string
+  dataSourceName: string,
 ): Array<{ name: string; id?: string | null; key: string }> =>
   jobs.filter((job) => isJobForDataSource(job, dataSourceName));
 
 /**
  * Map repeatable job to scheduled job format
  */
-const mapToScheduledJob = (
-  job: JobSchedulerJson<SyncMcpServerJobData>
-): ScheduledJob => ({
+const mapToScheduledJob = (job: JobSchedulerJson<SyncMcpServerJobData>): ScheduledJob => ({
   name: job.name,
   id: job.id,
   pattern: job.pattern,
@@ -241,9 +222,8 @@ const fetchEnabledDataSources = async (): Promise<DataSource[]> =>
 /**
  * Fetch data source by name from database
  */
-const fetchDataSourceByName = async (
-  name: string
-): Promise<DataSource | null> => await DataSourceModel.findOne({ name });
+const fetchDataSourceByName = async (name: string): Promise<DataSource | null> =>
+  await DataSourceModel.findOne({ name });
 
 /**
  * Queue a sync job for a data source
@@ -251,12 +231,12 @@ const fetchDataSourceByName = async (
 const queueSyncJob = async (
   dataSourceName: string,
   dataSource: DataSource,
-  jobIdPrefix: string
+  jobIdPrefix: string,
 ): Promise<void> => {
   await syncMcpServerQueue.add(
     dataSourceName,
     { mcpConfig: dataSource as any },
-    { jobId: generateJobId(jobIdPrefix, dataSourceName) }
+    { jobId: generateJobId(jobIdPrefix, dataSourceName) },
   );
 };
 
@@ -267,7 +247,7 @@ const queueRecurringSyncJob = async (
   dataSourceName: string,
   dataSource: DataSource,
   cronExpression: string,
-  timezone: string
+  timezone: string,
 ): Promise<void> => {
   await syncMcpServerQueue.add(
     dataSourceName,
@@ -278,24 +258,22 @@ const queueRecurringSyncJob = async (
         tz: timezone,
       },
       jobId: generateScheduleJobId(dataSourceName),
-    }
+    },
   );
 };
 
 /**
  * Remove repeatable jobs for a data source
  */
-const removeRepeatableJobsForDataSource = async (
-  dataSourceName: string
-): Promise<void> => {
+const removeRepeatableJobsForDataSource = async (dataSourceName: string): Promise<void> => {
   const repeatableJobs = await syncMcpServerQueue.getJobSchedulers();
   const jobsToRemove = filterJobsForDataSource(repeatableJobs, dataSourceName);
 
   await Promise.all(
     jobsToRemove.map(async (job) => {
       await syncMcpServerQueue.removeJobScheduler(job.key);
-      logger.debug({ dataSourceName, key: job.key }, "Removed repeatable job");
-    })
+      logger.debug({ dataSourceName, key: job.key }, 'Removed repeatable job');
+    }),
   );
 };
 
@@ -304,9 +282,7 @@ const removeRepeatableJobsForDataSource = async (
  */
 const removeAllRepeatableJobs = async (): Promise<void> => {
   const repeatableJobs = await syncMcpServerQueue.getJobSchedulers();
-  await Promise.all(
-    repeatableJobs.map((job) => syncMcpServerQueue.removeJobScheduler(job.key))
-  );
+  await Promise.all(repeatableJobs.map((job) => syncMcpServerQueue.removeJobScheduler(job.key)));
 };
 
 /**
@@ -320,9 +296,7 @@ const getRepeatableJobs = async (): Promise<ScheduledJob[]> => {
 /**
  * Check if any job exists for a data source
  */
-const checkJobExistsForDataSource = async (
-  dataSourceName: string
-): Promise<boolean> => {
+const checkJobExistsForDataSource = async (dataSourceName: string): Promise<boolean> => {
   const repeatableJobs = await syncMcpServerQueue.getRepeatableJobs();
   return repeatableJobs.some((job) => isJobForDataSource(job, dataSourceName));
 };
@@ -337,12 +311,12 @@ const checkJobExistsForDataSource = async (
 const processStartupSyncs = async (
   dataSources: DataSource[],
   sourcesNeedingSync: string[],
-  cronSchedule: string
+  cronSchedule: string,
 ): Promise<void> => {
   if (sourcesNeedingSync.length === 0) {
     logger.info(
       { cronSchedule },
-      "No data sources need startup sync (all synced after last scheduled time)"
+      'No data sources need startup sync (all synced after last scheduled time)',
     );
     return;
   }
@@ -353,7 +327,7 @@ const processStartupSyncs = async (
       sources: sourcesNeedingSync,
       cronSchedule,
     },
-    "Triggering startup syncs for data sources that missed scheduled sync"
+    'Triggering startup syncs for data sources that missed scheduled sync',
   );
 
   await Promise.all(
@@ -362,12 +336,12 @@ const processStartupSyncs = async (
       if (!dataSource) return;
 
       try {
-        await queueSyncJob(dataSourceName, dataSource, "startup");
-        logger.info({ dataSourceName }, "Queued startup sync for data source");
+        await queueSyncJob(dataSourceName, dataSource, 'startup');
+        logger.info({ dataSourceName }, 'Queued startup sync for data source');
       } catch (err) {
-        logger.error({ err, dataSourceName }, "Failed to queue startup sync");
+        logger.error({ err, dataSourceName }, 'Failed to queue startup sync');
       }
-    })
+    }),
   );
 };
 
@@ -377,7 +351,7 @@ const processStartupSyncs = async (
 const scheduleRecurringSyncs = async (
   dataSources: DataSource[],
   cronSchedule: string,
-  timezone: string
+  timezone: string,
 ): Promise<void> => {
   await Promise.all(
     dataSources.map(async (dataSource) => {
@@ -392,12 +366,7 @@ const scheduleRecurringSyncs = async (
         }
 
         // Queue recurring job
-        await queueRecurringSyncJob(
-          dataSource.name,
-          freshDataSource,
-          cronSchedule,
-          timezone
-        );
+        await queueRecurringSyncJob(dataSource.name, freshDataSource, cronSchedule, timezone);
 
         logger.info(
           {
@@ -405,15 +374,15 @@ const scheduleRecurringSyncs = async (
             cronExpression: cronSchedule,
             timezone,
           },
-          "Scheduled recurring sync job"
+          'Scheduled recurring sync job',
         );
       } catch (err) {
         logger.error(
           { err, dataSourceName: dataSource.name },
-          "Failed to schedule recurring job during initialization"
+          'Failed to schedule recurring job during initialization',
         );
       }
-    })
+    }),
   );
 };
 
@@ -423,7 +392,7 @@ const scheduleRecurringSyncs = async (
 const scheduleDataSource = async (
   dataSourceName: string,
   cronExpression: string,
-  timezone: string
+  timezone: string,
 ): Promise<void> => {
   const dataSource = await fetchDataSourceByName(dataSourceName);
   if (!dataSource) {
@@ -431,16 +400,11 @@ const scheduleDataSource = async (
   }
 
   await removeRepeatableJobsForDataSource(dataSourceName);
-  await queueRecurringSyncJob(
-    dataSourceName,
-    dataSource,
-    cronExpression,
-    timezone
-  );
+  await queueRecurringSyncJob(dataSourceName, dataSource, cronExpression, timezone);
 
   logger.debug(
     { dataSourceName, cronExpression, timezone },
-    "Scheduled recurring sync job with BullMQ"
+    'Scheduled recurring sync job with BullMQ',
   );
 };
 
@@ -451,7 +415,7 @@ const unscheduleDataSource = async (dataSourceName: string): Promise<void> => {
   try {
     await removeRepeatableJobsForDataSource(dataSourceName);
   } catch (err) {
-    logger.error({ err, dataSourceName }, "Failed to unschedule job");
+    logger.error({ err, dataSourceName }, 'Failed to unschedule job');
   }
 };
 
@@ -464,33 +428,31 @@ const unscheduleDataSource = async (dataSourceName: string): Promise<void> => {
  */
 const initialize = async (state: SchedulerState): Promise<SchedulerState> => {
   if (state.isInitialized) {
-    logger.warn("Scheduler already initialized");
+    logger.warn('Scheduler already initialized');
     return state;
   }
 
   try {
-    logger.info("Initializing hybrid sync scheduler...");
+    logger.info('Initializing hybrid sync scheduler...');
 
     const config = getSchedulerConfig();
     const dataSources = await fetchEnabledDataSources();
 
     if (dataSources.length === 0) {
-      logger.info("No enabled data sources found - skipping scheduler setup");
+      logger.info('No enabled data sources found - skipping scheduler setup');
       return { isInitialized: true };
     }
 
     // Step 1: Validate cron schedule (required for startup sync logic)
     if (!config.cronSchedule) {
-      logger.info(
-        "No SYNC_CRON_SCHEDULE configured - skipping scheduler setup"
-      );
+      logger.info('No SYNC_CRON_SCHEDULE configured - skipping scheduler setup');
       return { isInitialized: true };
     }
 
     if (!validateCronExpression(config.cronSchedule)) {
       logger.error(
         { cronSchedule: config.cronSchedule },
-        "Invalid SYNC_CRON_SCHEDULE - scheduler disabled"
+        'Invalid SYNC_CRON_SCHEDULE - scheduler disabled',
       );
       return { isInitialized: true };
     }
@@ -499,32 +461,20 @@ const initialize = async (state: SchedulerState): Promise<SchedulerState> => {
     const sourcesNeedingSync = filterDataSourcesNeedingSync(
       dataSources,
       config.cronSchedule,
-      config.timezone
+      config.timezone,
     );
 
     // Log sync decisions for all data sources
     dataSources.forEach((ds) => {
-      const decision = decideSyncNeed(
-        ds.lastSyncAt,
-        config.cronSchedule!,
-        config.timezone
-      );
+      const decision = decideSyncNeed(ds.lastSyncAt, config.cronSchedule!, config.timezone);
       logSyncDecision(ds.name, decision, ds.lastSyncAt);
     });
 
-    await processStartupSyncs(
-      dataSources,
-      sourcesNeedingSync,
-      config.cronSchedule
-    );
+    await processStartupSyncs(dataSources, sourcesNeedingSync, config.cronSchedule);
 
     // Step 3: Setup recurring syncs
 
-    await scheduleRecurringSyncs(
-      dataSources,
-      config.cronSchedule,
-      config.timezone
-    );
+    await scheduleRecurringSyncs(dataSources, config.cronSchedule, config.timezone);
 
     logger.info(
       {
@@ -533,12 +483,12 @@ const initialize = async (state: SchedulerState): Promise<SchedulerState> => {
         timezone: config.timezone,
         startupSyncs: sourcesNeedingSync.length,
       },
-      "Hybrid sync scheduler initialized successfully"
+      'Hybrid sync scheduler initialized successfully',
     );
 
     return { isInitialized: true };
   } catch (err) {
-    logger.error({ err }, "Failed to initialize sync scheduler");
+    logger.error({ err }, 'Failed to initialize sync scheduler');
     throw err;
   }
 };
@@ -547,16 +497,16 @@ const initialize = async (state: SchedulerState): Promise<SchedulerState> => {
  * Refresh schedules - reinitialize all schedules
  */
 const refresh = async (): Promise<SchedulerState> => {
-  logger.info("Refreshing sync schedules...");
+  logger.info('Refreshing sync schedules...');
 
   try {
     await removeAllRepeatableJobs();
     const newState = { isInitialized: false };
     const result = await initialize(newState);
-    logger.info("Sync schedules refreshed");
+    logger.info('Sync schedules refreshed');
     return result;
   } catch (err) {
-    logger.error({ err }, "Failed to refresh sync schedules");
+    logger.error({ err }, 'Failed to refresh sync schedules');
     throw err;
   }
 };
@@ -569,7 +519,7 @@ const addDataSource = async (dataSourceName: string): Promise<void> => {
   const dataSource = await fetchDataSourceByName(dataSourceName);
 
   if (!dataSource) {
-    logger.error({ dataSourceName }, "Data source not found");
+    logger.error({ dataSourceName }, 'Data source not found');
     return;
   }
 
@@ -577,7 +527,7 @@ const addDataSource = async (dataSourceName: string): Promise<void> => {
   if (!config.cronSchedule) {
     logger.info(
       { dataSourceName },
-      "No SYNC_CRON_SCHEDULE configured - skipping recurring schedule"
+      'No SYNC_CRON_SCHEDULE configured - skipping recurring schedule',
     );
     return;
   }
@@ -585,46 +535,38 @@ const addDataSource = async (dataSourceName: string): Promise<void> => {
   if (!validateCronExpression(config.cronSchedule)) {
     logger.error(
       { cronSchedule: config.cronSchedule },
-      "Invalid SYNC_CRON_SCHEDULE - skipping recurring schedule"
+      'Invalid SYNC_CRON_SCHEDULE - skipping recurring schedule',
     );
     return;
   }
 
   // Check if needs immediate sync based on cron schedule
-  const decision = decideSyncNeed(
-    dataSource.lastSyncAt,
-    config.cronSchedule,
-    config.timezone
-  );
+  const decision = decideSyncNeed(dataSource.lastSyncAt, config.cronSchedule, config.timezone);
 
   if (decision.needsSync) {
     logger.info(
       { dataSourceName },
-      "Triggering immediate sync for new data source (missed scheduled sync)"
+      'Triggering immediate sync for new data source (missed scheduled sync)',
     );
     try {
-      await queueSyncJob(dataSourceName, dataSource, "add");
+      await queueSyncJob(dataSourceName, dataSource, 'add');
     } catch (err) {
-      logger.error({ err, dataSourceName }, "Failed to queue sync");
+      logger.error({ err, dataSourceName }, 'Failed to queue sync');
     }
   }
 
   try {
-    await scheduleDataSource(
-      dataSourceName,
-      config.cronSchedule,
-      config.timezone
-    );
+    await scheduleDataSource(dataSourceName, config.cronSchedule, config.timezone);
     logger.info(
       {
         dataSourceName,
         cronSchedule: config.cronSchedule,
         timezone: config.timezone,
       },
-      "Added recurring schedule for new data source"
+      'Added recurring schedule for new data source',
     );
   } catch (err) {
-    logger.error({ err, dataSourceName }, "Failed to add recurring schedule");
+    logger.error({ err, dataSourceName }, 'Failed to add recurring schedule');
   }
 };
 
@@ -634,9 +576,9 @@ const addDataSource = async (dataSourceName: string): Promise<void> => {
 const removeDataSource = async (dataSourceName: string): Promise<void> => {
   try {
     await unscheduleDataSource(dataSourceName);
-    logger.info({ dataSourceName }, "Removed schedule for data source");
+    logger.info({ dataSourceName }, 'Removed schedule for data source');
   } catch (err) {
-    logger.error({ err, dataSourceName }, "Failed to remove schedule");
+    logger.error({ err, dataSourceName }, 'Failed to remove schedule');
   }
 };
 
@@ -644,8 +586,8 @@ const removeDataSource = async (dataSourceName: string): Promise<void> => {
  * Shutdown the scheduler
  */
 const shutdown = (): SchedulerState => {
-  logger.info("Shutting down sync scheduler...");
-  logger.info("Sync scheduler shut down (BullMQ will handle cleanup)");
+  logger.info('Shutting down sync scheduler...');
+  logger.info('Sync scheduler shut down (BullMQ will handle cleanup)');
   return { isInitialized: false };
 };
 

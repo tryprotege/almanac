@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
-import { graphApi, GraphDataResponse } from "../lib/api";
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
+import { graphApi, GraphDataResponse } from '../lib/api';
 
 interface UseGraphDataOptions {
   limit?: number;
@@ -11,13 +11,7 @@ interface UseGraphDataOptions {
 }
 
 export function useGraphData(options?: UseGraphDataOptions) {
-  const {
-    limit = 100,
-    offset = 0,
-    nodeTypes,
-    relationshipTypes,
-    enabled = true,
-  } = options || {};
+  const { limit = 100, offset = 0, nodeTypes, relationshipTypes, enabled = true } = options || {};
 
   // Track previous offset to detect changes
   const prevOffsetRef = useRef(offset);
@@ -29,7 +23,7 @@ export function useGraphData(options?: UseGraphDataOptions) {
     refetch,
   } = useQuery({
     // Remove offset from queryKey to avoid creating separate cache entries per offset
-    queryKey: ["graphData", limit, nodeTypes, relationshipTypes],
+    queryKey: ['graphData', limit, nodeTypes, relationshipTypes],
     queryFn: async () => {
       // Pass offset to the fetch function - it will use the current offset value
       const result = await graphApi.getData({

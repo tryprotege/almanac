@@ -33,9 +33,7 @@ export function generateConfigPrompt(input: ConfigPromptInput): string {
   const withSamples = toolCatalog.filter((t) => t.hasValidSample).length;
   const withoutSamples = toolCatalog.length - withSamples;
 
-  console.log(
-    `Tool catalog: ${withSamples} tools with samples, ${withoutSamples} without samples`
-  );
+  console.log(`Tool catalog: ${withSamples} tools with samples, ${withoutSamples} without samples`);
 
   // Build user guidance section if provided
   const guidanceSection = userGuidance
@@ -47,7 +45,7 @@ ${userGuidance}
 ---
 
 `
-    : "";
+    : '';
 
   return `# IndexingConfig Generation for "${displayName}"
 
@@ -86,7 +84,7 @@ ${toolCatalog
   .map((entry) => {
     const { tool, hasValidSample, sample } = entry;
 
-    let sampleSection = "";
+    let sampleSection = '';
     if (hasValidSample) {
       sampleSection = `
 **Sample Response:**
@@ -96,14 +94,14 @@ ${JSON.stringify(sample, null, 2)}
     }
 
     return `### ${tool.name}
-${tool.description || "No description"}
+${tool.description || 'No description'}
 
 **Input Schema:**
 \`\`\`json
 ${JSON.stringify(tool.inputSchema, null, 2)}
 \`\`\`${sampleSection}`;
   })
-  .join("\n\n")}
+  .join('\n\n')}
 
 # STEP 3: SELECT DISCOVERY & ENRICHMENT TOOLS
 

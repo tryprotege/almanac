@@ -1,5 +1,5 @@
-import type { IndexingConfig } from "@ebee-oss/indexing-engine";
-import type { TestRunResult } from "../config-validator.service.js";
+import type { IndexingConfig } from '@ebee-oss/indexing-engine';
+import type { TestRunResult } from '../config-validator.service.js';
 
 export interface DebugPromptInput {
   originalConfig: IndexingConfig;
@@ -112,7 +112,7 @@ function summarizeErrors(result: TestRunResult): string {
     if (errors.length > 5) {
       lines.push(`  - ... and ${errors.length - 5} more`);
     }
-    lines.push("");
+    lines.push('');
   }
 
   lines.push(`### Test Stats`);
@@ -123,22 +123,13 @@ function summarizeErrors(result: TestRunResult): string {
   // Per-fetcher breakdown
   if (Object.keys(result.stats.fetcherResults).length > 0) {
     lines.push(`\n### Per-Fetcher Results:`);
-    for (const [fetcher, stats] of Object.entries(
-      result.stats.fetcherResults
-    )) {
-      const status =
-        stats.matched === stats.total
-          ? "✅"
-          : stats.matched === 0
-          ? "❌"
-          : "⚠️";
-      lines.push(
-        `- ${status} ${fetcher}: ${stats.matched}/${stats.total} matched`
-      );
+    for (const [fetcher, stats] of Object.entries(result.stats.fetcherResults)) {
+      const status = stats.matched === stats.total ? '✅' : stats.matched === 0 ? '❌' : '⚠️';
+      lines.push(`- ${status} ${fetcher}: ${stats.matched}/${stats.total} matched`);
     }
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 /**
@@ -156,16 +147,14 @@ function formatRelevantSamples(result: TestRunResult): string {
   }
 
   // Also include fetchers with 0 records (might have MCP errors)
-  for (const [fetcherName, stats] of Object.entries(
-    result.stats.fetcherResults
-  )) {
+  for (const [fetcherName, stats] of Object.entries(result.stats.fetcherResults)) {
     if (stats.total === 0) {
       relevantFetchers.add(fetcherName);
     }
   }
 
   if (relevantFetchers.size === 0) {
-    return "";
+    return '';
   }
 
   lines.push(`## Fetcher Analysis\n`);
@@ -178,29 +167,27 @@ function formatRelevantSamples(result: TestRunResult): string {
     lines.push(`### Fetcher: ${fetcherName}`);
 
     if (stats) {
-      lines.push(
-        `**Results:** ${stats.matched}/${stats.total} records matched`
-      );
+      lines.push(`**Results:** ${stats.matched}/${stats.total} records matched`);
     }
 
     // Show raw MCP response (especially important for 0-record fetchers)
     if (mcpResponse) {
       lines.push(`\n**Raw MCP Response:**`);
-      lines.push("```json");
+      lines.push('```json');
       lines.push(JSON.stringify(mcpResponse, null, 2));
-      lines.push("```");
+      lines.push('```');
 
       // Analyze the response
       if (mcpResponse.content?.[0]?.text) {
         const text = mcpResponse.content[0].text;
-        if (text.includes("MCP error") || text.includes("Invalid arguments")) {
+        if (text.includes('MCP error') || text.includes('Invalid arguments')) {
           lines.push(
-            `\n⚠️ **MCP Error Detected:** The tool returned an error message instead of data.`
+            `\n⚠️ **MCP Error Detected:** The tool returned an error message instead of data.`,
           );
           lines.push(`This indicates the fetcher parameters are incorrect.`);
-        } else if (text === "[]" || text === "{}") {
+        } else if (text === '[]' || text === '{}') {
           lines.push(
-            `\n✅ **Valid Empty Response:** The tool returned empty data, which is valid.`
+            `\n✅ **Valid Empty Response:** The tool returned empty data, which is valid.`,
           );
         }
       }
@@ -209,15 +196,15 @@ function formatRelevantSamples(result: TestRunResult): string {
     // Show sample data from error if available
     if (error?.sampleData) {
       lines.push(`\n**Sample Record That Failed:**`);
-      lines.push("```json");
+      lines.push('```json');
       lines.push(JSON.stringify(error.sampleData, null, 2));
-      lines.push("```");
+      lines.push('```');
     }
 
-    lines.push(""); // Blank line between fetchers
+    lines.push(''); // Blank line between fetchers
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 /**

@@ -3,6 +3,7 @@
 ## Executive Summary
 
 Currently, the benchmark data generator recreates all data from scratch on each run. This plan outlines a strategy to enable **incremental/augmented data generation** where:
+
 - Running the script multiple times extends existing data rather than regenerating from scratch
 - A **rich metadata file** provides semantic context (topics, themes, key events) instead of reading large data files
 - LLM uses metadata as context to generate coherent new data
@@ -12,6 +13,7 @@ Currently, the benchmark data generator recreates all data from scratch on each 
 ## Current System Analysis
 
 ### How It Works Now
+
 1. User sets `TIMELINE_DAYS=N` (e.g., 30 days)
 2. Script generates timeline from "today - N days" to "today"
 3. All data (Slack, GitHub, Notion, Fathom) is generated from scratch for this period
@@ -19,6 +21,7 @@ Currently, the benchmark data generator recreates all data from scratch on each 
 5. Each run **overwrites** previous data
 
 ### Problems
+
 - No way to extend data incrementally
 - Running tomorrow regenerates all data including yesterday's
 - No semantic understanding of what's been generated
@@ -48,6 +51,7 @@ The LLM primarily uses **recent context** to generate new data, with brief histo
 **Location**: `output/metadata.json`
 
 **Structure**:
+
 ```json
 {
   "version": "2.0.0",
@@ -385,6 +389,7 @@ The LLM primarily uses **recent context** to generate new data, with brief histo
 ```
 
 **Key Improvements**:
+
 - **Tiered Context**: Recent (14d), Medium (15-60d), Historical (60+d) with decreasing detail
 - **Smart Pruning**: Automatic size limits prevent unbounded growth
 - **Topic Lifecycle**: Topics marked as active/dormant/closed, old ones archived
@@ -394,6 +399,7 @@ The LLM primarily uses **recent context** to generate new data, with brief histo
 ### 2. File Structure: Split by Provider
 
 #### Proposed Structure
+
 ```
 output/
 ├── metadata.json                    # Rich semantic metadata
@@ -421,6 +427,7 @@ output/
 ```
 
 **Benefits**:
+
 - Each provider's data is isolated and manageable
 - Can load only specific providers when needed
 - Easy to validate/test individual providers
@@ -478,10 +485,10 @@ output/
 interface ReferenceIndex {
   // ID counters for sequential numbering
   idCounters: {
-    githubIssues: number;      // Last used issue number
-    githubPRs: number;          // Last used PR number
-    notionPages: number;        // Last used page ID
-    fathomMeetings: number;     // Last used meeting ID
+    githubIssues: number; // Last used issue number
+    githubPRs: number; // Last used PR number
+    notionPages: number; // Last used page ID
+    fathomMeetings: number; // Last used meeting ID
   };
 
   // Notable items that might be referenced even when old
@@ -505,7 +512,7 @@ interface ReferenceIndex {
 
     activeThreads: Array<{
       channel: string;
-      ts: string;            // Slack thread timestamp
+      ts: string; // Slack thread timestamp
       topic: string;
       lastReply: string;
     }>;
@@ -514,17 +521,20 @@ interface ReferenceIndex {
 ```
 
 **Why Needed**:
+
 1. **ID Continuity**: Ensure Issue #63 in gen_2 doesn't conflict with Issue #63 in gen_1
 2. **Cross-Generation References**: New Slack message can reference old Issue #47 by keeping notable items
 3. **Thread Continuity**: Slack threads can receive replies across generations
 
 **Pruning Rules for Reference Index**:
+
 - Keep last 50 notable issues (major bugs, features)
 - Keep last 50 notable PRs (significant merges)
 - Keep active threads from last 30 days
 - Always keep ID counters (never reset)
 
 **Usage in Generation**:
+
 ```typescript
 // When generating new issues:
 const startingId = metadata.referenceIndex.idCounters.githubIssues + 1;
@@ -535,13 +545,13 @@ metadata.referenceIndex.idCounters.githubIssues += newIssues.length;
 
 // Mark significant issues as notable
 const notableNewIssues = newIssues
-  .filter(i => i.labels.includes('critical') || i.labels.includes('p0'))
-  .map(i => ({
+  .filter((i) => i.labels.includes('critical') || i.labels.includes('p0'))
+  .map((i) => ({
     id: i.id,
     number: i.number,
     title: i.title,
     state: i.state,
-    significance: 'critical-incident'
+    significance: 'critical-incident',
   }));
 
 metadata.referenceIndex.notableItems.githubIssues.push(...notableNewIssues);
@@ -553,24 +563,26 @@ metadata.referenceIndex.notableItems.githubIssues.push(...notableNewIssues);
 
 ```typescript
 interface HistoricalArchive {
-  generationRange: string;        // "gen_1" or "gen_1_to_5"
+  generationRange: string; // "gen_1" or "gen_1_to_5"
   dateRange: {
     start: string;
     end: string;
   };
-  summary: string;                // ONE-TIME summary, never re-summarized
+  summary: string; // ONE-TIME summary, never re-summarized
   keyTopics: string[];
   milestones: string[];
 }
 ```
 
 **Archiving Strategy**:
+
 - Each old generation gets ONE archive entry
 - Archives are NEVER re-summarized (prevents degradation)
 - Keep max 20 archive entries
 - If > 20, **merge oldest pairs** (gen_1 + gen_2 → gen_1_to_2)
 
 **Example Evolution**:
+
 ```
 Gen 5:  [gen_1, gen_2, gen_3, gen_4]  // 4 archives
 Gen 10: [gen_1_to_2, gen_3, gen_4, gen_5, gen_6, gen_7, gen_8, gen_9]  // 8 archives
@@ -591,39 +603,41 @@ async function pruneMetadata(metadata: Metadata): Promise<Metadata> {
   // 1. Update window boundaries
   const recentStart = new Date(now.getTime() - limits.recentWindowDays * 24 * 60 * 60 * 1000);
   const mediumStart = new Date(now.getTime() - limits.mediumWindowDays * 24 * 60 * 60 * 1000);
-  const historicalStart = new Date(now.getTime() - limits.historicalWindowDays * 24 * 60 * 60 * 1000);
+  const historicalStart = new Date(
+    now.getTime() - limits.historicalWindowDays * 24 * 60 * 60 * 1000,
+  );
 
   // 2. Migrate topics between tiers
   const allTopics = [
     ...metadata.semanticContext.recentContext.activeTopics,
-    ...metadata.semanticContext.mediumContext.topics
+    ...metadata.semanticContext.mediumContext.topics,
   ];
 
   // Recent topics (last 14 days, still actively mentioned)
   const recentTopics = allTopics
-    .filter(t => new Date(t.lastMentioned) >= recentStart && t.status === 'active')
+    .filter((t) => new Date(t.lastMentioned) >= recentStart && t.status === 'active')
     .sort((a, b) => b.mentionCount - a.mentionCount)
     .slice(0, limits.maxActiveTopics);
 
   // Medium topics (14-60 days, or recently dormant)
   const mediumTopics = allTopics
-    .filter(t => {
+    .filter((t) => {
       const lastMention = new Date(t.lastMentioned);
       return lastMention >= mediumStart && lastMention < recentStart;
     })
-    .map(t => ({
+    .map((t) => ({
       name: t.name,
       category: t.category,
       status: 'dormant' as const,
       lastMentioned: t.lastMentioned,
-      summary: t.summary
+      summary: t.summary,
     }))
     .slice(0, limits.maxMediumTopics);
 
   // Historical topics (60+ days) - summarized and archived
   const historicalTopics = allTopics
-    .filter(t => new Date(t.lastMentioned) < mediumStart)
-    .map(t => t.name);
+    .filter((t) => new Date(t.lastMentioned) < mediumStart)
+    .map((t) => t.name);
 
   // 3. Update metadata structure
   metadata.semanticContext.recentContext = {
@@ -632,9 +646,9 @@ async function pruneMetadata(metadata: Metadata): Promise<Metadata> {
     windowEnd: now.toISOString(),
     activeTopics: recentTopics,
     recentEvents: metadata.semanticContext.recentContext.recentEvents
-      .filter(e => new Date(e.date) >= recentStart)
+      .filter((e) => new Date(e.date) >= recentStart)
       .slice(-limits.maxRecentEvents),
-    activeItems: await updateActiveItems(metadata)
+    activeItems: await updateActiveItems(metadata),
   };
 
   metadata.semanticContext.mediumContext = {
@@ -645,13 +659,13 @@ async function pruneMetadata(metadata: Metadata): Promise<Metadata> {
     majorEvents: [
       ...metadata.semanticContext.mediumContext.majorEvents,
       ...metadata.semanticContext.recentContext.recentEvents
-        .filter(e => new Date(e.date) < recentStart && new Date(e.date) >= mediumStart)
-        .map(e => ({
+        .filter((e) => new Date(e.date) < recentStart && new Date(e.date) >= mediumStart)
+        .map((e) => ({
           date: e.date,
           title: e.title,
-          type: e.type
-        }))
-    ].slice(-limits.maxMajorEvents)
+          type: e.type,
+        })),
+    ].slice(-limits.maxMajorEvents),
   };
 
   // 4. Update historical summary
@@ -659,7 +673,7 @@ async function pruneMetadata(metadata: Metadata): Promise<Metadata> {
     const newHistoricalSummary = await generateHistoricalSummary(
       metadata.semanticContext.historicalSummary,
       historicalTopics,
-      mediumTopics
+      mediumTopics,
     );
     metadata.semanticContext.historicalSummary = newHistoricalSummary;
   }
@@ -671,19 +685,22 @@ async function updateActiveItems(metadata: Metadata) {
   // Only keep genuinely open items from recent window
   // This would query the latest generation's data to check current state
   return {
-    openIssues: metadata.semanticContext.recentContext.activeItems.openIssues
-      .slice(-metadata.semanticContext.sizeLimits.maxOpenIssues),
-    openPRs: metadata.semanticContext.recentContext.activeItems.openPRs
-      .slice(-metadata.semanticContext.sizeLimits.maxOpenPRs),
-    ongoingDiscussions: metadata.semanticContext.recentContext.activeItems.ongoingDiscussions
-      .slice(-metadata.semanticContext.sizeLimits.maxOngoingDiscussions)
+    openIssues: metadata.semanticContext.recentContext.activeItems.openIssues.slice(
+      -metadata.semanticContext.sizeLimits.maxOpenIssues,
+    ),
+    openPRs: metadata.semanticContext.recentContext.activeItems.openPRs.slice(
+      -metadata.semanticContext.sizeLimits.maxOpenPRs,
+    ),
+    ongoingDiscussions: metadata.semanticContext.recentContext.activeItems.ongoingDiscussions.slice(
+      -metadata.semanticContext.sizeLimits.maxOngoingDiscussions,
+    ),
   };
 }
 
 async function generateHistoricalSummary(
   currentSummary: any,
   newClosedTopics: string[],
-  mediumTopicsMovingToHistory: any[]
+  mediumTopicsMovingToHistory: any[],
 ): Promise<any> {
   // Use LLM to merge and summarize
   const prompt = `
@@ -693,7 +710,7 @@ ${newClosedTopics.join(', ')}
 Current summary: ${currentSummary.summary}
 
 Also include these recently completed topics:
-${mediumTopicsMovingToHistory.map(t => `- ${t.name}: ${t.summary}`).join('\n')}
+${mediumTopicsMovingToHistory.map((t) => `- ${t.name}: ${t.summary}`).join('\n')}
 
 Generate a concise 2-3 sentence updated historical summary.
   `;
@@ -703,12 +720,13 @@ Generate a concise 2-3 sentence updated historical summary.
   return {
     ...currentSummary,
     summary: updatedSummary,
-    closedTopics: [...currentSummary.closedTopics, ...newClosedTopics].slice(-20)
+    closedTopics: [...currentSummary.closedTopics, ...newClosedTopics].slice(-20),
   };
 }
 ```
 
 **Pruning Rules**:
+
 1. **Recent → Medium**: Topics not mentioned in 14 days move to medium tier
 2. **Medium → Historical**: Topics not mentioned in 60 days get summarized into historical text
 3. **Size Caps**: Each tier has max items, oldest/least relevant get dropped
@@ -724,43 +742,41 @@ Generate a concise 2-3 sentence updated historical summary.
 ```typescript
 async function synchronizeActiveItems(
   metadata: Metadata,
-  newData: AllGeneratedData
+  newData: AllGeneratedData,
 ): Promise<Metadata> {
   const recentContext = metadata.semanticContext.recentContext;
 
   // Remove issues that were closed in new data
   const closedIssueNumbers = newData.github.issues
-    .filter(i => i.state === 'closed')
-    .map(i => i.number);
+    .filter((i) => i.state === 'closed')
+    .map((i) => i.number);
 
-  recentContext.activeItems.openIssues =
-    recentContext.activeItems.openIssues.filter(
-      existing => !closedIssueNumbers.includes(existing.number)
-    );
+  recentContext.activeItems.openIssues = recentContext.activeItems.openIssues.filter(
+    (existing) => !closedIssueNumbers.includes(existing.number),
+  );
 
   // Remove PRs that were merged/closed
   const closedPRNumbers = newData.github.pullRequests
-    .filter(pr => pr.state !== 'open')
-    .map(pr => pr.number);
+    .filter((pr) => pr.state !== 'open')
+    .map((pr) => pr.number);
 
-  recentContext.activeItems.openPRs =
-    recentContext.activeItems.openPRs.filter(
-      existing => !closedPRNumbers.includes(existing.number)
-    );
+  recentContext.activeItems.openPRs = recentContext.activeItems.openPRs.filter(
+    (existing) => !closedPRNumbers.includes(existing.number),
+  );
 
   // Add new open issues/PRs from this generation
   const newOpenIssues = newData.github.issues
-    .filter(i => i.state === 'open')
-    .map(i => ({
+    .filter((i) => i.state === 'open')
+    .map((i) => ({
       id: i.id,
       number: i.number,
       title: i.title,
       state: i.state,
       created_at: i.created_at,
       assignee: i.assignee?.login || 'unassigned',
-      labels: i.labels.map(l => l.name),
+      labels: i.labels.map((l) => l.name),
       lastActivity: i.updated_at,
-      commentCount: i.comments
+      commentCount: i.comments,
     }));
 
   recentContext.activeItems.openIssues.push(...newOpenIssues);
@@ -809,16 +825,19 @@ Return structured JSON with topics categorized.
 **Example Scenarios**:
 
 **Scenario 1: Natural Continuation**
+
 - Existing topic: "Player Onboarding Redesign"
 - New data: PR merged, issue closed, celebration in Slack
 - Result: Topic updated with "status: completed", moved to medium tier
 
 **Scenario 2: New Unrelated Topic**
+
 - Existing topics: All about game development
 - New data: Discussion about hiring, job postings, interviews
 - Result: New topic "Team Hiring Q1 2025" added to recent context
 
 **Scenario 3: Evolution**
+
 - Existing topic: "Matchmaking Performance" (dormant)
 - New data: New performance regression discovered
 - Result: New topic "Matchmaking Performance v2" with reference to original
@@ -830,9 +849,8 @@ async function generateIncremental(
   config: GeneratorConfig,
   volumes: VolumeConfig,
   timelineConfig: TimelineConfig,
-  metadata: Metadata
+  metadata: Metadata,
 ): Promise<AllGeneratedData> {
-
   console.log(`📊 Incremental Generation for ${timelineConfig.days} new days`);
 
   // Extract semantic context from metadata (NO file reading!)
@@ -841,7 +859,7 @@ async function generateIncremental(
     keyEvents: metadata.semanticContext.keyEvents,
     activeItems: metadata.semanticContext.activeItems,
     patterns: metadata.semanticContext.patterns,
-    entities: metadata.entities
+    entities: metadata.entities,
   };
 
   // Prepare LLM context prompt
@@ -892,7 +910,7 @@ async function generateIncremental(
       fathomMeetings: Math.floor(volumes.fathomMeetings * 0.4),
     },
     timeline,
-    llmContext  // LLM uses metadata context
+    llmContext, // LLM uses metadata context
   );
 
   // Stage 2: Connection (20%) - References within new data
@@ -906,7 +924,7 @@ async function generateIncremental(
       notionPages: Math.floor(volumes.notionPages * 0.2),
       fathomMeetings: Math.floor(volumes.fathomMeetings * 0.2),
     },
-    llmContext
+    llmContext,
   );
 
   // Stage 3: Integration (20%) - Deeper links
@@ -920,7 +938,7 @@ async function generateIncremental(
       notionPages: Math.floor(volumes.notionPages * 0.2),
       fathomMeetings: Math.floor(volumes.fathomMeetings * 0.2),
     },
-    llmContext
+    llmContext,
   );
 
   // Stage 4: Synthesis (20%) - Complex chains
@@ -935,7 +953,7 @@ async function generateIncremental(
       notionPages: Math.floor(volumes.notionPages * 0.2),
       fathomMeetings: Math.floor(volumes.fathomMeetings * 0.2),
     },
-    llmContext
+    llmContext,
   );
 
   // Combine all stages
@@ -953,41 +971,43 @@ You are continuing to generate data for GRagger, a gaming startup.
 
 ## Recent Context (Last ${recentContext.windowDays} days) - PRIMARY FOCUS
 ### Active Topics
-${recentContext.activeTopics.map(t =>
-  `- ${t.name} (${t.category}): ${t.summary} [${t.mentionCount} mentions]`
-).join('\n')}
+${recentContext.activeTopics
+  .map((t) => `- ${t.name} (${t.category}): ${t.summary} [${t.mentionCount} mentions]`)
+  .join('\n')}
 
 ### Recent Events
-${recentContext.recentEvents.map(e =>
-  `- ${e.date.split('T')[0]}: ${e.title} - ${e.description}`
-).join('\n')}
+${recentContext.recentEvents
+  .map((e) => `- ${e.date.split('T')[0]}: ${e.title} - ${e.description}`)
+  .join('\n')}
 
 ### Active Work
 **Open Issues:**
-${recentContext.activeItems.openIssues.map(i =>
-  `- Issue #${i.number}: ${i.title} (${i.assignee}, ${i.commentCount} comments)`
-).join('\n')}
+${recentContext.activeItems.openIssues
+  .map((i) => `- Issue #${i.number}: ${i.title} (${i.assignee}, ${i.commentCount} comments)`)
+  .join('\n')}
 
 **Open PRs:**
-${recentContext.activeItems.openPRs.map(pr =>
-  `- PR #${pr.number}: ${pr.title} (by ${pr.author}, reviewers: ${pr.reviewers.join(', ')})`
-).join('\n')}
+${recentContext.activeItems.openPRs
+  .map(
+    (pr) =>
+      `- PR #${pr.number}: ${pr.title} (by ${pr.author}, reviewers: ${pr.reviewers.join(', ')})`,
+  )
+  .join('\n')}
 
 **Ongoing Discussions:**
-${recentContext.activeItems.ongoingDiscussions.map(d =>
-  `- #${d.channel}: "${d.topic}" (${d.messageCount} messages, ${d.participants.join(', ')}, ${d.sentiment})`
-).join('\n')}
+${recentContext.activeItems.ongoingDiscussions
+  .map(
+    (d) =>
+      `- #${d.channel}: "${d.topic}" (${d.messageCount} messages, ${d.participants.join(', ')}, ${d.sentiment})`,
+  )
+  .join('\n')}
 
 ## Medium Context (${mediumContext.windowDays} days prior) - BACKGROUND
 ### Recently Dormant Topics
-${mediumContext.topics.map(t =>
-  `- ${t.name}: ${t.summary}`
-).join('\n')}
+${mediumContext.topics.map((t) => `- ${t.name}: ${t.summary}`).join('\n')}
 
 ### Major Past Events
-${mediumContext.majorEvents.map(e =>
-  `- ${e.date.split('T')[0]}: ${e.title}`
-).join('\n')}
+${mediumContext.majorEvents.map((e) => `- ${e.date.split('T')[0]}: ${e.title}`).join('\n')}
 
 ## Historical Summary (${historicalSummary.windowDays}+ days ago)
 ${historicalSummary.summary}
@@ -1022,23 +1042,22 @@ async function updateMetadataAfterGeneration(
   metadata: Metadata,
   newData: AllGeneratedData,
   generationId: string,
-  timelineConfig: TimelineConfig
+  timelineConfig: TimelineConfig,
 ): Promise<Metadata> {
-
   // Extract semantic information from new data using LLM
   const newSemanticContext = await extractSemanticContext(newData);
 
   // Merge with existing context
   metadata.semanticContext.topics = mergeTopics(
     metadata.semanticContext.topics,
-    newSemanticContext.topics
+    newSemanticContext.topics,
   );
 
   metadata.semanticContext.keyEvents.push(...newSemanticContext.keyEvents);
 
   metadata.semanticContext.activeItems = updateActiveItems(
     metadata.semanticContext.activeItems,
-    newData
+    newData,
   );
 
   // Update generation record
@@ -1053,18 +1072,21 @@ async function updateMetadataAfterGeneration(
       githubIssues: newData.github.issues.length,
       githubPRs: newData.github.pullRequests.length,
       notionPages: newData.notion.pages.length,
-      fathomMeetings: newData.fathom.meetings.length
+      fathomMeetings: newData.fathom.meetings.length,
     },
-    newTopics: newSemanticContext.topics.map(t => t.name),
-    newEvents: newSemanticContext.keyEvents.map(e => e.title),
-    continuedTopics: findContinuedTopics(metadata.semanticContext.topics, newSemanticContext.topics),
+    newTopics: newSemanticContext.topics.map((t) => t.name),
+    newEvents: newSemanticContext.keyEvents.map((e) => e.title),
+    continuedTopics: findContinuedTopics(
+      metadata.semanticContext.topics,
+      newSemanticContext.topics,
+    ),
     outputFiles: {
       slack: `output/generations/${generationId}/slack.json`,
       github: `output/generations/${generationId}/github.json`,
       notion: `output/generations/${generationId}/notion.json`,
-      fathom: `output/generations/${generationId}/fathom.json`
+      fathom: `output/generations/${generationId}/fathom.json`,
     },
-    incrementalFrom: metadata.generations[metadata.generations.length - 1]?.id
+    incrementalFrom: metadata.generations[metadata.generations.length - 1]?.id,
   });
 
   // Update totals
@@ -1076,7 +1098,8 @@ async function updateMetadataAfterGeneration(
 
   metadata.timeline.end = timelineConfig.endDate.toISOString();
   metadata.timeline.totalDays = Math.floor(
-    (new Date(metadata.timeline.end).getTime() - new Date(metadata.timeline.start).getTime()) / (1000 * 60 * 60 * 24)
+    (new Date(metadata.timeline.end).getTime() - new Date(metadata.timeline.start).getTime()) /
+      (1000 * 60 * 60 * 24),
   );
 
   metadata.lastUpdatedAt = new Date().toISOString();
@@ -1128,10 +1151,7 @@ interface TimelineConfig {
   days: number;
 }
 
-function determineTimeline(
-  requestedDays: number,
-  metadata?: Metadata
-): TimelineConfig {
+function determineTimeline(requestedDays: number, metadata?: Metadata): TimelineConfig {
   const now = new Date();
   now.setHours(23, 59, 59, 999); // End of today
 
@@ -1145,14 +1165,14 @@ function determineTimeline(
       mode: 'initial',
       startDate,
       endDate: now,
-      days: requestedDays
+      days: requestedDays,
     };
   }
 
   // Incremental mode: Extend from last end date
   const lastEndDate = new Date(metadata.timeline.end);
   const daysSinceLastRun = Math.floor(
-    (now.getTime() - lastEndDate.getTime()) / (1000 * 60 * 60 * 24)
+    (now.getTime() - lastEndDate.getTime()) / (1000 * 60 * 60 * 24),
   );
 
   if (daysSinceLastRun <= 0) {
@@ -1161,7 +1181,7 @@ function determineTimeline(
       mode: 'incremental',
       startDate: now,
       endDate: now,
-      days: 0
+      days: 0,
     };
   }
 
@@ -1175,7 +1195,7 @@ function determineTimeline(
     mode: 'incremental',
     startDate,
     endDate: now,
-    days: daysSinceLastRun
+    days: daysSinceLastRun,
   };
 }
 ```
@@ -1207,17 +1227,15 @@ async function main() {
   const volumes = calculateVolumes(timelineConfig.days);
 
   console.log(`📊 Mode: ${timelineConfig.mode}`);
-  console.log(`📅 Timeline: ${timelineConfig.startDate.toISOString()} to ${timelineConfig.endDate.toISOString()}`);
+  console.log(
+    `📅 Timeline: ${timelineConfig.startDate.toISOString()} to ${timelineConfig.endDate.toISOString()}`,
+  );
   console.log(`📆 Days: ${timelineConfig.days}`);
   console.log(`📝 Volumes:`, volumes);
   console.log('='.repeat(50));
 
   // Initialize LLM
-  initializeLLM(
-    process.env.LLM_API_KEY!,
-    process.env.LLM_BASE_URL!,
-    config.concurrency
-  );
+  initializeLLM(process.env.LLM_API_KEY!, process.env.LLM_BASE_URL!, config.concurrency);
 
   let newData: AllGeneratedData;
   let generationId: string;
@@ -1230,14 +1248,9 @@ async function main() {
     newData = await generateFromScratch(config, volumes, timelineConfig);
 
     // Create initial metadata
-    const initialMetadata = await createInitialMetadata(
-      generationId,
-      newData,
-      timelineConfig
-    );
+    const initialMetadata = await createInitialMetadata(generationId, newData, timelineConfig);
 
     saveMetadata(initialMetadata);
-
   } else {
     // Incremental generation
     console.log('➕ Incremental generation mode');
@@ -1245,19 +1258,14 @@ async function main() {
 
     console.log('📖 Using metadata context (no file reading needed)');
 
-    newData = await generateIncremental(
-      config,
-      volumes,
-      timelineConfig,
-      metadata!
-    );
+    newData = await generateIncremental(config, volumes, timelineConfig, metadata!);
 
     // Update metadata
     const updatedMetadata = await updateMetadataAfterGeneration(
       metadata!,
       newData,
       generationId,
-      timelineConfig
+      timelineConfig,
     );
 
     saveMetadata(updatedMetadata);
@@ -1269,32 +1277,34 @@ async function main() {
 
   writeFileSync(
     join(genDir, 'slack.json'),
-    JSON.stringify({
-      users: newData.slack.users,
-      channels: newData.slack.channels,
-      messages: Array.from(newData.slack.messages.values()).flat()
-    }, null, 2)
+    JSON.stringify(
+      {
+        users: newData.slack.users,
+        channels: newData.slack.channels,
+        messages: Array.from(newData.slack.messages.values()).flat(),
+      },
+      null,
+      2,
+    ),
   );
 
-  writeFileSync(
-    join(genDir, 'github.json'),
-    JSON.stringify(newData.github, null, 2)
-  );
+  writeFileSync(join(genDir, 'github.json'), JSON.stringify(newData.github, null, 2));
 
   writeFileSync(
     join(genDir, 'notion.json'),
-    JSON.stringify({
-      users: newData.notion.users,
-      databases: newData.notion.databases,
-      pages: newData.notion.pages,
-      blocks: Object.fromEntries(newData.notion.blocks)
-    }, null, 2)
+    JSON.stringify(
+      {
+        users: newData.notion.users,
+        databases: newData.notion.databases,
+        pages: newData.notion.pages,
+        blocks: Object.fromEntries(newData.notion.blocks),
+      },
+      null,
+      2,
+    ),
   );
 
-  writeFileSync(
-    join(genDir, 'fathom.json'),
-    JSON.stringify(newData.fathom, null, 2)
-  );
+  writeFileSync(join(genDir, 'fathom.json'), JSON.stringify(newData.fathom, null, 2));
 
   console.log('='.repeat(50));
   console.log('✅ Generation complete!');
@@ -1304,7 +1314,7 @@ async function main() {
     githubIssues: newData.github.issues.length,
     githubPRs: newData.github.pullRequests.length,
     notionPages: newData.notion.pages.length,
-    fathomMeetings: newData.fathom.meetings.length
+    fathomMeetings: newData.fathom.meetings.length,
   });
 }
 
@@ -1344,15 +1354,23 @@ function showStatus() {
 
   // Entities
   console.log('👥 Entities:');
-  console.log(`  Slack: ${metadata.entities.slackUsers.length} users, ${metadata.entities.slackChannels.length} channels`);
-  console.log(`  GitHub: ${metadata.entities.githubUsers.length} users, ${metadata.entities.githubRepositories.length} repos`);
-  console.log(`  Notion: ${metadata.entities.notionUsers.length} users, ${metadata.entities.notionDatabases.length} databases`);
-  console.log(`  Fathom: ${metadata.entities.fathomTeams.length} teams, ${metadata.entities.fathomTeamMembers?.length || 0} members`);
+  console.log(
+    `  Slack: ${metadata.entities.slackUsers.length} users, ${metadata.entities.slackChannels.length} channels`,
+  );
+  console.log(
+    `  GitHub: ${metadata.entities.githubUsers.length} users, ${metadata.entities.githubRepositories.length} repos`,
+  );
+  console.log(
+    `  Notion: ${metadata.entities.notionUsers.length} users, ${metadata.entities.notionDatabases.length} databases`,
+  );
+  console.log(
+    `  Fathom: ${metadata.entities.fathomTeams.length} teams, ${metadata.entities.fathomTeamMembers?.length || 0} members`,
+  );
   console.log('');
 
   // Active Topics
   console.log('🏷️  Active Topics:');
-  metadata.semanticContext.topics.slice(0, 5).forEach(topic => {
+  metadata.semanticContext.topics.slice(0, 5).forEach((topic) => {
     console.log(`  - ${topic.name} (${topic.category})`);
     console.log(`    ${topic.summary.substring(0, 80)}...`);
   });
@@ -1360,7 +1378,7 @@ function showStatus() {
 
   // Recent Events
   console.log('🎯 Recent Key Events:');
-  metadata.semanticContext.keyEvents.slice(-3).forEach(event => {
+  metadata.semanticContext.keyEvents.slice(-3).forEach((event) => {
     console.log(`  - ${event.date.split('T')[0]}: ${event.title}`);
   });
   console.log('');
@@ -1369,7 +1387,9 @@ function showStatus() {
   console.log('🔧 Active Work:');
   console.log(`  Open Issues: ${metadata.semanticContext.activeItems.openIssues.length}`);
   console.log(`  Open PRs: ${metadata.semanticContext.activeItems.openPRs.length}`);
-  console.log(`  Ongoing Discussions: ${metadata.semanticContext.activeItems.ongoingDiscussions.length}`);
+  console.log(
+    `  Ongoing Discussions: ${metadata.semanticContext.activeItems.ongoingDiscussions.length}`,
+  );
   console.log('');
 
   // Generations
@@ -1377,7 +1397,9 @@ function showStatus() {
   metadata.generations.forEach((gen, idx) => {
     const isLast = idx === metadata.generations.length - 1;
     console.log(`  ${isLast ? '→' : ' '} ${gen.id} (${gen.timestamp.split('T')[0]})`);
-    console.log(`    ${gen.timelineDays} days, ${Object.values(gen.recordCounts).reduce((a, b) => a + b, 0)} records`);
+    console.log(
+      `    ${gen.timelineDays} days, ${Object.values(gen.recordCounts).reduce((a, b) => a + b, 0)} records`,
+    );
     if (gen.newTopics.length > 0) {
       console.log(`    New: ${gen.newTopics.join(', ')}`);
     }
@@ -1456,6 +1478,7 @@ KEEP_GENERATIONS=10                 # Auto-delete old generations (0 = keep all)
 ```
 
 **Usage**:
+
 ```bash
 # Initial generation (30 days)
 pnpm run generate:small
@@ -1476,11 +1499,13 @@ pnpm run generate:reset
 Here's how metadata evolves over time with pruning:
 
 #### Day 1: Initial Generation (30 days)
+
 ```bash
 pnpm run generate:small
 ```
 
 **Metadata created**:
+
 - Recent context: Empty (no prior data)
 - Medium context: Empty
 - Historical: Empty
@@ -1489,15 +1514,18 @@ pnpm run generate:small
 **Generation**: Creates 7 days of data from scratch
 
 #### Day 8: First Incremental Run
+
 ```bash
 pnpm run generate
 ```
 
 **Metadata state BEFORE generation**:
+
 - Recent context: 7 days of topics/events from initial run
 - Size: ~15KB
 
 **Generation process**:
+
 1. Load metadata (15KB, instant)
 2. Extract recent context for LLM prompt
 3. Generate 1 new day of data (continues existing topics + maybe 1 new topic)
@@ -1507,16 +1535,19 @@ pnpm run generate
 7. Save metadata (18KB)
 
 #### Day 22: Second Incremental Run (14 days later)
+
 ```bash
 pnpm run generate
 ```
 
 **Metadata state BEFORE generation**:
+
 - Recent context: 14 days of topics (Days 8-21)
 - Medium context: Empty
 - Size: ~35KB
 
 **Generation process**:
+
 1. Load metadata (35KB)
 2. Generate 14 new days
 3. Extract semantic context
@@ -1529,22 +1560,26 @@ pnpm run generate
 6. Save metadata (~40KB)
 
 **Result**:
+
 - Recent: Days 22-35 (full detail)
 - Medium: Days 8-21 (summarized)
 - Historical: Days 1-7 (brief summary)
 
 #### Day 90: Long-term Run (68 days later)
+
 ```bash
 pnpm run generate
 ```
 
 **Metadata state BEFORE generation**:
+
 - Recent: Days 76-89 (full detail)
 - Medium: Days 30-75 (summaries)
 - Historical: Days 1-29 (brief text)
 - Size: ~55KB
 
 **Generation process**:
+
 1. Load metadata (55KB - still small!)
 2. Generate 68 new days
 3. Extract semantic context
@@ -1561,6 +1596,7 @@ pnpm run generate
 ## Implementation Plan
 
 ### Phase 1: Metadata Foundation
+
 **Goal**: Create metadata structure and I/O functions
 
 - [ ] Define TypeScript types for rich metadata
@@ -1569,12 +1605,14 @@ pnpm run generate
 - [ ] Add metadata validation
 
 **Files to create/modify**:
+
 - `src/mock-data-generator/types.ts` (add metadata types)
 - `src/mock-data-generator/utils/metadata.ts` (new file)
 
 **Estimated time**: 2-3 hours
 
 ### Phase 2: Semantic Context Extraction & Pruning
+
 **Goal**: Extract topics, events, patterns from generated data AND implement pruning
 
 - [ ] Implement `extractSemanticContext()` using LLM
@@ -1588,6 +1626,7 @@ pnpm run generate
 - [ ] **Implement size limit enforcement**
 
 **Files to create/modify**:
+
 - `src/mock-data-generator/utils/semantic.ts` (new file)
 - `src/mock-data-generator/utils/pruning.ts` (new file)
 - `src/mock-data-generator/utils/llm.ts` (update)
@@ -1595,6 +1634,7 @@ pnpm run generate
 **Estimated time**: 6-8 hours (increased due to pruning complexity)
 
 ### Phase 3: Timeline Detection & File Structure
+
 **Goal**: Detect mode and organize output by provider
 
 - [ ] Implement `determineTimeline()` logic
@@ -1603,6 +1643,7 @@ pnpm run generate
 - [ ] Add symlinks for "current" generation (optional)
 
 **Files to create/modify**:
+
 - `src/mock-data-generator/utils/timeline.ts` (new file)
 - `src/mock-data-generator/utils/files.ts` (new file)
 - `src/mock-data-generator/index.ts` (update)
@@ -1610,6 +1651,7 @@ pnpm run generate
 **Estimated time**: 2-3 hours
 
 ### Phase 4: Incremental Generation Logic
+
 **Goal**: Generate new data using metadata context
 
 - [ ] Implement `buildLLMContextFromMetadata()`
@@ -1618,6 +1660,7 @@ pnpm run generate
 - [ ] Test 4-stage generation with context
 
 **Files to create/modify**:
+
 - `src/mock-data-generator/stages/foundation.ts` (update)
 - `src/mock-data-generator/stages/connection.ts` (update)
 - `src/mock-data-generator/stages/integration.ts` (update)
@@ -1627,6 +1670,7 @@ pnpm run generate
 **Estimated time**: 5-6 hours
 
 ### Phase 5: Main Orchestrator Update
+
 **Goal**: Integrate all components
 
 - [ ] Update main() to handle both modes
@@ -1636,11 +1680,13 @@ pnpm run generate
 - [ ] Test full flow (initial + incremental)
 
 **Files to create/modify**:
+
 - `src/mock-data-generator/index.ts` (major update)
 
 **Estimated time**: 3-4 hours
 
 ### Phase 6: Status Command
+
 **Goal**: Create status/info utility
 
 - [ ] Implement status display
@@ -1649,11 +1695,13 @@ pnpm run generate
 - [ ] Calculate days since last run
 
 **Files to create/modify**:
+
 - `src/mock-data-generator/status.ts` (new file)
 
 **Estimated time**: 1-2 hours
 
 ### Phase 7: Configuration & CLI
+
 **Goal**: Add environment variables and commands
 
 - [ ] Add new environment variables
@@ -1662,6 +1710,7 @@ pnpm run generate
 - [ ] Test all CLI commands
 
 **Files to create/modify**:
+
 - `.env.example` (update)
 - `package.json` (update)
 - `src/mock-data-generator/config.ts` (update)
@@ -1669,6 +1718,7 @@ pnpm run generate
 **Estimated time**: 1-2 hours
 
 ### Phase 8: Testing & Validation
+
 **Goal**: Ensure correctness
 
 - [ ] Test initial generation
@@ -1682,6 +1732,7 @@ pnpm run generate
 **Estimated time**: 3-4 hours
 
 ### Phase 9: Documentation
+
 **Goal**: Document new system
 
 - [ ] Update README with new workflow
@@ -1691,6 +1742,7 @@ pnpm run generate
 - [ ] Document migration from old structure
 
 **Files to create/modify**:
+
 - `packages/benchmarking/README.md` (update)
 - `docs/benchmark/USAGE.md` (new file)
 
@@ -1701,39 +1753,46 @@ pnpm run generate
 ## Key Advantages of This Approach
 
 ### 1. Bounded Metadata Size
+
 - **Pruning ensures metadata never exceeds ~50-100KB**
 - Tiered context (Recent/Medium/Historical) with automatic migration
 - Size limits on all collections (topics, events, active items)
 - Can run for years without unbounded growth
 
 ### 2. No File Reading for Context
+
 - Metadata provides all semantic context needed
 - LLM generates coherent continuations without reading old data
 - Efficient even with years of data (365+ days)
 
 ### 3. Handles Both Continuations and New Topics
+
 - Automatically detects continued vs new topics
 - Topic lifecycle management (active → dormant → archived)
 - Natural evolution of themes over time
 - LLM explicitly instructed to balance continuity with novelty
 
 ### 4. Clean File Organization
+
 - Split by provider (not by stage)
 - Each generation is isolated and independently readable
 - Easy to validate and debug individual providers
 
 ### 5. 4-Stage Strategy Maintained
+
 - Realistic relationships in new data
 - Foundation → Connection → Integration → Synthesis
 - Coherent narrative flow across incremental runs
 
 ### 6. Smart Context Management
+
 - **Recent context (14d)**: Full detail, primary focus for generation
 - **Medium context (15-60d)**: Summarized, background awareness
 - **Historical (60+d)**: High-level summary, narrative continuity
 - LLM receives just enough context without being overwhelmed
 
 ### 7. Scalability
+
 - Metadata size is O(1) - bounded and constant
 - Can generate indefinitely without performance degradation
 - Old generations can be archived/deleted

@@ -1,9 +1,9 @@
-import { Worker } from "bullmq";
+import { Worker } from 'bullmq';
 
-import { indexGraphWorker } from "./index-graph.queue.js";
-import { indexVectorWorker } from "./index-vector.queue.js";
-import { syncMcpServerWorker } from "./sync.queue.js";
-import { QUEUE_NAME } from "./config.js";
+import { indexGraphWorker } from './index-graph.queue.js';
+import { indexVectorWorker } from './index-vector.queue.js';
+import { syncMcpServerWorker } from './sync.queue.js';
+import { QUEUE_NAME } from './config.js';
 
 const workerMap: Record<QUEUE_NAME, Worker> = {
   [QUEUE_NAME.SYNC_MCP_SERVER]: syncMcpServerWorker,

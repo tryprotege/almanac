@@ -1,7 +1,7 @@
-import type { RateLimitConfig } from "@ebee-oss/indexing-engine";
-import { RateLimiter } from "limiter";
-import { Mutex } from "async-mutex";
-import logger from "../../../utils/logger.js";
+import type { RateLimitConfig } from '@ebee-oss/indexing-engine';
+import { RateLimiter } from 'limiter';
+import { Mutex } from 'async-mutex';
+import logger from '../../../utils/logger.js';
 
 /**
  * Token bucket rate limiter using the 'limiter' library
@@ -22,8 +22,7 @@ class TokenBucketRateLimiter {
     this.id = id;
 
     // Set max tokens (with burst capacity if explicitly enabled)
-    const burstMultiplier =
-      config.allowBurst === true ? config.burstMultiplier || 1.5 : 1;
+    const burstMultiplier = config.allowBurst === true ? config.burstMultiplier || 1.5 : 1;
     this.maxTokens = Math.ceil(config.maxRequests * burstMultiplier);
     this.intervalMs = config.windowSeconds * 1000;
     this.baseRate = this.maxTokens;
@@ -43,7 +42,7 @@ class TokenBucketRateLimiter {
         intervalSeconds: config.windowSeconds,
         burstEnabled: config.allowBurst === true,
       },
-      "Token bucket rate limiter initialized (using limiter library)"
+      'Token bucket rate limiter initialized (using limiter library)',
     );
   }
 
@@ -70,8 +69,8 @@ class TokenBucketRateLimiter {
           maxTokens: this.maxTokens,
         },
         `[Rate Limiter] Token consumed (waited ${delayMs}ms) - ${remaining.toFixed(
-          2
-        )}/${this.maxTokens} remaining`
+          2,
+        )}/${this.maxTokens} remaining`,
       );
 
       return delayMs;
@@ -93,7 +92,7 @@ class TokenBucketRateLimiter {
         baseRate: this.baseRate,
         reductionFactor: factor,
       },
-      "Rate limit reduced due to 429 error"
+      'Rate limit reduced due to 429 error',
     );
 
     // Note: The limiter library doesn't support dynamic rate changes
@@ -112,7 +111,7 @@ class TokenBucketRateLimiter {
         const oldRate = this.currentRate;
         this.currentRate = Math.min(
           this.baseRate,
-          this.currentRate * 1.2 // Increase by 20%
+          this.currentRate * 1.2, // Increase by 20%
         );
         this.successCount = 0;
 
@@ -123,7 +122,7 @@ class TokenBucketRateLimiter {
               newRate: this.currentRate,
               baseRate: this.baseRate,
             },
-            "Rate limit recovering after successful requests"
+            'Rate limit recovering after successful requests',
           );
         }
       }
@@ -167,7 +166,7 @@ class ExponentialBackoffRateLimiter {
         initialBackoffMs: this.initialBackoffMs,
         maxBackoffMs: this.maxBackoffMs,
       },
-      "Exponential backoff rate limiter initialized"
+      'Exponential backoff rate limiter initialized',
     );
   }
 
@@ -188,7 +187,7 @@ class ExponentialBackoffRateLimiter {
     // Calculate exponential backoff: initialDelay * (2 ^ errors)
     const backoffMs = Math.min(
       this.initialBackoffMs * Math.pow(2, this.consecutiveErrors - 1),
-      this.maxBackoffMs
+      this.maxBackoffMs,
     );
 
     logger.warn(
@@ -197,7 +196,7 @@ class ExponentialBackoffRateLimiter {
         consecutiveErrors: this.consecutiveErrors,
         backoffMs,
       },
-      "Rate limit hit: backing off"
+      'Rate limit hit: backing off',
     );
 
     await sleep(backoffMs);
@@ -220,7 +219,7 @@ class RetryAfterRateLimiter {
 
   constructor(_config: RateLimitConfig, id: string) {
     this.id = id;
-    logger.debug({ id: this.id }, "Retry-After rate limiter initialized");
+    logger.debug({ id: this.id }, 'Retry-After rate limiter initialized');
   }
 
   /**
@@ -230,10 +229,10 @@ class RetryAfterRateLimiter {
   async handleRetryAfter(retryAfter: string | number): Promise<number> {
     let delayMs: number;
 
-    if (typeof retryAfter === "number") {
+    if (typeof retryAfter === 'number') {
       // Retry-After is in seconds
       delayMs = retryAfter * 1000;
-    } else if (typeof retryAfter === "string") {
+    } else if (typeof retryAfter === 'string') {
       // Try parsing as integer seconds
       const seconds = parseInt(retryAfter, 10);
       if (!isNaN(seconds)) {
@@ -253,7 +252,7 @@ class RetryAfterRateLimiter {
 
     logger.warn(
       { id: this.id, delayMs, retryAfter },
-      "Rate limit (429): respecting Retry-After header"
+      'Rate limit (429): respecting Retry-After header',
     );
 
     await sleep(delayMs);
@@ -272,9 +271,7 @@ class RetryAfterRateLimiter {
 export class RateLimiterManager {
   private limiters: Map<
     string,
-    | TokenBucketRateLimiter
-    | ExponentialBackoffRateLimiter
-    | RetryAfterRateLimiter
+    TokenBucketRateLimiter | ExponentialBackoffRateLimiter | RetryAfterRateLimiter
   > = new Map();
   private pausedServers: Map<string, Date> = new Map();
 
@@ -283,29 +280,23 @@ export class RateLimiterManager {
    */
   getLimiter(
     config: RateLimitConfig,
-    scopeId: string
-  ):
-    | TokenBucketRateLimiter
-    | ExponentialBackoffRateLimiter
-    | RetryAfterRateLimiter {
+    scopeId: string,
+  ): TokenBucketRateLimiter | ExponentialBackoffRateLimiter | RetryAfterRateLimiter {
     if (this.limiters.has(scopeId)) {
       return this.limiters.get(scopeId)!;
     }
 
-    const strategy = config.strategy || "token_bucket";
-    let limiter:
-      | TokenBucketRateLimiter
-      | ExponentialBackoffRateLimiter
-      | RetryAfterRateLimiter;
+    const strategy = config.strategy || 'token_bucket';
+    let limiter: TokenBucketRateLimiter | ExponentialBackoffRateLimiter | RetryAfterRateLimiter;
 
     switch (strategy) {
-      case "token_bucket":
+      case 'token_bucket':
         limiter = new TokenBucketRateLimiter(config, scopeId);
         break;
-      case "exponential_backoff":
+      case 'exponential_backoff':
         limiter = new ExponentialBackoffRateLimiter(config, scopeId);
         break;
-      case "respect_retry_after":
+      case 'respect_retry_after':
         limiter = new RetryAfterRateLimiter(config, scopeId);
         break;
       default:
@@ -343,7 +334,7 @@ export class RateLimiterManager {
         pausedUntil: untilTime.toISOString(),
         pauseDurationMs: untilTime.getTime() - Date.now(),
       },
-      "Server paused for rate limiting"
+      'Server paused for rate limiting',
     );
   }
 
@@ -356,10 +347,7 @@ export class RateLimiterManager {
     const pausedUntil = this.pausedServers.get(serverName);
     if (pausedUntil && pausedUntil > new Date()) {
       const waitMs = pausedUntil.getTime() - Date.now();
-      logger.info(
-        { serverName, waitMs },
-        `Server is paused, waiting ${waitMs}ms before resuming`
-      );
+      logger.info({ serverName, waitMs }, `Server is paused, waiting ${waitMs}ms before resuming`);
       await sleep(waitMs);
       this.pausedServers.delete(serverName);
       return true;
@@ -419,16 +407,16 @@ function sleep(ms: number): Promise<void> {
  */
 export async function applyRateLimit(
   config: RateLimitConfig | undefined,
-  scopeId: string
+  scopeId: string,
 ): Promise<number> {
   if (!config) {
     return 0;
   }
 
   const limiter = rateLimiterManager.getLimiter(config, scopeId);
-  const strategy = config.strategy || "token_bucket";
+  const strategy = config.strategy || 'token_bucket';
 
-  if (strategy === "token_bucket") {
+  if (strategy === 'token_bucket') {
     return await (limiter as TokenBucketRateLimiter).waitForToken();
   }
 
@@ -444,7 +432,7 @@ export async function applyRateLimit(
 export async function handleRateLimitError(
   config: RateLimitConfig | undefined,
   scopeId: string,
-  retryAfter?: string | number
+  retryAfter?: string | number,
 ): Promise<number> {
   if (!config) {
     // Default backoff if no config
@@ -453,23 +441,21 @@ export async function handleRateLimitError(
   }
 
   const limiter = rateLimiterManager.getLimiter(config, scopeId);
-  const strategy = config.strategy || "token_bucket";
+  const strategy = config.strategy || 'token_bucket';
 
   switch (strategy) {
-    case "respect_retry_after":
+    case 'respect_retry_after':
       if (retryAfter !== undefined) {
-        return await (limiter as RetryAfterRateLimiter).handleRetryAfter(
-          retryAfter
-        );
+        return await (limiter as RetryAfterRateLimiter).handleRetryAfter(retryAfter);
       }
       // Fallback to 1 second if no Retry-After header
       await sleep(1000);
       return 1000;
 
-    case "exponential_backoff":
+    case 'exponential_backoff':
       return await (limiter as ExponentialBackoffRateLimiter).onRateLimit();
 
-    case "token_bucket":
+    case 'token_bucket':
       // For token bucket, wait for next token
       return await (limiter as TokenBucketRateLimiter).waitForToken();
 
@@ -482,18 +468,15 @@ export async function handleRateLimitError(
 /**
  * Notify rate limiter of successful request
  */
-export function notifySuccess(
-  config: RateLimitConfig | undefined,
-  scopeId: string
-): void {
+export function notifySuccess(config: RateLimitConfig | undefined, scopeId: string): void {
   if (!config) return;
 
-  const strategy = config.strategy || "token_bucket";
+  const strategy = config.strategy || 'token_bucket';
   const limiter = rateLimiterManager.getLimiter(config, scopeId);
 
-  if (strategy === "exponential_backoff") {
+  if (strategy === 'exponential_backoff') {
     (limiter as ExponentialBackoffRateLimiter).onSuccess();
-  } else if (strategy === "token_bucket") {
+  } else if (strategy === 'token_bucket') {
     (limiter as TokenBucketRateLimiter).onSuccess();
   }
 }
@@ -505,14 +488,14 @@ export function notifyRateLimitError(
   config: RateLimitConfig | undefined,
   scopeId: string,
   serverName: string,
-  retryAfter?: number
+  retryAfter?: number,
 ): void {
   if (!config) return;
 
-  const strategy = config.strategy || "token_bucket";
+  const strategy = config.strategy || 'token_bucket';
 
   // Reduce rate for token bucket strategy
-  if (strategy === "token_bucket") {
+  if (strategy === 'token_bucket') {
     rateLimiterManager.reduceRateForScope(scopeId, 0.5);
   }
 

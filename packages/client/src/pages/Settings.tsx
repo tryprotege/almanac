@@ -1,21 +1,21 @@
-import { useState } from "react";
-import { ModelConfiguration } from "../components/ModelConfiguration";
-import { PersonaEditor } from "../components/PersonaEditor";
-import { PageHeader } from "../components/ui/PageHeader";
+import { useState } from 'react';
+import { ModelConfiguration } from '../components/ModelConfiguration';
+import { PersonaEditor } from '../components/PersonaEditor';
+import { PageHeader } from '../components/ui/PageHeader';
 
-type SettingsTab = "persona" | "variables";
+type SettingsTab = 'persona' | 'variables';
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("persona");
+  const [activeTab, setActiveTab] = useState<SettingsTab>('persona');
 
   const tabs = [
     {
-      id: "persona" as SettingsTab,
-      label: "Persona",
+      id: 'persona' as SettingsTab,
+      label: 'Persona',
     },
     {
-      id: "variables" as SettingsTab,
-      label: "Variables",
+      id: 'variables' as SettingsTab,
+      label: 'Variables',
     },
   ];
 
@@ -29,7 +29,7 @@ export default function Settings() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={activeTab === tab.id ? "active" : ""}
+            className={activeTab === tab.id ? 'active' : ''}
           >
             {tab.label}
           </button>
@@ -38,8 +38,8 @@ export default function Settings() {
 
       {/* Tab Content */}
       <div>
-        {activeTab === "persona" && <PersonaEditor />}
-        {activeTab === "variables" && <ModelConfiguration />}
+        {activeTab === 'persona' && <PersonaEditor />}
+        {activeTab === 'variables' && <ModelConfiguration />}
       </div>
     </div>
   );

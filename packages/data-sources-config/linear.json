@@ -156,9 +156,7 @@
           },
           "tags": {
             "type": "paths",
-            "paths": [
-              "$.name"
-            ]
+            "paths": ["$.name"]
           }
         }
       },
@@ -183,9 +181,7 @@
           },
           "tags": {
             "type": "paths",
-            "paths": [
-              "$.labels[*].name"
-            ]
+            "paths": ["$.labels[*].name"]
           }
         }
       },
@@ -302,16 +298,11 @@
           },
           "tags": {
             "type": "paths",
-            "paths": [
-              "$.labels[*].name"
-            ]
+            "paths": ["$.labels[*].name"]
           },
           "people": {
             "type": "paths",
-            "paths": [
-              "$.assignee",
-              "$.createdBy"
-            ]
+            "paths": ["$.assignee", "$.createdBy"]
           }
         }
       },

@@ -1,6 +1,6 @@
-import { RedisOptions, Redis } from "ioredis";
-import { env } from "../env.js";
-import logger from "../utils/logger.js";
+import { RedisOptions, Redis } from 'ioredis';
+import { env } from '../env.js';
+import logger from '../utils/logger.js';
 
 export interface RedisConnection {
   client: Redis;
@@ -28,14 +28,14 @@ export const connectRedis = async (): Promise<RedisConnection> => {
 
     // Wait for connection to be ready
     await new Promise<void>((resolve, reject) => {
-      client.on("ready", () => resolve());
-      client.on("error", (err) => reject(err));
+      client.on('ready', () => resolve());
+      client.on('error', (err) => reject(err));
     });
 
-    logger.info({ msg: "Redis connected successfully" });
+    logger.info({ msg: 'Redis connected successfully' });
     const close = async (): Promise<void> => {
       await client.quit();
-      logger.info({ msg: "Redis disconnected" });
+      logger.info({ msg: 'Redis disconnected' });
     };
 
     return {
@@ -43,7 +43,7 @@ export const connectRedis = async (): Promise<RedisConnection> => {
       close,
     };
   } catch (err) {
-    logger.error({ err }, "Redis connection error");
+    logger.error({ err }, 'Redis connection error');
     throw err;
   }
 };

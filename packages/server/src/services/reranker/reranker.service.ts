@@ -1,5 +1,5 @@
-import { env } from "../../env.js";
-import logger from "../../utils/logger.js";
+import { env } from '../../env.js';
+import logger from '../../utils/logger.js';
 
 /**
  * Document to be reranked
@@ -36,7 +36,7 @@ export class RerankerService {
 
   constructor() {
     this.baseUrl = env.RERANKER_BASE_URL;
-    this.apiKey = env.RERANKER_API_KEY || "";
+    this.apiKey = env.RERANKER_API_KEY || '';
     this.model = env.RERANKER_MODEL;
   }
 
@@ -53,10 +53,10 @@ export class RerankerService {
   async rerank(
     query: string,
     documents: RerankDocument[],
-    options?: RerankOptions
+    options?: RerankOptions,
   ): Promise<RerankResult[]> {
     if (!this.isEnabled()) {
-      logger.warn("Reranker is disabled. Returning documents as-is.");
+      logger.warn('Reranker is disabled. Returning documents as-is.');
       return documents.map((doc, i) => ({
         id: doc.id,
         score: 1.0 - i * 0.01, // Simple descending score
@@ -68,31 +68,25 @@ export class RerankerService {
     }
 
     if (!this.apiKey) {
-      throw new Error(
-        "RERANKER_API_KEY is required when RERANKER_ENABLED is true"
-      );
+      throw new Error('RERANKER_API_KEY is required when RERANKER_ENABLED is true');
     }
 
     if (!this.baseUrl) {
-      throw new Error(
-        "RERANKER_BASE_URL is required when RERANKER_ENABLED is true"
-      );
+      throw new Error('RERANKER_BASE_URL is required when RERANKER_ENABLED is true');
     }
 
     if (!this.model) {
-      throw new Error(
-        "RERANKER_MODEL is required when RERANKER_ENABLED is true"
-      );
+      throw new Error('RERANKER_MODEL is required when RERANKER_ENABLED is true');
     }
 
     try {
       const url = this.baseUrl;
 
       const response = await fetch(url, {
-        method: "POST",
+        method: 'POST',
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           model: this.model,
@@ -105,22 +99,20 @@ export class RerankerService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(
-          `Reranker API error (${response.status}): ${errorText}`
-        );
+        throw new Error(`Reranker API error (${response.status}): ${errorText}`);
       }
 
       const data = await response.json();
 
       // Log the response for debugging
-      logger.info({ data }, "Reranker API response");
+      logger.info({ data }, 'Reranker API response');
 
       // Handle different response formats
       const scores = this.extractScores(data);
 
       if (scores.length !== documents.length) {
         throw new Error(
-          `Reranker returned ${scores.length} scores but expected ${documents.length}`
+          `Reranker returned ${scores.length} scores but expected ${documents.length}`,
         );
       }
 
@@ -145,7 +137,7 @@ export class RerankerService {
 
       return results;
     } catch (err) {
-      logger.error({ err, query }, "Reranker error");
+      logger.error({ err, query }, 'Reranker error');
       throw err;
     }
   }
@@ -174,15 +166,13 @@ export class RerankerService {
     // Handle direct array response
     if (Array.isArray(data)) {
       return data.map((item: any) =>
-        typeof item === "number"
-          ? item
-          : item.score || item.relevance_score || 0
+        typeof item === 'number' ? item : item.score || item.relevance_score || 0,
       );
     }
 
     // Log unexpected format for debugging
-    logger.error({ responseData: data }, "Unexpected reranker response format");
-    throw new Error("Could not extract scores from reranker response");
+    logger.error({ responseData: data }, 'Unexpected reranker response format');
+    throw new Error('Could not extract scores from reranker response');
   }
 
   /**

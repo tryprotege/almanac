@@ -3,18 +3,15 @@ import {
   RecordGroup,
   TransformedRecord,
   ThreadGroupingConfig,
-} from "../types.js";
-import { extractValue } from "../engine.js";
+} from '../types.js';
+import { extractValue } from '../engine.js';
 
 /**
  * Thread-based grouping strategy
  * Groups records that share the same thread identifier
  */
 export class ThreadGrouper implements IGroupingStrategy {
-  async group(
-    records: TransformedRecord[],
-    config: ThreadGroupingConfig
-  ): Promise<RecordGroup[]> {
+  async group(records: TransformedRecord[], config: ThreadGroupingConfig): Promise<RecordGroup[]> {
     const groups = new Map<string, TransformedRecord[]>();
 
     for (const record of records) {
@@ -24,16 +21,13 @@ export class ThreadGrouper implements IGroupingStrategy {
       if (!threadId) {
         // No thread ID - check if this is a parent message
         if (config.parentIndicatorPath) {
-          const isParent = extractValue(
-            record.rawData,
-            config.parentIndicatorPath
-          );
+          const isParent = extractValue(record.rawData, config.parentIndicatorPath);
           if (isParent) {
             // This record itself is a thread parent
             // Use its own ID as the thread ID
             const selfThreadId = extractValue(
               record.rawData,
-              config.threadIdPath.replace("thread_ts", "ts") // Fallback for Slack
+              config.threadIdPath.replace('thread_ts', 'ts'), // Fallback for Slack
             );
             if (selfThreadId) {
               if (!groups.has(selfThreadId)) {
@@ -59,7 +53,7 @@ export class ThreadGrouper implements IGroupingStrategy {
       records,
       metadata: {
         threadId,
-        strategy: "thread",
+        strategy: 'thread',
       },
     }));
   }

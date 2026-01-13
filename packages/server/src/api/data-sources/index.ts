@@ -1,15 +1,15 @@
-import { Request, Response, Router } from "express";
-import { DataSourceModel } from "../../models/data-source.model.js";
-import { IndexingConfigModel } from "../../models/indexing-config.model.js";
-import { MCPSyncStateModel } from "../../models/mcp-sync-state.model.js";
-import { mcpClientManager } from "../../mcp/client.js";
-import { presetLoader } from "../../services/presets/preset-loader.service.js";
-import logger from "../../utils/logger.js";
+import { Request, Response, Router } from 'express';
+import { DataSourceModel } from '../../models/data-source.model.js';
+import { IndexingConfigModel } from '../../models/indexing-config.model.js';
+import { MCPSyncStateModel } from '../../models/mcp-sync-state.model.js';
+import { mcpClientManager } from '../../mcp/client.js';
+import { presetLoader } from '../../services/presets/preset-loader.service.js';
+import logger from '../../utils/logger.js';
 
 const dataSourcesRouter: Router = Router();
 
 // GET /api/data-sources - List all data sources
-dataSourcesRouter.get("/", async (_req: Request, res: Response) => {
+dataSourcesRouter.get('/', async (_req: Request, res: Response) => {
   try {
     const dataSources = await DataSourceModel.find({});
 
@@ -37,7 +37,7 @@ dataSourcesRouter.get("/", async (_req: Request, res: Response) => {
       data: dataSourcesWithStatus,
     });
   } catch (err) {
-    logger.error({ err }, "Error listing data sources");
+    logger.error({ err }, 'Error listing data sources');
     res.status(500).json({
       success: false,
       error: err instanceof Error ? err.message : String(err),
@@ -46,7 +46,7 @@ dataSourcesRouter.get("/", async (_req: Request, res: Response) => {
 });
 
 // GET /api/data-sources/:name - Get a specific data source
-dataSourcesRouter.get("/:name", async (req: Request, res: Response) => {
+dataSourcesRouter.get('/:name', async (req: Request, res: Response) => {
   try {
     const { name } = req.params;
     const dataSource = await DataSourceModel.findOne({ name });
@@ -70,9 +70,7 @@ dataSourcesRouter.get("/:name", async (req: Request, res: Response) => {
         args: dataSource.args,
         env: dataSource.env ? Object.fromEntries(dataSource.env) : undefined,
         url: dataSource.url,
-        headers: dataSource.headers
-          ? Object.fromEntries(dataSource.headers)
-          : undefined,
+        headers: dataSource.headers ? Object.fromEntries(dataSource.headers) : undefined,
         authType: dataSource.authType,
         oauth: dataSource.oauth,
         isDisabled: dataSource.isDisabled,
@@ -82,7 +80,7 @@ dataSourcesRouter.get("/:name", async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    logger.error({ err }, "Error getting data source");
+    logger.error({ err }, 'Error getting data source');
     res.status(500).json({
       success: false,
       error: err instanceof Error ? err.message : String(err),
@@ -93,12 +91,12 @@ dataSourcesRouter.get("/:name", async (req: Request, res: Response) => {
 // Helper function to validate preset-specific requirements
 function validatePresetRequirements(
   presetId: string,
-  env: Record<string, string> | undefined
+  env: Record<string, string> | undefined,
 ): string | null {
   // Special validation for Slack - require at least one token type
-  if (presetId === "slack") {
+  if (presetId === 'slack') {
     if (!env) {
-      return "Slack requires at least one token (xoxb, xoxp, or xoxc+xoxd)";
+      return 'Slack requires at least one token (xoxb, xoxp, or xoxc+xoxd)';
     }
 
     const hasXoxb = env.SLACK_MCP_XOXB_TOKEN?.trim();
@@ -108,12 +106,12 @@ function validatePresetRequirements(
 
     // Check if at least one token type is provided
     if (!hasXoxb && !hasXoxp && !hasXoxc && !hasXoxd) {
-      return "Slack requires at least one token. Please provide: Bot Token (xoxb), User Token (xoxp), or Browser Tokens (xoxc + xoxd)";
+      return 'Slack requires at least one token. Please provide: Bot Token (xoxb), User Token (xoxp), or Browser Tokens (xoxc + xoxd)';
     }
 
     // If xoxc or xoxd is provided, both must be provided
     if ((hasXoxc && !hasXoxd) || (!hasXoxc && hasXoxd)) {
-      return "Browser authentication requires both SLACK_MCP_XOXC_TOKEN and SLACK_MCP_XOXD_TOKEN";
+      return 'Browser authentication requires both SLACK_MCP_XOXC_TOKEN and SLACK_MCP_XOXD_TOKEN';
     }
   }
 
@@ -121,7 +119,7 @@ function validatePresetRequirements(
 }
 
 // POST /api/data-sources - Create a new data source
-dataSourcesRouter.post("/", async (req: Request, res: Response) => {
+dataSourcesRouter.post('/', async (req: Request, res: Response) => {
   try {
     const config = req.body;
 
@@ -129,15 +127,12 @@ dataSourcesRouter.post("/", async (req: Request, res: Response) => {
     if (!config.name) {
       res.status(400).json({
         success: false,
-        error: "Server name is required",
+        error: 'Server name is required',
       });
       return;
     }
 
-    if (
-      !config.type ||
-      !["stdio", "sse", "streamable-http"].includes(config.type)
-    ) {
+    if (!config.type || !['stdio', 'sse', 'streamable-http'].includes(config.type)) {
       res.status(400).json({
         success: false,
         error: "Server type must be 'stdio', 'sse', or 'streamable-http'",
@@ -147,10 +142,7 @@ dataSourcesRouter.post("/", async (req: Request, res: Response) => {
 
     // Validate preset-specific requirements
     if (config.presetId) {
-      const validationError = validatePresetRequirements(
-        config.presetId,
-        config.env
-      );
+      const validationError = validatePresetRequirements(config.presetId, config.env);
       if (validationError) {
         res.status(400).json({
           success: false,
@@ -174,16 +166,14 @@ dataSourcesRouter.post("/", async (req: Request, res: Response) => {
     const dataSourceData: any = {
       ...config,
       env: config.env ? new Map(Object.entries(config.env)) : undefined,
-      headers: config.headers
-        ? new Map(Object.entries(config.headers))
-        : undefined,
+      headers: config.headers ? new Map(Object.entries(config.headers)) : undefined,
     };
 
     // Create new data source
     const dataSource = new DataSourceModel(dataSourceData);
     await dataSource.save();
 
-    logger.info({ name: config.name }, "Data source created");
+    logger.info({ name: config.name }, 'Data source created');
 
     // Auto-create indexing config from preset if presetId is provided
     if (config.presetId) {
@@ -193,20 +183,20 @@ dataSourcesRouter.post("/", async (req: Request, res: Response) => {
           const indexingConfig = new IndexingConfigModel({
             serverName: config.name,
             displayName: preset.displayName,
-            status: "active",
+            status: 'active',
             configVersion: 1,
             config: preset.indexingConfig,
           });
           await indexingConfig.save();
           logger.info(
             { name: config.name, presetId: config.presetId },
-            "Auto-created indexing config from preset"
+            'Auto-created indexing config from preset',
           );
         }
       } catch (presetErr) {
         logger.warn(
           { err: presetErr, name: config.name, presetId: config.presetId },
-          "Failed to auto-create indexing config from preset"
+          'Failed to auto-create indexing config from preset',
         );
       }
     }
@@ -222,9 +212,7 @@ dataSourcesRouter.post("/", async (req: Request, res: Response) => {
         args: dataSource.args,
         env: dataSource.env ? Object.fromEntries(dataSource.env) : undefined,
         url: dataSource.url,
-        headers: dataSource.headers
-          ? Object.fromEntries(dataSource.headers)
-          : undefined,
+        headers: dataSource.headers ? Object.fromEntries(dataSource.headers) : undefined,
         authType: dataSource.authType,
         oauth: dataSource.oauth,
         isDisabled: dataSource.isDisabled,
@@ -233,7 +221,7 @@ dataSourcesRouter.post("/", async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    logger.error({ err }, "Error creating data source");
+    logger.error({ err }, 'Error creating data source');
     res.status(500).json({
       success: false,
       error: err instanceof Error ? err.message : String(err),
@@ -242,7 +230,7 @@ dataSourcesRouter.post("/", async (req: Request, res: Response) => {
 });
 
 // PUT /api/data-sources/:name - Update a data source
-dataSourcesRouter.put("/:name", async (req: Request, res: Response) => {
+dataSourcesRouter.put('/:name', async (req: Request, res: Response) => {
   try {
     const { name } = req.params;
     const updates = req.body;
@@ -279,25 +267,19 @@ dataSourcesRouter.put("/:name", async (req: Request, res: Response) => {
 
     // If server was connected, disconnect and reconnect with new config
     if (mcpClientManager.isConnected(name)) {
-      logger.info(
-        { name },
-        "Data source updated while connected, reconnecting..."
-      );
+      logger.info({ name }, 'Data source updated while connected, reconnecting...');
       await mcpClientManager.disconnect(name);
 
       if (!dataSource.isDisabled) {
         try {
           await mcpClientManager.connect(dataSource);
         } catch (connErr) {
-          logger.warn(
-            { err: connErr, name },
-            "Failed to reconnect after update"
-          );
+          logger.warn({ err: connErr, name }, 'Failed to reconnect after update');
         }
       }
     }
 
-    logger.info({ name }, "Data source updated");
+    logger.info({ name }, 'Data source updated');
 
     res.json({
       success: true,
@@ -310,9 +292,7 @@ dataSourcesRouter.put("/:name", async (req: Request, res: Response) => {
         args: dataSource.args,
         env: dataSource.env ? Object.fromEntries(dataSource.env) : undefined,
         url: dataSource.url,
-        headers: dataSource.headers
-          ? Object.fromEntries(dataSource.headers)
-          : undefined,
+        headers: dataSource.headers ? Object.fromEntries(dataSource.headers) : undefined,
         authType: dataSource.authType,
         oauth: dataSource.oauth,
         isDisabled: dataSource.isDisabled,
@@ -321,7 +301,7 @@ dataSourcesRouter.put("/:name", async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    logger.error({ err }, "Error updating data source");
+    logger.error({ err }, 'Error updating data source');
     res.status(500).json({
       success: false,
       error: err instanceof Error ? err.message : String(err),
@@ -330,7 +310,7 @@ dataSourcesRouter.put("/:name", async (req: Request, res: Response) => {
 });
 
 // DELETE /api/data-sources/:name - Delete a data source
-dataSourcesRouter.delete("/:name", async (req: Request, res: Response) => {
+dataSourcesRouter.delete('/:name', async (req: Request, res: Response) => {
   try {
     const { name } = req.params;
 
@@ -365,7 +345,7 @@ dataSourcesRouter.delete("/:name", async (req: Request, res: Response) => {
         indexingConfigDeleted: indexingConfigResult.deletedCount > 0,
         syncStateDeleted: syncStateResult.deletedCount > 0,
       },
-      "Data source and associated resources deleted"
+      'Data source and associated resources deleted',
     );
 
     res.json({
@@ -373,7 +353,7 @@ dataSourcesRouter.delete("/:name", async (req: Request, res: Response) => {
       message: `Data source '${name}' deleted successfully`,
     });
   } catch (err) {
-    logger.error({ err }, "Error deleting data source");
+    logger.error({ err }, 'Error deleting data source');
     res.status(500).json({
       success: false,
       error: err instanceof Error ? err.message : String(err),
@@ -382,102 +362,93 @@ dataSourcesRouter.delete("/:name", async (req: Request, res: Response) => {
 });
 
 // POST /api/data-sources/:name/connect - Connect to a data source
-dataSourcesRouter.post(
-  "/:name/connect",
-  async (req: Request, res: Response) => {
-    try {
-      const { name } = req.params;
+dataSourcesRouter.post('/:name/connect', async (req: Request, res: Response) => {
+  try {
+    const { name } = req.params;
 
-      const dataSource = await DataSourceModel.findOne({ name });
+    const dataSource = await DataSourceModel.findOne({ name });
 
-      if (!dataSource) {
-        res.status(404).json({
-          success: false,
-          error: `Data source '${name}' not found`,
-        });
-        return;
-      }
-
-      // Validate config before connecting
-      const validationError = dataSource.validateMCPConfig();
-      if (validationError) {
-        res.status(400).json({
-          success: false,
-          error: validationError,
-        });
-        return;
-      }
-
-      // Check if already connected - if so, disconnect first to ensure fresh connection
-      if (mcpClientManager.isConnected(name)) {
-        logger.info({ name }, "Data source already connected, reconnecting...");
-        try {
-          await mcpClientManager.disconnect(name);
-        } catch (disconnectErr) {
-          logger.warn(
-            { err: disconnectErr, name },
-            "Failed to disconnect before reconnecting, continuing anyway"
-          );
-        }
-      }
-
-      // Connect (or reconnect)
-      await mcpClientManager.connect(dataSource);
-
-      logger.info({ name }, "Data source connected");
-
-      res.json({
-        success: true,
-        message: `Connected to '${name}'`,
-      });
-    } catch (err) {
-      logger.error(
-        { err, name: req.params.name },
-        "Error connecting to data source"
-      );
-      res.status(500).json({
+    if (!dataSource) {
+      res.status(404).json({
         success: false,
-        error: err instanceof Error ? err.message : String(err),
+        error: `Data source '${name}' not found`,
       });
+      return;
     }
+
+    // Validate config before connecting
+    const validationError = dataSource.validateMCPConfig();
+    if (validationError) {
+      res.status(400).json({
+        success: false,
+        error: validationError,
+      });
+      return;
+    }
+
+    // Check if already connected - if so, disconnect first to ensure fresh connection
+    if (mcpClientManager.isConnected(name)) {
+      logger.info({ name }, 'Data source already connected, reconnecting...');
+      try {
+        await mcpClientManager.disconnect(name);
+      } catch (disconnectErr) {
+        logger.warn(
+          { err: disconnectErr, name },
+          'Failed to disconnect before reconnecting, continuing anyway',
+        );
+      }
+    }
+
+    // Connect (or reconnect)
+    await mcpClientManager.connect(dataSource);
+
+    logger.info({ name }, 'Data source connected');
+
+    res.json({
+      success: true,
+      message: `Connected to '${name}'`,
+    });
+  } catch (err) {
+    logger.error({ err, name: req.params.name }, 'Error connecting to data source');
+    res.status(500).json({
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
-);
+});
 
 // POST /api/data-sources/:name/disconnect - Disconnect from a data source
-dataSourcesRouter.post(
-  "/:name/disconnect",
-  async (req: Request, res: Response) => {
-    try {
-      const { name } = req.params;
+dataSourcesRouter.post('/:name/disconnect', async (req: Request, res: Response) => {
+  try {
+    const { name } = req.params;
 
-      if (!mcpClientManager.isConnected(name)) {
-        res.json({
-          success: true,
-          message: `'${name}' is not connected`,
-        });
-        return;
-      }
-
-      await mcpClientManager.disconnect(name);
-
-      logger.info({ name }, "Data source disconnected");
-
+    if (!mcpClientManager.isConnected(name)) {
       res.json({
         success: true,
-        message: `Disconnected from '${name}'`,
+        message: `'${name}' is not connected`,
       });
-    } catch (err) {
-      logger.error({ err }, "Error disconnecting from data source");
-      res.status(500).json({
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      return;
     }
+
+    await mcpClientManager.disconnect(name);
+
+    logger.info({ name }, 'Data source disconnected');
+
+    res.json({
+      success: true,
+      message: `Disconnected from '${name}'`,
+    });
+  } catch (err) {
+    logger.error({ err }, 'Error disconnecting from data source');
+    res.status(500).json({
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
-);
+});
 
 // GET /api/data-sources/:name/status - Get connection status
-dataSourcesRouter.get("/:name/status", async (req: Request, res: Response) => {
+dataSourcesRouter.get('/:name/status', async (req: Request, res: Response) => {
   try {
     const { name } = req.params;
 
@@ -504,7 +475,7 @@ dataSourcesRouter.get("/:name/status", async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    logger.error({ err }, "Error getting data source status");
+    logger.error({ err }, 'Error getting data source status');
     res.status(500).json({
       success: false,
       error: err instanceof Error ? err.message : String(err),

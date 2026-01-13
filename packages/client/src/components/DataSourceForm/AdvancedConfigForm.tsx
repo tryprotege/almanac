@@ -1,17 +1,17 @@
-import { Eye, EyeOff, Lock, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { DataSourceConfig } from "../../lib/api";
+import { Eye, EyeOff, Lock, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { DataSourceConfig } from '../../lib/api';
 
 interface PresetData {
   id: string;
   displayName: string;
   connection: {
-    type: "stdio" | "sse" | "streamable-http";
+    type: 'stdio' | 'sse' | 'streamable-http';
     command?: string;
     args?: string[];
     url?: string;
     auth?: {
-      type: "oauth" | "api-key";
+      type: 'oauth' | 'api-key';
       provider?: string;
     };
   };
@@ -28,21 +28,19 @@ interface AdvancedConfigFormProps {
   server?: DataSourceConfig | null;
   preset?: PresetData | null;
   onBack: () => void;
-  onSubmit: (
-    config: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt">
-  ) => void;
+  onSubmit: (config: Omit<DataSourceConfig, '_id' | 'createdAt' | 'updatedAt'>) => void;
   isLoading: boolean;
 }
 
 interface FormData {
   name: string;
-  type: "stdio" | "sse" | "streamable-http";
+  type: 'stdio' | 'sse' | 'streamable-http';
   command: string;
   args: string;
   env: Array<{ key: string; value: string; showValue: boolean }>;
   url: string;
   headers: Array<{ key: string; value: string; showValue: boolean }>;
-  authType: "none" | "api-key" | "oauth";
+  authType: 'none' | 'api-key' | 'oauth';
   isDisabled: boolean;
 }
 
@@ -54,20 +52,20 @@ export function AdvancedConfigForm({
   isLoading,
 }: AdvancedConfigFormProps) {
   const [formData, setFormData] = useState<FormData>({
-    name: "",
-    type: "streamable-http",
-    command: "",
-    args: "",
+    name: '',
+    type: 'streamable-http',
+    command: '',
+    args: '',
     env: [],
-    url: "",
+    url: '',
     headers: [],
-    authType: "none",
+    authType: 'none',
     isDisabled: false,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   // Check if this is a preset-based source - either from preset prop or from server.presetId
-  const isPreset = (!!preset && preset.id !== "custom") || !!server?.presetId;
+  const isPreset = (!!preset && preset.id !== 'custom') || !!server?.presetId;
 
   // Initialize form when server or preset changes
   useEffect(() => {
@@ -76,8 +74,8 @@ export function AdvancedConfigForm({
       setFormData({
         name: server.name,
         type: server.type,
-        command: server.command || "",
-        args: server.args?.join(" ") || "",
+        command: server.command || '',
+        args: server.args?.join(' ') || '',
         env: server.env
           ? Object.entries(server.env).map(([key, value]) => ({
               key,
@@ -85,7 +83,7 @@ export function AdvancedConfigForm({
               showValue: false,
             }))
           : [],
-        url: server.url || "",
+        url: server.url || '',
         headers: server.headers
           ? Object.entries(server.headers).map(([key, value]) => ({
               key,
@@ -93,40 +91,40 @@ export function AdvancedConfigForm({
               showValue: false,
             }))
           : [],
-        authType: server.authType || "none",
+        authType: server.authType || 'none',
         isDisabled: server.isDisabled || false,
       });
-    } else if (preset && preset.id !== "custom") {
+    } else if (preset && preset.id !== 'custom') {
       // New server from preset
       const conn = preset.connection;
       setFormData({
         name: preset.id,
         type: conn.type,
-        command: conn.command || "",
-        args: conn.args?.join(" ") || "",
+        command: conn.command || '',
+        args: conn.args?.join(' ') || '',
         // Initialize empty env vars/headers for preset variables
         env:
           preset.variables?.map((v) => ({
             key: v.key,
-            value: "",
+            value: '',
             showValue: false,
           })) || [],
-        url: conn.url || "",
+        url: conn.url || '',
         headers: [],
-        authType: conn.auth?.type || "none",
+        authType: conn.auth?.type || 'none',
         isDisabled: false,
       });
     } else {
       // New custom server
       setFormData({
-        name: "",
-        type: "streamable-http",
-        command: "",
-        args: "",
+        name: '',
+        type: 'streamable-http',
+        command: '',
+        args: '',
         env: [],
-        url: "",
+        url: '',
         headers: [],
-        authType: "none",
+        authType: 'none',
         isDisabled: false,
       });
     }
@@ -137,23 +135,23 @@ export function AdvancedConfigForm({
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
+      newErrors.name = 'Name is required';
     }
 
-    if (formData.type === "stdio") {
+    if (formData.type === 'stdio') {
       if (!formData.command.trim()) {
-        newErrors.command = "Command is required for stdio servers";
+        newErrors.command = 'Command is required for stdio servers';
       }
-    } else if (formData.type === "sse" || formData.type === "streamable-http") {
+    } else if (formData.type === 'sse' || formData.type === 'streamable-http') {
       if (!formData.url.trim()) {
         newErrors.url = `URL is required for ${
-          formData.type === "sse" ? "SSE" : "Streamable HTTP"
+          formData.type === 'sse' ? 'SSE' : 'Streamable HTTP'
         } servers`;
       } else {
         try {
           new URL(formData.url);
         } catch {
-          newErrors.url = "Invalid URL format";
+          newErrors.url = 'Invalid URL format';
         }
       }
 
@@ -171,40 +169,36 @@ export function AdvancedConfigForm({
       return;
     }
 
-    const config: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt"> = {
+    const config: Omit<DataSourceConfig, '_id' | 'createdAt' | 'updatedAt'> = {
       name: formData.name.trim(),
       type: formData.type,
       isDisabled: formData.isDisabled,
     };
 
-    if (formData.type === "stdio") {
+    if (formData.type === 'stdio') {
       config.command = formData.command.trim();
       if (formData.args.trim()) {
         config.args = formData.args
-          .split(" ")
+          .split(' ')
           .map((arg) => arg.trim())
           .filter((arg) => arg);
       }
       if (formData.env.length > 0) {
         config.env = Object.fromEntries(
-          formData.env
-            .filter((e) => e.key && e.value)
-            .map((e) => [e.key, e.value])
+          formData.env.filter((e) => e.key && e.value).map((e) => [e.key, e.value]),
         );
       }
-    } else if (formData.type === "sse" || formData.type === "streamable-http") {
+    } else if (formData.type === 'sse' || formData.type === 'streamable-http') {
       config.url = formData.url.trim();
 
       // Add authType
       config.authType = formData.authType;
 
       // Add headers if not using OAuth
-      if (formData.authType !== "oauth" && formData.headers.length > 0) {
+      if (formData.authType !== 'oauth' && formData.headers.length > 0) {
         // Only add headers if not using OAuth
         config.headers = Object.fromEntries(
-          formData.headers
-            .filter((h) => h.key && h.value)
-            .map((h) => [h.key, h.value])
+          formData.headers.filter((h) => h.key && h.value).map((h) => [h.key, h.value]),
         );
       }
     }
@@ -215,7 +209,7 @@ export function AdvancedConfigForm({
   const addEnvVar = () => {
     setFormData({
       ...formData,
-      env: [...formData.env, { key: "", value: "", showValue: false }],
+      env: [...formData.env, { key: '', value: '', showValue: false }],
     });
   };
 
@@ -226,11 +220,7 @@ export function AdvancedConfigForm({
     });
   };
 
-  const updateEnvVar = (
-    index: number,
-    field: "key" | "value",
-    value: string
-  ) => {
+  const updateEnvVar = (index: number, field: 'key' | 'value', value: string) => {
     const newEnv = [...formData.env];
     newEnv[index][field] = value;
     setFormData({ ...formData, env: newEnv });
@@ -245,7 +235,7 @@ export function AdvancedConfigForm({
   const addHeader = () => {
     setFormData({
       ...formData,
-      headers: [...formData.headers, { key: "", value: "", showValue: false }],
+      headers: [...formData.headers, { key: '', value: '', showValue: false }],
     });
   };
 
@@ -256,11 +246,7 @@ export function AdvancedConfigForm({
     });
   };
 
-  const updateHeader = (
-    index: number,
-    field: "key" | "value",
-    value: string
-  ) => {
+  const updateHeader = (index: number, field: 'key' | 'value', value: string) => {
     const newHeaders = [...formData.headers];
     newHeaders[index][field] = value;
     setFormData({ ...formData, headers: newHeaders });
@@ -280,16 +266,11 @@ export function AdvancedConfigForm({
           <Lock className="w-5 h-5 text-brand-purple flex-shrink-0 mt-0.5" />
           <div>
             <h4 className="text-base font-bold text-brand-purple mb-1">
-              {preset
-                ? `${preset.displayName} Preset Configuration`
-                : "Preset-Based Data Source"}
+              {preset ? `${preset.displayName} Preset Configuration` : 'Preset-Based Data Source'}
             </h4>
             <p className="text-sm text-text-secondary leading-relaxed">
-              This is a pre-configured data source. Technical settings are
-              locked to ensure proper functionality.{" "}
-              <span className="font-semibold">
-                You can only update credentials
-              </span>{" "}
+              This is a pre-configured data source. Technical settings are locked to ensure proper
+              functionality. <span className="font-semibold">You can only update credentials</span>{' '}
               (environment variables or API keys).
             </p>
           </div>
@@ -308,24 +289,20 @@ export function AdvancedConfigForm({
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             disabled={isLoading || !!server || isPreset}
-            className={`input ${
-              isPreset ? "bg-bg-secondary/50 cursor-not-allowed" : ""
-            }`}
+            className={`input ${isPreset ? 'bg-bg-secondary/50 cursor-not-allowed' : ''}`}
             placeholder="my-mcp-server"
           />
           {isPreset && (
             <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-quaternary pointer-events-none" />
           )}
         </div>
-        {errors.name && (
-          <p className="mt-1 text-sm text-brand-error">{errors.name}</p>
-        )}
+        {errors.name && <p className="mt-1 text-sm text-brand-error">{errors.name}</p>}
         {(server || isPreset) && (
           <p className="mt-1 text-xs text-text-quaternary flex items-center gap-1">
             {isPreset && <Lock className="w-3 h-3" />}
             {isPreset
-              ? "Server name is set from preset and cannot be changed"
-              : "Server name cannot be changed"}
+              ? 'Server name is set from preset and cannot be changed'
+              : 'Server name cannot be changed'}
           </p>
         )}
       </div>
@@ -342,13 +319,11 @@ export function AdvancedConfigForm({
             onChange={(e) =>
               setFormData({
                 ...formData,
-                type: e.target.value as "stdio" | "sse" | "streamable-http",
+                type: e.target.value as 'stdio' | 'sse' | 'streamable-http',
               })
             }
             disabled={isLoading || isPreset}
-            className={`input ${
-              isPreset ? "bg-bg-secondary/50 cursor-not-allowed" : ""
-            }`}
+            className={`input ${isPreset ? 'bg-bg-secondary/50 cursor-not-allowed' : ''}`}
           >
             <option value="stdio">STDIO (Command-based)</option>
             <option value="sse">SSE (Server-Sent Events)</option>
@@ -367,35 +342,27 @@ export function AdvancedConfigForm({
       </div>
 
       {/* STDIO Fields */}
-      {formData.type === "stdio" && (
+      {formData.type === 'stdio' && (
         <>
           <div>
             <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary mb-1">
-              {isPreset && (
-                <Lock className="w-3.5 h-3.5 text-text-quaternary" />
-              )}
+              {isPreset && <Lock className="w-3.5 h-3.5 text-text-quaternary" />}
               Command *
             </label>
             <div className="relative">
               <input
                 type="text"
                 value={formData.command}
-                onChange={(e) =>
-                  setFormData({ ...formData, command: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, command: e.target.value })}
                 disabled={isLoading || isPreset}
-                className={`input ${
-                  isPreset ? "bg-bg-secondary/50 cursor-not-allowed" : ""
-                }`}
+                className={`input ${isPreset ? 'bg-bg-secondary/50 cursor-not-allowed' : ''}`}
                 placeholder="node"
               />
               {isPreset && (
                 <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-quaternary pointer-events-none" />
               )}
             </div>
-            {errors.command && (
-              <p className="mt-1 text-sm text-brand-error">{errors.command}</p>
-            )}
+            {errors.command && <p className="mt-1 text-sm text-brand-error">{errors.command}</p>}
             {isPreset && (
               <p className="mt-1 text-xs text-text-quaternary flex items-center gap-1">
                 <Lock className="w-3 h-3" />
@@ -406,22 +373,16 @@ export function AdvancedConfigForm({
 
           <div>
             <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary mb-1">
-              {isPreset && (
-                <Lock className="w-3.5 h-3.5 text-text-quaternary" />
-              )}
+              {isPreset && <Lock className="w-3.5 h-3.5 text-text-quaternary" />}
               Arguments
             </label>
             <div className="relative">
               <input
                 type="text"
                 value={formData.args}
-                onChange={(e) =>
-                  setFormData({ ...formData, args: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, args: e.target.value })}
                 disabled={isLoading || isPreset}
-                className={`input ${
-                  isPreset ? "bg-bg-secondary/50 cursor-not-allowed" : ""
-                }`}
+                className={`input ${isPreset ? 'bg-bg-secondary/50 cursor-not-allowed' : ''}`}
                 placeholder="path/to/server.js --option value"
               />
               {isPreset && (
@@ -431,8 +392,8 @@ export function AdvancedConfigForm({
             <p className="mt-1 text-xs text-text-quaternary flex items-center gap-1">
               {isPreset && <Lock className="w-3 h-3" />}
               {isPreset
-                ? "Arguments are set from preset and cannot be changed"
-                : "Space-separated arguments"}
+                ? 'Arguments are set from preset and cannot be changed'
+                : 'Space-separated arguments'}
             </p>
           </div>
 
@@ -461,9 +422,7 @@ export function AdvancedConfigForm({
               )}
             </div>
             {formData.env.map((env, index) => {
-              const presetVar = preset?.variables?.find(
-                (v) => v.key === env.key
-              );
+              const presetVar = preset?.variables?.find((v) => v.key === env.key);
               return (
                 <div key={index} className="mb-3">
                   <div className="flex gap-2 mb-1">
@@ -471,14 +430,10 @@ export function AdvancedConfigForm({
                       <input
                         type="text"
                         value={env.key}
-                        onChange={(e) =>
-                          updateEnvVar(index, "key", e.target.value)
-                        }
+                        onChange={(e) => updateEnvVar(index, 'key', e.target.value)}
                         disabled={isLoading || isPreset}
                         className={`input ${
-                          isPreset
-                            ? "bg-bg-secondary/50 cursor-not-allowed"
-                            : ""
+                          isPreset ? 'bg-bg-secondary/50 cursor-not-allowed' : ''
                         }`}
                         placeholder="KEY"
                       />
@@ -488,11 +443,9 @@ export function AdvancedConfigForm({
                     </div>
                     <div className="flex-1 relative">
                       <input
-                        type={env.showValue ? "text" : "password"}
+                        type={env.showValue ? 'text' : 'password'}
                         value={env.value}
-                        onChange={(e) =>
-                          updateEnvVar(index, "value", e.target.value)
-                        }
+                        onChange={(e) => updateEnvVar(index, 'value', e.target.value)}
                         disabled={isLoading}
                         className="input w-full pr-10"
                         placeholder="value"
@@ -521,9 +474,7 @@ export function AdvancedConfigForm({
                   {presetVar && (
                     <div className="flex items-start gap-1.5 ml-1">
                       {presetVar.required ? (
-                        <span className="text-xs text-red-500 font-medium mt-0.5">
-                          Required
-                        </span>
+                        <span className="text-xs text-red-500 font-medium mt-0.5">Required</span>
                       ) : (
                         <span className="text-xs text-text-tertiary font-medium mt-0.5">
                           Optional
@@ -544,35 +495,27 @@ export function AdvancedConfigForm({
       )}
 
       {/* SSE and Streamable HTTP Fields */}
-      {(formData.type === "sse" || formData.type === "streamable-http") && (
+      {(formData.type === 'sse' || formData.type === 'streamable-http') && (
         <>
           <div>
             <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary mb-1">
-              {isPreset && (
-                <Lock className="w-3.5 h-3.5 text-text-quaternary" />
-              )}
+              {isPreset && <Lock className="w-3.5 h-3.5 text-text-quaternary" />}
               URL *
             </label>
             <div className="relative">
               <input
                 type="text"
                 value={formData.url}
-                onChange={(e) =>
-                  setFormData({ ...formData, url: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, url: e.target.value })}
                 disabled={isLoading || isPreset}
-                className={`input ${
-                  isPreset ? "bg-bg-secondary/50 cursor-not-allowed" : ""
-                }`}
+                className={`input ${isPreset ? 'bg-bg-secondary/50 cursor-not-allowed' : ''}`}
                 placeholder="https://example.com/mcp"
               />
               {isPreset && (
                 <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-quaternary pointer-events-none" />
               )}
             </div>
-            {errors.url && (
-              <p className="mt-1 text-sm text-brand-error">{errors.url}</p>
-            )}
+            {errors.url && <p className="mt-1 text-sm text-brand-error">{errors.url}</p>}
             {isPreset && (
               <p className="mt-1 text-xs text-text-quaternary flex items-center gap-1">
                 <Lock className="w-3 h-3" />
@@ -595,14 +538,12 @@ export function AdvancedConfigForm({
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    authType: e.target.value as "none" | "api-key" | "oauth",
+                    authType: e.target.value as 'none' | 'api-key' | 'oauth',
                   })
                 }
                 disabled={isLoading || (isPreset && !!preset?.connection.auth)}
                 className={`input ${
-                  isPreset && preset?.connection.auth
-                    ? "bg-bg-secondary/50 cursor-not-allowed"
-                    : ""
+                  isPreset && preset?.connection.auth ? 'bg-bg-secondary/50 cursor-not-allowed' : ''
                 }`}
               >
                 <option value="none">None</option>
@@ -614,31 +555,27 @@ export function AdvancedConfigForm({
               )}
             </div>
             <p className="mt-1 text-xs text-text-quaternary flex items-center gap-1">
-              {isPreset && preset?.connection.auth && (
-                <Lock className="w-3 h-3" />
-              )}
+              {isPreset && preset?.connection.auth && <Lock className="w-3 h-3" />}
               {isPreset &&
                 preset?.connection.auth &&
-                "Authentication type is set from preset and cannot be changed"}
+                'Authentication type is set from preset and cannot be changed'}
               {(!isPreset || !preset?.connection.auth) &&
-                formData.authType === "none" &&
-                "No authentication required"}
+                formData.authType === 'none' &&
+                'No authentication required'}
               {(!isPreset || !preset?.connection.auth) &&
-                formData.authType === "api-key" &&
-                "Add API key as a custom header below"}
+                formData.authType === 'api-key' &&
+                'Add API key as a custom header below'}
               {(!isPreset || !preset?.connection.auth) &&
-                formData.authType === "oauth" &&
-                "OAuth flow will be triggered after server creation"}
+                formData.authType === 'oauth' &&
+                'OAuth flow will be triggered after server creation'}
             </p>
           </div>
 
           {/* Headers (only show if not using OAuth, since OAuth uses Bearer token) */}
-          {formData.authType !== "oauth" && (
+          {formData.authType !== 'oauth' && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-text-secondary">
-                  Headers
-                </label>
+                <label className="block text-sm font-medium text-text-secondary">Headers</label>
                 <button
                   type="button"
                   onClick={addHeader}
@@ -654,18 +591,16 @@ export function AdvancedConfigForm({
                   <input
                     type="text"
                     value={header.key}
-                    onChange={(e) => updateHeader(index, "key", e.target.value)}
+                    onChange={(e) => updateHeader(index, 'key', e.target.value)}
                     disabled={isLoading}
                     className="input flex-1"
                     placeholder="Header-Name"
                   />
                   <div className="flex-1 relative">
                     <input
-                      type={header.showValue ? "text" : "password"}
+                      type={header.showValue ? 'text' : 'password'}
                       value={header.value}
-                      onChange={(e) =>
-                        updateHeader(index, "value", e.target.value)
-                      }
+                      onChange={(e) => updateHeader(index, 'value', e.target.value)}
                       disabled={isLoading}
                       className="input w-full pr-10"
                       placeholder="value"
@@ -696,7 +631,7 @@ export function AdvancedConfigForm({
           )}
 
           {/* OAuth Configuration - Simplified */}
-          {formData.authType === "oauth" && (
+          {formData.authType === 'oauth' && (
             <div className="border border-brand-purple/30 rounded-lg p-4 bg-brand-purple/10">
               <div className="flex items-start gap-3">
                 <div className="text-brand-purple text-xl">🔐</div>
@@ -705,13 +640,12 @@ export function AdvancedConfigForm({
                     OAuth 2.1 Authentication
                   </h4>
                   <p className="text-sm text-text-secondary mb-2">
-                    OAuth will be configured automatically when you connect. The
-                    server will discover OAuth endpoints and handle
-                    authentication for you.
+                    OAuth will be configured automatically when you connect. The server will
+                    discover OAuth endpoints and handle authentication for you.
                   </p>
                   <p className="text-xs text-text-quaternary">
-                    After creating this server, click "Connect" to start the
-                    OAuth flow. You'll be redirected to authorize access.
+                    After creating this server, click "Connect" to start the OAuth flow. You'll be
+                    redirected to authorize access.
                   </p>
                 </div>
               </div>
@@ -726,9 +660,7 @@ export function AdvancedConfigForm({
           <input
             type="checkbox"
             checked={formData.isDisabled}
-            onChange={(e) =>
-              setFormData({ ...formData, isDisabled: e.target.checked })
-            }
+            onChange={(e) => setFormData({ ...formData, isDisabled: e.target.checked })}
             disabled={isLoading}
             className="w-4 h-4 text-brand-purple border-border-primary rounded focus:ring-brand-purple"
           />
@@ -753,7 +685,7 @@ export function AdvancedConfigForm({
           disabled={isLoading}
           className="btn btn-primary w-full sm:flex-1 sm:max-w-[200px]"
         >
-          {isLoading ? "Saving..." : server ? "Update Server" : "Create Server"}
+          {isLoading ? 'Saving...' : server ? 'Update Server' : 'Create Server'}
         </button>
       </div>
     </form>

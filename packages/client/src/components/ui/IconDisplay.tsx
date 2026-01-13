@@ -1,9 +1,9 @@
-import React from "react";
+import React from 'react';
 
 interface IconDisplayProps {
   icon?: string;
   fallbackIcon?: React.ComponentType<{ className?: string }>;
-  size?: "sm" | "md" | "lg";
+  size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
 
@@ -17,30 +17,28 @@ interface IconDisplayProps {
 export function IconDisplay({
   icon,
   fallbackIcon: FallbackIcon,
-  size = "md",
-  className = "",
+  size = 'md',
+  className = '',
 }: IconDisplayProps) {
   const sizeClasses = {
-    sm: "w-4 h-4",
-    md: "w-5 h-5",
-    lg: "w-6 h-6",
+    sm: 'w-4 h-4',
+    md: 'w-5 h-5',
+    lg: 'w-6 h-6',
   };
 
   const textSizeClasses = {
-    sm: "text-base",
-    md: "text-lg",
-    lg: "text-xl",
+    sm: 'text-base',
+    md: 'text-lg',
+    lg: 'text-xl',
   };
 
   // No icon provided, use fallback
   if (!icon) {
-    return FallbackIcon ? (
-      <FallbackIcon className={`${sizeClasses[size]} ${className}`} />
-    ) : null;
+    return FallbackIcon ? <FallbackIcon className={`${sizeClasses[size]} ${className}`} /> : null;
   }
 
   // Check if it's a URL (starts with http:// or https://)
-  if (icon.startsWith("http://") || icon.startsWith("https://")) {
+  if (icon.startsWith('http://') || icon.startsWith('https://')) {
     return (
       <img
         src={icon}
@@ -49,7 +47,7 @@ export function IconDisplay({
         onError={(e) => {
           // Hide image and show fallback if available
           const target = e.target as HTMLImageElement;
-          target.style.display = "none";
+          target.style.display = 'none';
           // TODO: Could trigger fallback icon to display
         }}
       />
@@ -57,7 +55,7 @@ export function IconDisplay({
   }
 
   // Check if it's inline SVG (starts with <svg)
-  if (icon.trim().startsWith("<svg")) {
+  if (icon.trim().startsWith('<svg')) {
     return (
       <div
         className={`${sizeClasses[size]} ${className}`}
@@ -67,9 +65,5 @@ export function IconDisplay({
   }
 
   // Otherwise treat as emoji or text
-  return (
-    <span className={`${textSizeClasses[size]} leading-none ${className}`}>
-      {icon}
-    </span>
-  );
+  return <span className={`${textSizeClasses[size]} leading-none ${className}`}>{icon}</span>;
 }

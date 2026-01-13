@@ -1,6 +1,6 @@
-import type { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse.js";
-import type { Channel } from "@slack/web-api/dist/types/response/ConversationsListResponse.js";
-import type { Member } from "@slack/web-api/dist/types/response/UsersListResponse.js";
+import type { MessageElement } from '@slack/web-api/dist/types/response/ConversationsHistoryResponse.js';
+import type { Channel } from '@slack/web-api/dist/types/response/ConversationsListResponse.js';
+import type { Member } from '@slack/web-api/dist/types/response/UsersListResponse.js';
 import type {
   FathomMeeting,
   FathomTranscript,
@@ -8,7 +8,7 @@ import type {
   FathomTeam,
   FathomTeamMember,
   FathomUser,
-} from "@ebee-oss/shared-util/types/fathom/index.js";
+} from '@ebee-oss/shared-util/types/fathom/index.js';
 import type {
   GitHubRepository,
   GitHubIssue,
@@ -23,19 +23,19 @@ import type {
   GitHubCommit,
   GitHubComment,
   GitHubReview,
-} from "@ebee-oss/shared-util/types/github/index.js";
+} from '@ebee-oss/shared-util/types/github/index.js';
 import type {
   NotionUser,
   NotionDatabase,
   NotionPage,
   NotionBlock,
   NotionComment,
-} from "@ebee-oss/shared-util/types/notion/index.js";
+} from '@ebee-oss/shared-util/types/notion/index.js';
 
 /**
  * Supported source types
  */
-export type SourceType = "slack" | "fathom" | "notion" | "github";
+export type SourceType = 'slack' | 'fathom' | 'notion' | 'github';
 
 /**
  * Extended MessageElement with channel property
@@ -127,13 +127,13 @@ export interface ListRepositoriesInput {
 
 export interface ListIssuesInput {
   repo?: string;
-  state?: "open" | "closed" | "all";
+  state?: 'open' | 'closed' | 'all';
   limit?: number;
 }
 
 export interface ListPullRequestsInput {
   repo?: string;
-  state?: "open" | "closed" | "all";
+  state?: 'open' | 'closed' | 'all';
   limit?: number;
 }
 

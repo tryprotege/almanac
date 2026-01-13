@@ -1,9 +1,6 @@
-import { search } from "jmespath";
-import type {
-  AggregationConfig,
-  FetcherConfig,
-} from "@ebee-oss/indexing-engine";
-import logger from "../../../utils/logger.js";
+import { search } from 'jmespath';
+import type { AggregationConfig, FetcherConfig } from '@ebee-oss/indexing-engine';
+import logger from '../../../utils/logger.js';
 
 /**
  * ContentAggregatorService
@@ -21,7 +18,7 @@ export class ContentAggregatorService {
     context: {
       dataSourceId: string;
       syncConfigId: string;
-    }
+    },
   ): Promise<Record<string, any>> {
     const aggregatedData: Record<string, any> = {};
 
@@ -42,7 +39,7 @@ export class ContentAggregatorService {
           config.fetcher,
           fetcherConfig,
           parentData,
-          context
+          context,
         );
 
         // Apply merge strategy
@@ -69,7 +66,7 @@ export class ContentAggregatorService {
     context: {
       dataSourceId: string;
       syncConfigId: string;
-    }
+    },
   ): Promise<any> {
     // Resolve parameters from parent context
     const params = this.resolveParamsFromParent(fetcherConfig, parentData);
@@ -80,7 +77,7 @@ export class ContentAggregatorService {
     });
 
     // Use fetchPage to get properly extracted records with resultPath applied
-    const { fetchPage } = await import("./paginated-fetcher.js");
+    const { fetchPage } = await import('./paginated-fetcher.js');
 
     // Create a minimal config for the tool call
     const callConfig: FetcherConfig = {
@@ -96,16 +93,13 @@ export class ContentAggregatorService {
       context.dataSourceId,
       callConfig,
       params,
-      fetcherConfig.rateLimit
+      fetcherConfig.rateLimit,
     );
 
     // Return just the records array, not the full PageResult
     // Apply transformResult if configured
     if (fetcherConfig.transformResult) {
-      return this.transformResult(
-        result.records,
-        fetcherConfig.transformResult
-      );
+      return this.transformResult(result.records, fetcherConfig.transformResult);
     }
 
     return result.records;
@@ -117,7 +111,7 @@ export class ContentAggregatorService {
    */
   private resolveParamsFromParent(
     fetcherConfig: FetcherConfig,
-    parentData: any
+    parentData: any,
   ): Record<string, any> {
     const params: Record<string, any> = {};
 
@@ -128,23 +122,18 @@ export class ContentAggregatorService {
 
     // Then, resolve paramsFromParent
     if (fetcherConfig.paramsFromParent) {
-      for (const [key, value] of Object.entries(
-        fetcherConfig.paramsFromParent
-      )) {
-        if (typeof value === "string" && value.startsWith("$parent.")) {
+      for (const [key, value] of Object.entries(fetcherConfig.paramsFromParent)) {
+        if (typeof value === 'string' && value.startsWith('$parent.')) {
           // Extract field from parent
           const fieldPath = value.substring(8); // Remove "$parent."
           const fieldValue = this.extractValue(parentData, fieldPath);
           params[key] = fieldValue;
-        } else if (typeof value === "string" && value.startsWith("$")) {
+        } else if (typeof value === 'string' && value.startsWith('$')) {
           // JMESPath expression
           try {
             params[key] = search({ parent: parentData }, value);
           } catch (error) {
-            console.warn(
-              `Failed to evaluate JMESPath '${value}' in paramsFromParent:`,
-              error
-            );
+            console.warn(`Failed to evaluate JMESPath '${value}' in paramsFromParent:`, error);
             params[key] = value;
           }
         } else {
@@ -160,7 +149,7 @@ export class ContentAggregatorService {
    * Extract a value from an object using dot notation
    */
   private extractValue(obj: any, path: string): any {
-    const parts = path.split(".");
+    const parts = path.split('.');
     let current = obj;
 
     for (const part of parts) {
@@ -176,10 +165,7 @@ export class ContentAggregatorService {
   /**
    * Transform result using JMESPath expressions
    */
-  private transformResult(
-    data: any,
-    transforms: Record<string, string>
-  ): Record<string, any> {
+  private transformResult(data: any, transforms: Record<string, string>): Record<string, any> {
     const transformed: Record<string, any> = {};
 
     for (const [fieldName, expression] of Object.entries(transforms)) {
@@ -188,7 +174,7 @@ export class ContentAggregatorService {
       } catch (error) {
         console.warn(
           `Failed to transform field '${fieldName}' with expression '${expression}':`,
-          error
+          error,
         );
       }
     }
@@ -201,7 +187,7 @@ export class ContentAggregatorService {
    */
   extractFields(
     aggregatedData: Record<string, any>,
-    extractConfig: Record<string, string>
+    extractConfig: Record<string, string>,
   ): Record<string, any> {
     const extracted: Record<string, any> = {};
 
@@ -211,7 +197,7 @@ export class ContentAggregatorService {
       } catch (error) {
         console.warn(
           `Failed to extract field '${fieldName}' with expression '${expression}':`,
-          error
+          error,
         );
       }
     }
@@ -222,16 +208,12 @@ export class ContentAggregatorService {
   /**
    * Merge aggregated data with parent using the specified strategy
    */
-  mergeData(
-    target: any,
-    source: any,
-    strategy: "replace" | "merge" | "append" = "merge"
-  ): any {
-    if (strategy === "replace") {
+  mergeData(target: any, source: any, strategy: 'replace' | 'merge' | 'append' = 'merge'): any {
+    if (strategy === 'replace') {
       return source;
     }
 
-    if (strategy === "append") {
+    if (strategy === 'append') {
       if (Array.isArray(target) && Array.isArray(source)) {
         return [...target, ...source];
       }
@@ -241,24 +223,24 @@ export class ContentAggregatorService {
 
     // merge strategy - deep merge
     if (
-      typeof target === "object" &&
+      typeof target === 'object' &&
       target !== null &&
-      typeof source === "object" &&
+      typeof source === 'object' &&
       source !== null
     ) {
       const merged = { ...target };
 
       for (const [key, value] of Object.entries(source)) {
         if (
-          typeof value === "object" &&
+          typeof value === 'object' &&
           value !== null &&
           !Array.isArray(value) &&
-          typeof merged[key] === "object" &&
+          typeof merged[key] === 'object' &&
           merged[key] !== null &&
           !Array.isArray(merged[key])
         ) {
           // Recursively merge objects
-          merged[key] = this.mergeData(merged[key], value, "merge");
+          merged[key] = this.mergeData(merged[key], value, 'merge');
         } else if (Array.isArray(value) && Array.isArray(merged[key])) {
           // Concatenate arrays
           merged[key] = [...merged[key], ...value];

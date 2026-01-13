@@ -1,13 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
-import { syncStatusApi, SyncJobStatus, SyncStatusResponse } from "../lib/api";
+import { useQuery } from '@tanstack/react-query';
+import { syncStatusApi, SyncJobStatus, SyncStatusResponse } from '../lib/api';
 
 // Hook to get all sync statuses with polling
-export function useSyncStatuses(options?: {
-  enabled?: boolean;
-  refetchInterval?: number;
-}) {
+export function useSyncStatuses(options?: { enabled?: boolean; refetchInterval?: number }) {
   return useQuery({
-    queryKey: ["sync-statuses"],
+    queryKey: ['sync-statuses'],
     queryFn: async () => {
       const response = await syncStatusApi.getAll();
       return response.data.data as SyncStatusResponse;
@@ -21,10 +18,10 @@ export function useSyncStatuses(options?: {
 // Hook to get sync status for a specific server
 export function useSyncStatus(
   serverName: string | null,
-  options?: { enabled?: boolean; refetchInterval?: number }
+  options?: { enabled?: boolean; refetchInterval?: number },
 ) {
   return useQuery({
-    queryKey: ["sync-status", serverName],
+    queryKey: ['sync-status', serverName],
     queryFn: async () => {
       if (!serverName) return null;
       const response = await syncStatusApi.getByServerName(serverName);

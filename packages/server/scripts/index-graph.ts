@@ -1,19 +1,19 @@
-import "dotenv/config";
-import { initializeServices } from "../src/mcp/initialization.js";
-import { RecordStore } from "../src/stores/record.store.js";
-import { GraphStore } from "../src/stores/graph.store.js";
-import { VectorStore } from "../src/stores/vector.store.js";
-import { indexAllRecords } from "../src/services/indexing/graph/graph-indexer.js";
-import { cleanupDeletedRecords } from "../src/services/indexing/graph/graph-cleanup.js";
+import 'dotenv/config';
+import { initializeServices } from '../src/mcp/initialization.js';
+import { RecordStore } from '../src/stores/record.store.js';
+import { GraphStore } from '../src/stores/graph.store.js';
+import { VectorStore } from '../src/stores/vector.store.js';
+import { indexAllRecords } from '../src/services/indexing/graph/graph-indexer.js';
+import { cleanupDeletedRecords } from '../src/services/indexing/graph/graph-cleanup.js';
 import {
   indexEntityEmbeddings,
   indexRelationshipEmbeddings,
-} from "../src/services/indexing/graph/graph-embeddings.js";
-import { createLLMClient } from "../src/services/llm/providers.js";
-import { loadProxyConfig } from "../src/mcp/config-loader.js";
-import { SourceType } from "../src/types/index.js";
-import { env } from "../src/env.js";
-import logger from "../src/utils/logger.js";
+} from '../src/services/indexing/graph/graph-embeddings.js';
+import { createLLMClient } from '../src/services/llm/providers.js';
+import { loadProxyConfig } from '../src/mcp/config-loader.js';
+import { SourceType } from '../src/types/index.js';
+import { env } from '../src/env.js';
+import logger from '../src/utils/logger.js';
 
 /**
  * Script to index unindexed records to the graph database
@@ -49,21 +49,21 @@ function parseArgs(): ScriptOptions {
   };
 
   for (const arg of args) {
-    if (arg.startsWith("--source=")) {
-      options.source = arg.split("=")[1] as SourceType;
-    } else if (arg.startsWith("--batch-size=")) {
-      options.batchSize = parseInt(arg.split("=")[1], 10);
-    } else if (arg.startsWith("--limit=")) {
-      options.limit = parseInt(arg.split("=")[1], 10);
-    } else if (arg === "--force") {
+    if (arg.startsWith('--source=')) {
+      options.source = arg.split('=')[1] as SourceType;
+    } else if (arg.startsWith('--batch-size=')) {
+      options.batchSize = parseInt(arg.split('=')[1], 10);
+    } else if (arg.startsWith('--limit=')) {
+      options.limit = parseInt(arg.split('=')[1], 10);
+    } else if (arg === '--force') {
       options.force = true;
-    } else if (arg === "--no-relationships") {
+    } else if (arg === '--no-relationships') {
       options.includeRelationships = false;
-    } else if (arg === "--cleanup") {
+    } else if (arg === '--cleanup') {
       options.cleanup = true;
-    } else if (arg === "--embeddings" || arg === "--embed") {
+    } else if (arg === '--embeddings' || arg === '--embed') {
       options.embeddings = true;
-    } else if (arg === "--no-embeddings" || arg === "--no-embed") {
+    } else if (arg === '--no-embeddings' || arg === '--no-embed') {
       options.embeddings = false;
     }
   }
@@ -75,8 +75,8 @@ async function indexGraphRecords() {
   const options = parseArgs();
 
   logger.info({
-    msg: "🚀 Graph Indexing Script",
-    source: options.source ?? "all",
+    msg: '🚀 Graph Indexing Script',
+    source: options.source ?? 'all',
     limit: options.limit,
     batchSize: options.batchSize,
     forceReIndex: options.force,
@@ -99,9 +99,7 @@ async function indexGraphRecords() {
 
     const recordStore = new RecordStore();
     const graphStore = new GraphStore(memgraph);
-    const vectorStore = options.embeddings
-      ? new VectorStore(qdrant)
-      : undefined;
+    const vectorStore = options.embeddings ? new VectorStore(qdrant) : undefined;
 
     // 1. Cleanup deleted records first (if requested)
     if (options.cleanup) {
@@ -111,7 +109,7 @@ async function indexGraphRecords() {
         recordStore,
         graphStore,
         vectorStore,
-        { cleanupEmbeddings: options.embeddings }
+        { cleanupEmbeddings: options.embeddings },
       );
 
       logger.info({ msg: `✅ Cleaned up ${cleanupStats.nodes} nodes` });
@@ -128,11 +126,9 @@ async function indexGraphRecords() {
     }
 
     // Get statistics before indexing
-    const allRecords = await recordStore.findBySourceAndType(
-      config.name as SourceType,
-      "",
-      { includeDeleted: false }
-    );
+    const allRecords = await recordStore.findBySourceAndType(config.name as SourceType, '', {
+      includeDeleted: false,
+    });
 
     // Records need indexing if:
     // 1. Never indexed (lastGraphIndexAt is null)
@@ -140,15 +136,14 @@ async function indexGraphRecords() {
     const needsIndexing = allRecords.filter(
       (record) =>
         !record.lastGraphIndexAt ||
-        (record.sourceUpdatedAt &&
-          record.sourceUpdatedAt > record.lastGraphIndexAt)
+        (record.sourceUpdatedAt && record.sourceUpdatedAt > record.lastGraphIndexAt),
     );
 
     const alreadyIndexed = allRecords.filter(
       (record) =>
         record.lastGraphIndexAt &&
         record.sourceUpdatedAt &&
-        record.sourceUpdatedAt <= record.lastGraphIndexAt
+        record.sourceUpdatedAt <= record.lastGraphIndexAt,
     );
 
     logger.info({
@@ -158,10 +153,7 @@ async function indexGraphRecords() {
       needsIndexing: needsIndexing.length,
       neverIndexed: allRecords.filter((r) => !r.lastGraphIndexAt).length,
       updatedSinceLastIndex: allRecords.filter(
-        (r) =>
-          r.lastGraphIndexAt &&
-          r.sourceUpdatedAt &&
-          r.sourceUpdatedAt > r.lastGraphIndexAt
+        (r) => r.lastGraphIndexAt && r.sourceUpdatedAt && r.sourceUpdatedAt > r.lastGraphIndexAt,
       ).length,
     });
 
@@ -185,7 +177,7 @@ async function indexGraphRecords() {
         maxEntitiesPerDoc: env.MAX_ENTITIES_PER_DOCUMENT,
         force: options.force,
         limit: options.limit,
-      }
+      },
     );
 
     logger.info({
@@ -197,15 +189,11 @@ async function indexGraphRecords() {
     });
 
     // Get statistics after indexing
-    const allRecordsAfter = await recordStore.findBySourceAndType(
-      config.name as SourceType,
-      "",
-      { includeDeleted: false }
-    );
+    const allRecordsAfter = await recordStore.findBySourceAndType(config.name as SourceType, '', {
+      includeDeleted: false,
+    });
 
-    const unindexedRecordsAfter = allRecordsAfter.filter(
-      (record) => !record.lastGraphIndexAt
-    );
+    const unindexedRecordsAfter = allRecordsAfter.filter((record) => !record.lastGraphIndexAt);
 
     logger.info({
       msg: `📊 Final Statistics`,
@@ -222,14 +210,8 @@ async function indexGraphRecords() {
 
       const deps = { vectorStore, recordStore, graphStore };
 
-      const entityStats = await indexEntityEmbeddings(
-        config.name as SourceType,
-        deps
-      );
-      const relStats = await indexRelationshipEmbeddings(
-        config.name as SourceType,
-        deps
-      );
+      const entityStats = await indexEntityEmbeddings(config.name as SourceType, deps);
+      const relStats = await indexRelationshipEmbeddings(config.name as SourceType, deps);
 
       logger.info({
         msg: `Embedding created`,
@@ -251,6 +233,6 @@ const run = async () => {
 run()
   .then(() => process.exit(0))
   .catch((err) => {
-    logger.error({ err }, "Script error");
+    logger.error({ err }, 'Script error');
     process.exit(1);
   });

@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { syncConfigApi } from "../../lib/api";
-import { Plus, X, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { syncConfigApi } from '../../lib/api';
+import { Plus, X, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
 interface StartingPoint {
   name: string;
@@ -15,9 +15,7 @@ interface StartingPointsTabProps {
   serverName: string;
 }
 
-export default function StartingPointsTab({
-  serverName,
-}: StartingPointsTabProps) {
+export default function StartingPointsTab({ serverName }: StartingPointsTabProps) {
   const [startingPoints, setStartingPoints] = useState<StartingPoint[]>([]);
   // Store values as arrays of strings for each starting point
   const [values, setValues] = useState<Record<string, string[]>>({});
@@ -50,7 +48,7 @@ export default function StartingPointsTab({
           if (sp.currentValue) {
             // Split comma-separated values
             parsedValues[sp.name] = sp.currentValue
-              .split(",")
+              .split(',')
               .map((v) => v.trim())
               .filter((v) => v.length > 0);
           } else {
@@ -60,12 +58,8 @@ export default function StartingPointsTab({
         setValues(parsedValues);
       }
     } catch (err: any) {
-      console.error("Failed to load starting points:", err);
-      setError(
-        err.response?.data?.error ||
-          err.message ||
-          "Failed to load starting points"
-      );
+      console.error('Failed to load starting points:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to load starting points');
     } finally {
       setLoading(false);
     }
@@ -74,7 +68,7 @@ export default function StartingPointsTab({
   const addValue = (name: string) => {
     setValues((prev) => ({
       ...prev,
-      [name]: [...(prev[name] || []), ""],
+      [name]: [...(prev[name] || []), ''],
     }));
     if (successMessage) setSuccessMessage(null);
   };
@@ -104,29 +98,22 @@ export default function StartingPointsTab({
       // Convert arrays back to comma-separated strings
       const formattedValues: Record<string, string> = {};
       Object.entries(values).forEach(([name, vals]) => {
-        formattedValues[name] = vals
-          .filter((v) => v.trim().length > 0)
-          .join(", ");
+        formattedValues[name] = vals.filter((v) => v.trim().length > 0).join(', ');
       });
 
-      const response = await syncConfigApi.updateStartingPoints(
-        serverName,
-        formattedValues
-      );
+      const response = await syncConfigApi.updateStartingPoints(serverName, formattedValues);
 
       if (response.data.success) {
-        setSuccessMessage("Starting points saved successfully!");
+        setSuccessMessage('Starting points saved successfully!');
         await loadStartingPoints();
       }
     } catch (err: any) {
-      console.error("Failed to save starting points:", err);
+      console.error('Failed to save starting points:', err);
       const errorDetails = err.response?.data?.details;
       setError(
         errorDetails
-          ? `Validation failed: ${errorDetails.join(", ")}`
-          : err.response?.data?.error ||
-              err.message ||
-              "Failed to save starting points"
+          ? `Validation failed: ${errorDetails.join(', ')}`
+          : err.response?.data?.error || err.message || 'Failed to save starting points',
       );
     } finally {
       setSaving(false);
@@ -135,10 +122,8 @@ export default function StartingPointsTab({
 
   const hasUnsavedChanges = () => {
     return startingPoints.some((sp) => {
-      const currentVals = (values[sp.name] || [])
-        .filter((v) => v.trim().length > 0)
-        .join(", ");
-      const originalVals = sp.currentValue || "";
+      const currentVals = (values[sp.name] || []).filter((v) => v.trim().length > 0).join(', ');
+      const originalVals = sp.currentValue || '';
       return currentVals !== originalVals;
     });
   };
@@ -173,8 +158,8 @@ export default function StartingPointsTab({
             No Starting Points Required
           </h3>
           <p className="text-text-secondary">
-            This configuration doesn't require any starting point values. The
-            fetchers can retrieve all data without initial seed values.
+            This configuration doesn't require any starting point values. The fetchers can retrieve
+            all data without initial seed values.
           </p>
         </div>
       </div>
@@ -182,31 +167,24 @@ export default function StartingPointsTab({
   }
 
   const configuredCount = getConfiguredCount();
-  const progressPercent =
-    allRequired > 0 ? (configuredCount / allRequired) * 100 : 100;
+  const progressPercent = allRequired > 0 ? (configuredCount / allRequired) * 100 : 100;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-text-primary mb-1">
-            Starting Points
-          </h3>
+          <h3 className="text-lg font-semibold text-text-primary mb-1">Starting Points</h3>
           <p className="text-sm text-text-secondary">
             Provide seed values for the indexer to begin crawling data
           </p>
         </div>
         <div className="text-right">
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-bold text-text-primary">
-              {configuredCount}
-            </span>
+            <span className="text-2xl font-bold text-text-primary">{configuredCount}</span>
             <span className="text-lg text-text-tertiary">/{allRequired}</span>
           </div>
-          <p className="text-xs text-text-secondary mt-0.5">
-            Required configured
-          </p>
+          <p className="text-xs text-text-secondary mt-0.5">Required configured</p>
         </div>
       </div>
 
@@ -216,14 +194,14 @@ export default function StartingPointsTab({
           <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden">
             <div
               className={`h-full transition-all duration-300 ${
-                progressPercent === 100 ? "bg-brand-success" : "bg-brand-purple"
+                progressPercent === 100 ? 'bg-brand-success' : 'bg-brand-purple'
               }`}
               style={{ width: `${progressPercent}%` }}
             />
           </div>
           <p className="text-xs text-text-tertiary text-right">
             {progressPercent === 100
-              ? "All required points configured"
+              ? 'All required points configured'
               : `${Math.round(progressPercent)}% complete`}
           </p>
         </div>
@@ -235,9 +213,7 @@ export default function StartingPointsTab({
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-brand-error flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-sm font-medium text-brand-error mb-1">
-                Error
-              </h4>
+              <h4 className="text-sm font-medium text-brand-error mb-1">Error</h4>
               <p className="text-sm text-brand-error/80">{error}</p>
             </div>
           </div>
@@ -265,9 +241,7 @@ export default function StartingPointsTab({
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-medium text-text-primary">
-                      📍 {sp.name}
-                    </span>
+                    <span className="text-sm font-medium text-text-primary">📍 {sp.name}</span>
                     {sp.required ? (
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-brand-error/20 text-brand-error">
                         Required
@@ -278,9 +252,7 @@ export default function StartingPointsTab({
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-text-secondary">
-                    {sp.description}
-                  </p>
+                  <p className="text-xs text-text-secondary">{sp.description}</p>
                 </div>
                 <div>
                   {hasValues ? (
@@ -293,9 +265,7 @@ export default function StartingPointsTab({
 
               {/* Input Rows */}
               {spValues.length === 0 ? (
-                <div className="text-sm text-text-tertiary italic py-2">
-                  No values added yet
-                </div>
+                <div className="text-sm text-text-tertiary italic py-2">No values added yet</div>
               ) : (
                 <div className="space-y-2">
                   {spValues.map((value, index) => (
@@ -303,9 +273,7 @@ export default function StartingPointsTab({
                       <input
                         type="text"
                         value={value}
-                        onChange={(e) =>
-                          updateValue(sp.name, index, e.target.value)
-                        }
+                        onChange={(e) => updateValue(sp.name, index, e.target.value)}
                         placeholder={`Enter ${sp.name} value`}
                         className="flex-1 px-3 py-2 bg-bg-primary border border-border-secondary rounded-lg text-text-primary text-sm placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-colors"
                       />
@@ -327,7 +295,7 @@ export default function StartingPointsTab({
                 className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-brand-purple hover:text-brand-purple-dark hover:bg-brand-purple/10 rounded-lg transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                Add {sp.name.replace(/_/g, " ")}
+                Add {sp.name.replace(/_/g, ' ')}
               </button>
             </div>
           );
@@ -337,9 +305,7 @@ export default function StartingPointsTab({
       {/* Action Buttons */}
       <div className="flex items-center justify-between pt-6 border-t border-border-secondary">
         <div className="text-sm">
-          {hasUnsavedChanges() && (
-            <span className="text-brand-warning">● Unsaved changes</span>
-          )}
+          {hasUnsavedChanges() && <span className="text-brand-warning">● Unsaved changes</span>}
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -360,7 +326,7 @@ export default function StartingPointsTab({
                 Saving...
               </>
             ) : (
-              "Save Changes"
+              'Save Changes'
             )}
           </button>
         </div>

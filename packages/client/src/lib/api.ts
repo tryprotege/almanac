@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosResponse } from "axios";
+import axios, { AxiosError, AxiosResponse } from 'axios';
 
 // Error response type
 interface ErrorResponseData {
@@ -7,9 +7,9 @@ interface ErrorResponseData {
 }
 
 export const api = axios.create({
-  baseURL: "/api",
+  baseURL: '/api',
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
   timeout: 30000, // 30 seconds
 });
@@ -21,9 +21,9 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error("[API Request Error]", error);
+    console.error('[API Request Error]', error);
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor for error handling
@@ -36,9 +36,9 @@ api.interceptors.response.use(
 
     // Handle network errors
     if (!error.response) {
-      console.error("[API Network Error]", error.message);
+      console.error('[API Network Error]', error.message);
       return Promise.reject({
-        message: "Network error. Please check your connection.",
+        message: 'Network error. Please check your connection.',
         originalError: error,
       });
     }
@@ -51,47 +51,39 @@ api.interceptors.response.use(
       (!originalRequest._retryCount || originalRequest._retryCount < 2)
     ) {
       originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
-      console.log(
-        `[API Retry] Attempt ${originalRequest._retryCount} for ${originalRequest.url}`
-      );
+      console.log(`[API Retry] Attempt ${originalRequest._retryCount} for ${originalRequest.url}`);
 
       // Wait before retrying (exponential backoff)
-      await new Promise((resolve) =>
-        setTimeout(resolve, 1000 * originalRequest._retryCount)
-      );
+      await new Promise((resolve) => setTimeout(resolve, 1000 * originalRequest._retryCount));
 
       return api(originalRequest);
     }
 
     // Handle specific error codes
-    const errorMessage =
-      error.response.data?.error || error.response.data?.message;
+    const errorMessage = error.response.data?.error || error.response.data?.message;
 
     switch (error.response.status) {
       case 400:
-        console.error("[API Bad Request]", errorMessage);
+        console.error('[API Bad Request]', errorMessage);
         break;
       case 401:
-        console.error("[API Unauthorized]", errorMessage);
+        console.error('[API Unauthorized]', errorMessage);
         break;
       case 403:
-        console.error("[API Forbidden]", errorMessage);
+        console.error('[API Forbidden]', errorMessage);
         break;
       case 404:
-        console.error("[API Not Found]", errorMessage);
+        console.error('[API Not Found]', errorMessage);
         break;
       case 429:
-        console.error("[API Rate Limit]", errorMessage);
+        console.error('[API Rate Limit]', errorMessage);
         break;
       default:
-        console.error(
-          `[API Error ${error.response.status}]`,
-          errorMessage || "Unknown error"
-        );
+        console.error(`[API Error ${error.response.status}]`, errorMessage || 'Unknown error');
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response types
@@ -135,15 +127,14 @@ export interface SchemaData {
 
 // Persona API
 export const personaApi = {
-  get: () => api.get<ApiResponse<PersonaData>>("/schema/persona"),
-  update: (persona: string) =>
-    api.put<ApiResponse<PersonaData>>("/schema/persona", { persona }),
-  delete: () => api.delete<ApiResponse<void>>("/schema/persona"),
+  get: () => api.get<ApiResponse<PersonaData>>('/schema/persona'),
+  update: (persona: string) => api.put<ApiResponse<PersonaData>>('/schema/persona', { persona }),
+  delete: () => api.delete<ApiResponse<void>>('/schema/persona'),
 };
 
 // Schema API
 export const schemaApi = {
-  get: () => api.get<ApiResponse<SchemaData>>("/schema"),
+  get: () => api.get<ApiResponse<SchemaData>>('/schema'),
 };
 
 // Graph Data Types
@@ -159,7 +150,7 @@ export interface GraphRelationship {
   targetId: string;
   type: string;
   confidence: number;
-  extractedBy: "explicit" | "llm" | "heuristic";
+  extractedBy: 'explicit' | 'llm' | 'heuristic';
 }
 
 export interface GraphDataResponse {
@@ -180,12 +171,12 @@ export const graphApi = {
     nodeTypes?: string[];
     relationshipTypes?: string[];
   }) =>
-    api.get<ApiResponse<GraphDataResponse>>("/graph/data", {
+    api.get<ApiResponse<GraphDataResponse>>('/graph/data', {
       params: params
         ? {
             ...params,
-            nodeTypes: params.nodeTypes?.join(","),
-            relationshipTypes: params.relationshipTypes?.join(","),
+            nodeTypes: params.nodeTypes?.join(','),
+            relationshipTypes: params.relationshipTypes?.join(','),
           }
         : undefined,
     }),
@@ -195,7 +186,7 @@ export const graphApi = {
 export interface PresetVariable {
   key: string;
   label: string;
-  type: "text" | "password";
+  type: 'text' | 'password';
   required: boolean;
   helpText?: string;
 }
@@ -214,12 +205,12 @@ export interface PresetSummary {
 
 export interface DataSourcePreset extends PresetSummary {
   connection: {
-    type: "stdio" | "sse" | "streamable-http";
+    type: 'stdio' | 'sse' | 'streamable-http';
     command?: string;
     args?: string[];
     url?: string;
     auth?: {
-      type: "oauth" | "api-key";
+      type: 'oauth' | 'api-key';
       provider?: string;
     };
   };
@@ -230,16 +221,16 @@ export interface DataSourcePreset extends PresetSummary {
 export interface DataSourceConfig {
   _id?: string;
   name: string;
-  type: "stdio" | "sse" | "streamable-http";
+  type: 'stdio' | 'sse' | 'streamable-http';
   command?: string;
   args?: string[];
   env?: Record<string, string>;
   url?: string;
   headers?: Record<string, string>;
-  authType?: "none" | "api-key" | "oauth";
+  authType?: 'none' | 'api-key' | 'oauth';
   oauth?: {
     issuerUrl?: string;
-    discoverySource?: "rfc8414" | "oidc" | "manual";
+    discoverySource?: 'rfc8414' | 'oidc' | 'manual';
     authorizationUrl?: string;
     tokenUrl?: string;
     clientId?: string;
@@ -268,62 +259,50 @@ export interface OAuthMetadata {
 export interface OAuthDiscoveryResult {
   success: boolean;
   metadata?: OAuthMetadata;
-  source?: "rfc8414" | "oidc";
+  source?: 'rfc8414' | 'oidc';
   error?: string;
 }
 
 export const dataSourcesApi = {
-  list: () => api.get<ApiResponse<DataSourceConfig[]>>("/data-sources"),
+  list: () => api.get<ApiResponse<DataSourceConfig[]>>('/data-sources'),
   get: (name: string) =>
-    api.get<ApiResponse<DataSourceConfig>>(
-      `/data-sources/${encodeURIComponent(name)}`
-    ),
-  create: (config: Omit<DataSourceConfig, "_id" | "createdAt" | "updatedAt">) =>
-    api.post<ApiResponse<DataSourceConfig>>("/data-sources", config),
+    api.get<ApiResponse<DataSourceConfig>>(`/data-sources/${encodeURIComponent(name)}`),
+  create: (config: Omit<DataSourceConfig, '_id' | 'createdAt' | 'updatedAt'>) =>
+    api.post<ApiResponse<DataSourceConfig>>('/data-sources', config),
   update: (name: string, config: Partial<DataSourceConfig>) =>
-    api.put<ApiResponse<DataSourceConfig>>(
-      `/data-sources/${encodeURIComponent(name)}`,
-      config
-    ),
+    api.put<ApiResponse<DataSourceConfig>>(`/data-sources/${encodeURIComponent(name)}`, config),
   delete: (name: string) =>
     api.delete<ApiResponse<void>>(`/data-sources/${encodeURIComponent(name)}`),
   connect: (name: string) =>
-    api.post<ApiResponse<void>>(
-      `/data-sources/${encodeURIComponent(name)}/connect`
-    ),
+    api.post<ApiResponse<void>>(`/data-sources/${encodeURIComponent(name)}/connect`),
   disconnect: (name: string) =>
-    api.post<ApiResponse<void>>(
-      `/data-sources/${encodeURIComponent(name)}/disconnect`
-    ),
+    api.post<ApiResponse<void>>(`/data-sources/${encodeURIComponent(name)}/disconnect`),
   status: (name: string) =>
     api.get<ApiResponse<{ name: string; connected: boolean }>>(
-      `/data-sources/${encodeURIComponent(name)}/status`
+      `/data-sources/${encodeURIComponent(name)}/status`,
     ),
-  sync: (configId: string) =>
-    api.post<ApiResponse<{ jobId: string }>>(`/sync`, { configId }),
+  sync: (configId: string) => api.post<ApiResponse<{ jobId: string }>>(`/sync`, { configId }),
 };
 
 // Presets API
 export const presetsApi = {
-  list: () => api.get<PresetSummary[]>("/presets"),
-  get: (id: string) =>
-    api.get<DataSourcePreset>(`/presets/${encodeURIComponent(id)}`),
+  list: () => api.get<PresetSummary[]>('/presets'),
+  get: (id: string) => api.get<DataSourcePreset>(`/presets/${encodeURIComponent(id)}`),
 };
 
 // OAuth API
 export const oauthApi = {
-  discover: (issuerUrl: string) =>
-    api.post<OAuthDiscoveryResult>("/oauth/discover", { issuerUrl }),
+  discover: (issuerUrl: string) => api.post<OAuthDiscoveryResult>('/oauth/discover', { issuerUrl }),
   discoverSse: (sseUrl: string) =>
     api.post<{
       success: boolean;
       requiresAuth: boolean;
       metadata?: OAuthMetadata;
       error?: string;
-    }>("/oauth/discover-sse", { sseUrl }),
+    }>('/oauth/discover-sse', { sseUrl }),
   start: (mcpServerId: string) =>
     api.get<ApiResponse<{ authorizationUrl: string; state: string }>>(
-      `/oauth/start/${mcpServerId}`
+      `/oauth/start/${mcpServerId}`,
     ),
   startSse: (mcpServerId: string) =>
     api.post<
@@ -336,7 +315,7 @@ export const oauthApi = {
       }>
     >(`/oauth/start-sse/${mcpServerId}`),
   postCode: (serverId: string, code: string, state?: string) =>
-    api.post<ApiResponse<{ success: boolean }>>("/oauth/code", {
+    api.post<ApiResponse<{ success: boolean }>>('/oauth/code', {
       serverId,
       code,
       state,
@@ -352,12 +331,10 @@ export const oauthApi = {
     >(`/oauth/status/${mcpServerId}`),
   refresh: (mcpServerId: string) =>
     api.post<ApiResponse<{ success: boolean; expiresIn?: number }>>(
-      `/oauth/refresh/${mcpServerId}`
+      `/oauth/refresh/${mcpServerId}`,
     ),
   revoke: (mcpServerId: string) =>
-    api.delete<ApiResponse<{ success: boolean }>>(
-      `/oauth/revoke/${mcpServerId}`
-    ),
+    api.delete<ApiResponse<{ success: boolean }>>(`/oauth/revoke/${mcpServerId}`),
 };
 
 // Statistics API Types
@@ -414,17 +391,17 @@ export interface ActivityItem {
 
 // Statistics API
 export const statsApi = {
-  overview: () => api.get<ApiResponse<OverviewStats>>("/stats/overview"),
-  records: () => api.get<ApiResponse<RecordStats>>("/stats/records"),
-  vectors: () => api.get<ApiResponse<VectorStats>>("/stats/vectors"),
-  graph: () => api.get<ApiResponse<GraphStats>>("/stats/graph"),
-  activity: () => api.get<ApiResponse<ActivityItem[]>>("/stats/activity"),
+  overview: () => api.get<ApiResponse<OverviewStats>>('/stats/overview'),
+  records: () => api.get<ApiResponse<RecordStats>>('/stats/records'),
+  vectors: () => api.get<ApiResponse<VectorStats>>('/stats/vectors'),
+  graph: () => api.get<ApiResponse<GraphStats>>('/stats/graph'),
+  activity: () => api.get<ApiResponse<ActivityItem[]>>('/stats/activity'),
 };
 
 // Sync Status API Types
 export interface SyncJobStatus {
   serverName: string;
-  status: "queued" | "processing" | "completed" | "failed";
+  status: 'queued' | 'processing' | 'completed' | 'failed';
   jobId?: string;
   progress?: number;
   error?: string;
@@ -437,17 +414,15 @@ export interface SyncStatusResponse {
 
 // Sync Status API
 export const syncStatusApi = {
-  getAll: () => api.get<ApiResponse<SyncStatusResponse>>("/sync-status"),
+  getAll: () => api.get<ApiResponse<SyncStatusResponse>>('/sync-status'),
   getByServerName: (serverName: string) =>
-    api.get<ApiResponse<SyncJobStatus | null>>(
-      `/sync-status/${encodeURIComponent(serverName)}`
-    ),
+    api.get<ApiResponse<SyncJobStatus | null>>(`/sync-status/${encodeURIComponent(serverName)}`),
 };
 
 // Sync Config API Types
 export interface ToolClassification {
   toolName: string;
-  category: "read" | "search" | "write";
+  category: 'read' | 'search' | 'write';
   confidence?: number;
   reasoning?: string;
 }
@@ -456,7 +431,7 @@ export interface SyncConfigData {
   _id: string;
   serverName: string;
   displayName?: string;
-  status: "draft" | "active" | "disabled";
+  status: 'draft' | 'active' | 'disabled';
   config: {
     version: string;
     source: string;
@@ -474,14 +449,14 @@ export interface SyncConfigSummary {
   serverName: string;
   displayName: string;
   icon?: string;
-  status: "draft" | "active" | "disabled";
+  status: 'draft' | 'active' | 'disabled';
   updatedAt: string;
   fetcherCount: number;
   recordTypeCount: number;
 }
 
 export interface GeneratedSyncConfigResult {
-  config: SyncConfigData["config"];
+  config: SyncConfigData['config'];
   validation: {
     valid: boolean;
     errors: Array<{ path: string; message: string; code: string }>;
@@ -501,18 +476,15 @@ export interface PreviewResult {
 export interface SyncResult {
   success: boolean;
   recordsProcessed: number;
-  syncType: "full" | "incremental";
+  syncType: 'full' | 'incremental';
 }
 
 // Sync Config API
 export const syncConfigApi = {
-  list: () =>
-    api.get<ApiResponse<{ configs: SyncConfigSummary[] }>>("/indexing-config"),
+  list: () => api.get<ApiResponse<{ configs: SyncConfigSummary[] }>>('/indexing-config'),
 
   get: (serverName: string) =>
-    api.get<ApiResponse<SyncConfigData>>(
-      `/indexing-config/${encodeURIComponent(serverName)}`
-    ),
+    api.get<ApiResponse<SyncConfigData>>(`/indexing-config/${encodeURIComponent(serverName)}`),
 
   generate: (params: {
     serverName: string;
@@ -521,39 +493,36 @@ export const syncConfigApi = {
     userGuidance?: string;
   }) =>
     api.post<ApiResponse<GeneratedSyncConfigResult>>(
-      "/indexing-config/generate",
+      '/indexing-config/generate',
       params,
-      { timeout: 300000 } // 5 minutes for complex config generation
+      { timeout: 300000 }, // 5 minutes for complex config generation
     ),
 
-  validate: (config: SyncConfigData["config"]) =>
+  validate: (config: SyncConfigData['config']) =>
     api.post<ApiResponse<{ valid: boolean; errors: any[]; warnings: any[] }>>(
-      "/indexing-config/validate",
-      config
+      '/indexing-config/validate',
+      config,
     ),
 
-  preview: (params: {
-    config: any;
-    sampleRecords: any[];
-    recordTypeName: string;
-  }) =>
-    api.post<ApiResponse<PreviewResult>>("/indexing-config/preview", params),
+  preview: (params: { config: any; sampleRecords: any[]; recordTypeName: string }) =>
+    api.post<ApiResponse<PreviewResult>>('/indexing-config/preview', params),
 
   save: (params: {
     config: any;
-    status?: "draft" | "active" | "disabled";
+    status?: 'draft' | 'active' | 'disabled';
     startingPointValues?: Record<string, string[]>;
   }) =>
-    api.post<
-      ApiResponse<{ success: boolean; configId: string; serverName: string }>
-    >("/indexing-config/save", params),
+    api.post<ApiResponse<{ success: boolean; configId: string; serverName: string }>>(
+      '/indexing-config/save',
+      params,
+    ),
 
   sync: (params: { serverName: string; incremental?: boolean }) =>
-    api.post<ApiResponse<SyncResult>>("/indexing-config/sync", params),
+    api.post<ApiResponse<SyncResult>>('/indexing-config/sync', params),
 
   delete: (serverName: string) =>
     api.delete<ApiResponse<{ success: boolean }>>(
-      `/indexing-config/${encodeURIComponent(serverName)}`
+      `/indexing-config/${encodeURIComponent(serverName)}`,
     ),
 
   resetSync: (serverName: string) =>
@@ -563,7 +532,7 @@ export const syncConfigApi = {
         serverName: string;
         stateCleared: boolean;
       }>
-    >("/indexing-config/reset-sync", { serverName }),
+    >('/indexing-config/reset-sync', { serverName }),
 
   getStartingPoints: (serverName: string) =>
     api.get<
@@ -600,9 +569,5 @@ export const syncConfigApi = {
         data: SyncConfigData;
         message: string;
       }>
-    >(
-      `/indexing-config/${encodeURIComponent(
-        serverName
-      )}/reload-from-marketplace`
-    ),
+    >(`/indexing-config/${encodeURIComponent(serverName)}/reload-from-marketplace`),
 };

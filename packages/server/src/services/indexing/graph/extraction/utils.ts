@@ -14,14 +14,14 @@ export function stripExtraQuotes(str: string): string {
   // Remove ALL types of quotes from anywhere in the string
   // This ensures consistent entity names across documents
   cleaned = cleaned
-    .replace(/\\"/g, "") // Remove escaped double quotes
-    .replace(/"/g, "") // Remove double quotes
-    .replace(/'/g, "") // Remove single quotes
-    .replace(/`/g, "") // Remove backticks
-    .replace(/"/g, "") // Remove smart double quote (opening)
-    .replace(/"/g, "") // Remove smart double quote (closing)
-    .replace(/'/g, "") // Remove smart single quote (opening)
-    .replace(/'/g, ""); // Remove smart single quote (closing)
+    .replace(/\\"/g, '') // Remove escaped double quotes
+    .replace(/"/g, '') // Remove double quotes
+    .replace(/'/g, '') // Remove single quotes
+    .replace(/`/g, '') // Remove backticks
+    .replace(/"/g, '') // Remove smart double quote (opening)
+    .replace(/"/g, '') // Remove smart double quote (closing)
+    .replace(/'/g, '') // Remove smart single quote (opening)
+    .replace(/'/g, ''); // Remove smart single quote (closing)
 
   return cleaned.trim(); // Trim again in case quotes were at edges
 }
@@ -47,9 +47,7 @@ function isFilePath(str: string): boolean {
   return (
     /^[\w.-]+\/[\w.-/]+$/.test(str) || // unix path
     /^[a-z]:\\/i.test(str) || // windows path
-    /\.(ts|js|tsx|jsx|py|java|go|rs|c|cpp|h|md|json|yaml|yml|xml|html|css|scss)$/i.test(
-      str
-    ) // has file extension
+    /\.(ts|js|tsx|jsx|py|java|go|rs|c|cpp|h|md|json|yaml|yml|xml|html|css|scss)$/i.test(str) // has file extension
   );
 }
 
@@ -60,15 +58,13 @@ function extractCommandName(command: string): string {
   // Try to extract script name from commands like "pnpm tsx scripts/shadowComparison/index.ts"
   const scriptMatch = command.match(/scripts?\/([^\/\s]+)/);
   if (scriptMatch) {
-    const scriptName = scriptMatch[1].replace(/\.(ts|js|tsx|jsx)$/i, "");
+    const scriptName = scriptMatch[1].replace(/\.(ts|js|tsx|jsx)$/i, '');
     return scriptName;
   }
 
   // For simple commands like "npm install react", keep first 2-3 words
-  const parts = command
-    .split(" ")
-    .filter((part) => !part.startsWith("--") && part.trim());
-  return parts.slice(0, 3).join(" ");
+  const parts = command.split(' ').filter((part) => !part.startsWith('--') && part.trim());
+  return parts.slice(0, 3).join(' ');
 }
 
 /**
@@ -119,8 +115,7 @@ export function sanitizeEntityName(name: string): string | null {
   }
 
   // 7. Reject garbled text (too many spaces or special chars)
-  const specialCharRatio =
-    (cleaned.match(/[^a-zA-Z0-9\s-_]/g) || []).length / cleaned.length;
+  const specialCharRatio = (cleaned.match(/[^a-zA-Z0-9\s-_]/g) || []).length / cleaned.length;
   if (specialCharRatio > 0.3) {
     return null; // More than 30% special characters
   }
@@ -134,16 +129,16 @@ export function sanitizeEntityName(name: string): string | null {
 export function inferEntityTypeFromRelationship(relType: string): string {
   // Map relationship types to likely entity types
   const typeMap: Record<string, string> = {
-    MEMBER_OF: "Organization",
-    PART_OF: "Organization",
-    WORKS_ON: "Project",
-    ASSIGNED_TO: "Task",
-    REPORTS_TO: "Person",
-    MANAGES: "Person",
-    CREATED_BY: "Person",
-    APPROVED_BY: "Person",
-    REVIEWED_BY: "Person",
+    MEMBER_OF: 'Organization',
+    PART_OF: 'Organization',
+    WORKS_ON: 'Project',
+    ASSIGNED_TO: 'Task',
+    REPORTS_TO: 'Person',
+    MANAGES: 'Person',
+    CREATED_BY: 'Person',
+    APPROVED_BY: 'Person',
+    REVIEWED_BY: 'Person',
   };
 
-  return typeMap[relType] || "Entity";
+  return typeMap[relType] || 'Entity';
 }

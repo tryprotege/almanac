@@ -3,32 +3,32 @@ import type {
   GeneratorConfig,
   VolumeConfig,
   GenerationContext,
-} from "../types.js";
-import { generateTimeline, generateTimelineFromDate } from "../utils/dates.js";
+} from '../types.js';
+import { generateTimeline, generateTimelineFromDate } from '../utils/dates.js';
 import {
   generateSlackMessages,
   generateSlackChannels,
   generateSlackUsers,
-} from "../generators/slack.js";
+} from '../generators/slack.js';
 import {
   generateGitHubIssues,
   generateGitHubPRs,
   generateGitHubUsers,
   generateGitHubRepositories,
-} from "../generators/github.js";
+} from '../generators/github.js';
 import {
   generateNotionPages,
   generateNotionUsers,
   generateNotionDatabases,
   generateNotionBlocks,
-} from "../generators/notion.js";
+} from '../generators/notion.js';
 import {
   generateFathomMeetings,
   generateFathomTeams,
   generateFathomTeamMembers,
   generateFathomTranscripts,
   generateFathomSummaries,
-} from "../generators/fathom.js";
+} from '../generators/fathom.js';
 
 /**
  * Stage 1: Foundation - Generate standalone data with NO cross-references
@@ -39,9 +39,9 @@ export async function generateFoundation(
   config: GeneratorConfig,
   volumes: VolumeConfig,
   startDate?: Date,
-  existingData?: any
+  existingData?: any,
 ): Promise<AllGeneratedData> {
-  console.log("📦 Stage 1: Foundation (40% of data)");
+  console.log('📦 Stage 1: Foundation (40% of data)');
 
   // Use provided startDate or fall back to default timeline generation
   const timeline = startDate
@@ -64,13 +64,7 @@ export async function generateFoundation(
   };
 
   const [
-    {
-      fathomMeetings,
-      fathomTeams,
-      fathomTeamMembers,
-      fathomTranscripts,
-      fathomSummaries,
-    },
+    { fathomMeetings, fathomTeams, fathomTeamMembers, fathomTranscripts, fathomSummaries },
     { githubIssues, githubPRs, githubUsers, githubRepositories },
     { notionPages, notionUsers, notionDatabases, notionBlocks },
     { slackMessages, slackUsers, slackChannels, messagesByChannel },
@@ -132,20 +126,19 @@ async function generateSlackFoundation(
   },
   timeline: Date[],
   config: GeneratorConfig,
-  existingData?: any
+  existingData?: any,
 ) {
-  console.log("Generating Slack data...");
+  console.log('Generating Slack data...');
   // Use existing users and channels from previous run, or generate new ones
   const slackUsers = existingData?.slack?.users || generateSlackUsers();
-  const slackChannels =
-    existingData?.slack?.channels || generateSlackChannels();
+  const slackChannels = existingData?.slack?.channels || generateSlackChannels();
   const slackMessages = await generateSlackMessages(
     foundationVolumes.slackMessages,
     timeline,
     config,
     undefined,
     slackUsers,
-    slackChannels
+    slackChannels,
   );
 
   // Organize Slack messages by channel
@@ -155,7 +148,7 @@ async function generateSlackFoundation(
     const channelMessages = slackMessages.filter((msg: any) => {
       return msg.channel === channel.id;
     });
-    messagesByChannel.set(channel.id || "", channelMessages);
+    messagesByChannel.set(channel.id || '', channelMessages);
   }
 
   return { slackMessages, slackUsers, slackChannels, messagesByChannel };
@@ -170,16 +163,12 @@ async function generateNotionFoundation(
     fathomMeetings: number;
   },
   timeline: Date[],
-  config: GeneratorConfig
+  config: GeneratorConfig,
 ) {
-  console.log("Generating Notion data...");
+  console.log('Generating Notion data...');
   const notionUsers = generateNotionUsers();
   const notionDatabases = generateNotionDatabases(5);
-  const notionPages = await generateNotionPages(
-    foundationVolumes.notionPages,
-    timeline,
-    config
-  );
+  const notionPages = await generateNotionPages(foundationVolumes.notionPages, timeline, config);
   const notionBlocks = generateNotionBlocks(notionPages);
   return { notionPages, notionUsers, notionDatabases, notionBlocks };
 }
@@ -193,9 +182,9 @@ async function generateGithubFoundation(
     fathomMeetings: number;
   },
   timeline: Date[],
-  config: GeneratorConfig
+  config: GeneratorConfig,
 ) {
-  console.log("Generating GitHub data...");
+  console.log('Generating GitHub data...');
   const githubUsers = generateGitHubUsers();
   const githubRepositories = generateGitHubRepositories();
   const [githubIssues, githubPRs] = await Promise.all([
@@ -214,9 +203,9 @@ async function generateFathomFoundation(
     fathomMeetings: number;
   },
   context: GenerationContext,
-  config: GeneratorConfig
+  config: GeneratorConfig,
 ) {
-  console.log("Generating Fathom data...");
+  console.log('Generating Fathom data...');
 
   const fathomTeams = generateFathomTeams(2);
   const fathomTeamMembers = generateFathomTeamMembers(fathomTeams);
@@ -224,7 +213,7 @@ async function generateFathomFoundation(
     foundationVolumes.fathomMeetings,
     fathomTeamMembers,
     context,
-    1000 // Foundation: IDs 1000+
+    1000, // Foundation: IDs 1000+
   );
   const [fathomTranscripts, fathomSummaries] = await Promise.all([
     generateFathomTranscripts(fathomMeetings, config),

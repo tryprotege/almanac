@@ -1,4 +1,4 @@
-import logger from "../../../utils/logger.js";
+import logger from '../../../utils/logger.js';
 
 export interface RateLimitInfo {
   isRateLimit: boolean;
@@ -11,24 +11,18 @@ export interface RateLimitInfo {
  * MCP responses don't expose HTTP status codes directly,
  * so we need to check response content and error flags
  */
-export function detectRateLimitError(
-  response: any,
-  error?: Error
-): RateLimitInfo {
+export function detectRateLimitError(response: any, error?: Error): RateLimitInfo {
   // Check if the error object itself indicates a rate limit
   if (error) {
-    const errorMsg = error.message || "";
+    const errorMsg = error.message || '';
 
     // Check for 429 or rate limit in error message
     if (
-      errorMsg.includes("429") ||
-      errorMsg.toLowerCase().includes("rate limit") ||
-      errorMsg.toLowerCase().includes("too many requests")
+      errorMsg.includes('429') ||
+      errorMsg.toLowerCase().includes('rate limit') ||
+      errorMsg.toLowerCase().includes('too many requests')
     ) {
-      logger.debug(
-        { errorMessage: errorMsg },
-        "Detected rate limit from error message"
-      );
+      logger.debug({ errorMessage: errorMsg }, 'Detected rate limit from error message');
 
       // Try to extract retry-after from error message
       const retryAfter = extractRetryAfter(errorMsg);
@@ -43,16 +37,16 @@ export function detectRateLimitError(
 
   // Check MCP response format for error indicators
   if (response?.isError === true) {
-    const textContent = response?.content?.[0]?.text || "";
+    const textContent = response?.content?.[0]?.text || '';
 
     if (
-      textContent.includes("429") ||
-      textContent.toLowerCase().includes("rate limit") ||
-      textContent.toLowerCase().includes("too many requests")
+      textContent.includes('429') ||
+      textContent.toLowerCase().includes('rate limit') ||
+      textContent.toLowerCase().includes('too many requests')
     ) {
       logger.debug(
         { responseText: textContent.substring(0, 200) },
-        "Detected rate limit from MCP response content"
+        'Detected rate limit from MCP response content',
       );
 
       const retryAfter = extractRetryAfter(textContent);
@@ -69,17 +63,17 @@ export function detectRateLimitError(
   // Some MCP servers may return errors without setting isError
   if (response?.content && Array.isArray(response.content)) {
     for (const item of response.content) {
-      if (item.type === "text" && typeof item.text === "string") {
+      if (item.type === 'text' && typeof item.text === 'string') {
         const text = item.text;
 
         if (
-          text.includes("429") ||
-          text.toLowerCase().includes("rate limit") ||
-          text.toLowerCase().includes("too many requests")
+          text.includes('429') ||
+          text.toLowerCase().includes('rate limit') ||
+          text.toLowerCase().includes('too many requests')
         ) {
           logger.debug(
             { responseText: text.substring(0, 200) },
-            "Detected rate limit from response text content"
+            'Detected rate limit from response text content',
           );
 
           const retryAfter = extractRetryAfter(text);
@@ -148,13 +142,9 @@ export function isMCPError(response: any): boolean {
   // Check for error-like content
   if (response?.content && Array.isArray(response.content)) {
     for (const item of response.content) {
-      if (item.type === "text" && typeof item.text === "string") {
+      if (item.type === 'text' && typeof item.text === 'string') {
         const text = item.text.toLowerCase();
-        if (
-          text.startsWith("error") ||
-          text.startsWith("failed") ||
-          text.includes("mcp error")
-        ) {
+        if (text.startsWith('error') || text.startsWith('failed') || text.includes('mcp error')) {
           return true;
         }
       }

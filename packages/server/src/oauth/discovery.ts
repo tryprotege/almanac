@@ -1,4 +1,4 @@
-import logger from "../utils/logger.js";
+import logger from '../utils/logger.js';
 
 /**
  * OAuth 2.0 Authorization Server Metadata
@@ -37,7 +37,7 @@ interface RawOAuthMetadata {
 export interface DiscoveryResult {
   success: boolean;
   metadata?: OAuthMetadata;
-  source?: "rfc8414" | "oidc";
+  source?: 'rfc8414' | 'oidc';
   error?: string;
 }
 
@@ -45,10 +45,7 @@ export interface DiscoveryResult {
  * In-memory cache for discovered metadata
  * TTL: 5 minutes
  */
-const metadataCache = new Map<
-  string,
-  { metadata: OAuthMetadata; timestamp: number }
->();
+const metadataCache = new Map<string, { metadata: OAuthMetadata; timestamp: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -59,12 +56,12 @@ function normalizeIssuerUrl(url: string): string {
     const parsed = new URL(url);
     // Remove trailing slash
     let normalized = parsed.origin + parsed.pathname;
-    if (normalized.endsWith("/")) {
+    if (normalized.endsWith('/')) {
       normalized = normalized.slice(0, -1);
     }
     return normalized;
   } catch {
-    throw new Error("Invalid issuer URL");
+    throw new Error('Invalid issuer URL');
   }
 }
 
@@ -73,25 +70,22 @@ function normalizeIssuerUrl(url: string): string {
  */
 async function fetchMetadata(url: string): Promise<RawOAuthMetadata | null> {
   try {
-    logger.debug({ url }, "Fetching OAuth metadata");
+    logger.debug({ url }, 'Fetching OAuth metadata');
     const response = await fetch(url, {
       headers: {
-        Accept: "application/json",
+        Accept: 'application/json',
       },
     });
 
     if (!response.ok) {
-      logger.debug(
-        { url, status: response.status },
-        "Discovery endpoint returned error"
-      );
+      logger.debug({ url, status: response.status }, 'Discovery endpoint returned error');
       return null;
     }
 
     const data = await response.json();
     return data as RawOAuthMetadata;
   } catch (err) {
-    logger.debug({ err, url }, "Failed to fetch metadata from endpoint");
+    logger.debug({ err, url }, 'Failed to fetch metadata from endpoint');
     return null;
   }
 }
@@ -99,9 +93,7 @@ async function fetchMetadata(url: string): Promise<RawOAuthMetadata | null> {
 /**
  * Fetch metadata using RFC 8414 OAuth Authorization Server Metadata
  */
-async function fetchRFC8414Metadata(
-  issuerUrl: string
-): Promise<OAuthMetadata | null> {
+async function fetchRFC8414Metadata(issuerUrl: string): Promise<OAuthMetadata | null> {
   const wellKnownUrl = `${issuerUrl}/.well-known/oauth-authorization-server`;
   const rawMetadata = await fetchMetadata(wellKnownUrl);
 
@@ -115,9 +107,7 @@ async function fetchRFC8414Metadata(
 /**
  * Fetch metadata using OpenID Connect Discovery
  */
-async function fetchOIDCMetadata(
-  issuerUrl: string
-): Promise<OAuthMetadata | null> {
+async function fetchOIDCMetadata(issuerUrl: string): Promise<OAuthMetadata | null> {
   const wellKnownUrl = `${issuerUrl}/.well-known/openid-configuration`;
   const rawMetadata = await fetchMetadata(wellKnownUrl);
 
@@ -133,21 +123,18 @@ async function fetchOIDCMetadata(
  */
 function normalizeMetadata(raw: RawOAuthMetadata): OAuthMetadata {
   if (!raw.authorization_endpoint || !raw.token_endpoint) {
-    throw new Error(
-      "Invalid metadata: missing authorization_endpoint or token_endpoint"
-    );
+    throw new Error('Invalid metadata: missing authorization_endpoint or token_endpoint');
   }
 
   return {
-    issuer: raw.issuer || "",
+    issuer: raw.issuer || '',
     authorizationEndpoint: raw.authorization_endpoint,
     tokenEndpoint: raw.token_endpoint,
     scopesSupported: raw.scopes_supported,
     responseTypesSupported: raw.response_types_supported,
     grantTypesSupported: raw.grant_types_supported,
     revocationEndpoint: raw.revocation_endpoint,
-    tokenEndpointAuthMethodsSupported:
-      raw.token_endpoint_auth_methods_supported,
+    tokenEndpointAuthMethodsSupported: raw.token_endpoint_auth_methods_supported,
     codeChallengeMethodsSupported: raw.code_challenge_methods_supported,
   };
 }
@@ -157,10 +144,10 @@ function normalizeMetadata(raw: RawOAuthMetadata): OAuthMetadata {
  */
 function validateMetadata(metadata: OAuthMetadata): void {
   if (!metadata.authorizationEndpoint) {
-    throw new Error("Missing authorization_endpoint in metadata");
+    throw new Error('Missing authorization_endpoint in metadata');
   }
   if (!metadata.tokenEndpoint) {
-    throw new Error("Missing token_endpoint in metadata");
+    throw new Error('Missing token_endpoint in metadata');
   }
 
   // Validate URLs
@@ -168,7 +155,7 @@ function validateMetadata(metadata: OAuthMetadata): void {
     new URL(metadata.authorizationEndpoint);
     new URL(metadata.tokenEndpoint);
   } catch {
-    throw new Error("Invalid endpoint URLs in metadata");
+    throw new Error('Invalid endpoint URLs in metadata');
   }
 }
 
@@ -188,7 +175,7 @@ function getCachedMetadata(issuerUrl: string): OAuthMetadata | null {
     return null;
   }
 
-  logger.debug({ issuerUrl }, "Using cached OAuth metadata");
+  logger.debug({ issuerUrl }, 'Using cached OAuth metadata');
   return cached.metadata;
 }
 
@@ -206,9 +193,7 @@ function cacheMetadata(issuerUrl: string, metadata: OAuthMetadata): void {
  * Discover OAuth metadata from issuer URL
  * Tries RFC 8414 first, then falls back to OIDC Discovery
  */
-export async function discoverOAuthMetadata(
-  issuerUrl: string
-): Promise<DiscoveryResult> {
+export async function discoverOAuthMetadata(issuerUrl: string): Promise<DiscoveryResult> {
   try {
     // Normalize issuer URL
     const normalized = normalizeIssuerUrl(issuerUrl);
@@ -219,11 +204,11 @@ export async function discoverOAuthMetadata(
       return {
         success: true,
         metadata: cached,
-        source: "rfc8414", // We don't track source in cache, default to rfc8414
+        source: 'rfc8414', // We don't track source in cache, default to rfc8414
       };
     }
 
-    logger.info({ issuerUrl: normalized }, "Starting OAuth metadata discovery");
+    logger.info({ issuerUrl: normalized }, 'Starting OAuth metadata discovery');
 
     // Try RFC 8414 first
     let metadata = await fetchRFC8414Metadata(normalized);
@@ -231,13 +216,13 @@ export async function discoverOAuthMetadata(
       validateMetadata(metadata);
       cacheMetadata(normalized, metadata);
       logger.info(
-        { issuerUrl: normalized, source: "rfc8414" },
-        "Successfully discovered OAuth metadata"
+        { issuerUrl: normalized, source: 'rfc8414' },
+        'Successfully discovered OAuth metadata',
       );
       return {
         success: true,
         metadata,
-        source: "rfc8414",
+        source: 'rfc8414',
       };
     }
 
@@ -247,34 +232,31 @@ export async function discoverOAuthMetadata(
       validateMetadata(metadata);
       cacheMetadata(normalized, metadata);
       logger.info(
-        { issuerUrl: normalized, source: "oidc" },
-        "Successfully discovered OAuth metadata"
+        { issuerUrl: normalized, source: 'oidc' },
+        'Successfully discovered OAuth metadata',
       );
       return {
         success: true,
         metadata,
-        source: "oidc",
+        source: 'oidc',
       };
     }
 
     // Both discovery methods failed
     logger.warn(
       { issuerUrl: normalized },
-      "OAuth metadata discovery failed - no discovery endpoints found"
+      'OAuth metadata discovery failed - no discovery endpoints found',
     );
     return {
       success: false,
       error:
-        "Discovery failed: No OAuth metadata found at /.well-known/oauth-authorization-server or /.well-known/openid-configuration",
+        'Discovery failed: No OAuth metadata found at /.well-known/oauth-authorization-server or /.well-known/openid-configuration',
     };
   } catch (err) {
-    logger.error({ err, issuerUrl }, "OAuth metadata discovery error");
+    logger.error({ err, issuerUrl }, 'OAuth metadata discovery error');
     return {
       success: false,
-      error:
-        err instanceof Error
-          ? err.message
-          : "Unknown error during OAuth discovery",
+      error: err instanceof Error ? err.message : 'Unknown error during OAuth discovery',
     };
   }
 }
@@ -284,5 +266,5 @@ export async function discoverOAuthMetadata(
  */
 export function clearDiscoveryCache(): void {
   metadataCache.clear();
-  logger.debug("OAuth discovery cache cleared");
+  logger.debug('OAuth discovery cache cleared');
 }

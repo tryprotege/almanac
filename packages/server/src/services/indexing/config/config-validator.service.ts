@@ -1,23 +1,19 @@
-import type {
-  IndexingConfig,
-  RecordTypeConfig,
-  FetcherConfig,
-} from "@ebee-oss/indexing-engine";
-import { fetchAll as fetchPaginated } from "./paginated-fetcher.js";
-import logger from "../../../utils/logger.js";
+import type { IndexingConfig, RecordTypeConfig, FetcherConfig } from '@ebee-oss/indexing-engine';
+import { fetchAll as fetchPaginated } from './paginated-fetcher.js';
+import logger from '../../../utils/logger.js';
 
 /**
  * Error types detected during config validation
  */
 export interface ValidationError {
   type:
-    | "NO_MATCHING_RECORD_TYPE"
-    | "MISSING_FETCHER"
-    | "DETECTION_CONDITION_FAILED"
-    | "FIELD_MAPPING_ERROR"
-    | "MCP_TOOL_ERROR"
-    | "EMPTY_RESULTS"
-    | "ORPHAN_RECORD_TYPE";
+    | 'NO_MATCHING_RECORD_TYPE'
+    | 'MISSING_FETCHER'
+    | 'DETECTION_CONDITION_FAILED'
+    | 'FIELD_MAPPING_ERROR'
+    | 'MCP_TOOL_ERROR'
+    | 'EMPTY_RESULTS'
+    | 'ORPHAN_RECORD_TYPE';
   fetcherName?: string;
   recordTypeName?: string;
   toolName?: string;
@@ -48,9 +44,9 @@ export interface TestRunResult {
  */
 export async function testConfigDryRun(
   config: IndexingConfig,
-  serverName: string
+  serverName: string,
 ): Promise<TestRunResult> {
-  logger.info("Starting config dry run test...");
+  logger.info('Starting config dry run test...');
 
   const errors: ValidationError[] = [];
   const warnings: string[] = [];
@@ -73,10 +69,7 @@ export async function testConfigDryRun(
     // Skip write and search tools
     if (config.toolClassifications) {
       const classification = config.toolClassifications[fetcherConfig.tool];
-      if (
-        classification?.category === "write" ||
-        classification?.category === "search"
-      ) {
+      if (classification?.category === 'write' || classification?.category === 'search') {
         continue;
       }
     }
@@ -86,12 +79,12 @@ export async function testConfigDryRun(
     try {
       // Find record types for this fetcher
       const recordTypes = Object.values(config.recordTypes).filter(
-        (rt) => rt.fetcher === fetcherName
+        (rt) => rt.fetcher === fetcherName,
       );
 
       if (recordTypes.length === 0) {
         errors.push({
-          type: "NO_MATCHING_RECORD_TYPE",
+          type: 'NO_MATCHING_RECORD_TYPE',
           fetcherName,
           toolName: fetcherConfig.tool,
           message: `Fetcher "${fetcherName}" has no matching recordType defined`,
@@ -106,10 +99,7 @@ export async function testConfigDryRun(
       let recordsMatched = 0;
       let rawMcpResponse: any = null; // Capture raw MCP response
 
-      for await (const pageResult of fetchPaginated(
-        serverName,
-        fetcherConfig
-      )) {
+      for await (const pageResult of fetchPaginated(serverName, fetcherConfig)) {
         // Capture raw MCP response for this fetcher
         rawMcpResponse = pageResult.rawResponse;
 
@@ -117,10 +107,7 @@ export async function testConfigDryRun(
           recordsTotal++;
 
           // Try to match record to type
-          const matchResult = matchRecordTypeWithDetails(
-            rawRecord,
-            recordTypes
-          );
+          const matchResult = matchRecordTypeWithDetails(rawRecord, recordTypes);
 
           if (matchResult.matched) {
             recordsMatched++;
@@ -128,10 +115,7 @@ export async function testConfigDryRun(
 
             // Validate field mappings work (sample first matched record)
             if (recordsMatched === 1 && matchResult.recordType) {
-              const fieldErrors = validateFieldMappings(
-                rawRecord,
-                matchResult.recordType
-              );
+              const fieldErrors = validateFieldMappings(rawRecord, matchResult.recordType);
               errors.push(...fieldErrors);
             }
           } else {
@@ -141,18 +125,14 @@ export async function testConfigDryRun(
             if (recordTypes.length > 0 && recordsTotal <= 3) {
               // Limit to first 3 samples
               errors.push({
-                type: "DETECTION_CONDITION_FAILED",
+                type: 'DETECTION_CONDITION_FAILED',
                 fetcherName,
-                recordTypeName: recordTypes.map((rt) => rt.name).join(", "),
+                recordTypeName: recordTypes.map((rt) => rt.name).join(', '),
                 message: `Record from "${fetcherName}" did not match any detection condition`,
                 sampleData: limitSampleSize(rawRecord),
                 details: `Detection conditions tried: ${recordTypes
-                  .map((rt) =>
-                    rt.detection.always
-                      ? "always: true"
-                      : rt.detection.condition
-                  )
-                  .join(", ")}`,
+                  .map((rt) => (rt.detection.always ? 'always: true' : rt.detection.condition))
+                  .join(', ')}`,
               });
             }
           }
@@ -174,27 +154,24 @@ export async function testConfigDryRun(
       // Warn if records returned but none matched
       if (recordsTotal > 0 && recordsMatched === 0) {
         errors.push({
-          type: "EMPTY_RESULTS",
+          type: 'EMPTY_RESULTS',
           fetcherName,
           message: `Fetcher "${fetcherName}" returned ${recordsTotal} records but none matched any recordType`,
-          details:
-            "Check detection conditions or add always: true to match all records",
+          details: 'Check detection conditions or add always: true to match all records',
         });
       }
 
-      logger.debug(
-        `Fetcher ${fetcherName}: ${recordsMatched}/${recordsTotal} records matched`
-      );
+      logger.debug(`Fetcher ${fetcherName}: ${recordsMatched}/${recordsTotal} records matched`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       errors.push({
-        type: "MCP_TOOL_ERROR",
+        type: 'MCP_TOOL_ERROR',
         fetcherName,
         toolName: fetcherConfig.tool,
         message: `MCP tool "${fetcherConfig.tool}" failed: ${errorMessage}`,
         details: errorMessage,
       });
-      logger.error({ err, fetcherName }, "Error testing fetcher");
+      logger.error({ err, fetcherName }, 'Error testing fetcher');
     }
   }
 
@@ -202,7 +179,7 @@ export async function testConfigDryRun(
   for (const [rtName, recordType] of Object.entries(config.recordTypes)) {
     if (!config.fetchers[recordType.fetcher]) {
       errors.push({
-        type: "MISSING_FETCHER",
+        type: 'MISSING_FETCHER',
         recordTypeName: rtName,
         fetcherName: recordType.fetcher,
         message: `RecordType "${rtName}" references non-existent fetcher "${recordType.fetcher}"`,
@@ -213,9 +190,9 @@ export async function testConfigDryRun(
   const success = errors.length === 0;
 
   logger.info(
-    `Dry run complete: ${success ? "PASSED" : "FAILED"} (${
+    `Dry run complete: ${success ? 'PASSED' : 'FAILED'} (${
       errors.length
-    } errors, ${stats.fetchersExecuted} fetchers tested)`
+    } errors, ${stats.fetchersExecuted} fetchers tested)`,
   );
 
   return {
@@ -237,7 +214,7 @@ function validateStructure(config: IndexingConfig): ValidationError[] {
   for (const [rtName, recordType] of Object.entries(config.recordTypes || {})) {
     if (!config.fetchers[recordType.fetcher]) {
       errors.push({
-        type: "ORPHAN_RECORD_TYPE",
+        type: 'ORPHAN_RECORD_TYPE',
         recordTypeName: rtName,
         fetcherName: recordType.fetcher,
         message: `RecordType "${rtName}" references fetcher "${recordType.fetcher}" which does not exist`,
@@ -248,7 +225,7 @@ function validateStructure(config: IndexingConfig): ValidationError[] {
   // Check all fetchers have at least one recordType
   for (const fetcherName of Object.keys(config.fetchers || {})) {
     const hasRecordType = Object.values(config.recordTypes || {}).some(
-      (rt) => rt.fetcher === fetcherName
+      (rt) => rt.fetcher === fetcherName,
     );
     if (!hasRecordType) {
       // This will be caught by the main loop, but add as warning here
@@ -263,7 +240,7 @@ function validateStructure(config: IndexingConfig): ValidationError[] {
  */
 function matchRecordTypeWithDetails(
   record: any,
-  recordTypes: RecordTypeConfig[]
+  recordTypes: RecordTypeConfig[],
 ): { matched: boolean; recordType?: RecordTypeConfig; reason?: string } {
   for (const recordType of recordTypes) {
     if (recordType.detection.always) {
@@ -272,10 +249,7 @@ function matchRecordTypeWithDetails(
 
     if (recordType.detection.condition) {
       try {
-        const conditionFn = new Function(
-          "record",
-          `return ${recordType.detection.condition}`
-        );
+        const conditionFn = new Function('record', `return ${recordType.detection.condition}`);
         if (conditionFn(record)) {
           return { matched: true, recordType };
         }
@@ -288,16 +262,13 @@ function matchRecordTypeWithDetails(
     }
   }
 
-  return { matched: false, reason: "No condition matched" };
+  return { matched: false, reason: 'No condition matched' };
 }
 
 /**
  * Validate field mappings work on a sample record
  */
-function validateFieldMappings(
-  _record: any,
-  _recordType: RecordTypeConfig
-): ValidationError[] {
+function validateFieldMappings(_record: any, _recordType: RecordTypeConfig): ValidationError[] {
   const errors: ValidationError[] = [];
 
   // We could validate paths here, but for now just check basic structure
@@ -311,21 +282,21 @@ function validateFieldMappings(
  */
 function limitSampleSize(data: any, maxDepth = 2): any {
   if (maxDepth === 0) {
-    return typeof data === "object" ? "[...]" : data;
+    return typeof data === 'object' ? '[...]' : data;
   }
 
   if (Array.isArray(data)) {
     return data.slice(0, 2).map((item) => limitSampleSize(item, maxDepth - 1));
   }
 
-  if (data && typeof data === "object") {
+  if (data && typeof data === 'object') {
     const limited: Record<string, any> = {};
     const keys = Object.keys(data).slice(0, 10);
     for (const key of keys) {
       limited[key] = limitSampleSize(data[key], maxDepth - 1);
     }
     if (Object.keys(data).length > 10) {
-      limited["..."] = `(${Object.keys(data).length - 10} more keys)`;
+      limited['...'] = `(${Object.keys(data).length - 10} more keys)`;
     }
     return limited;
   }
@@ -336,12 +307,8 @@ function limitSampleSize(data: any, maxDepth = 2): any {
 /**
  * Get ordered fetchers for testing
  */
-function getOrderedFetchersForTest(
-  config: IndexingConfig
-): Array<[string, FetcherConfig]> {
-  const fetcherEntries = Object.entries(config.fetchers) as Array<
-    [string, FetcherConfig]
-  >;
+function getOrderedFetchersForTest(config: IndexingConfig): Array<[string, FetcherConfig]> {
+  const fetcherEntries = Object.entries(config.fetchers) as Array<[string, FetcherConfig]>;
 
   if (config.syncOrder && config.syncOrder.length > 0) {
     const ordered: Array<[string, FetcherConfig]> = [];
@@ -371,7 +338,7 @@ function getOrderedFetchersForTest(
  */
 export function formatErrorsForLLM(result: TestRunResult): string {
   if (result.success) {
-    return "No errors found. Config validation passed.";
+    return 'No errors found. Config validation passed.';
   }
 
   const lines: string[] = [];
@@ -388,25 +355,17 @@ export function formatErrorsForLLM(result: TestRunResult): string {
   for (const [type, errors] of byType) {
     lines.push(`### ${type}`);
     for (const error of errors) {
-      lines.push(
-        `- **${error.fetcherName || error.recordTypeName || ""}**: ${
-          error.message
-        }`
-      );
+      lines.push(`- **${error.fetcherName || error.recordTypeName || ''}**: ${error.message}`);
       if (error.details) {
         lines.push(`  - Details: ${error.details}`);
       }
       if (error.sampleData) {
         lines.push(
-          `  - Sample data: \`\`\`json\n${JSON.stringify(
-            error.sampleData,
-            null,
-            2
-          )}\n\`\`\``
+          `  - Sample data: \`\`\`json\n${JSON.stringify(error.sampleData, null, 2)}\n\`\`\``,
         );
       }
     }
-    lines.push("");
+    lines.push('');
   }
 
   lines.push(`## Stats`);
@@ -414,5 +373,5 @@ export function formatErrorsForLLM(result: TestRunResult): string {
   lines.push(`- Records matched: ${result.stats.recordsMatched}`);
   lines.push(`- Records unmatched: ${result.stats.recordsUnmatched}`);
 
-  return lines.join("\n");
+  return lines.join('\n');
 }

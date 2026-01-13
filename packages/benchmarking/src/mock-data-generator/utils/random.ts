@@ -41,10 +41,7 @@ export function selectRandom<T>(array: readonly T[] | T[]): T {
   return array[Math.floor(Math.random() * array.length)];
 }
 
-export function selectRandomMultiple<T>(
-  array: readonly T[] | T[],
-  count: number
-): T[] {
+export function selectRandomMultiple<T>(array: readonly T[] | T[], count: number): T[] {
   const shuffled = [...array].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, Math.min(count, array.length));
 }

@@ -20,17 +20,17 @@ import type {
   FathomSummary,
   FathomTeam,
   FathomTeamMember,
-} from "@ebee-oss/shared-util";
+} from '@ebee-oss/shared-util';
 
 // Slack types (using @slack/web-api)
-import type { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse.js";
-import type { Channel } from "@slack/web-api/dist/types/response/ConversationsListResponse.js";
-import type { Member } from "@slack/web-api/dist/types/response/UsersListResponse.js";
+import type { MessageElement } from '@slack/web-api/dist/types/response/ConversationsHistoryResponse.js';
+import type { Channel } from '@slack/web-api/dist/types/response/ConversationsListResponse.js';
+import type { Member } from '@slack/web-api/dist/types/response/UsersListResponse.js';
 
 // Category types for internal tracking
-export type WorkCategory = "work-related" | "work-adjacent" | "casual";
-export type NotionCategory = "work" | "personal";
-export type MeetingType = "work" | "social";
+export type WorkCategory = 'work-related' | 'work-adjacent' | 'casual';
+export type NotionCategory = 'work' | 'personal';
+export type MeetingType = 'work' | 'social';
 
 // Generator output types (matching MCP client returns)
 export interface FathomGeneratorOutput {

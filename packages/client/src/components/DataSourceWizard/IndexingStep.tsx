@@ -1,11 +1,5 @@
-import {
-  AlertCircle,
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle,
-  Info,
-} from "lucide-react";
-import { GeneratedSyncConfigResult } from "../../lib/api";
+import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle, Info } from 'lucide-react';
+import { GeneratedSyncConfigResult } from '../../lib/api';
 
 interface IndexingStepProps {
   generatedConfig: GeneratedSyncConfigResult;
@@ -14,14 +8,8 @@ interface IndexingStepProps {
   isLoading: boolean;
 }
 
-export function IndexingStep({
-  generatedConfig,
-  onBack,
-  onNext,
-  isLoading,
-}: IndexingStepProps) {
-  const { config, validation, toolsUsed, toolClassifications } =
-    generatedConfig;
+export function IndexingStep({ generatedConfig, onBack, onNext, isLoading }: IndexingStepProps) {
+  const { config, validation, toolsUsed, toolClassifications } = generatedConfig;
 
   // Calculate tool classification breakdown
   const readTools = toolsUsed || [];
@@ -29,21 +17,13 @@ export function IndexingStep({
   const writeTools: string[] = [];
 
   if (toolClassifications) {
-    Object.entries(toolClassifications).forEach(
-      ([toolName, classification]) => {
-        if (
-          classification.category === "search" &&
-          !readTools.includes(toolName)
-        ) {
-          searchTools.push(toolName);
-        } else if (
-          classification.category === "write" &&
-          !readTools.includes(toolName)
-        ) {
-          writeTools.push(toolName);
-        }
+    Object.entries(toolClassifications).forEach(([toolName, classification]) => {
+      if (classification.category === 'search' && !readTools.includes(toolName)) {
+        searchTools.push(toolName);
+      } else if (classification.category === 'write' && !readTools.includes(toolName)) {
+        writeTools.push(toolName);
       }
-    );
+    });
   }
 
   const skippedTools = [...searchTools, ...writeTools];
@@ -61,36 +41,26 @@ export function IndexingStep({
 
       {/* Tool Classification Summary */}
       <div className="bg-bg-secondary rounded-lg p-4">
-        <h4 className="text-sm font-medium text-text-primary mb-3">
-          Tool Classification
-        </h4>
+        <h4 className="text-sm font-medium text-text-primary mb-3">Tool Classification</h4>
         <div className="grid grid-cols-3 gap-3">
           <div className="text-center p-3 bg-brand-success/10 rounded-lg">
-            <div className="text-2xl font-bold text-brand-success">
-              {toolsUsed.length}
-            </div>
+            <div className="text-2xl font-bold text-brand-success">{toolsUsed.length}</div>
             <div className="text-xs text-brand-success mt-1">READ Tools</div>
-            <div className="text-xs text-text-tertiary mt-1">
-              Used for indexing
-            </div>
+            <div className="text-xs text-text-tertiary mt-1">Used for indexing</div>
           </div>
           <div className="text-center p-3 bg-bg-active rounded-lg">
             <div className="text-2xl font-bold text-text-secondary">
               {Object.keys(config.fetchers).length}
             </div>
             <div className="text-xs text-text-tertiary mt-1">Fetchers</div>
-            <div className="text-xs text-text-quaternary mt-1">
-              Data extractors
-            </div>
+            <div className="text-xs text-text-quaternary mt-1">Data extractors</div>
           </div>
           <div className="text-center p-3 bg-bg-active rounded-lg">
             <div className="text-2xl font-bold text-text-secondary">
               {Object.keys(config.recordTypes).length}
             </div>
             <div className="text-xs text-text-tertiary mt-1">Record Types</div>
-            <div className="text-xs text-text-quaternary mt-1">
-              Data structures
-            </div>
+            <div className="text-xs text-text-quaternary mt-1">Data structures</div>
           </div>
         </div>
       </div>
@@ -121,17 +91,13 @@ export function IndexingStep({
           <div className="flex items-start gap-2">
             <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-sm font-medium text-yellow-900 dark:text-yellow-200">
-                Warnings
-              </h4>
+              <h4 className="text-sm font-medium text-yellow-900 dark:text-yellow-200">Warnings</h4>
               <ul className="mt-2 text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
                 {validation.warnings.map((warning, i) => (
                   <li key={i}>
                     <strong>{warning.path}:</strong> {warning.message}
                     {warning.suggestion && (
-                      <div className="text-xs mt-1">
-                        Suggestion: {warning.suggestion}
-                      </div>
+                      <div className="text-xs mt-1">Suggestion: {warning.suggestion}</div>
                     )}
                   </li>
                 ))}
@@ -150,8 +116,7 @@ export function IndexingStep({
                 Configuration Valid
               </h4>
               <p className="mt-1 text-sm text-success-700 dark:text-success-300">
-                Your indexing configuration passed all validation checks and is
-                ready to use.
+                Your indexing configuration passed all validation checks and is ready to use.
               </p>
             </div>
           </div>
@@ -162,30 +127,24 @@ export function IndexingStep({
       <div className="border border-border-secondary rounded-lg p-4">
         <h4 className="text-sm font-medium text-text-primary mb-3">Fetchers</h4>
         <div className="space-y-2">
-          {Object.entries(config.fetchers).map(
-            ([name, fetcher]: [string, any]) => (
-              <div
-                key={name}
-                className="flex items-center justify-between p-3 bg-bg-secondary rounded"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-text-primary">
-                      {name}
-                    </span>
-                    <span className="text-xs px-2 py-0.5 bg-brand-success/10 text-brand-success rounded">
-                      READ
-                    </span>
-                  </div>
-                  {fetcher.tool && fetcher.tool !== name && (
-                    <div className="text-xs text-text-tertiary mt-1">
-                      Tool: {fetcher.tool}
-                    </div>
-                  )}
+          {Object.entries(config.fetchers).map(([name, fetcher]: [string, any]) => (
+            <div
+              key={name}
+              className="flex items-center justify-between p-3 bg-bg-secondary rounded"
+            >
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-text-primary">{name}</span>
+                  <span className="text-xs px-2 py-0.5 bg-brand-success/10 text-brand-success rounded">
+                    READ
+                  </span>
                 </div>
+                {fetcher.tool && fetcher.tool !== name && (
+                  <div className="text-xs text-text-tertiary mt-1">Tool: {fetcher.tool}</div>
+                )}
               </div>
-            )
-          )}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -195,12 +154,10 @@ export function IndexingStep({
           <div className="flex items-start gap-2 mb-3">
             <Info className="w-4 h-4 text-text-tertiary flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-sm font-medium text-text-primary">
-                Skipped Tools
-              </h4>
+              <h4 className="text-sm font-medium text-text-primary">Skipped Tools</h4>
               <p className="text-xs text-text-tertiary mt-1">
-                These tools were excluded from indexing because they perform
-                write or search operations
+                These tools were excluded from indexing because they perform write or search
+                operations
               </p>
             </div>
           </div>

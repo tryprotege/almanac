@@ -1,7 +1,7 @@
-import { RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
-import { EnvConfigForm } from "./EnvConfigForm";
-import { api } from "../lib/api";
+import { RefreshCw } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { EnvConfigForm } from './EnvConfigForm';
+import { api } from '../lib/api';
 
 interface SchemaInfo {
   default?: string;
@@ -28,7 +28,7 @@ export function ModelConfiguration() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{
-    type: "success" | "error";
+    type: 'success' | 'error';
     text: string;
   } | null>(null);
 
@@ -38,7 +38,7 @@ export function ModelConfiguration() {
 
   const loadData = async () => {
     try {
-      const configRes = await api.get("/config/env");
+      const configRes = await api.get('/config/env');
 
       if (configRes.data.success && configRes.data.data) {
         const data = configRes.data.data;
@@ -46,10 +46,10 @@ export function ModelConfiguration() {
         setEditedValues(data.values || {});
       }
     } catch (err) {
-      console.error("Failed to load configuration:", err);
+      console.error('Failed to load configuration:', err);
       setMessage({
-        type: "error",
-        text: "Failed to load configuration. Please ensure the server is running.",
+        type: 'error',
+        text: 'Failed to load configuration. Please ensure the server is running.',
       });
     } finally {
       setLoading(false);
@@ -70,18 +70,18 @@ export function ModelConfiguration() {
     setMessage(null);
 
     try {
-      const response = await api.put("/config/env", editedValues);
+      const response = await api.put('/config/env', editedValues);
       setMessage({
-        type: "success",
-        text: response.data?.message || "Configuration saved successfully.",
+        type: 'success',
+        text: response.data?.message || 'Configuration saved successfully.',
       });
 
       // Reload data to get updated values
       await loadData();
     } catch (error: any) {
       setMessage({
-        type: "error",
-        text: error.response?.data?.error || "Failed to save configuration",
+        type: 'error',
+        text: error.response?.data?.error || 'Failed to save configuration',
       });
     } finally {
       setSaving(false);
@@ -100,13 +100,8 @@ export function ModelConfiguration() {
     return (
       <div className="card">
         <div className="text-center py-8">
-          <p className="text-text-secondary mb-4">
-            Unable to load environment configuration.
-          </p>
-          <button
-            onClick={() => loadData()}
-            className="btn btn-secondary btn-sm"
-          >
+          <p className="text-text-secondary mb-4">Unable to load environment configuration.</p>
+          <button onClick={() => loadData()} className="btn btn-secondary btn-sm">
             Retry
           </button>
         </div>
@@ -116,15 +111,15 @@ export function ModelConfiguration() {
 
   // Build sections from schema
   const applicationSection = {
-    title: "Application Configuration",
-    key: "application",
+    title: 'Application Configuration',
+    key: 'application',
     schema: envData.schema.application,
     defaultExpanded: true,
   };
 
   const infrastructureSection = {
-    title: "Infrastructure Configuration",
-    key: "infrastructure",
+    title: 'Infrastructure Configuration',
+    key: 'infrastructure',
     schema: envData.schema.infrastructure,
     defaultExpanded: false,
   };
@@ -137,9 +132,9 @@ export function ModelConfiguration() {
       {message && (
         <div
           className={`p-4 rounded-lg mb-6 ${
-            message.type === "success"
-              ? "bg-green-50 text-green-800 border border-green-200"
-              : "bg-red-50 text-red-800 border border-red-200"
+            message.type === 'success'
+              ? 'bg-green-50 text-green-800 border border-green-200'
+              : 'bg-red-50 text-red-800 border border-red-200'
           }`}
         >
           {message.text}

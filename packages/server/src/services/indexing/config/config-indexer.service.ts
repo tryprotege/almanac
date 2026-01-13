@@ -3,34 +3,34 @@ import type {
   IndexingConfig,
   RecordTypeConfig,
   TransformedRecord,
-} from "@ebee-oss/indexing-engine";
-import { transformRecord, GroupingEngine } from "@ebee-oss/indexing-engine";
+} from '@ebee-oss/indexing-engine';
+import { transformRecord, GroupingEngine } from '@ebee-oss/indexing-engine';
 import {
   fetchAll as fetchPaginated,
   fetchWithForEach,
   fetchWithSeedFrom,
   type ForEachContext,
   type StartingPointContext,
-} from "./paginated-fetcher.js";
-import { StartingPointResolver } from "./starting-point-resolver.service.js";
-import { enrich as enrichRecord } from "./enrichment-executor.js";
-import { extractEntities, extractRelationships } from "./entity-extractor.js";
-import { MCPSyncStateModel } from "../../../models/mcp-sync-state.model.js";
-import { DataSourceModel } from "../../../models/data-source.model.js";
-import { mcpClientManager } from "../../../mcp/client.js";
-import { rateLimiterManager } from "./rate-limiter.js";
-import { ContentAggregatorService } from "./content-aggregator.service.js";
-import { env } from "../../../env.js";
-import logger from "../../../utils/logger.js";
-import { JSONPath } from "jsonpath-plus";
-import { llm } from "../../llm/llm.js";
+} from './paginated-fetcher.js';
+import { StartingPointResolver } from './starting-point-resolver.service.js';
+import { enrich as enrichRecord } from './enrichment-executor.js';
+import { extractEntities, extractRelationships } from './entity-extractor.js';
+import { MCPSyncStateModel } from '../../../models/mcp-sync-state.model.js';
+import { DataSourceModel } from '../../../models/data-source.model.js';
+import { mcpClientManager } from '../../../mcp/client.js';
+import { rateLimiterManager } from './rate-limiter.js';
+import { ContentAggregatorService } from './content-aggregator.service.js';
+import { env } from '../../../env.js';
+import logger from '../../../utils/logger.js';
+import { JSONPath } from 'jsonpath-plus';
+import { llm } from '../../llm/llm.js';
 
 export interface IndexProgress {
   fetcherName: string;
   recordType: string;
   recordsProcessed: number;
   totalRecords: number;
-  status: "fetching" | "enriching" | "transforming" | "complete" | "error";
+  status: 'fetching' | 'enriching' | 'transforming' | 'complete' | 'error';
   error?: string;
   queueSize?: number;
   isBackpressure?: boolean;
@@ -44,16 +44,13 @@ function shouldFilterByCutoffDate(fetcherConfig: FetcherConfig): boolean {
   if (!env.SYNC_CUTOFF_DATE) return false;
 
   const strategy = fetcherConfig.cutoffDate.strategy;
-  return strategy === "post_fetch" || strategy === "both";
+  return strategy === 'post_fetch' || strategy === 'both';
 }
 
 /**
  * Extract date from record for cutoff comparison
  */
-function extractRecordDate(
-  record: any,
-  fetcherConfig: FetcherConfig
-): Date | null {
+function extractRecordDate(record: any, fetcherConfig: FetcherConfig): Date | null {
   if (!fetcherConfig.cutoffDate?.dateFieldPath) return null;
 
   try {
@@ -66,18 +63,16 @@ function extractRecordDate(
     if (!dateValue) return null;
 
     // Handle different date formats
-    if (typeof dateValue === "number") {
+    if (typeof dateValue === 'number') {
       // Unix timestamp (seconds or milliseconds)
-      return dateValue > 10000000000
-        ? new Date(dateValue)
-        : new Date(dateValue * 1000);
+      return dateValue > 10000000000 ? new Date(dateValue) : new Date(dateValue * 1000);
     }
 
     return new Date(dateValue);
   } catch (error) {
     logger.error(
       { err: error, path: fetcherConfig.cutoffDate.dateFieldPath },
-      "Failed to extract date from record"
+      'Failed to extract date from record',
     );
     return null;
   }
@@ -88,7 +83,7 @@ function extractRecordDate(
  */
 export function applyCutoffDateToParams(
   params: Record<string, any>,
-  fetcherConfig: FetcherConfig
+  fetcherConfig: FetcherConfig,
 ): void {
   if (!env.SYNC_CUTOFF_DATE) return;
   if (!fetcherConfig.cutoffDate) return;
@@ -96,20 +91,18 @@ export function applyCutoffDateToParams(
   const config = fetcherConfig.cutoffDate;
   const strategy = config.strategy;
 
-  if ((strategy === "api" || strategy === "both") && config.apiParam) {
+  if ((strategy === 'api' || strategy === 'both') && config.apiParam) {
     const cutoffDate = new Date(env.SYNC_CUTOFF_DATE);
 
     // Format based on API requirements
     switch (config.apiFormat) {
-      case "unix":
-        params[config.apiParam] = Math.floor(
-          cutoffDate.getTime() / 1000
-        ).toString();
+      case 'unix':
+        params[config.apiParam] = Math.floor(cutoffDate.getTime() / 1000).toString();
         break;
-      case "unix_ms":
+      case 'unix_ms':
         params[config.apiParam] = cutoffDate.getTime().toString();
         break;
-      case "iso8601":
+      case 'iso8601':
       default:
         params[config.apiParam] = cutoffDate.toISOString();
     }
@@ -121,7 +114,7 @@ export function applyCutoffDateToParams(
         cutoffDate: env.SYNC_CUTOFF_DATE,
         strategy: config.strategy,
       },
-      "Applied SYNC_CUTOFF_DATE to API params"
+      'Applied SYNC_CUTOFF_DATE to API params',
     );
   }
 }
@@ -163,17 +156,14 @@ function getReferencedSources(config: IndexingConfig): Set<string> {
 export async function* indexAll(
   config: IndexingConfig,
   serverName: string,
-  userProvidedStartingPoints?: Record<string, string[]>
+  userProvidedStartingPoints?: Record<string, string[]>,
 ): AsyncGenerator<{
   records: TransformedRecord[];
   progress: IndexProgress;
 }> {
   // Ensure MCP client is connected before indexing
   if (!mcpClientManager.isConnected(serverName)) {
-    logger.info(
-      { serverName },
-      "MCP client not connected, attempting to connect before indexing"
-    );
+    logger.info({ serverName }, 'MCP client not connected, attempting to connect before indexing');
 
     try {
       const dataSource = await DataSourceModel.findOne({ name: serverName });
@@ -188,28 +178,21 @@ export async function* indexAll(
       // Validate config
       const validationError = dataSource.validateMCPConfig();
       if (validationError) {
-        throw new Error(
-          `Invalid MCP config for '${serverName}': ${validationError}`
-        );
+        throw new Error(`Invalid MCP config for '${serverName}': ${validationError}`);
       }
 
       // Connect to MCP server
       await mcpClientManager.connect(dataSource);
-      logger.info(
-        { serverName },
-        "Successfully connected to MCP server before indexing"
-      );
+      logger.info({ serverName }, 'Successfully connected to MCP server before indexing');
     } catch (connectError) {
       logger.error(
         { err: connectError, serverName },
-        "Failed to connect to MCP server before indexing"
+        'Failed to connect to MCP server before indexing',
       );
       throw new Error(
         `Cannot start indexing: Failed to connect to MCP server '${serverName}': ${
-          connectError instanceof Error
-            ? connectError.message
-            : String(connectError)
-        }`
+          connectError instanceof Error ? connectError.message : String(connectError)
+        }`,
       );
     }
   }
@@ -222,7 +205,7 @@ export async function* indexAll(
         config.startingPoints,
         userProvidedStartingPoints,
         serverName,
-        config.fetchers
+        config.fetchers,
       );
       logger.info(
         {
@@ -230,28 +213,22 @@ export async function* indexAll(
           startingPointCount: Object.keys(startingPointValues).length,
           totalValues: Object.values(startingPointValues).reduce(
             (sum, vals) => sum + vals.length,
-            0
+            0,
           ),
         },
-        "Starting points resolved for indexing"
+        'Starting points resolved for indexing',
       );
     } catch (error) {
-      logger.error(
-        { err: error, serverName },
-        "Failed to resolve starting points"
-      );
+      logger.error({ err: error, serverName }, 'Failed to resolve starting points');
       throw error;
     }
   }
   // Load tool classifications if available
   if (config.toolClassifications) {
-    mcpClientManager.setToolClassifications(
-      serverName,
-      config.toolClassifications
-    );
+    mcpClientManager.setToolClassifications(serverName, config.toolClassifications);
     logger.info(
       { serverName, count: Object.keys(config.toolClassifications).length },
-      "Tool classifications loaded for indexing"
+      'Tool classifications loaded for indexing',
     );
   }
 
@@ -269,15 +246,8 @@ export async function* indexAll(
 
   for (const [fetcherName, fetcherConfig] of orderedFetchers) {
     // Skip aggregation-only fetchers (have paramsFromParent but no seedFrom/forEach)
-    if (
-      fetcherConfig.paramsFromParent &&
-      !fetcherConfig.seedFrom &&
-      !fetcherConfig.forEach
-    ) {
-      logger.debug(
-        { fetcherName },
-        "Skipping aggregation-only fetcher (no seedFrom/forEach)"
-      );
+    if (fetcherConfig.paramsFromParent && !fetcherConfig.seedFrom && !fetcherConfig.forEach) {
+      logger.debug({ fetcherName }, 'Skipping aggregation-only fetcher (no seedFrom/forEach)');
       continue;
     }
 
@@ -285,27 +255,27 @@ export async function* indexAll(
     if (config.toolClassifications) {
       const classification = config.toolClassifications[fetcherConfig.tool];
 
-      if (classification?.category === "write") {
+      if (classification?.category === 'write') {
         logger.warn(
           { fetcherName, toolName: fetcherConfig.tool },
-          "Skipping fetcher that uses WRITE tool"
+          'Skipping fetcher that uses WRITE tool',
         );
         continue;
       }
 
-      if (classification?.category === "search") {
+      if (classification?.category === 'search') {
         // Check if this search tool is referenced by other fetchers as a source
         if (referencedSources.has(fetcherName)) {
           logger.info(
             { fetcherName, toolName: fetcherConfig.tool },
-            "Running search tool because it is referenced as source by other fetchers"
+            'Running search tool because it is referenced as source by other fetchers',
           );
           // Continue to run it - we'll store results for forEach references
           // but won't yield records since search results shouldn't be indexed directly
         } else {
           logger.info(
             { fetcherName, toolName: fetcherConfig.tool },
-            "Skipping fetcher that uses SEARCH tool"
+            'Skipping fetcher that uses SEARCH tool',
           );
           continue;
         }
@@ -318,7 +288,7 @@ export async function* indexAll(
 
     // Find record types for this fetcher
     const recordTypes = Object.values(config.recordTypes).filter(
-      (rt) => rt.fetcher === fetcherName
+      (rt) => rt.fetcher === fetcherName,
     );
 
     // Store all records from this fetcher for forEach references
@@ -329,18 +299,10 @@ export async function* indexAll(
 
     if (fetcherConfig.seedFrom) {
       // Use seedFrom to iterate over starting point values
-      pageGenerator = fetchWithSeedFrom(
-        serverName,
-        fetcherConfig,
-        startingPointValues
-      );
+      pageGenerator = fetchWithSeedFrom(serverName, fetcherConfig, startingPointValues);
     } else if (fetcherConfig.forEach) {
       // Use forEach to iterate over previous fetcher results
-      pageGenerator = fetchWithForEach(
-        serverName,
-        fetcherConfig,
-        fetcherResults
-      );
+      pageGenerator = fetchWithForEach(serverName, fetcherConfig, fetcherResults);
     } else {
       // Standard pagination
       pageGenerator = fetchPaginated(serverName, fetcherConfig);
@@ -351,10 +313,7 @@ export async function* indexAll(
       // Check if server is paused due to rate limiting before processing page
       const wasPaused = await rateLimiterManager.waitIfPaused(serverName);
       if (wasPaused) {
-        logger.info(
-          { fetcherName, serverName },
-          "Resumed after server pause due to rate limiting"
-        );
+        logger.info({ fetcherName, serverName }, 'Resumed after server pause due to rate limiting');
       }
 
       // Apply cutoff date filtering if configured
@@ -367,8 +326,8 @@ export async function* indexAll(
           const recordDate = extractRecordDate(record, fetcherConfig);
           if (!recordDate) {
             logger.warn(
-              { fetcherName, recordId: record.id || "unknown" },
-              "Could not extract date from record for cutoff filtering, including record"
+              { fetcherName, recordId: record.id || 'unknown' },
+              'Could not extract date from record for cutoff filtering, including record',
             );
             return true;
           }
@@ -384,7 +343,7 @@ export async function* indexAll(
               remaining: filteredRecords.length,
               cutoffDate: env.SYNC_CUTOFF_DATE,
             },
-            "Filtered records by SYNC_CUTOFF_DATE (post-fetch)"
+            'Filtered records by SYNC_CUTOFF_DATE (post-fetch)',
           );
         }
       }
@@ -402,7 +361,7 @@ export async function* indexAll(
             queueSize: filteredRecords.length,
             maxQueueSize: BACKPRESSURE_CONFIG.MAX_QUEUE_SIZE,
           },
-          "Large page detected - processing with backpressure"
+          'Large page detected - processing with backpressure',
         );
       }
 
@@ -422,7 +381,7 @@ export async function* indexAll(
                 recordsProcessed: i,
                 totalInPage: pageResult.records.length,
               },
-              "Backpressure: pausing to allow queue to drain"
+              'Backpressure: pausing to allow queue to drain',
             );
 
             // Yield current batch to allow downstream processing
@@ -431,10 +390,10 @@ export async function* indexAll(
                 records: transformedBatch.splice(0), // Remove all items
                 progress: {
                   fetcherName,
-                  recordType: recordTypes.map((rt) => rt.name).join(", "),
+                  recordType: recordTypes.map((rt) => rt.name).join(', '),
                   recordsProcessed,
                   totalRecords: recordsProcessed,
-                  status: "transforming",
+                  status: 'transforming',
                   queueSize: currentQueueSize,
                   isBackpressure: true,
                 },
@@ -453,10 +412,7 @@ export async function* indexAll(
         const recordType = matchRecordType(rawRecord, recordTypes);
 
         if (!recordType) {
-          logger.debug(
-            { record: rawRecord },
-            `No matching record type for record`
-          );
+          logger.debug({ record: rawRecord }, `No matching record type for record`);
           continue;
         }
 
@@ -469,7 +425,7 @@ export async function* indexAll(
                 fetcherName,
                 aggregationFields: Object.keys(fetcherConfig.aggregateContent),
               },
-              "Aggregating content from child fetchers"
+              'Aggregating content from child fetchers',
             );
 
             try {
@@ -479,21 +435,20 @@ export async function* indexAll(
                 {
                   dataSourceId: serverName,
                   syncConfigId: config.source,
-                }
+                },
               );
 
               // Merge aggregated data with raw record
               for (const [fieldName, data] of Object.entries(aggregatedData)) {
                 const aggConfig = fetcherConfig.aggregateContent[fieldName];
-                const mergeStrategy = aggConfig.mergeStrategy || "merge";
+                const mergeStrategy = aggConfig.mergeStrategy || 'merge';
 
                 if (recordWithAggregation[fieldName] !== undefined) {
-                  recordWithAggregation[fieldName] =
-                    contentAggregator.mergeData(
-                      recordWithAggregation[fieldName],
-                      data,
-                      mergeStrategy
-                    );
+                  recordWithAggregation[fieldName] = contentAggregator.mergeData(
+                    recordWithAggregation[fieldName],
+                    data,
+                    mergeStrategy,
+                  );
                 } else {
                   recordWithAggregation[fieldName] = data;
                 }
@@ -503,7 +458,7 @@ export async function* indexAll(
               if (fetcherConfig.extractFromAggregation) {
                 const extractedFields = contentAggregator.extractFields(
                   aggregatedData,
-                  fetcherConfig.extractFromAggregation
+                  fetcherConfig.extractFromAggregation,
                 );
                 Object.assign(recordWithAggregation, extractedFields);
               }
@@ -514,12 +469,12 @@ export async function* indexAll(
                   originalSize: JSON.stringify(rawRecord).length,
                   aggregatedSize: JSON.stringify(recordWithAggregation).length,
                 },
-                "Content aggregation completed"
+                'Content aggregation completed',
               );
             } catch (aggError) {
               logger.error(
                 { err: aggError, fetcherName },
-                "Failed to aggregate content, using original record"
+                'Failed to aggregate content, using original record',
               );
               // Continue with original record if aggregation fails
             }
@@ -532,7 +487,7 @@ export async function* indexAll(
               serverName,
               recordWithAggregation,
               recordType.enrichments,
-              config.rateLimit
+              config.rateLimit,
             );
           }
 
@@ -543,7 +498,7 @@ export async function* indexAll(
               enrichments,
             },
             recordType,
-            serverName
+            serverName,
           );
 
           // Extract entities and relationships (NEW)
@@ -551,7 +506,7 @@ export async function* indexAll(
             transformed.extractedEntities = extractEntities(
               rawRecord,
               recordType.entities,
-              serverName
+              serverName,
             );
           }
 
@@ -561,17 +516,14 @@ export async function* indexAll(
               transformed._id,
               recordType.name,
               recordType.relationships,
-              serverName
+              serverName,
             );
           }
 
           transformedBatch.push(transformed);
           recordsProcessed++;
         } catch (err) {
-          logger.error(
-            { err, recordType: recordType.name },
-            `Error transforming record`
-          );
+          logger.error({ err, recordType: recordType.name }, `Error transforming record`);
         }
       }
 
@@ -601,28 +553,25 @@ export async function* indexAll(
                 count: recordsForType.length,
                 strategy: recordType.grouping!.strategy,
               },
-              "Applying grouping to records"
+              'Applying grouping to records',
             );
 
             const groupingEngine = new GroupingEngine(llm, env.LLM_CHAT_MODEL);
-            const groupingResult = await groupingEngine.group(
-              recordsForType,
-              recordType.grouping!
-            );
+            const groupingResult = await groupingEngine.group(recordsForType, recordType.grouping!);
 
             logger.info(
               {
                 recordType: recordType.name,
                 statistics: groupingResult.statistics,
               },
-              "Grouping completed"
+              'Grouping completed',
             );
 
             groupedResults.push(...groupingResult.records);
           } catch (err) {
             logger.error(
               { err, recordType: recordType.name },
-              "Error applying grouping, using ungrouped records"
+              'Error applying grouping, using ungrouped records',
             );
             groupedResults.push(...recordsForType);
           }
@@ -644,10 +593,10 @@ export async function* indexAll(
           records: finalBatch,
           progress: {
             fetcherName,
-            recordType: recordTypes.map((rt) => rt.name).join(", "),
+            recordType: recordTypes.map((rt) => rt.name).join(', '),
             recordsProcessed,
             totalRecords: recordsProcessed, // Unknown total
-            status: "transforming",
+            status: 'transforming',
             queueSize: finalBatch.length,
           },
         };
@@ -657,10 +606,7 @@ export async function* indexAll(
     // Save results for future fetchers to reference
     fetcherResults[fetcherName] = allFetcherRecords;
 
-    logger.info(
-      { fetcherName, recordCount: allFetcherRecords.length },
-      "Completed fetch"
-    );
+    logger.info({ fetcherName, recordCount: allFetcherRecords.length }, 'Completed fetch');
   }
 }
 
@@ -669,17 +615,14 @@ export async function* indexAll(
  */
 export async function* runIncrementalSync(
   config: IndexingConfig,
-  serverName: string
+  serverName: string,
 ): AsyncGenerator<{
   records: TransformedRecord[];
   progress: IndexProgress;
 }> {
   // Load tool classifications if available
   if (config.toolClassifications) {
-    mcpClientManager.setToolClassifications(
-      serverName,
-      config.toolClassifications
-    );
+    mcpClientManager.setToolClassifications(serverName, config.toolClassifications);
   }
 
   // Load sync state
@@ -695,18 +638,18 @@ export async function* runIncrementalSync(
     if (config.toolClassifications) {
       const classification = config.toolClassifications[fetcherConfig.tool];
 
-      if (classification?.category === "write") {
+      if (classification?.category === 'write') {
         logger.warn(
           { fetcherName, toolName: fetcherConfig.tool },
-          "Skipping fetcher that uses WRITE tool for incremental sync"
+          'Skipping fetcher that uses WRITE tool for incremental sync',
         );
         continue;
       }
 
-      if (classification?.category === "search") {
+      if (classification?.category === 'search') {
         logger.info(
           { fetcherName, toolName: fetcherConfig.tool },
-          "Skipping fetcher that uses SEARCH tool for incremental sync"
+          'Skipping fetcher that uses SEARCH tool for incremental sync',
         );
         continue;
       }
@@ -719,7 +662,7 @@ export async function* runIncrementalSync(
       if (cursor?.lastSyncAt && fetcherConfig.incrementalSync.sinceParam) {
         const sinceValue = formatSinceValue(
           cursor.lastSyncAt,
-          fetcherConfig.incrementalSync.sinceFormat
+          fetcherConfig.incrementalSync.sinceFormat,
         );
         params[fetcherConfig.incrementalSync.sinceParam] = sinceValue;
       }
@@ -728,14 +671,10 @@ export async function* runIncrementalSync(
     // Use indexAll generator with initial params
     let recordsProcessed = 0;
     const recordTypes = Object.values(config.recordTypes).filter(
-      (rt) => rt.fetcher === fetcherName
+      (rt) => rt.fetcher === fetcherName,
     );
 
-    for await (const pageResult of fetchPaginated(
-      serverName,
-      fetcherConfig,
-      params
-    )) {
+    for await (const pageResult of fetchPaginated(serverName, fetcherConfig, params)) {
       const transformedBatch: TransformedRecord[] = [];
 
       for (const rawRecord of pageResult.records) {
@@ -749,7 +688,7 @@ export async function* runIncrementalSync(
               serverName,
               rawRecord,
               recordType.enrichments,
-              config.rateLimit
+              config.rateLimit,
             );
           }
 
@@ -759,7 +698,7 @@ export async function* runIncrementalSync(
               enrichments,
             },
             recordType,
-            serverName
+            serverName,
           );
 
           // Extract entities and relationships
@@ -767,7 +706,7 @@ export async function* runIncrementalSync(
             transformed.extractedEntities = extractEntities(
               rawRecord,
               recordType.entities,
-              serverName
+              serverName,
             );
           }
 
@@ -777,7 +716,7 @@ export async function* runIncrementalSync(
               transformed._id,
               recordType.name,
               recordType.relationships,
-              serverName
+              serverName,
             );
           }
 
@@ -805,10 +744,10 @@ export async function* runIncrementalSync(
         records: transformedBatch,
         progress: {
           fetcherName,
-          recordType: recordTypes.map((rt) => rt.name).join(", "),
+          recordType: recordTypes.map((rt) => rt.name).join(', '),
           recordsProcessed,
           totalRecords: recordsProcessed,
-          status: "transforming",
+          status: 'transforming',
         },
       };
     }
@@ -818,16 +757,13 @@ export async function* runIncrementalSync(
 /**
  * Match a raw record to a record type based on detection config
  */
-function matchRecordType(
-  record: any,
-  recordTypes: RecordTypeConfig[]
-): RecordTypeConfig | null {
+function matchRecordType(record: any, recordTypes: RecordTypeConfig[]): RecordTypeConfig | null {
   for (const recordType of recordTypes) {
     // Handle missing detection config - default to matching
     if (!recordType.detection) {
       logger.warn(
         { recordType: recordType.name },
-        "Record type missing detection config, defaulting to match"
+        'Record type missing detection config, defaulting to match',
       );
       return recordType;
     }
@@ -839,17 +775,14 @@ function matchRecordType(
     if (recordType.detection.condition) {
       try {
         // Simple eval of condition (e.g., "record.object === 'page'")
-        const conditionFn = new Function(
-          "record",
-          `return ${recordType.detection.condition}`
-        );
+        const conditionFn = new Function('record', `return ${recordType.detection.condition}`);
         if (conditionFn(record)) {
           return recordType;
         }
       } catch (err) {
         logger.error(
           { err, condition: recordType.detection.condition },
-          `Error evaluating detection condition`
+          `Error evaluating detection condition`,
         );
       }
     }
@@ -863,14 +796,14 @@ function matchRecordType(
  */
 function formatSinceValue(
   date: Date,
-  format: "iso8601" | "unix" | "unix_ms" | undefined
+  format: 'iso8601' | 'unix' | 'unix_ms' | undefined,
 ): string | number {
   switch (format) {
-    case "unix":
+    case 'unix':
       return Math.floor(date.getTime() / 1000);
-    case "unix_ms":
+    case 'unix_ms':
       return date.getTime();
-    case "iso8601":
+    case 'iso8601':
     default:
       return date.toISOString();
   }
@@ -887,14 +820,9 @@ function sleep(ms: number): Promise<void> {
  * Get fetchers in the correct execution order based on syncOrder
  * Falls back to Object.entries() order if syncOrder is not specified
  */
-function getOrderedFetchers(
-  config: IndexingConfig
-): Array<[string, FetcherConfig]> {
+function getOrderedFetchers(config: IndexingConfig): Array<[string, FetcherConfig]> {
   if (config.syncOrder && config.syncOrder.length > 0) {
-    logger.info(
-      { syncOrder: config.syncOrder },
-      "Using explicit sync order for fetchers"
-    );
+    logger.info({ syncOrder: config.syncOrder }, 'Using explicit sync order for fetchers');
 
     const ordered: Array<[string, any]> = [];
     const fetcherEntries = Object.entries(config.fetchers);
@@ -905,20 +833,14 @@ function getOrderedFetchers(
       if (entry) {
         ordered.push(entry);
       } else {
-        logger.warn(
-          { fetcherName },
-          "syncOrder references fetcher that doesn't exist"
-        );
+        logger.warn({ fetcherName }, "syncOrder references fetcher that doesn't exist");
       }
     }
 
     // Add any fetchers not in syncOrder at the end
     for (const [name, fetcherConfig] of fetcherEntries) {
       if (!config.syncOrder!.includes(name)) {
-        logger.warn(
-          { fetcherName: name },
-          "Fetcher not in syncOrder, adding at end"
-        );
+        logger.warn({ fetcherName: name }, 'Fetcher not in syncOrder, adding at end');
         ordered.push([name, fetcherConfig]);
       }
     }
@@ -927,6 +849,6 @@ function getOrderedFetchers(
   }
 
   // No syncOrder specified, use default Object.entries() order
-  logger.debug("No syncOrder specified, using default fetcher order");
+  logger.debug('No syncOrder specified, using default fetcher order');
   return Object.entries(config.fetchers);
 }

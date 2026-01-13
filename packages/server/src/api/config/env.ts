@@ -1,36 +1,31 @@
-import { Router, Request, Response } from "express";
-import type { Router as ExpressRouter } from "express";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import crypto from "crypto";
-import logger from "../../utils/logger.js";
-import {
-  appEnvResult,
-  applicationSchema,
-  infrastructureSchema,
-  sourceEnv,
-} from "../../env.js";
+import { Router, Request, Response } from 'express';
+import type { Router as ExpressRouter } from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import crypto from 'crypto';
+import logger from '../../utils/logger.js';
+import { appEnvResult, applicationSchema, infrastructureSchema, sourceEnv } from '../../env.js';
 
 const router: ExpressRouter = Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const envPath = path.join(__dirname, "../../../.env");
+const envPath = path.join(__dirname, '../../../.env');
 
 // Helper to write env map back to file, preserving comments
 function writeEnvFile(updates: Record<string, string>): void {
-  let content = "";
+  let content = '';
 
   // Read existing file or example
   if (fs.existsSync(envPath)) {
-    content = fs.readFileSync(envPath, "utf-8");
+    content = fs.readFileSync(envPath, 'utf-8');
   }
 
-  const lines = content.split("\n");
+  const lines = content.split('\n');
   const updatedKeys = new Set<string>();
 
   // Update existing keys
   const newLines = lines.map((line) => {
-    if (line.trim().startsWith("#") || !line.trim()) {
+    if (line.trim().startsWith('#') || !line.trim()) {
       return line;
     }
 
@@ -53,7 +48,7 @@ function writeEnvFile(updates: Record<string, string>): void {
     }
   }
 
-  fs.writeFileSync(envPath, newLines.join("\n"));
+  fs.writeFileSync(envPath, newLines.join('\n'));
 }
 
 // Helper to get schema defaults and info
@@ -62,7 +57,7 @@ function getSchemaInfo(schema: any): Record<string, any> {
   for (const [key, def] of Object.entries(schema.shape)) {
     const zodDef = def as any;
     result[key] = {
-      type: zodDef._def.typeName?.replace("Zod", "").toLowerCase() || "string",
+      type: zodDef._def.typeName?.replace('Zod', '').toLowerCase() || 'string',
       required: !zodDef.isOptional(),
       default: zodDef._def.defaultValue?.() ?? undefined,
     };
@@ -71,10 +66,9 @@ function getSchemaInfo(schema: any): Record<string, any> {
 }
 
 // GET /api/config/env - Read current config with schema info and status
-router.get("/", (_req: Request, res: Response) => {
+router.get('/', (_req: Request, res: Response) => {
   try {
-    const invalidVars =
-      appEnvResult.error?.issues.map((i) => String(i.path[0])) || [];
+    const invalidVars = appEnvResult.error?.issues.map((i) => String(i.path[0])) || [];
 
     // Get schema information
     const infraInfo = getSchemaInfo(infrastructureSchema);
@@ -123,7 +117,7 @@ router.get("/", (_req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    logger.error({ err }, "Error reading config");
+    logger.error({ err }, 'Error reading config');
     res.status(500).json({
       success: false,
       error: err instanceof Error ? err.message : String(err),
@@ -132,14 +126,14 @@ router.get("/", (_req: Request, res: Response) => {
 });
 
 // PUT /api/config/env - Update .env file
-router.put("/", async (req: Request, res: Response) => {
+router.put('/', async (req: Request, res: Response) => {
   try {
     const updates: Record<string, any> = req.body;
 
     // Auto-generate encryption key if not provided
     if (!updates.ENCRYPTION_KEY && !process.env.ENCRYPTION_KEY) {
-      updates.ENCRYPTION_KEY = crypto.randomBytes(32).toString("hex");
-      logger.info("Auto-generated ENCRYPTION_KEY");
+      updates.ENCRYPTION_KEY = crypto.randomBytes(32).toString('hex');
+      logger.info('Auto-generated ENCRYPTION_KEY');
     }
 
     const allVars = [
@@ -158,16 +152,13 @@ router.put("/", async (req: Request, res: Response) => {
     // Write to .env file
     writeEnvFile(filteredUpdates);
 
-    logger.info(
-      { keys: Object.keys(filteredUpdates) },
-      "Configuration updated"
-    );
+    logger.info({ keys: Object.keys(filteredUpdates) }, 'Configuration updated');
 
     res.json({
       success: true,
     });
   } catch (err) {
-    logger.error({ err }, "Error updating config");
+    logger.error({ err }, 'Error updating config');
     res.status(500).json({
       success: false,
       error: err instanceof Error ? err.message : String(err),

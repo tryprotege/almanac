@@ -21,7 +21,7 @@
  * 5. Transform maps fields → Transformed Records
  */
 
-import { JSONPath } from "jsonpath-plus";
+import { JSONPath } from 'jsonpath-plus';
 import type {
   RecordTypeConfig,
   FieldMapping,
@@ -30,10 +30,10 @@ import type {
   TemplateMapping,
   CodeMapping,
   ProcessorMapping,
-} from "../types/config.js";
-import type { TransformedRecord, EnrichedRecord } from "../types/execution.js";
-import { executeSandboxCode, executeProcessor } from "./sandbox.js";
-import { createHash } from "crypto";
+} from '../types/config.js';
+import type { TransformedRecord, EnrichedRecord } from '../types/execution.js';
+import { executeSandboxCode, executeProcessor } from './sandbox.js';
+import { createHash } from 'crypto';
 
 /**
  * Transform a single enriched record to unified format
@@ -47,12 +47,12 @@ import { createHash } from "crypto";
 export async function transformRecord(
   enrichedRecord: EnrichedRecord,
   config: RecordTypeConfig,
-  source: string
+  source: string,
 ): Promise<TransformedRecord> {
   const { record, enrichments } = enrichedRecord;
 
   // Validate input record
-  if (!record || typeof record !== "object") {
+  if (!record || typeof record !== 'object') {
     throw new Error(`Invalid record: expected object, got ${typeof record}`);
   }
 
@@ -61,7 +61,7 @@ export async function transformRecord(
   if (record.pageInfo && (record.content || record.results)) {
     throw new Error(
       `Invalid record: appears to be a pagination wrapper object, not an individual record. ` +
-        `Ensure arrayPath is configured correctly to extract individual items.`
+        `Ensure arrayPath is configured correctly to extract individual items.`,
     );
   }
 
@@ -83,10 +83,7 @@ export async function transformRecord(
       });
       sourceId = extractedId;
     } catch (err) {
-      console.warn(
-        `Failed to extract ID using configured idField "${config.idField}":`,
-        err
-      );
+      console.warn(`Failed to extract ID using configured idField "${config.idField}":`, err);
     }
   }
 
@@ -95,9 +92,7 @@ export async function transformRecord(
     sourceId = record.id || record._id || record.sourceId;
     if (!sourceId) {
       // Check for other common ID patterns
-      const idKey = Object.keys(record).find(
-        (k) => k.endsWith("_id") || k.endsWith("Id")
-      );
+      const idKey = Object.keys(record).find((k) => k.endsWith('_id') || k.endsWith('Id'));
       const potentialId =
         record.recordId ||
         record.uuid ||
@@ -108,15 +103,10 @@ export async function transformRecord(
 
       if (!potentialId) {
         throw new Error(
-          `Record missing ID field: ${JSON.stringify(record).substring(
-            0,
-            100
-          )}. ` +
+          `Record missing ID field: ${JSON.stringify(record).substring(0, 100)}. ` +
             `Expected one of: id, _id, sourceId, recordId, uuid, guid, *_id, url, uri. ` +
-            `Available fields: ${Object.keys(record).join(", ")}` +
-            (config.idField
-              ? `. Configured idField "${config.idField}" also failed.`
-              : "")
+            `Available fields: ${Object.keys(record).join(', ')}` +
+            (config.idField ? `. Configured idField "${config.idField}" also failed.` : ''),
         );
       }
 
@@ -127,9 +117,7 @@ export async function transformRecord(
   // Ensure sourceId is defined (TypeScript type guard)
   if (!sourceId) {
     throw new Error(
-      `Failed to extract sourceId from record: ${JSON.stringify(
-        record
-      ).substring(0, 100)}`
+      `Failed to extract sourceId from record: ${JSON.stringify(record).substring(0, 100)}`,
     );
   }
 
@@ -139,11 +127,7 @@ export async function transformRecord(
   const title = await resolveField(config.fields.title, context, source);
   const content = await resolveField(config.fields.content, context, source);
   const people = await resolveField(config.fields.people, context, source);
-  const primaryDate = await resolveField(
-    config.fields.primaryDate,
-    context,
-    source
-  );
+  const primaryDate = await resolveField(config.fields.primaryDate, context, source);
   const tags = await resolveField(config.fields.tags, context, source);
   const parentId = await resolveField(config.fields.parentId, context, source);
 
@@ -156,8 +140,8 @@ export async function transformRecord(
     sourceId,
     recordType: config.name,
 
-    title: title || "Untitled",
-    content: content || "",
+    title: title || 'Untitled',
+    content: content || '',
     people: Array.isArray(people) ? people : people ? [people] : undefined,
     primaryDate: primaryDate ? parseDate(primaryDate) : null,
     tags: Array.isArray(tags) ? tags : tags ? [tags] : undefined,
@@ -181,67 +165,60 @@ export async function transformRecord(
 async function resolveField(
   mapping: FieldMapping | undefined,
   context: { record: any; enrichments: Record<string, any> },
-  source: string
+  source: string,
 ): Promise<any> {
   if (!mapping) return undefined;
 
   // Handle legacy format (without type field)
-  if ("path" in mapping && !("type" in mapping)) {
-    return resolvePathMapping(
-      { type: "path", path: (mapping as any).path },
-      context
-    );
+  if ('path' in mapping && !('type' in mapping)) {
+    return resolvePathMapping({ type: 'path', path: (mapping as any).path }, context);
   }
-  if ("paths" in mapping && !("type" in mapping)) {
+  if ('paths' in mapping && !('type' in mapping)) {
     return resolvePathsMapping(
       {
-        type: "paths",
+        type: 'paths',
         paths: (mapping as any).paths,
         join: (mapping as any).join,
       },
-      context
-    );
-  }
-  if ("template" in mapping && !("type" in mapping)) {
-    return resolveTemplateMapping(
-      { type: "template", template: (mapping as any).template },
-      context
-    );
-  }
-  if ("code" in mapping && !("type" in mapping)) {
-    return resolveCodeMapping(
-      { type: "code", code: (mapping as any).code },
       context,
-      source
     );
   }
-  if ("processor" in mapping && !("type" in mapping)) {
+  if ('template' in mapping && !('type' in mapping)) {
+    return resolveTemplateMapping(
+      { type: 'template', template: (mapping as any).template },
+      context,
+    );
+  }
+  if ('code' in mapping && !('type' in mapping)) {
+    return resolveCodeMapping({ type: 'code', code: (mapping as any).code }, context, source);
+  }
+  if ('processor' in mapping && !('type' in mapping)) {
     return resolveProcessorMapping(
       {
-        type: "processor",
+        type: 'processor',
         processor: (mapping as any).processor,
         input: (mapping as any).input,
         options: (mapping as any).options,
       },
-      context
+      context,
     );
   }
 
   // Handle typed format
   switch (mapping.type) {
-    case "path":
+    case 'path':
       return resolvePathMapping(mapping, context);
 
-    case "paths":
+    case 'paths':
       return resolvePathsMapping(mapping, context);
 
-    case "template":
+    case 'template':
       return resolveTemplateMapping(mapping, context);
 
-    case "code":
+    case 'code':
       return resolveCodeMapping(mapping, context, source);
 
-    case "processor":
+    case 'processor':
       return resolveProcessorMapping(mapping, context);
 
     default:
@@ -254,7 +231,7 @@ async function resolveField(
  */
 function resolvePathMapping(
   mapping: PathMapping,
-  context: { record: any; enrichments: Record<string, any> }
+  context: { record: any; enrichments: Record<string, any> },
 ): any {
   try {
     const result = JSONPath({ path: mapping.path, json: context.record });
@@ -270,22 +247,20 @@ function resolvePathMapping(
  */
 function resolvePathsMapping(
   mapping: PathsMapping,
-  context: { record: any; enrichments: Record<string, any> }
+  context: { record: any; enrichments: Record<string, any> },
 ): any {
   const values = mapping.paths
     .map((path) => {
       try {
         const result = JSONPath({ path, json: context.record });
-        return Array.isArray(result) && result.length > 0
-          ? result[0]
-          : undefined;
+        return Array.isArray(result) && result.length > 0 ? result[0] : undefined;
       } catch {
         return undefined;
       }
     })
-    .filter((v) => v !== undefined && v !== null && v !== "");
+    .filter((v) => v !== undefined && v !== null && v !== '');
 
-  return values.length > 0 ? values.join(mapping.join || " ") : undefined;
+  return values.length > 0 ? values.join(mapping.join || ' ') : undefined;
 }
 
 /**
@@ -293,15 +268,15 @@ function resolvePathsMapping(
  */
 function resolveTemplateMapping(
   mapping: TemplateMapping,
-  context: { record: any; enrichments: Record<string, any> }
+  context: { record: any; enrichments: Record<string, any> },
 ): any {
   return mapping.template.replace(/\$\{([^}]+)\}/g, (_, expr) => {
     try {
       // Use full context to support both record.* and enrichments.* paths
       const result = JSONPath({ path: expr, json: context });
-      return Array.isArray(result) && result.length > 0 ? result[0] : "";
+      return Array.isArray(result) && result.length > 0 ? result[0] : '';
     } catch {
-      return "";
+      return '';
     }
   });
 }
@@ -312,7 +287,7 @@ function resolveTemplateMapping(
 async function resolveCodeMapping(
   mapping: CodeMapping,
   context: { record: any; enrichments: Record<string, any> },
-  source: string
+  source: string,
 ): Promise<any> {
   return executeSandboxCode(mapping.code, context, source);
 }
@@ -322,12 +297,11 @@ async function resolveCodeMapping(
  */
 async function resolveProcessorMapping(
   mapping: ProcessorMapping,
-  context: { record: any; enrichments: Record<string, any> }
+  context: { record: any; enrichments: Record<string, any> },
 ): Promise<any> {
   // Get input data via JSONPath
   const inputData = JSONPath({ path: mapping.input, json: context });
-  const actualInput =
-    Array.isArray(inputData) && inputData.length > 0 ? inputData[0] : inputData;
+  const actualInput = Array.isArray(inputData) && inputData.length > 0 ? inputData[0] : inputData;
 
   // Execute processor
   return executeProcessor(mapping.processor, actualInput, mapping.options);
@@ -341,11 +315,7 @@ async function resolveProcessorMapping(
  * @param source - The source system name
  * @returns A unique ID in format: source_recordType_sourceId
  */
-function generateRecordId(
-  sourceId: string,
-  recordTypeName: string,
-  source: string
-): string {
+function generateRecordId(sourceId: string, recordTypeName: string, source: string): string {
   return `${source}_${recordTypeName}_${sourceId}`;
 }
 
@@ -374,7 +344,7 @@ function parseDate(value: any): Date | null {
  * @returns A SHA-256 hash of the record
  */
 function computeChecksum(record: any): string {
-  const hash = createHash("sha256");
+  const hash = createHash('sha256');
   hash.update(JSON.stringify(record));
-  return hash.digest("hex");
+  return hash.digest('hex');
 }

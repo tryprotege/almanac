@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { OverviewStats, statsApi } from "../lib/api";
+import { useQuery } from '@tanstack/react-query';
+import { OverviewStats, statsApi } from '../lib/api';
 
 /**
  * Hook to fetch overview statistics with automatic polling
@@ -7,7 +7,7 @@ import { OverviewStats, statsApi } from "../lib/api";
  */
 export function useStats() {
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["stats", "overview"],
+    queryKey: ['stats', 'overview'],
     queryFn: async () => {
       const response = await statsApi.overview();
       return response.data.data as OverviewStats;

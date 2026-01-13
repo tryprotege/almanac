@@ -9,28 +9,22 @@ import {
   GraphNode,
   DocumentRelationship,
   ProcessedGraph,
-} from "../types.js";
-import {
-  mergeRelationships,
-  normalizeEntityName,
-} from "../schema/entity-deduplication.js";
-import {
-  entitiesToGraphNodes,
-  relationshipsToGraphRelationships,
-} from "../graph-converter.js";
-import logger from "../../../../utils/logger.js";
+} from '../types.js';
+import { mergeRelationships, normalizeEntityName } from '../schema/entity-deduplication.js';
+import { entitiesToGraphNodes, relationshipsToGraphRelationships } from '../graph-converter.js';
+import logger from '../../../../utils/logger.js';
 
 /**
  * High-value entity types that should be preserved even without relationships
  * These entities are considered important enough to exist standalone
  */
 const HIGH_VALUE_ENTITY_TYPES = new Set([
-  "PERSON",
-  "ORGANIZATION",
-  "COMPANY",
-  "LOCATION",
-  "PRODUCT",
-  "PROJECT",
+  'PERSON',
+  'ORGANIZATION',
+  'COMPANY',
+  'LOCATION',
+  'PRODUCT',
+  'PROJECT',
 ]);
 
 /**
@@ -49,10 +43,7 @@ const shouldPreserveEntity = (entity: Entity): boolean => {
   }
 
   // Preserve entities with substantial descriptions
-  if (
-    entity.description &&
-    entity.description.length >= MIN_DESCRIPTION_LENGTH
-  ) {
+  if (entity.description && entity.description.length >= MIN_DESCRIPTION_LENGTH) {
     return true;
   }
 
@@ -67,9 +58,7 @@ const shouldPreserveEntity = (entity: Entity): boolean => {
  *
  * Returns document relationships separately from entity relationships
  */
-export function processRecordsToGraph(
-  recordsData: ExtractionResult[]
-): ProcessedGraph {
+export function processRecordsToGraph(recordsData: ExtractionResult[]): ProcessedGraph {
   // Flatten all relationships
   const allRelationships = recordsData.flatMap((data) => data.relationships);
 
@@ -115,7 +104,7 @@ export function processRecordsToGraph(
         preventedEntities.push({
           name: entity.name,
           type: entity.type,
-          reason: "No valid relationships and not a high-value entity type",
+          reason: 'No valid relationships and not a high-value entity type',
         });
         return false;
       }
@@ -148,26 +137,19 @@ export function processRecordsToGraph(
   }
 
   // Convert LLM relationships to graph relationships (entity-to-entity)
-  const llmGraphRels = relationshipsToGraphRelationships(
-    mergedRelationships,
-    entityNameToId
-  );
+  const llmGraphRels = relationshipsToGraphRelationships(mergedRelationships, entityNameToId);
 
   // Collect adapter relationships (document-to-document)
   // These are kept separate and will be processed differently
-  const allAdapterRels = recordsData.flatMap(
-    (data) => data.adapterRelationships
-  );
+  const allAdapterRels = recordsData.flatMap((data) => data.adapterRelationships);
 
   // Convert adapter relationships from GraphRelationship[] to DocumentRelationship[]
-  const documentRelationships: DocumentRelationship[] = allAdapterRels.map(
-    (rel) => ({
-      sourceId: rel.sourceId,
-      targetId: rel.targetId,
-      type: rel.type,
-      confidence: rel.confidence,
-    })
-  );
+  const documentRelationships: DocumentRelationship[] = allAdapterRels.map((rel) => ({
+    sourceId: rel.sourceId,
+    targetId: rel.targetId,
+    type: rel.type,
+    confidence: rel.confidence,
+  }));
 
   return {
     nodes,

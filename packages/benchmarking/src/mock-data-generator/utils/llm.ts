@@ -1,16 +1,12 @@
-import OpenAI from "openai";
-import pRetry from "p-retry";
-import pLimit from "p-limit";
-import type { GeneratorConfig } from "../types.js";
+import OpenAI from 'openai';
+import pRetry from 'p-retry';
+import pLimit from 'p-limit';
+import type { GeneratorConfig } from '../types.js';
 
 let openaiClient: OpenAI | null = null;
 let concurrencyLimit: ReturnType<typeof pLimit> | null = null;
 
-export function initializeLLM(
-  apiKey: string,
-  baseUrl: string,
-  concurrency: number = 10
-): void {
+export function initializeLLM(apiKey: string, baseUrl: string, concurrency: number = 10): void {
   openaiClient = new OpenAI({
     apiKey: apiKey,
     baseURL: baseUrl,
@@ -23,10 +19,10 @@ export function initializeLLM(
 export async function generateWithLLM(
   prompt: string,
   config: GeneratorConfig,
-  temperatureOverride?: number
+  temperatureOverride?: number,
 ): Promise<string> {
   if (!openaiClient) {
-    throw new Error("LLM not initialized. Call initializeLLM first.");
+    throw new Error('LLM not initialized. Call initializeLLM first.');
   }
 
   const temperature = temperatureOverride ?? config.temperature;
@@ -36,7 +32,7 @@ export async function generateWithLLM(
       const response = await openaiClient!.chat.completions.create(
         {
           model: process.env.LLM_CHAT_MODEL!,
-          messages: [{ role: "user", content: prompt }],
+          messages: [{ role: 'user', content: prompt }],
           temperature,
           max_tokens: 3000,
           stream: false,
@@ -44,19 +40,19 @@ export async function generateWithLLM(
         {
           timeout: 90_000,
           maxRetries: 3,
-        }
+        },
       );
 
-      return response.choices[0]?.message?.content || "";
+      return response.choices[0]?.message?.content || '';
     },
     {
       retries: 5,
       onFailedAttempt: (error) => {
         console.log(
-          `Attempt ${error.attemptNumber} failed. There are ${error.retriesLeft} retries left.`
+          `Attempt ${error.attemptNumber} failed. There are ${error.retriesLeft} retries left.`,
         );
       },
-    }
+    },
   );
 
   return result;

@@ -77,6 +77,11 @@ export default [
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-non-null-assertion': 'warn',
+      'no-useless-escape': 'warn',
+
+      // TODO: fix these later
+      'no-case-declarations': 'warn',
+      '@typescript-eslint/no-empty-object-type': 'warn',
     },
   },
 

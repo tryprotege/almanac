@@ -1,4 +1,4 @@
-import { Avatar } from "./Avatar";
+import { Avatar } from './Avatar';
 
 export interface ActivityItem {
   avatar?: string;
@@ -40,9 +40,7 @@ export function ActivityFeed({ items, loading }: ActivityFeedProps) {
           </div>
           <div className="activity-content">
             <div className="activity-header">
-              <span className="text-sm font-medium text-text-secondary">
-                {item.service}
-              </span>
+              <span className="text-sm font-medium text-text-secondary">{item.service}</span>
               <span className="text-xs text-text-tertiary">{item.time}</span>
             </div>
             <p className="text-sm text-text-tertiary">{item.description}</p>

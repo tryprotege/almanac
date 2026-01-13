@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IFetcherCursor {
   lastSyncAt: Date;
@@ -12,7 +12,7 @@ export interface IMCPSyncState extends Document {
   configId: mongoose.Types.ObjectId;
   configVersion: number;
 
-  status: "idle" | "syncing" | "error" | "paused";
+  status: 'idle' | 'syncing' | 'error' | 'paused';
 
   fetcherCursors: Map<string, IFetcherCursor>;
 
@@ -39,7 +39,7 @@ const FetcherCursorSchema = new Schema<IFetcherCursor>(
     lastRecordId: { type: String },
     syncedCount: { type: Number, default: 0 },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const MCPSyncStateSchema = new Schema<IMCPSyncState>(
@@ -52,7 +52,7 @@ const MCPSyncStateSchema = new Schema<IMCPSyncState>(
     },
     configId: {
       type: Schema.Types.ObjectId,
-      ref: "IndexingConfig",
+      ref: 'IndexingConfig',
       required: true,
     },
     configVersion: {
@@ -61,8 +61,8 @@ const MCPSyncStateSchema = new Schema<IMCPSyncState>(
     },
     status: {
       type: String,
-      enum: ["idle", "syncing", "error", "paused"],
-      default: "idle",
+      enum: ['idle', 'syncing', 'error', 'paused'],
+      default: 'idle',
       index: true,
     },
     fetcherCursors: {
@@ -82,16 +82,13 @@ const MCPSyncStateSchema = new Schema<IMCPSyncState>(
     consecutiveErrors: { type: Number, default: 0 },
   },
   {
-    collection: "mcp_sync_states",
+    collection: 'mcp_sync_states',
     timestamps: true,
-  }
+  },
 );
 
 // Indexes
 MCPSyncStateSchema.index({ serverName: 1, status: 1 });
 MCPSyncStateSchema.index({ configId: 1 });
 
-export const MCPSyncStateModel = mongoose.model<IMCPSyncState>(
-  "MCPSyncState",
-  MCPSyncStateSchema
-);
+export const MCPSyncStateModel = mongoose.model<IMCPSyncState>('MCPSyncState', MCPSyncStateSchema);

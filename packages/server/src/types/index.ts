@@ -7,25 +7,25 @@
 // ============================================
 
 export type SourceType =
-  | "notion"
-  | "slack"
-  | "calendar"
-  | "fathom"
-  | "whatsapp"
-  | "codebase"
-  | "asana"
-  | "jira"
-  | "google_drive"
-  | "github";
+  | 'notion'
+  | 'slack'
+  | 'calendar'
+  | 'fathom'
+  | 'whatsapp'
+  | 'codebase'
+  | 'asana'
+  | 'jira'
+  | 'google_drive'
+  | 'github';
 
 // ============================================
 // Qdrant (Vector Search)
 // ============================================
 
-export type VectorPayloadType = "chunk" | "entity" | "relationship";
+export type VectorPayloadType = 'chunk' | 'entity' | 'relationship';
 
 export interface ChunkVectorPayload extends Record<string, unknown> {
-  type: "chunk";
+  type: 'chunk';
   recordId: string;
   checksum: string;
   chunkIndex: number;
@@ -34,7 +34,7 @@ export interface ChunkVectorPayload extends Record<string, unknown> {
 }
 
 export interface EntityVectorPayload extends Record<string, unknown> {
-  type: "entity";
+  type: 'entity';
   graphEmbeddingMetadataId: string; // ID from GraphEmbeddingMetadata
   // Shared fields
   source: SourceType;
@@ -42,7 +42,7 @@ export interface EntityVectorPayload extends Record<string, unknown> {
 }
 
 export interface RelationshipVectorPayload extends Record<string, unknown> {
-  type: "relationship";
+  type: 'relationship';
   sourceId: string;
   targetId: string;
   relType: string;
@@ -108,4 +108,4 @@ export interface EntityRelationship {
 }
 
 // Re-export from new type files
-export * from "./search.types.js";
+export * from './search.types.js';

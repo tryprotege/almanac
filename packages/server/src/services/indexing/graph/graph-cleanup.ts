@@ -3,16 +3,16 @@
  * Cleanup deleted records and orphaned embeddings
  */
 
-import { RecordStore } from "../../../stores/record.store.js";
-import { GraphStore } from "../../../stores/graph.store.js";
-import { VectorStore } from "../../../stores/vector.store.js";
-import { RelationshipMentionStore } from "../../../stores/relationship-mention.store.js";
-import { SourceType } from "../../../types/index.js";
+import { RecordStore } from '../../../stores/record.store.js';
+import { GraphStore } from '../../../stores/graph.store.js';
+import { VectorStore } from '../../../stores/vector.store.js';
+import { RelationshipMentionStore } from '../../../stores/relationship-mention.store.js';
+import { SourceType } from '../../../types/index.js';
 import {
   cleanupDeletedEntityEmbeddings,
   cleanupDeletedRelationshipEmbeddings,
-} from "./graph-embeddings.js";
-import logger from "../../../utils/logger.js";
+} from './graph-embeddings.js';
+import logger from '../../../utils/logger.js';
 
 export interface CleanupStats {
   nodes: number;
@@ -32,14 +32,14 @@ export const cleanupDeletedRecords = async (
   vectorStore?: VectorStore,
   options?: {
     cleanupEmbeddings?: boolean;
-  }
+  },
 ): Promise<CleanupStats> => {
   logger.debug({
     msg: `🧹 Cleaning up graph nodes for deleted records`,
     source,
   });
 
-  const deletedRecords = await recordStore.findBySourceAndType(source, "", {
+  const deletedRecords = await recordStore.findBySourceAndType(source, '', {
     includeDeleted: true,
   });
 
@@ -57,16 +57,11 @@ export const cleanupDeletedRecords = async (
         lastGraphIndexAt: null,
       });
     } catch (err) {
-      logger.error(
-        { err, recordId: record._id },
-        `Error deleting node for record ${record._id}`
-      );
+      logger.error({ err, recordId: record._id }, `Error deleting node for record ${record._id}`);
     }
   }
 
-  logger.info(
-    `✅ Cleaned up ${cleaned} nodes from ${deleted.length} deleted records`
-  );
+  logger.info(`✅ Cleaned up ${cleaned} nodes from ${deleted.length} deleted records`);
 
   const result: CleanupStats = { nodes: cleaned };
 
@@ -87,7 +82,7 @@ export const cleanupDeletedRecords = async (
     result.relationshipEmbeddings = relStats.deleted;
 
     logger.info(
-      `   Cleaned up ${entityStats.deleted} entity embeddings and ${relStats.deleted} relationship embeddings`
+      `   Cleaned up ${entityStats.deleted} entity embeddings and ${relStats.deleted} relationship embeddings`,
     );
   }
 
@@ -100,33 +95,30 @@ export const cleanupDeletedRecords = async (
  */
 export const cleanupDocumentGraph = async (
   recordId: string,
-  graphStore: GraphStore
+  graphStore: GraphStore,
 ): Promise<{
   removedMentions: number;
   orphanedRelationships: number;
   deletedMetadata: number;
 }> => {
-  logger.info({ msg: "🧹 Cleaning up document graph", recordId });
+  logger.info({ msg: '🧹 Cleaning up document graph', recordId });
 
   const relationshipMentionStore = new RelationshipMentionStore();
 
   // 1. Remove relationship mentions from MongoDB
-  const removedMentions = await relationshipMentionStore.removeDocumentMentions(
-    recordId
-  );
+  const removedMentions = await relationshipMentionStore.removeDocumentMentions(recordId);
 
   logger.info({
-    msg: "Removed relationship mentions",
+    msg: 'Removed relationship mentions',
     recordId,
     removedMentions,
   });
 
   // 2. Find orphaned relationships in MongoDB
-  const orphanedRels =
-    await relationshipMentionStore.findOrphanedRelationships();
+  const orphanedRels = await relationshipMentionStore.findOrphanedRelationships();
 
   logger.info({
-    msg: "Found orphaned relationships",
+    msg: 'Found orphaned relationships',
     count: orphanedRels.length,
   });
 
@@ -134,14 +126,10 @@ export const cleanupDocumentGraph = async (
   if (orphanedRels.length > 0) {
     for (const rel of orphanedRels) {
       try {
-        await graphStore.deleteRelationship(
-          rel.sourceEntityId,
-          rel.type,
-          rel.targetEntityId
-        );
+        await graphStore.deleteRelationship(rel.sourceEntityId, rel.type, rel.targetEntityId);
       } catch (err) {
         logger.error({
-          msg: "Failed to delete orphaned relationship from Memgraph",
+          msg: 'Failed to delete orphaned relationship from Memgraph',
           err,
           relationship: rel,
         });
@@ -150,11 +138,10 @@ export const cleanupDocumentGraph = async (
   }
 
   // 4. Delete orphaned relationship metadata from MongoDB
-  const deletedMetadata =
-    await relationshipMentionStore.deleteOrphanedRelationships();
+  const deletedMetadata = await relationshipMentionStore.deleteOrphanedRelationships();
 
   logger.info({
-    msg: "✅ Graph cleanup complete",
+    msg: '✅ Graph cleanup complete',
     recordId,
     orphanedRelationships: orphanedRels.length,
     deletedMetadata,

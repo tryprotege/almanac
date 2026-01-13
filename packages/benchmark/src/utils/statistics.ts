@@ -3,7 +3,7 @@
  * All functions are pure and composable
  */
 
-import type { Statistics } from "../types/index.js";
+import type { Statistics } from '../types/index.js';
 
 /**
  * Calculate mean of numbers
@@ -20,9 +20,7 @@ export const median = (numbers: readonly number[]): number => {
   if (numbers.length === 0) return 0;
   const sorted = [...numbers].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[mid - 1] + sorted[mid]) / 2
-    : sorted[mid];
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 };
 
 /**
@@ -64,9 +62,7 @@ export const max = (numbers: readonly number[]): number => {
 /**
  * Calculate full statistics for a dataset
  */
-export const calculateStatistics = (
-  numbers: readonly number[]
-): Statistics => ({
+export const calculateStatistics = (numbers: readonly number[]): Statistics => ({
   mean: mean(numbers),
   median: median(numbers),
   min: min(numbers),
@@ -79,41 +75,38 @@ export const calculateStatistics = (
 /**
  * Sum of numbers
  */
-export const sum = (numbers: readonly number[]): number =>
-  numbers.reduce((acc, n) => acc + n, 0);
+export const sum = (numbers: readonly number[]): number => numbers.reduce((acc, n) => acc + n, 0);
 
 /**
  * Count occurrences
  */
-export const count = <T>(
-  items: readonly T[],
-  predicate: (item: T) => boolean
-): number => items.filter(predicate).length;
+export const count = <T>(items: readonly T[], predicate: (item: T) => boolean): number =>
+  items.filter(predicate).length;
 
 /**
  * Group by key
  */
 export const groupBy = <T, K extends string | number>(
   items: readonly T[],
-  keyFn: (item: T) => K
+  keyFn: (item: T) => K,
 ): Record<K, T[]> => {
-  return items.reduce((acc, item) => {
-    const key = keyFn(item);
-    if (!acc[key]) {
-      acc[key] = [];
-    }
-    acc[key].push(item);
-    return acc;
-  }, {} as Record<K, T[]>);
+  return items.reduce(
+    (acc, item) => {
+      const key = keyFn(item);
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(item);
+      return acc;
+    },
+    {} as Record<K, T[]>,
+  );
 };
 
 /**
  * Calculate average with custom extractor
  */
-export const averageBy = <T>(
-  items: readonly T[],
-  extractor: (item: T) => number
-): number => {
+export const averageBy = <T>(items: readonly T[], extractor: (item: T) => number): number => {
   if (items.length === 0) return 0;
   return mean(items.map(extractor));
 };
@@ -124,11 +117,14 @@ export const averageBy = <T>(
 export const statisticsByGroup = <T, K extends string | number>(
   items: readonly T[],
   keyFn: (item: T) => K,
-  valueFn: (item: T) => number
+  valueFn: (item: T) => number,
 ): Record<K, Statistics> => {
   const grouped = groupBy(items, keyFn);
-  return Object.entries(grouped).reduce((acc, [key, group]) => {
-    acc[key as K] = calculateStatistics((group as T[]).map(valueFn));
-    return acc;
-  }, {} as Record<K, Statistics>);
+  return Object.entries(grouped).reduce(
+    (acc, [key, group]) => {
+      acc[key as K] = calculateStatistics((group as T[]).map(valueFn));
+      return acc;
+    },
+    {} as Record<K, Statistics>,
+  );
 };

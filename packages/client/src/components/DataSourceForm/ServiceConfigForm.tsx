@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 import {
   Eye,
   EyeOff,
@@ -7,9 +7,9 @@ import {
   ChevronUp,
   AlertCircle,
   CheckCircle2,
-} from "lucide-react";
-import { ServicePreset, EnvVariable, HeaderVariable } from "./presets";
-import { DataSourceConfig } from "../../lib/api";
+} from 'lucide-react';
+import { ServicePreset, EnvVariable, HeaderVariable } from './presets';
+import { DataSourceConfig } from '../../lib/api';
 
 interface ServiceConfigFormProps {
   preset: ServicePreset;
@@ -17,7 +17,7 @@ interface ServiceConfigFormProps {
   onBack: () => void;
   onSubmit: (config: {
     name: string;
-    type: "stdio" | "sse" | "streamable-http";
+    type: 'stdio' | 'sse' | 'streamable-http';
     command?: string;
     args?: string[];
     env?: Record<string, string>;
@@ -46,11 +46,11 @@ export function ServiceConfigForm({
     const initial: Record<string, EnvVarState> = {};
     preset.requiredEnv?.forEach((env) => {
       // Use existing value if available
-      const existingValue = existingSource?.env?.[env.key] || "";
+      const existingValue = existingSource?.env?.[env.key] || '';
       initial[env.key] = { value: existingValue, showValue: false };
     });
     preset.optionalEnv?.forEach((env) => {
-      const existingValue = existingSource?.env?.[env.key] || "";
+      const existingValue = existingSource?.env?.[env.key] || '';
       initial[env.key] = { value: existingValue, showValue: false };
     });
     return initial;
@@ -61,20 +61,14 @@ export function ServiceConfigForm({
     preset.requiredHeaders?.forEach((header) => {
       // Use existing value if available, stripping "Bearer " prefix for display
       let existingValue = existingSource?.headers?.[header.key] || header.value;
-      if (
-        header.key === "Authorization" &&
-        existingValue?.startsWith("Bearer ")
-      ) {
+      if (header.key === 'Authorization' && existingValue?.startsWith('Bearer ')) {
         existingValue = existingValue.substring(7); // Remove "Bearer " prefix for display
       }
       initial[header.key] = { value: existingValue, showValue: false };
     });
     preset.optionalHeaders?.forEach((header) => {
       let existingValue = existingSource?.headers?.[header.key] || header.value;
-      if (
-        header.key === "Authorization" &&
-        existingValue?.startsWith("Bearer ")
-      ) {
+      if (header.key === 'Authorization' && existingValue?.startsWith('Bearer ')) {
         existingValue = existingValue.substring(7);
       }
       initial[header.key] = { value: existingValue, showValue: false };
@@ -82,43 +76,33 @@ export function ServiceConfigForm({
     return initial;
   });
 
-  const [isDisabled, setIsDisabled] = useState(
-    existingSource?.isDisabled || false
-  );
+  const [isDisabled, setIsDisabled] = useState(existingSource?.isDisabled || false);
 
   // Re-initialize when existingSource changes
   useEffect(() => {
     if (existingSource) {
       const newEnvVars: Record<string, EnvVarState> = {};
       preset.requiredEnv?.forEach((env) => {
-        const existingValue = existingSource.env?.[env.key] || "";
+        const existingValue = existingSource.env?.[env.key] || '';
         newEnvVars[env.key] = { value: existingValue, showValue: false };
       });
       preset.optionalEnv?.forEach((env) => {
-        const existingValue = existingSource.env?.[env.key] || "";
+        const existingValue = existingSource.env?.[env.key] || '';
         newEnvVars[env.key] = { value: existingValue, showValue: false };
       });
       setEnvVars(newEnvVars);
 
       const newHeaders: Record<string, EnvVarState> = {};
       preset.requiredHeaders?.forEach((header) => {
-        let existingValue =
-          existingSource.headers?.[header.key] || header.value;
-        if (
-          header.key === "Authorization" &&
-          existingValue?.startsWith("Bearer ")
-        ) {
+        let existingValue = existingSource.headers?.[header.key] || header.value;
+        if (header.key === 'Authorization' && existingValue?.startsWith('Bearer ')) {
           existingValue = existingValue.substring(7);
         }
         newHeaders[header.key] = { value: existingValue, showValue: false };
       });
       preset.optionalHeaders?.forEach((header) => {
-        let existingValue =
-          existingSource.headers?.[header.key] || header.value;
-        if (
-          header.key === "Authorization" &&
-          existingValue?.startsWith("Bearer ")
-        ) {
+        let existingValue = existingSource.headers?.[header.key] || header.value;
+        if (header.key === 'Authorization' && existingValue?.startsWith('Bearer ')) {
           existingValue = existingValue.substring(7);
         }
         newHeaders[header.key] = { value: existingValue, showValue: false };
@@ -129,34 +113,24 @@ export function ServiceConfigForm({
     }
   }, [existingSource, preset]);
 
-  const validateEnvVar = (
-    envVar: EnvVariable,
-    value: string
-  ): string | undefined => {
+  const validateEnvVar = (envVar: EnvVariable, value: string): string | undefined => {
     if (!value.trim() && preset.requiredEnv?.includes(envVar)) {
       return `${envVar.label} is required`;
     }
     if (value && envVar.validation && !envVar.validation.test(value)) {
-      return envVar.validationMessage || "Invalid format";
+      return envVar.validationMessage || 'Invalid format';
     }
     return undefined;
   };
 
-  const validateHeader = (
-    header: HeaderVariable,
-    value: string
-  ): string | undefined => {
+  const validateHeader = (header: HeaderVariable, value: string): string | undefined => {
     if (!value.trim() && header.editable) {
       return `${header.label} is required`;
     }
     return undefined;
   };
 
-  const handleEnvVarChange = (
-    key: string,
-    value: string,
-    envVar: EnvVariable
-  ) => {
+  const handleEnvVarChange = (key: string, value: string, envVar: EnvVariable) => {
     const error = validateEnvVar(envVar, value);
     setEnvVars((prev) => ({
       ...prev,
@@ -164,11 +138,7 @@ export function ServiceConfigForm({
     }));
   };
 
-  const handleHeaderChange = (
-    key: string,
-    value: string,
-    header: HeaderVariable
-  ) => {
+  const handleHeaderChange = (key: string, value: string, header: HeaderVariable) => {
     const error = validateHeader(header, value);
     setHeaders((prev) => ({
       ...prev,
@@ -199,7 +169,7 @@ export function ServiceConfigForm({
     const updatedHeaders = { ...headers };
 
     preset.requiredEnv?.forEach((envVar) => {
-      const envState = envVars[envVar.key] || { value: "", showValue: false };
+      const envState = envVars[envVar.key] || { value: '', showValue: false };
       const error = validateEnvVar(envVar, envState.value);
       if (error) {
         updatedEnvVars[envVar.key] = { ...envState, error };
@@ -209,7 +179,7 @@ export function ServiceConfigForm({
 
     preset.requiredHeaders?.forEach((header) => {
       const headerState = headers[header.key] || {
-        value: header.value || "",
+        value: header.value || '',
         showValue: false,
       };
       const error = validateHeader(header, headerState.value);
@@ -238,7 +208,7 @@ export function ServiceConfigForm({
     Object.entries(headers).forEach(([key, state]) => {
       if (state.value.trim()) {
         // Special handling for Authorization header - prefix with Bearer if it's a token
-        if (key === "Authorization" && !state.value.startsWith("Bearer ")) {
+        if (key === 'Authorization' && !state.value.startsWith('Bearer ')) {
           headersObj[key] = `Bearer ${state.value.trim()}`;
         } else {
           headersObj[key] = state.value.trim();
@@ -247,7 +217,7 @@ export function ServiceConfigForm({
     });
 
     // Submit configuration
-    if (preset.id === "custom") {
+    if (preset.id === 'custom') {
       // For custom servers, we'll need additional fields
       // This will be handled in the main form
       return;
@@ -278,9 +248,7 @@ export function ServiceConfigForm({
           <h3 className="text-lg font-semibold text-text-primary">
             Configure {preset.displayName}
           </h3>
-          <p className="text-sm text-text-tertiary mt-1">
-            {preset.description}
-          </p>
+          <p className="text-sm text-text-tertiary mt-1">{preset.description}</p>
         </div>
       </div>
 
@@ -291,9 +259,7 @@ export function ServiceConfigForm({
           onClick={() => setShowSetupGuide(!showSetupGuide)}
           className="w-full px-4 py-3 flex items-center justify-between bg-bg-secondary hover:bg-bg-active transition-colors"
         >
-          <span className="font-medium text-text-primary">
-            Setup Instructions
-          </span>
+          <span className="font-medium text-text-primary">Setup Instructions</span>
           {showSetupGuide ? (
             <ChevronUp className="w-5 h-5 text-text-quaternary" />
           ) : (
@@ -341,15 +307,13 @@ export function ServiceConfigForm({
 
       {/* Environment Variables or Headers */}
       <div className="space-y-4">
-        <h4 className="font-medium text-text-primary">
-          Required Configuration
-        </h4>
+        <h4 className="font-medium text-text-primary">Required Configuration</h4>
 
         {/* Environment Variables */}
         {preset.requiredEnv &&
           preset.requiredEnv.map((envVar) => {
             const state = envVars[envVar.key] || {
-              value: "",
+              value: '',
               showValue: false,
             };
             return (
@@ -357,9 +321,7 @@ export function ServiceConfigForm({
                 key={envVar.key}
                 envVar={envVar}
                 state={state}
-                onChange={(value) =>
-                  handleEnvVarChange(envVar.key, value, envVar)
-                }
+                onChange={(value) => handleEnvVarChange(envVar.key, value, envVar)}
                 onToggleVisibility={() => toggleVisibility(envVar.key)}
                 disabled={isLoading}
               />
@@ -370,7 +332,7 @@ export function ServiceConfigForm({
         {preset.requiredHeaders &&
           preset.requiredHeaders.map((header) => {
             const state = headers[header.key] || {
-              value: header.value || "",
+              value: header.value || '',
               showValue: false,
             };
             return (
@@ -378,9 +340,7 @@ export function ServiceConfigForm({
                 key={header.key}
                 header={header}
                 state={state}
-                onChange={(value) =>
-                  handleHeaderChange(header.key, value, header)
-                }
+                onChange={(value) => handleHeaderChange(header.key, value, header)}
                 onToggleVisibility={() => toggleHeaderVisibility(header.key)}
                 disabled={isLoading}
               />
@@ -390,12 +350,10 @@ export function ServiceConfigForm({
         {/* Optional Environment Variables */}
         {preset.optionalEnv && preset.optionalEnv.length > 0 && (
           <>
-            <h4 className="font-medium text-text-primary pt-2">
-              Optional Configuration
-            </h4>
+            <h4 className="font-medium text-text-primary pt-2">Optional Configuration</h4>
             {preset.optionalEnv.map((envVar) => {
               const state = envVars[envVar.key] || {
-                value: "",
+                value: '',
                 showValue: false,
               };
               return (
@@ -403,9 +361,7 @@ export function ServiceConfigForm({
                   key={envVar.key}
                   envVar={envVar}
                   state={state}
-                  onChange={(value) =>
-                    handleEnvVarChange(envVar.key, value, envVar)
-                  }
+                  onChange={(value) => handleEnvVarChange(envVar.key, value, envVar)}
                   onToggleVisibility={() => toggleVisibility(envVar.key)}
                   disabled={isLoading}
                 />
@@ -417,12 +373,10 @@ export function ServiceConfigForm({
         {/* Optional Headers */}
         {preset.optionalHeaders && preset.optionalHeaders.length > 0 && (
           <>
-            <h4 className="font-medium text-text-primary pt-2">
-              Optional Headers
-            </h4>
+            <h4 className="font-medium text-text-primary pt-2">Optional Headers</h4>
             {preset.optionalHeaders.map((header) => {
               const state = headers[header.key] || {
-                value: header.value || "",
+                value: header.value || '',
                 showValue: false,
               };
               return (
@@ -430,9 +384,7 @@ export function ServiceConfigForm({
                   key={header.key}
                   header={header}
                   state={state}
-                  onChange={(value) =>
-                    handleHeaderChange(header.key, value, header)
-                  }
+                  onChange={(value) => handleHeaderChange(header.key, value, header)}
                   onToggleVisibility={() => toggleHeaderVisibility(header.key)}
                   disabled={isLoading}
                 />
@@ -473,11 +425,7 @@ export function ServiceConfigForm({
           disabled={isLoading}
           className="btn btn-primary w-full sm:flex-1 sm:max-w-[200px]"
         >
-          {isLoading
-            ? "Saving..."
-            : existingSource
-            ? "Update Server"
-            : "Create Server"}
+          {isLoading ? 'Saving...' : existingSource ? 'Update Server' : 'Create Server'}
         </button>
       </div>
     </form>
@@ -492,53 +440,39 @@ interface EnvVarInputProps {
   disabled: boolean;
 }
 
-function EnvVarInput({
-  envVar,
-  state,
-  onChange,
-  onToggleVisibility,
-  disabled,
-}: EnvVarInputProps) {
+function EnvVarInput({ envVar, state, onChange, onToggleVisibility, disabled }: EnvVarInputProps) {
   const hasError = !!state.error;
   const hasValue = state.value.trim().length > 0;
 
   return (
     <div className="space-y-1">
-      <label className="block text-sm font-medium text-text-secondary">
-        {envVar.label}
-      </label>
+      <label className="block text-sm font-medium text-text-secondary">{envVar.label}</label>
 
       <div className="relative">
         <input
-          type={state.showValue ? "text" : envVar.type}
+          type={state.showValue ? 'text' : envVar.type}
           value={state.value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           placeholder={envVar.placeholder}
           className={`input pr-10 ${
             hasError
-              ? "border-brand-error focus:ring-brand-error"
+              ? 'border-brand-error focus:ring-brand-error'
               : hasValue
-              ? "border-brand-success"
-              : ""
+                ? 'border-brand-success'
+                : ''
           }`}
         />
 
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-          {hasValue && !hasError && (
-            <CheckCircle2 className="w-4 h-4 text-brand-success" />
-          )}
-          {envVar.type === "password" && (
+          {hasValue && !hasError && <CheckCircle2 className="w-4 h-4 text-brand-success" />}
+          {envVar.type === 'password' && (
             <button
               type="button"
               onClick={onToggleVisibility}
               className="text-text-quaternary hover:text-text-secondary"
             >
-              {state.showValue ? (
-                <EyeOff className="w-4 h-4" />
-              ) : (
-                <Eye className="w-4 h-4" />
-              )}
+              {state.showValue ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           )}
         </div>
@@ -564,56 +498,42 @@ interface HeaderInputProps {
   disabled: boolean;
 }
 
-function HeaderInput({
-  header,
-  state,
-  onChange,
-  onToggleVisibility,
-  disabled,
-}: HeaderInputProps) {
+function HeaderInput({ header, state, onChange, onToggleVisibility, disabled }: HeaderInputProps) {
   const hasError = !!state.error;
   const hasValue = state.value.trim().length > 0;
   const isEditable = header.editable !== false;
   // Only use password type for Authorization header
-  const isSensitive = header.key === "Authorization";
+  const isSensitive = header.key === 'Authorization';
 
   return (
     <div className="space-y-1">
-      <label className="block text-sm font-medium text-text-secondary">
-        {header.label}
-      </label>
+      <label className="block text-sm font-medium text-text-secondary">{header.label}</label>
 
       <div className="relative">
         <input
-          type={isSensitive && !state.showValue ? "password" : "text"}
+          type={isSensitive && !state.showValue ? 'password' : 'text'}
           value={state.value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled || !isEditable}
           placeholder={header.value || `Enter ${header.label}`}
           className={`input pr-10 ${
             hasError
-              ? "border-brand-error focus:ring-brand-error"
+              ? 'border-brand-error focus:ring-brand-error'
               : hasValue
-              ? "border-brand-success"
-              : ""
-          } ${!isEditable ? "bg-bg-secondary cursor-not-allowed" : ""}`}
+                ? 'border-brand-success'
+                : ''
+          } ${!isEditable ? 'bg-bg-secondary cursor-not-allowed' : ''}`}
         />
 
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-          {hasValue && !hasError && (
-            <CheckCircle2 className="w-4 h-4 text-brand-success" />
-          )}
+          {hasValue && !hasError && <CheckCircle2 className="w-4 h-4 text-brand-success" />}
           {isEditable && isSensitive && (
             <button
               type="button"
               onClick={onToggleVisibility}
               className="text-text-quaternary hover:text-text-secondary"
             >
-              {state.showValue ? (
-                <EyeOff className="w-4 h-4" />
-              ) : (
-                <Eye className="w-4 h-4" />
-              )}
+              {state.showValue ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           )}
         </div>

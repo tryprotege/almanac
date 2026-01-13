@@ -3,7 +3,7 @@
  * Consolidated from contracts - single-tenant (no workspace)
  */
 
-import type { SourceType } from "./index.js";
+import type { SourceType } from './index.js';
 
 export interface SearchQuery {
   text: string;
@@ -70,53 +70,52 @@ export interface SearchResponse {
 
 // Smart Search Tool Definition
 export const SMART_SEARCH_TOOL = {
-  name: "smart_search",
+  name: 'smart_search',
   description:
-    "Search across all connected sources (Notion, Slack, Calendar, Fathom, etc.) using natural language. Returns semantically relevant results.",
+    'Search across all connected sources (Notion, Slack, Calendar, Fathom, etc.) using natural language. Returns semantically relevant results.',
   inputSchema: {
-    type: "object" as const,
+    type: 'object' as const,
     properties: {
       query: {
-        type: "string",
-        description: "Natural language search query",
+        type: 'string',
+        description: 'Natural language search query',
       },
       sources: {
-        type: "array",
+        type: 'array',
         items: {
-          type: "string",
+          type: 'string',
           enum: [
-            "notion",
-            "slack",
-            "calendar",
-            "fathom",
-            "whatsapp",
-            "codebase",
-            "asana",
-            "jira",
-            "google_drive",
+            'notion',
+            'slack',
+            'calendar',
+            'fathom',
+            'whatsapp',
+            'codebase',
+            'asana',
+            'jira',
+            'google_drive',
           ],
         },
-        description: "Filter results to specific sources",
+        description: 'Filter results to specific sources',
       },
       types: {
-        type: "array",
-        items: { type: "string" },
-        description:
-          "Filter by resource type (page, message, event, call, file)",
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Filter by resource type (page, message, event, call, file)',
       },
       dateRange: {
-        type: "object",
+        type: 'object',
         properties: {
-          start: { type: "string", description: "ISO date string" },
-          end: { type: "string", description: "ISO date string" },
+          start: { type: 'string', description: 'ISO date string' },
+          end: { type: 'string', description: 'ISO date string' },
         },
       },
       limit: {
-        type: "number",
-        description: "Maximum results (default: 20)",
+        type: 'number',
+        description: 'Maximum results (default: 20)',
       },
     },
-    required: ["query"],
+    required: ['query'],
   },
 };
 

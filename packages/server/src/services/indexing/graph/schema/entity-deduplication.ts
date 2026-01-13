@@ -3,7 +3,7 @@
  * LightRAG-inspired deduplication for knowledge graph extraction
  */
 
-import logger from "../../../../utils/logger.js";
+import logger from '../../../../utils/logger.js';
 
 export interface Entity {
   name: string;
@@ -28,20 +28,18 @@ export interface Relationship {
  * This is the SINGLE SOURCE OF TRUTH for entity name normalization
  */
 export const normalizeEntityName = (name: string): string => {
-  return name.toLowerCase().trim().replace(/\s+/g, " "); // Normalize multiple spaces to single space
+  return name.toLowerCase().trim().replace(/\s+/g, ' '); // Normalize multiple spaces to single space
 };
 
 export const selectDominantType = (typeCounts: Map<string, number>): string =>
   Array.from(typeCounts.entries()).reduce(
     (max, [type, count]) => (count > max.count ? { type, count } : max),
-    { type: "", count: 0 }
+    { type: '', count: 0 },
   ).type;
 
 export const mergeDescriptions = (descriptions: string[]): string => {
   const unique = [...new Set(descriptions.filter(Boolean))];
-  return unique.length > 6
-    ? unique.slice(0, 6).join(" ||| ") + " [...]"
-    : unique.join(" ||| ");
+  return unique.length > 6 ? unique.slice(0, 6).join(' ||| ') + ' [...]' : unique.join(' ||| ');
 };
 
 export const deduplicateEntities = (entities: Entity[]): Entity[] => {
@@ -60,10 +58,7 @@ export const deduplicateEntities = (entities: Entity[]): Entity[] => {
         const count = group.typeCounts.get(entity.type) || 0;
         group.typeCounts.set(entity.type, count + 1);
 
-        if (
-          entity.description &&
-          !group.descriptions.includes(entity.description)
-        ) {
+        if (entity.description && !group.descriptions.includes(entity.description)) {
           group.descriptions.push(entity.description);
         }
       }
@@ -77,7 +72,7 @@ export const deduplicateEntities = (entities: Entity[]): Entity[] => {
         typeCounts: Map<string, number>;
         descriptions: string[];
       }
-    >()
+    >(),
   );
 
   return Array.from(groups.values()).map((group) => ({
@@ -93,19 +88,17 @@ export const deduplicateEntities = (entities: Entity[]): Entity[] => {
 
 // Define relationship blacklist (embedding-redundant types)
 const LOW_VALUE_RELATIONSHIP_TYPES = new Set([
-  "MENTIONED_WITH",
-  "APPEARS_WITH",
-  "RELATED_TO", // Too generic
-  "SIMILAR_TO", // Embeddings handle this
-  "ASSOCIATED_WITH",
+  'MENTIONED_WITH',
+  'APPEARS_WITH',
+  'RELATED_TO', // Too generic
+  'SIMILAR_TO', // Embeddings handle this
+  'ASSOCIATED_WITH',
 ]);
 
 /**
  * Filter out low-value relationships that embeddings already handle
  */
-export const filterLowValueRelationships = (
-  relationships: Relationship[]
-): Relationship[] => {
+export const filterLowValueRelationships = (relationships: Relationship[]): Relationship[] => {
   return relationships.filter((rel) => {
     // Filter out blacklisted types
     if (LOW_VALUE_RELATIONSHIP_TYPES.has(rel.type.toUpperCase())) {
@@ -116,7 +109,7 @@ export const filterLowValueRelationships = (
     // Filter out weak relationships (strength < 5)
     if (rel.strength && rel.strength < 5) {
       logger.warn(
-        `⚠️  Filtered weak relationship: ${rel.source} -> ${rel.target} (strength: ${rel.strength})`
+        `⚠️  Filtered weak relationship: ${rel.source} -> ${rel.target} (strength: ${rel.strength})`,
       );
       return false;
     }
@@ -129,13 +122,9 @@ export const filterLowValueRelationships = (
 // Pure Functions - Relationship Merging
 // ============================================================================
 
-export const mergeRelationships = (
-  relationships: Relationship[]
-): Relationship[] => {
+export const mergeRelationships = (relationships: Relationship[]): Relationship[] => {
   const groups = relationships.reduce((map, rel) => {
-    const key = `${normalizeEntityName(rel.source)}|${
-      rel.type
-    }|${normalizeEntityName(rel.target)}`;
+    const key = `${normalizeEntityName(rel.source)}|${rel.type}|${normalizeEntityName(rel.target)}`;
     const existing = map.get(key);
 
     if (!existing) {

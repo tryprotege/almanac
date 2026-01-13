@@ -1,4 +1,4 @@
-import { GitBranch, Link2 } from "lucide-react";
+import { GitBranch, Link2 } from 'lucide-react';
 
 interface EntitiesTabProps {
   config: any;
@@ -11,24 +11,20 @@ export default function EntitiesTab({ config }: EntitiesTabProps) {
   const allEntities: Array<{ recordType: string; entity: any }> = [];
   const allRelationships: Array<{ recordType: string; relationship: any }> = [];
 
-  Object.entries(recordTypes).forEach(
-    ([typeName, recordType]: [string, any]) => {
-      (recordType.entities || []).forEach((entity: any) => {
-        allEntities.push({ recordType: typeName, entity });
-      });
-      (recordType.relationships || []).forEach((relationship: any) => {
-        allRelationships.push({ recordType: typeName, relationship });
-      });
-    }
-  );
+  Object.entries(recordTypes).forEach(([typeName, recordType]: [string, any]) => {
+    (recordType.entities || []).forEach((entity: any) => {
+      allEntities.push({ recordType: typeName, entity });
+    });
+    (recordType.relationships || []).forEach((relationship: any) => {
+      allRelationships.push({ recordType: typeName, relationship });
+    });
+  });
 
   return (
     <div className="space-y-6">
       {/* Entities */}
       <div>
-        <h3 className="text-lg font-semibold text-text-primary mb-4">
-          Entity Extractions
-        </h3>
+        <h3 className="text-lg font-semibold text-text-primary mb-4">Entity Extractions</h3>
 
         {allEntities.length === 0 ? (
           <div className="card text-center py-12">
@@ -87,9 +83,7 @@ export default function EntitiesTab({ config }: EntitiesTabProps) {
 
       {/* Relationships */}
       <div>
-        <h3 className="text-lg font-semibold text-text-primary mb-4">
-          Relationship Extractions
-        </h3>
+        <h3 className="text-lg font-semibold text-text-primary mb-4">Relationship Extractions</h3>
 
         {allRelationships.length === 0 ? (
           <div className="card text-center py-12">
@@ -139,9 +133,7 @@ export default function EntitiesTab({ config }: EntitiesTabProps) {
                       {relationship.targetType}
                     </td>
                     <td className="px-4 py-3 text-sm text-text-secondary">
-                      <code className="text-xs">
-                        {relationship.targetIdPath}
-                      </code>
+                      <code className="text-xs">{relationship.targetIdPath}</code>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-text-secondary">
                       {recordType}
@@ -157,9 +149,7 @@ export default function EntitiesTab({ config }: EntitiesTabProps) {
       {/* Entity Properties */}
       {allEntities.some(({ entity }) => entity.properties) && (
         <div>
-          <h3 className="text-lg font-semibold text-text-primary mb-4">
-            Entity Properties
-          </h3>
+          <h3 className="text-lg font-semibold text-text-primary mb-4">Entity Properties</h3>
           <div className="space-y-3">
             {allEntities
               .filter(({ entity }) => entity.properties)
@@ -175,14 +165,10 @@ export default function EntitiesTab({ config }: EntitiesTabProps) {
                           key={propName}
                           className="px-3 py-2 bg-bg-secondary border border-border-secondary rounded-lg"
                         >
-                          <span className="text-text-secondary">
-                            {propName}:
-                          </span>{" "}
-                          <code className="text-xs text-text-primary">
-                            {propPath}
-                          </code>
+                          <span className="text-text-secondary">{propName}:</span>{' '}
+                          <code className="text-xs text-text-primary">{propPath}</code>
                         </div>
-                      )
+                      ),
                     )}
                   </div>
                 </div>

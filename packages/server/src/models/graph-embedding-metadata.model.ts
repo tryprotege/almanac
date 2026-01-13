@@ -1,4 +1,4 @@
-import { InferSchemaType, Schema, model } from "mongoose";
+import { InferSchemaType, Schema, model } from 'mongoose';
 
 /**
  * Tracks embedding metadata for graph elements (entities and relationships)
@@ -24,7 +24,7 @@ const graphEmbeddingMetadataSchema = new Schema(
     itemType: {
       type: String,
       required: true,
-      enum: ["entity", "relationship"],
+      enum: ['entity', 'relationship'],
       index: true,
     },
 
@@ -118,8 +118,8 @@ const graphEmbeddingMetadataSchema = new Schema(
   },
   {
     timestamps: true,
-    collection: "graph_embedding_metadata",
-  }
+    collection: 'graph_embedding_metadata',
+  },
 );
 
 // Indexes for efficient queries
@@ -146,17 +146,15 @@ graphEmbeddingMetadataSchema.index({
 }); // Filter by type + source + embedding status
 
 // Relationship mention tracking indexes
-graphEmbeddingMetadataSchema.index({ "mentionedInRecords.recordId": 1 }); // Find relationships by document
+graphEmbeddingMetadataSchema.index({ 'mentionedInRecords.recordId': 1 }); // Find relationships by document
 graphEmbeddingMetadataSchema.index({
   itemType: 1,
   mentionedInRecords: 1,
 }); // Find orphaned relationships (empty array)
 
-export type GraphEmbeddingMetadataSchema = InferSchemaType<
-  typeof graphEmbeddingMetadataSchema
->;
+export type GraphEmbeddingMetadataSchema = InferSchemaType<typeof graphEmbeddingMetadataSchema>;
 
 export const GraphEmbeddingMetadata = model<GraphEmbeddingMetadataSchema>(
-  "GraphEmbeddingMetadata",
-  graphEmbeddingMetadataSchema
+  'GraphEmbeddingMetadata',
+  graphEmbeddingMetadataSchema,
 );

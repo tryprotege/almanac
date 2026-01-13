@@ -1,56 +1,51 @@
-import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const envPath = path.join(__dirname, "../.env");
+const envPath = path.join(__dirname, '../.env');
 
 dotenv.config({
   path: envPath,
 });
 
-import { z } from "zod";
+import { z } from 'zod';
 
 // Infrastructure schema - REQUIRED for server to start (with defaults)
 export const infrastructureSchema = z.object({
   // Logging Configuration
-  LOG_LEVEL: z
-    .enum(["trace", "debug", "info", "warn", "error", "fatal"])
-    .default("info"),
+  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
   MCP_DEBUG_LOGS: z.boolean().default(false),
 
   // MongoDB Configuration
-  MONGO_HOST: z.string().default("localhost"),
-  MONGO_PORT: z.string().default("27017"),
-  MONGO_USERNAME: z.string().default("admin"),
-  MONGO_PASSWORD: z.string().default("admin123"),
-  MONGO_DB_NAME: z.string().default("ebee"),
+  MONGO_HOST: z.string().default('localhost'),
+  MONGO_PORT: z.string().default('27017'),
+  MONGO_USERNAME: z.string().default('admin'),
+  MONGO_PASSWORD: z.string().default('admin123'),
+  MONGO_DB_NAME: z.string().default('ebee'),
 
   // Redis Configuration
-  REDIS_HOST: z.string().default("localhost"),
-  REDIS_PORT: z.string().default("6379"),
+  REDIS_HOST: z.string().default('localhost'),
+  REDIS_PORT: z.string().default('6379'),
   REDIS_PASSWORD: z.string().optional(),
-  REDIS_DB: z.string().default("0"),
+  REDIS_DB: z.string().default('0'),
 
   // Memgraph Configuration
-  MEMGRAPH_HOST: z.string().default("localhost"),
-  MEMGRAPH_PORT: z.string().default("7687"),
+  MEMGRAPH_HOST: z.string().default('localhost'),
+  MEMGRAPH_PORT: z.string().default('7687'),
   MEMGRAPH_USERNAME: z.string().optional(),
   MEMGRAPH_PASSWORD: z.string().optional(),
 
   // Qdrant Configuration
-  QDRANT_HOST: z.string().default("localhost"),
-  QDRANT_PORT: z.string().default("6333"),
+  QDRANT_HOST: z.string().default('localhost'),
+  QDRANT_PORT: z.string().default('6333'),
   QDRANT_API_KEY: z.string().optional(),
 
   // OAuth Configuration
-  OAUTH_REDIRECT_URI: z
-    .string()
-    .url()
-    .default("http://localhost:3000/api/oauth/callback"),
-  OAUTH_CLIENT_URL: z.string().url().default("http://localhost:5173"),
+  OAUTH_REDIRECT_URI: z.string().url().default('http://localhost:3000/api/oauth/callback'),
+  OAUTH_CLIENT_URL: z.string().url().default('http://localhost:5173'),
 });
 
 // Application schema - OPTIONAL at startup (can be configured via UI)
@@ -93,32 +88,28 @@ export const applicationSchema = z.object({
       return date.toISOString();
     }),
   SYNC_MAX_RECORDS: z.coerce.number().optional(),
-  SYNC_CRON_SCHEDULE: z.string().default("0 0 * * *"),
+  SYNC_CRON_SCHEDULE: z.string().default('0 0 * * *'),
 
   // Encryption Configuration
   ENCRYPTION_KEY: z
     .string()
-    .length(64, "Encryption key must be 64 hex characters (32 bytes)")
-    .regex(/^[0-9a-f]{64}$/i, "Encryption key must be valid hexadecimal")
+    .length(64, 'Encryption key must be 64 hex characters (32 bytes)')
+    .regex(/^[0-9a-f]{64}$/i, 'Encryption key must be valid hexadecimal')
     .optional(),
 });
 
 const processEnv = {
   ...process.env,
-  MCP_DEBUG_LOGS: process.env.MCP_DEBUG_LOGS?.toLowerCase().trim() === "true",
-  RERANKER_ENABLED:
-    process.env.RERANKER_ENABLED?.toLowerCase().trim() === "true",
+  MCP_DEBUG_LOGS: process.env.MCP_DEBUG_LOGS?.toLowerCase().trim() === 'true',
+  RERANKER_ENABLED: process.env.RERANKER_ENABLED?.toLowerCase().trim() === 'true',
   ENABLE_TOXIC_DOCUMENT_FILTER:
-    process.env.ENABLE_TOXIC_DOCUMENT_FILTER?.toLowerCase().trim() === "true",
+    process.env.ENABLE_TOXIC_DOCUMENT_FILTER?.toLowerCase().trim() === 'true',
   SYNC_MAX_RECORDS: process.env.SYNC_MAX_RECORDS
     ? parseInt(process.env.SYNC_MAX_RECORDS)
     : undefined,
 };
 
-function partialParse<T extends z.ZodRawShape>(
-  schema: z.ZodObject<T>,
-  input: unknown
-) {
+function partialParse<T extends z.ZodRawShape>(schema: z.ZodObject<T>, input: unknown) {
   const shape = schema.shape;
   const result: any = {};
 
@@ -159,21 +150,17 @@ export const env = {
 
 // Log setup mode status and missing variables
 if (isSetupMode) {
-  console.log("\n" + "=".repeat(70));
-  console.log(
-    "⚠️  Running in SETUP MODE - LLM features disabled until configured via UI"
-  );
-  console.log("=".repeat(70));
+  console.log('\n' + '='.repeat(70));
+  console.log('⚠️  Running in SETUP MODE - LLM features disabled until configured via UI');
+  console.log('='.repeat(70));
 
-  const invalidVars = appEnvResult.error?.issues.map(
-    (i) => i.path[0] as string
-  );
+  const invalidVars = appEnvResult.error?.issues.map((i) => i.path[0] as string);
 
   if (invalidVars && invalidVars.length > 0) {
-    console.log("\n❌ Invalid Environment Variables:");
+    console.log('\n❌ Invalid Environment Variables:');
     invalidVars.forEach((varName) => {
       console.log(`   - ${varName}`);
     });
   }
-  console.log("=".repeat(70) + "\n");
+  console.log('='.repeat(70) + '\n');
 }

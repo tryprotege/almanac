@@ -2,6 +2,7 @@ import { AlertCircle, Database, Loader2, Plus, Store } from "lucide-react";
 import { useState } from "react";
 import { useDataSources } from "../hooks/useDataSources";
 import { useSyncConfigs } from "../hooks/useSyncConfigs";
+import { useSyncStatuses } from "../hooks/useSyncStatus";
 import { DataSourceWizard } from "../components/DataSourceWizard";
 import { MarketplaceModal } from "../components/MarketplaceModal";
 import { MCPServerCard } from "../components/MCPServerCard";
@@ -27,6 +28,9 @@ export default function DataSources() {
   const [editingSource, setEditingSource] = useState<DataSourceConfig | null>(
     null
   );
+
+  // Fetch sync statuses with polling
+  const { data: syncStatuses } = useSyncStatuses();
 
   const isLoading = serversLoading || configsLoading;
   const error = serversError || configsError;
@@ -215,14 +219,26 @@ export default function DataSources() {
             Your Data Sources
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {dataSources.map((source) => (
-              <MCPServerCard
-                key={source.id}
-                server={source.server}
-                syncConfig={source.config}
-                onEdit={handleEdit}
-              />
-            ))}
+            {dataSources.map((source) => {
+              // Check if this server is currently syncing or queued
+              const isSyncing = syncStatuses?.syncing.some(
+                (s) => s.serverName === source.name
+              );
+              const isQueued = syncStatuses?.queued.some(
+                (s) => s.serverName === source.name
+              );
+
+              return (
+                <MCPServerCard
+                  key={source.id}
+                  server={source.server}
+                  syncConfig={source.config}
+                  onEdit={handleEdit}
+                  isSyncing={isSyncing}
+                  isQueued={isQueued}
+                />
+              );
+            })}
           </div>
         </div>
       )}

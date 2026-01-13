@@ -266,6 +266,9 @@ importers:
       compromise:
         specifier: ^14.14.4
         version: 14.14.4
+      cron-parser:
+        specifier: 4.9.0
+        version: 4.9.0
       csv-parse:
         specifier: ^6.1.0
         version: 6.1.0
@@ -333,6 +336,9 @@ importers:
       '@types/jest':
         specifier: ^30.0.0
         version: 30.0.0
+      '@types/jmespath':
+        specifier: ^0.15.2
+        version: 0.15.2
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
@@ -1390,8 +1396,8 @@ packages:
     resolution: {integrity: sha512-058GAcqHd3I7oYLnLIMhcZMdg8i6hCvD4K3s5PY8RuSXp7QAl9/+usOIxrDSfNMGK4cfya94LqHj+txwIe3wUQ==}
     engines: {node: '>=18'}
 
-  '@sourcegraph/amp@0.0.1767988925-g511647':
-    resolution: {integrity: sha512-Up+PhCZ4iJ1ltrVOuKoyFfketMgdVCtUFA5sFOVmWyj18AcdBD1qqv33O8ze91VMu1zH7w7ZWM+M2EtzxaPWcg==}
+  '@sourcegraph/amp@0.0.1768262523-g7a8adf':
+    resolution: {integrity: sha512-AtdlyG0BsjYsdNcj7WGnEThwnLU64VLOlsMe53fZQnEdvMAD76KgTJ7nNzjwz6zKdVHehAEJ3Ge4Mz5f4ZBkiw==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -1571,6 +1577,9 @@ packages:
 
   '@types/jest@30.0.0':
     resolution: {integrity: sha512-XTYugzhuwqWjws0CVz8QpM36+T+Dz5mTEBKhNs/esGLnCIlGdRy+Dq78NRjd7ls7r8BC8ZRMOrKlkO1hU0JOwA==}
+
+  '@types/jmespath@0.15.2':
+    resolution: {integrity: sha512-pegh49FtNsC389Flyo9y8AfkVIZn9MMPE9yJrO9svhq6Fks2MwymULWjZqySuxmctd3ZH4/n7Mr98D+1Qo5vGA==}
 
   '@types/mime@1.3.5':
     resolution: {integrity: sha512-/pyBZWSLD2n0dcHE3hq8s8ZvcETHtEuF+3E7XVt0Ig2nvsVQXdghHVcEkIWjy9A0wKfTn97a/PSDYohKIlnP/w==}
@@ -4754,10 +4763,10 @@ snapshots:
 
   '@sourcegraph/amp-sdk@0.1.0-20251217003600-gcd4203a':
     dependencies:
-      '@sourcegraph/amp': 0.0.1767988925-g511647
+      '@sourcegraph/amp': 0.0.1768262523-g7a8adf
       zod: 3.25.76
 
-  '@sourcegraph/amp@0.0.1767988925-g511647':
+  '@sourcegraph/amp@0.0.1768262523-g7a8adf':
     dependencies:
       '@napi-rs/keyring': 1.1.9
 
@@ -4946,6 +4955,8 @@ snapshots:
     dependencies:
       expect: 30.2.0
       pretty-format: 30.2.0
+
+  '@types/jmespath@0.15.2': {}
 
   '@types/mime@1.3.5': {}
 

@@ -28,6 +28,8 @@ interface MCPServerCardProps {
   server: DataSourceConfig;
   syncConfig?: SyncConfigSummary;
   onEdit: (server: DataSourceConfig) => void;
+  isSyncing?: boolean;
+  isQueued?: boolean;
 }
 
 // Helper function to get service icon based on server name
@@ -68,6 +70,8 @@ export function MCPServerCard({
   server,
   syncConfig,
   onEdit,
+  isSyncing,
+  isQueued,
 }: MCPServerCardProps) {
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -143,8 +147,16 @@ export function MCPServerCard({
             <h3 className="text-base font-semibold text-text-primary truncate">
               {capitalCase(server.name)}
             </h3>
-            {/* Status Indicator Dot */}
-            {server.isDisabled ? (
+            {/* Status Indicator - Spinner when syncing, dot otherwise */}
+            {isSyncing ? (
+              <div title="Syncing in progress">
+                <Loader2 className="w-4 h-4 text-brand-purple animate-spin flex-shrink-0" />
+              </div>
+            ) : isQueued ? (
+              <div title="Queued for sync">
+                <Loader2 className="w-4 h-4 text-text-tertiary flex-shrink-0" />
+              </div>
+            ) : server.isDisabled ? (
               <span
                 className="w-2 h-2 rounded-full bg-text-quaternary flex-shrink-0"
                 title="Disabled"

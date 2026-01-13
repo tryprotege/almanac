@@ -83,8 +83,17 @@ export const applicationSchema = z.object({
   MAX_ENTITIES_PER_DOCUMENT: z.coerce.number().optional(),
 
   // Sync Configuration
-  SYNC_CUTOFF_DATE: z.string().datetime().optional(),
+  SYNC_CUTOFF_DATE: z
+    .string()
+    .datetime()
+    .default(() => {
+      const date = new Date();
+      date.setDate(date.getDate() - 60);
+      date.setHours(0, 0, 0, 0); // Set to midnight
+      return date.toISOString();
+    }),
   SYNC_MAX_RECORDS: z.coerce.number().optional(),
+  SYNC_CRON_SCHEDULE: z.string().default("0 0 * * *"),
 
   // Encryption Configuration
   ENCRYPTION_KEY: z

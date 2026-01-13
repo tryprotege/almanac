@@ -421,6 +421,29 @@ export const statsApi = {
   activity: () => api.get<ApiResponse<ActivityItem[]>>("/stats/activity"),
 };
 
+// Sync Status API Types
+export interface SyncJobStatus {
+  serverName: string;
+  status: "queued" | "processing" | "completed" | "failed";
+  jobId?: string;
+  progress?: number;
+  error?: string;
+}
+
+export interface SyncStatusResponse {
+  syncing: SyncJobStatus[];
+  queued: SyncJobStatus[];
+}
+
+// Sync Status API
+export const syncStatusApi = {
+  getAll: () => api.get<ApiResponse<SyncStatusResponse>>("/sync-status"),
+  getByServerName: (serverName: string) =>
+    api.get<ApiResponse<SyncJobStatus | null>>(
+      `/sync-status/${encodeURIComponent(serverName)}`
+    ),
+};
+
 // Sync Config API Types
 export interface ToolClassification {
   toolName: string;

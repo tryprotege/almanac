@@ -1,6 +1,7 @@
 import { Processor, Queue, Worker } from "bullmq";
 
 import type { DataSource } from "../../models/data-source.model.js";
+import { DataSourceModel } from "../../models/data-source.model.js";
 import { syncMcpServer } from "../sync/sync.service.js";
 import { indexGraphQueue } from "./index-graph.queue.js";
 import { indexVectorQueue } from "./index-vector.queue.js";
@@ -11,20 +12,53 @@ const processor: Processor<
   SyncMcpServerJobData,
   SyncMcpServerJobResult,
   string
-> = async ({ data: { mcpConfig } }) => {
-  await syncMcpServer(mcpConfig);
+> = async ({ data: { mcpConfig }, id }) => {
+  const isScheduledJob = id?.startsWith("schedule-");
 
-  await Promise.all([
-    indexVectorQueue.add(mcpConfig.name, {
-      source: mcpConfig.name as any,
-    }),
-    indexGraphQueue.add(mcpConfig.name, {
-      source: mcpConfig.name as any,
-    }),
-  ]);
+  if (isScheduledJob) {
+    logger.info(
+      { dataSourceName: mcpConfig.name },
+      "Starting scheduled sync job"
+    );
+  }
+
+  // Mark sync as in-progress
+  await DataSourceModel.findOneAndUpdate(
+    { name: mcpConfig.name },
+    { lastSyncStatus: "in-progress" }
+  );
+
+  try {
+    await syncMcpServer(mcpConfig);
+
+    await Promise.all([
+      indexVectorQueue.add(mcpConfig.name, {
+        source: mcpConfig.name as any,
+      }),
+      indexGraphQueue.add(mcpConfig.name, {
+        source: mcpConfig.name as any,
+      }),
+    ]);
+
+    // Mark sync as successful
+    await DataSourceModel.findOneAndUpdate(
+      { name: mcpConfig.name },
+      {
+        lastSyncAt: new Date(),
+        lastSyncStatus: "success",
+      }
+    );
+  } catch (error) {
+    // Mark sync as failed
+    await DataSourceModel.findOneAndUpdate(
+      { name: mcpConfig.name },
+      { lastSyncStatus: "failed" }
+    );
+    throw error;
+  }
 };
 
-type SyncMcpServerJobData = {
+export type SyncMcpServerJobData = {
   mcpConfig: DataSource & { _id: any };
 };
 
@@ -35,7 +69,7 @@ export const syncMcpServerWorker = new Worker<
   SyncMcpServerJobResult
 >(QUEUE_NAME.SYNC_MCP_SERVER, processor, {
   connection: createRedisConnection(),
-  concurrency: 2,
+  concurrency: 1,
   autorun: false,
   skipLockRenewal: true,
   skipStalledCheck: true,

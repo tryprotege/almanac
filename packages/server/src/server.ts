@@ -14,6 +14,7 @@ import {
 import { DataSourceModel } from "./models/data-source.model.js";
 import { syncMcpServerQueue } from "./services/queue/sync.queue.js";
 import { presetLoader } from "./services/presets/preset-loader.service.js";
+import { syncScheduler } from "./services/scheduler/sync-scheduler.service.js";
 import logger from "./utils/logger.js";
 import { env } from "./env.js";
 
@@ -42,6 +43,17 @@ const runServer = async () => {
     );
   } catch (error) {
     logger.error({ error }, "Failed to load presets, continuing anyway");
+  }
+
+  // Initialize sync scheduler
+  if (!env.isSetupMode) {
+    logger.info("Initializing sync scheduler...");
+    try {
+      await syncScheduler.initialize();
+      logger.info("Sync scheduler initialized successfully");
+    } catch (error) {
+      logger.error({ error }, "Failed to initialize sync scheduler");
+    }
   }
 
   const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
@@ -209,6 +221,7 @@ const runServer = async () => {
 // Handle graceful shutdown
 process.on("SIGINT", async () => {
   logger.info("Shutting down MCP server...");
+  await syncScheduler.shutdown();
   await mcpClientManager.disconnectAll();
   await shutdownServices();
   process.exit(0);

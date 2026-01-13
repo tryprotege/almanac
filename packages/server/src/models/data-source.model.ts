@@ -47,6 +47,13 @@ const DataSourceSchema = new mongoose.Schema(
     headers: { type: Map, of: String },
     isDisabled: { type: Boolean, default: false },
 
+    // Sync tracking
+    lastSyncAt: { type: Date },
+    lastSyncStatus: {
+      type: String,
+      enum: ["success", "failed", "in-progress"],
+    },
+
     // OAuth configuration for delegated authentication
     authType: {
       type: String,

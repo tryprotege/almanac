@@ -143,51 +143,6 @@ docker-compose -f docker-compose.prod.yml up -d
 docker-compose -f docker-compose.prod.yml up -d --restart=always
 ```
 
-### Kubernetes
-
-For multi-server deployments:
-
-```bash
-# Apply Kubernetes manifests
-kubectl apply -f k8s/
-
-# Check status
-kubectl get pods -n almanac
-```
-
-See [k8s/README.md](https://github.com/tryprotege/almanac/tree/main/k8s) for details.
-
-### Cloud Providers
-
-#### AWS (ECS + RDS + ElastiCache)
-
-```bash
-# Use provided CloudFormation template
-aws cloudformation create-stack \
-  --stack-name almanac \
-  --template-body file://cloudformation/almanac.yml \
-  --parameters \
-    ParameterKey=LLMApiKey,ParameterValue=your-key
-```
-
-#### Google Cloud (GKE + Cloud SQL)
-
-```bash
-# Deploy with Terraform
-cd terraform/gcp
-terraform init
-terraform apply
-```
-
-#### Azure (AKS + CosmosDB)
-
-```bash
-# Deploy with Terraform
-cd terraform/azure
-terraform init
-terraform apply
-```
-
 ## Database Setup
 
 ### MongoDB

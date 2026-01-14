@@ -2,7 +2,12 @@
   "mcpServers": {
     "ebee": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "http://localhost:3000/mcp", "--allow-http"]
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://localhost:3000/mcp",
+        "--allow-http"
+      ]
     }
   }
 }

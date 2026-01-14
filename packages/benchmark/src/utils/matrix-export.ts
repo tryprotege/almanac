@@ -156,6 +156,7 @@ async function exportDetailedTestResults(
       'Missing Items',
       'Actual Output (Full Response)',
       'Response Length (chars)',
+      'Number of Tool Calls',
       'Execution Time (ms)',
       'Total Tokens',
       'Input Tokens',
@@ -172,9 +173,26 @@ async function exportDetailedTestResults(
       .join(','),
   );
 
+  // Sort results by agent and setup for better organization
+  const sortedResults = [...results.detailedResults].sort((a, b) => {
+    // First sort by agent name
+    const agentCompare = a.agentName.localeCompare(b.agentName);
+    if (agentCompare !== 0) return agentCompare;
+
+    // Then sort by setup name
+    const setupCompare = a.setupName.localeCompare(b.setupName);
+    if (setupCompare !== 0) return setupCompare;
+
+    // Finally sort by query ID and iteration for consistent ordering
+    const queryCompare = a.queryId.localeCompare(b.queryId);
+    if (queryCompare !== 0) return queryCompare;
+
+    return a.iteration - b.iteration;
+  });
+
   // Group results by query for pattern analysis (for future use)
   const resultsByQuery = new Map<string, Array<(typeof results.detailedResults)[number]>>();
-  for (const result of results.detailedResults) {
+  for (const result of sortedResults) {
     if (!resultsByQuery.has(result.queryId)) {
       resultsByQuery.set(result.queryId, []);
     }
@@ -182,7 +200,7 @@ async function exportDetailedTestResults(
   }
 
   // Data rows with enhanced information
-  for (const result of results.detailedResults) {
+  for (const result of sortedResults) {
     const status = result.error
       ? 'ERROR'
       : result.evaluation
@@ -231,6 +249,11 @@ async function exportDetailedTestResults(
     const actualOutput = result.response;
     const responseLength = result.response.length;
 
+    // Count tool calls from steps array
+    const toolCallCount = result.steps
+      ? result.steps.filter((step) => step.type === 'tool_use').length
+      : 0;
+
     rows.push(
       [
         result.queryId,
@@ -250,6 +273,7 @@ async function exportDetailedTestResults(
         missingItems,
         actualOutput,
         responseLength.toString(),
+        toolCallCount.toString(),
         result.executionTime.toString(),
         result.totalTokens.toString(),
         result.inputTokens.toString(),

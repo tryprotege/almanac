@@ -1,4 +1,4 @@
-import type { IndexingConfig } from '@ebee-oss/indexing-engine';
+import type { IndexingConfig } from '@almanac/indexing-engine';
 import logger from '../../../utils/logger.js';
 
 export interface PostValidationIssue {

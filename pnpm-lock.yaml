@@ -44,12 +44,12 @@ importers:
 
   packages/benchmark:
     dependencies:
+      '@almanac/server':
+        specifier: workspace:*
+        version: link:../server
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.1.71
         version: 0.1.71(zod@3.25.76)
-      '@ebee-oss/server':
-        specifier: workspace:*
-        version: link:../server
       '@modelcontextprotocol/sdk':
         specifier: ^1.24.3
         version: 1.24.3(zod@3.25.76)
@@ -90,7 +90,7 @@ importers:
 
   packages/benchmarking:
     dependencies:
-      '@ebee-oss/shared-util':
+      '@almanac/shared-util':
         specifier: workspace:*
         version: link:../shared-util
       '@slack/web-api':
@@ -121,7 +121,7 @@ importers:
 
   packages/client:
     dependencies:
-      '@ebee-oss/server':
+      '@almanac/server':
         specifier: workspace:*
         version: link:../server
       '@tailwindcss/postcss':
@@ -182,7 +182,7 @@ importers:
 
   packages/clone-mcp-server:
     dependencies:
-      '@ebee-oss/shared-util':
+      '@almanac/shared-util':
         specifier: workspace:*
         version: link:../shared-util
       '@modelcontextprotocol/sdk':
@@ -222,7 +222,7 @@ importers:
 
   packages/fathom-mcp-server:
     dependencies:
-      '@ebee-oss/shared-util':
+      '@almanac/shared-util':
         specifier: workspace:*
         version: link:../shared-util
       '@modelcontextprotocol/sdk':
@@ -269,10 +269,10 @@ importers:
 
   packages/server:
     dependencies:
-      '@ebee-oss/indexing-engine':
+      '@almanac/indexing-engine':
         specifier: workspace:*
         version: link:../indexing-engine
-      '@ebee-oss/shared-util':
+      '@almanac/shared-util':
         specifier: workspace:*
         version: link:../shared-util
       '@modelcontextprotocol/sdk':
@@ -1480,8 +1480,8 @@ packages:
     resolution: {integrity: sha512-058GAcqHd3I7oYLnLIMhcZMdg8i6hCvD4K3s5PY8RuSXp7QAl9/+usOIxrDSfNMGK4cfya94LqHj+txwIe3wUQ==}
     engines: {node: '>=18'}
 
-  '@sourcegraph/amp@0.0.1768277684-gbecd1d':
-    resolution: {integrity: sha512-NG0n0jVYIN1qkcB2Y2ct3kROoyYlbticZr1/36QFBcUVOfJSRXOw0IZenZL6v13KmZ9gi75u9pUQBbcf+rEfBQ==}
+  '@sourcegraph/amp@0.0.1768364346-g8260fe':
+    resolution: {integrity: sha512-C7LBlmIfEjLWrs3JZDEwWTYff3fV4RArFtdaUFaZyBrTU/d5cRzeMd5mIK8WmfMcsJctoZwm5hzRL9GiHBsTsA==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -5553,10 +5553,10 @@ snapshots:
 
   '@sourcegraph/amp-sdk@0.1.0-20251217003600-gcd4203a':
     dependencies:
-      '@sourcegraph/amp': 0.0.1768277684-gbecd1d
+      '@sourcegraph/amp': 0.0.1768364346-g8260fe
       zod: 3.25.76
 
-  '@sourcegraph/amp@0.0.1768277684-gbecd1d':
+  '@sourcegraph/amp@0.0.1768364346-g8260fe':
     dependencies:
       '@napi-rs/keyring': 1.1.9
 

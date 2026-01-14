@@ -20,7 +20,7 @@ import type {
   FathomSummary,
   FathomTeam,
   FathomTeamMember,
-} from '@ebee-oss/shared-util';
+} from '@almanac/shared-util';
 
 // Slack types (using @slack/web-api)
 import type { MessageElement } from '@slack/web-api/dist/types/response/ConversationsHistoryResponse.js';

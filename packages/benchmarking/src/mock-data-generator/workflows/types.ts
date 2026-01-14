@@ -4,7 +4,7 @@ import type {
   NotionPage,
   FathomMeeting,
   FathomTranscript,
-} from '@ebee-oss/shared-util';
+} from '@almanac/shared-util';
 import type { MessageElement } from '@slack/web-api/dist/types/response/ConversationsHistoryResponse.js';
 
 /**

@@ -1,5 +1,5 @@
 {
-  "name": "@ebee-oss/indexing-engine",
+  "name": "@almanac/indexing-engine",
   "version": "0.1.0",
   "description": "Config-based indexing engine for MCP servers",
   "type": "module",

@@ -8,7 +8,7 @@ import type {
   FathomTeam,
   FathomTeamMember,
   FathomUser,
-} from '@ebee-oss/shared-util/types/fathom/index.js';
+} from '@almanac/shared-util/types/fathom/index.js';
 import type {
   GitHubRepository,
   GitHubIssue,
@@ -23,14 +23,14 @@ import type {
   GitHubCommit,
   GitHubComment,
   GitHubReview,
-} from '@ebee-oss/shared-util/types/github/index.js';
+} from '@almanac/shared-util/types/github/index.js';
 import type {
   NotionUser,
   NotionDatabase,
   NotionPage,
   NotionBlock,
   NotionComment,
-} from '@ebee-oss/shared-util/types/notion/index.js';
+} from '@almanac/shared-util/types/notion/index.js';
 
 /**
  * Supported source types

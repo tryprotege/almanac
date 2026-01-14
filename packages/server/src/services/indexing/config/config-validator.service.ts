@@ -1,4 +1,4 @@
-import type { IndexingConfig, RecordTypeConfig, FetcherConfig } from '@ebee-oss/indexing-engine';
+import type { IndexingConfig, RecordTypeConfig, FetcherConfig } from '@almanac/indexing-engine';
 import { fetchAll as fetchPaginated } from './paginated-fetcher.js';
 import logger from '../../../utils/logger.js';
 

@@ -3,7 +3,7 @@ import type {
   GitHubPullRequest,
   GitHubUser,
   GitHubRepository,
-} from '@ebee-oss/shared-util';
+} from '@almanac/shared-util';
 import type { GeneratorConfig, GenerationContext, RelationshipContext } from '../types.js';
 import { COMPANY_DATA } from '../data/company.js';
 import { generateWithLLM } from '../utils/llm.js';

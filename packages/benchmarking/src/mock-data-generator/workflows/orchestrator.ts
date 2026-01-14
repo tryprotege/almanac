@@ -6,7 +6,7 @@ import type {
   FathomTranscript,
   GitHubUser,
   FathomCalendarInvitee,
-} from '@ebee-oss/shared-util';
+} from '@almanac/shared-util';
 import type { Member } from '@slack/web-api/dist/types/response/UsersListResponse.js';
 import type { Channel } from '@slack/web-api/dist/types/response/ConversationsListResponse.js';
 import type {

@@ -3,7 +3,7 @@ version: "3.8"
 services:
   mongodb:
     image: mongo:8.2.2
-    container_name: ebee_mongodb
+    container_name: almanac_mongodb
     ports:
       - "27017:27017"
     volumes:
@@ -14,11 +14,11 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=admin123
     restart: unless-stopped
     networks:
-      - ebee-network
+      - almanac-network
 
   qdrant:
     image: qdrant/qdrant:v1.16.0
-    container_name: ebee_qdrant
+    container_name: almanac_qdrant
     ports:
       - "6333:6333"
       - "6334:6334"
@@ -26,11 +26,11 @@ services:
       - ./.data/qdrant:/qdrant/storage
     restart: unless-stopped
     networks:
-      - ebee-network
+      - almanac-network
 
   memgraph:
     image: memgraph/memgraph:3.7.0
-    container_name: ebee_memgraph
+    container_name: almanac_memgraph
     ports:
       - "7687:7687"
       - "7444:7444"
@@ -40,11 +40,11 @@ services:
       - MEMGRAPH_LOG_LEVEL=WARNING
     restart: unless-stopped
     networks:
-      - ebee-network
+      - almanac-network
 
   redis:
     image: redis:alpine3.22
-    container_name: ebee_redis
+    container_name: almanac_redis
     ports:
       - "6379:6379"
     volumes:
@@ -52,14 +52,14 @@ services:
     command: redis-server --appendonly yes
     restart: unless-stopped
     networks:
-      - ebee-network
+      - almanac-network
 
   server:
     profiles: ["app"] # <-- only start when profile enabled
     build:
       context: .
       dockerfile: packages/server/Dockerfile
-    container_name: ebee_server
+    container_name: almanac_server
     ports:
       - "3000:3000"
     volumes:
@@ -72,7 +72,7 @@ services:
       - MONGO_PORT=27017
       - MONGO_USERNAME=admin
       - MONGO_PASSWORD=admin123
-      - MONGO_DB_NAME=ebee
+      - MONGO_DB_NAME=almanac
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
@@ -93,7 +93,7 @@ services:
       - redis
     restart: unless-stopped
     networks:
-      - ebee-network
+      - almanac-network
     command: pnpm --filter server run dev
 
   client:
@@ -101,7 +101,7 @@ services:
     build:
       context: .
       dockerfile: packages/client/Dockerfile
-    container_name: ebee_client
+    container_name: almanac_client
     ports:
       - "5173:5173"
     volumes:
@@ -113,9 +113,9 @@ services:
       - VITE_API_TARGET=http://server:3000
     restart: unless-stopped
     networks:
-      - ebee-network
+      - almanac-network
     command: pnpm --filter client run dev -- --host 0.0.0.0
 
 networks:
-  ebee-network:
+  almanac-network:
     driver: bridge

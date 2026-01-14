@@ -1,5 +1,5 @@
 import mongoose, { InferSchemaType } from 'mongoose';
-import { encryptWithSalt, decryptWithSalt, generateSalt, hexToBuffer } from '@ebee-oss/shared-util';
+import { encryptWithSalt, decryptWithSalt, generateSalt, hexToBuffer } from '@almanac/shared-util';
 import logger from '../utils/logger.js';
 import { env } from '../env.js';
 

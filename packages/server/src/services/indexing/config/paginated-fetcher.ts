@@ -1,4 +1,4 @@
-import type { FetcherConfig, RateLimitConfig } from '@ebee-oss/indexing-engine';
+import type { FetcherConfig, RateLimitConfig } from '@almanac/indexing-engine';
 import { mcpClientManager } from '../../../mcp/client.js';
 import { JSONPath } from 'jsonpath-plus';
 import {
@@ -12,7 +12,7 @@ import { detectRateLimitError } from './mcp-error-parser.js';
 import { applyCutoffDateToParams } from './config-indexer.service.js';
 import logger from '../../../utils/logger.js';
 import { env } from '../../../env.js';
-import { executeProcessor } from '@ebee-oss/indexing-engine';
+import { executeProcessor } from '@almanac/indexing-engine';
 
 export interface PageResult {
   records: any[];

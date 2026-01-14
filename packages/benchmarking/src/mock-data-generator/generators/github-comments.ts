@@ -1,4 +1,4 @@
-import type { GitHubIssue, GitHubUser } from '@ebee-oss/shared-util';
+import type { GitHubIssue, GitHubUser } from '@almanac/shared-util';
 import type { GeneratorConfig } from '../types.js';
 import { generateWithLLM } from '../utils/llm.js';
 import { selectRandom } from '../utils/random.js';

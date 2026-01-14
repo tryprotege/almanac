@@ -9,7 +9,7 @@ import { VectorStore } from '../../stores/vector.store.js';
 import { insertRecordToVectorDB } from '../indexing/embeddings/vector-indexer.service.js';
 import { connectQdrant } from '../../connections/qdrant.js';
 import { createHash } from 'crypto';
-import type { TransformedRecord } from '@ebee-oss/indexing-engine';
+import type { TransformedRecord } from '@almanac/indexing-engine';
 
 /**
  * Helper: Persist transformed records to MongoDB

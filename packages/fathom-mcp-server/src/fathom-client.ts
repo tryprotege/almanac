@@ -5,10 +5,10 @@ import type {
   FathomTeam,
   FathomTeamMember,
   ListMeetingsParams,
-} from '@ebee-oss/shared-util';
+} from '@almanac/shared-util';
 
 // Based on Fathom API documentation at https://developers.fathom.ai/api-overview
-// Types are imported from @ebee-oss/shared-util for consistency across packages
+// Types are imported from @almanac/shared-util for consistency across packages
 
 export class FathomClient {
   private client: AxiosInstance;

@@ -1,7 +1,7 @@
 {
-  "name": "@ebee-oss/server",
+  "name": "@almanac/server",
   "version": "0.1.0",
-  "description": "eBee OSS Server - Lightning fast data access for Agents",
+  "description": "Almanac Server - Lightning fast data access for Agents",
   "type": "module",
   "main": "dist/server.js",
   "exports": {
@@ -24,8 +24,8 @@
     "reindex-graph": "tsx scripts/reindex-graph.ts"
   },
   "dependencies": {
-    "@ebee-oss/indexing-engine": "workspace:*",
-    "@ebee-oss/shared-util": "workspace:*",
+    "@almanac/indexing-engine": "workspace:*",
+    "@almanac/shared-util": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.25.1",
     "@neo4j/cypher-builder": "^2.11.0",
     "@qdrant/js-client-rest": "^1.16.0",

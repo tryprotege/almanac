@@ -1,5 +1,5 @@
 /**
- * @ebee-oss/indexing-engine
+ * @almanac/indexing-engine
  * Config-based indexing engine for MCP servers
  */
 

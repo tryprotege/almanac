@@ -6,7 +6,7 @@ import type {
   FathomTeamMember,
   FathomUser,
   FathomCalendarInvitee,
-} from '@ebee-oss/shared-util';
+} from '@almanac/shared-util';
 import type { MessageElement } from '@slack/web-api/dist/types/response/ConversationsHistoryResponse.js';
 import { COMPANY_DATA } from '../data/company.js';
 import { generateRandomDate, generateDateInRange } from '../utils/dates.js';

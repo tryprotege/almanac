@@ -1,4 +1,4 @@
-# ebee-oss
+# almanac
 
 A lightning-fast data access platform for AI Agents built with a modern monorepo architecture.
 
@@ -7,7 +7,7 @@ A lightning-fast data access platform for AI Agents built with a modern monorepo
 This project uses pnpm workspaces to manage multiple packages:
 
 ```
-ebee-oss/
+almanac/
 ├── packages/
 │   ├── client/          # React + Vite frontend
 │   └── server/          # Express.js backend
@@ -31,7 +31,7 @@ The easiest way to get started:
 ```bash
 # 1. Clone the repository
 git clone <repository-url>
-cd ebee-oss
+cd almanac
 
 # 2. Install dependencies
 pnpm install
@@ -225,7 +225,7 @@ This project uses Docker Compose to manage the following services:
 
 ### UI-Based Configuration (Recommended)
 
-The easiest way to configure eBee is through the web interface:
+The easiest way to configure Almanac is through the web interface:
 
 1. Start the application with `pnpm start`
 2. Open http://localhost:5173

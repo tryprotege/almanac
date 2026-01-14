@@ -1,5 +1,5 @@
 import mongoose, { Schema, InferSchemaType } from 'mongoose';
-import type { IndexingConfig as Config } from '@ebee-oss/indexing-engine';
+import type { IndexingConfig as Config } from '@almanac/indexing-engine';
 
 const IndexingConfigSchema = new Schema(
   {

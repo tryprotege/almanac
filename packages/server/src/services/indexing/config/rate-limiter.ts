@@ -1,4 +1,4 @@
-import type { RateLimitConfig } from '@ebee-oss/indexing-engine';
+import type { RateLimitConfig } from '@almanac/indexing-engine';
 import { RateLimiter } from 'limiter';
 import { Mutex } from 'async-mutex';
 import logger from '../../../utils/logger.js';

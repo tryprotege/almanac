@@ -5,7 +5,7 @@ import type {
   FathomMeeting,
   FathomTranscript,
   FathomSummary,
-} from '@ebee-oss/shared-util';
+} from '@almanac/shared-util';
 import type { MessageElement } from '@slack/web-api/dist/types/response/ConversationsHistoryResponse.js';
 
 // Extended MessageElement with channel tracking

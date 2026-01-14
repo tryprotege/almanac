@@ -1,5 +1,5 @@
 {
-  "name": "@ebee/benchmarking",
+  "name": "@almanac/benchmarking",
   "version": "0.1.0",
   "description": "Benchmarking tools for multi-source data integration",
   "type": "module",
@@ -14,7 +14,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@ebee-oss/shared-util": "workspace:*",
+    "@almanac/shared-util": "workspace:*",
     "@slack/web-api": "^7.11.0",
     "dotenv": "^16.4.7",
     "openai": "^4.73.0",

@@ -5,7 +5,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
-import type { ToolClassification } from '@ebee-oss/indexing-engine';
+import type { ToolClassification } from '@almanac/indexing-engine';
 import { EventEmitter } from 'events';
 import pRetry, { AbortError } from 'p-retry';
 import logger from '../utils/logger.js';

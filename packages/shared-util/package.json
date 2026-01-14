@@ -1,7 +1,7 @@
 {
-  "name": "@ebee-oss/shared-util",
+  "name": "@almanac/shared-util",
   "version": "1.0.0",
-  "description": "Shared utilities and types for eBee OSS",
+  "description": "Shared utilities and types for Almanac",
   "type": "module",
   "main": "index.ts",
   "types": "index.ts",

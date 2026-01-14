@@ -1,4 +1,4 @@
-import type { EnrichmentConfig, RateLimitConfig } from '@ebee-oss/indexing-engine';
+import type { EnrichmentConfig, RateLimitConfig } from '@almanac/indexing-engine';
 import { mcpClientManager } from '../../../mcp/client.js';
 import { JSONPath } from 'jsonpath-plus';
 import pLimit from 'p-limit';

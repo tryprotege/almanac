@@ -3,7 +3,7 @@ import type {
   RelationshipConfig,
   ExtractedEntity,
   ExtractedRelationship,
-} from '@ebee-oss/indexing-engine';
+} from '@almanac/indexing-engine';
 import logger from '../../../utils/logger.js';
 
 /**

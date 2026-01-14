@@ -1,5 +1,5 @@
 import logger from '../../../utils/logger.js';
-import type { StartingPointConfig, FetcherConfig } from '@ebee-oss/indexing-engine';
+import type { StartingPointConfig, FetcherConfig } from '@almanac/indexing-engine';
 import { fetchAll } from './paginated-fetcher.js';
 import { JSONPath } from 'jsonpath-plus';
 

@@ -82,9 +82,9 @@ export const matrixBenchmarkConfig: MatrixBenchmarkConfig = {
     // Uses centralized eBee server for MCP orchestration
     {
       name: 'ebee',
-      servers: ['ebee-oss'],
+      servers: ['almanac'],
       packages: {
-        'ebee-oss': {
+        'almanac': {
           command: 'npx',
           args: ['-y', 'tsx', path.join(__dirname, '../../../server/src/mcp/stdio.ts')],
         },
@@ -113,7 +113,7 @@ export const matrixBenchmarkConfig: MatrixBenchmarkConfig = {
     },
 
     // ── Clone MCP Server (HTTP) ───────────────────────────────────────────
-    // Mock data server via HTTP (must be running: pnpm --filter @ebee-oss/clone-mcp-server dev)
+    // Mock data server via HTTP (must be running: pnpm --filter @almanac/clone-mcp-server dev)
     // {
     //   name: "clone-mcp-http",
     //   url: "http://localhost:3001/mcp",

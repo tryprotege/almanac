@@ -3,7 +3,7 @@
  * Saves entities/relationships extracted from structured data (not LLM)
  */
 
-import type { ExtractedEntity, ExtractedRelationship } from '@ebee-oss/indexing-engine';
+import type { ExtractedEntity, ExtractedRelationship } from '@almanac/indexing-engine';
 import { GraphStore } from '../../../stores/graph.store.js';
 import { GraphEmbeddingMetadata } from '../../../models/graph-embedding-metadata.model.js';
 import { RelationshipMentionStore } from '../../../stores/relationship-mention.store.js';

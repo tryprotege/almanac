@@ -1,5 +1,5 @@
 {
-  "name": "@ebee-oss/clone-mcp-server",
+  "name": "@almanac/clone-mcp-server",
   "version": "1.0.0",
   "description": "Mock MCP server with GitHub, Fathom, Notion, and Slack tools",
   "main": "dist/server.js",
@@ -23,7 +23,7 @@
     "slack"
   ],
   "dependencies": {
-    "@ebee-oss/shared-util": "workspace:*",
+    "@almanac/shared-util": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.24.3 ",
     "@slack/web-api": "^7.13.0",
     "@types/cors": "^2.8.19",

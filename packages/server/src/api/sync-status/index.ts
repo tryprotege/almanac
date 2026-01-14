@@ -276,7 +276,7 @@ syncStatusRouter.get('/:serverName', async (req: Request, res: Response) => {
     }
 
     // No jobs found for this server
-    res.json({
+    return res.json({
       success: true,
       data: null,
     });
@@ -285,7 +285,7 @@ syncStatusRouter.get('/:serverName', async (req: Request, res: Response) => {
       { err, serverName: req.params.serverName },
       'Error fetching sync status for server',
     );
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: err instanceof Error ? err.message : String(err),
     });

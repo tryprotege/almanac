@@ -1,4 +1,4 @@
-import type { IndexingConfig } from '@ebee-oss/indexing-engine';
+import type { IndexingConfig } from '@almanac/indexing-engine';
 import type { TestRunResult } from '../config-validator.service.js';
 
 export interface DebugPromptInput {

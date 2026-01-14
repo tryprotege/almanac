@@ -131,7 +131,7 @@ let services: ServiceConnections | null = null;
 
 // Create MCP server
 export const mcpServer = new McpServer({
-  name: 'ebee-oss',
+  name: 'almanac',
   version: '0.1.0',
 });
 

@@ -6,7 +6,7 @@ import {
   encrypt,
   decrypt,
   isEncrypted,
-} from '@ebee-oss/shared-util';
+} from '@almanac/shared-util';
 import logger from '../utils/logger.js';
 import { env } from '../env.js';
 

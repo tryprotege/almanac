@@ -2,7 +2,7 @@ import type {
   IndexingConfig,
   GeneratedSyncConfigResult,
   ValidationResult,
-} from '@ebee-oss/indexing-engine';
+} from '@almanac/indexing-engine';
 import { env } from '../../../env.js';
 import { mcpClientManager } from '../../../mcp/client.js';
 import { chat } from '../../../services/llm/index.js';

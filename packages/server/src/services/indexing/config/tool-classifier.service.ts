@@ -1,4 +1,4 @@
-import type { ToolClassification, ToolCategory } from '@ebee-oss/indexing-engine';
+import type { ToolClassification, ToolCategory } from '@almanac/indexing-engine';
 import { generateToolClassificationPrompt } from './prompts/tool-classification.js';
 import { chat } from '../../llm/index.js';
 import logger from '../../../utils/logger.js';

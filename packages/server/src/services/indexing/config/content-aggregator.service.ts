@@ -1,5 +1,5 @@
 import { search } from 'jmespath';
-import type { AggregationConfig, FetcherConfig } from '@ebee-oss/indexing-engine';
+import type { AggregationConfig, FetcherConfig } from '@almanac/indexing-engine';
 import logger from '../../../utils/logger.js';
 
 /**

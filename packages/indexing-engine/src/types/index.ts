@@ -1,5 +1,5 @@
 /**
- * Public exports for @ebee-oss/indexing-engine types
+ * Public exports for @almanac/indexing-engine types
  */
 
 export * from './config.js';

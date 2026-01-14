@@ -1,4 +1,4 @@
-import type { NotionPage, NotionUser } from '@ebee-oss/shared-util';
+import type { NotionPage, NotionUser } from '@almanac/shared-util';
 import type { GeneratorConfig, RelationshipContext } from '../types.js';
 import { COMPANY_DATA } from '../data/company.js';
 import { generateWithLLM } from '../utils/llm.js';

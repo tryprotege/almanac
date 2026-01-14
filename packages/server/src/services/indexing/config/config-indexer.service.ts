@@ -3,8 +3,8 @@ import type {
   IndexingConfig,
   RecordTypeConfig,
   TransformedRecord,
-} from '@ebee-oss/indexing-engine';
-import { transformRecord, GroupingEngine } from '@ebee-oss/indexing-engine';
+} from '@almanac/indexing-engine';
+import { transformRecord, GroupingEngine } from '@almanac/indexing-engine';
 import {
   fetchAll as fetchPaginated,
   fetchWithForEach,

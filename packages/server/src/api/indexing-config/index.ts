@@ -9,7 +9,7 @@ import {
 } from '../../services/indexing/config/config-indexer.service.js';
 import { IndexingConfigModel } from '../../models/indexing-config.model.js';
 import { RecordModel } from '../../models/record.model.js';
-import { transformRecord } from '@ebee-oss/indexing-engine';
+import { transformRecord } from '@almanac/indexing-engine';
 import { RecordStore } from '../../stores/record.store.js';
 import { VectorStore } from '../../stores/vector.store.js';
 import { insertRecordToVectorDB } from '../../services/indexing/embeddings/vector-indexer.service.js';
@@ -18,7 +18,7 @@ import { GraphStore } from '../../stores/graph.store.js';
 import { connectMemgraph } from '../../connections/memgraph.js';
 import { createHash } from 'crypto';
 import logger from '../../utils/logger.js';
-import type { IndexingConfig, ValidationError, ValidationWarning } from '@ebee-oss/indexing-engine';
+import type { IndexingConfig, ValidationError, ValidationWarning } from '@almanac/indexing-engine';
 import { connectQdrant } from '../../connections/qdrant.js';
 
 const router: Router = Router();

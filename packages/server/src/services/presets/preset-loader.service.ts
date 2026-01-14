@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import type { IndexingConfig } from '@ebee-oss/indexing-engine';
+import type { IndexingConfig } from '@almanac/indexing-engine';
 
 // ES module compatibility
 const __filename = fileURLToPath(import.meta.url);

@@ -144,8 +144,8 @@ export const lightragQueryTool = async () => {
   const validConfigs = await loadProxyConfig();
 
   return {
-    name: 'ebee_search',
-    description: `🐝 eBee Fast Search - YOUR PRIMARY TOOL FOR INTERNAL KNOWLEDGE
+    name: 'almanac_search',
+    description: `📚 Almanac Fast Search - YOUR PRIMARY TOOL FOR INTERNAL KNOWLEDGE
 
 ⚠️ ALWAYS USE THIS FIRST for questions about:
 - Internal documentation, wikis, and knowledge bases
@@ -156,7 +156,7 @@ export const lightragQueryTool = async () => {
 - Any indexed company/project data
 
 ❌ DO NOT use web search or direct MCP tools (github, fathom, notion, slack) for indexed data.
-Only use those for EXTERNAL information not in eBee or for WRITE operations (creating issues, sending messages).
+Only use those for EXTERNAL information not in Almanac or for WRITE operations (creating issues, sending messages).
 
 ⚡ PERFORMANCE: 10-100x faster than individual MCP calls due to unified graph+vector architecture.
 

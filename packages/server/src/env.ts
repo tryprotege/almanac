@@ -24,7 +24,7 @@ export const infrastructureSchema = z.object({
   MONGO_PORT: z.string().default('27017'),
   MONGO_USERNAME: z.string().default('admin'),
   MONGO_PASSWORD: z.string().default('admin123'),
-  MONGO_DB_NAME: z.string().default('ebee'),
+  MONGO_DB_NAME: z.string().default('almanac'),
 
   // Redis Configuration
   REDIS_HOST: z.string().default('localhost'),

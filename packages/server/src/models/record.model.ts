@@ -26,7 +26,6 @@ const RecordSchema = new mongoose.Schema(
     title: { type: String, required: true, index: true },
     content: { type: String, required: true }, // Combined searchable text
     people: [{ type: String, index: true }], // Email addresses or user IDs
-    primaryDate: { type: Date, index: true }, // Most relevant date for the entity
     tags: [{ type: String, index: true }], // Extracted or explicit tags
 
     // Raw data (for reconstruction and debugging)
@@ -38,8 +37,10 @@ const RecordSchema = new mongoose.Schema(
     version: { type: Number, default: 1 },
     // Last successful sync
     syncedAt: { type: Date, default: Date.now, index: true },
+    // Creation date from source
+    sourceCreatedAt: { type: Date, index: true },
     // Last update time from source
-    sourceUpdatedAt: { type: Date, required: true, index: true },
+    sourceUpdatedAt: { type: Date, index: true },
 
     // Deletion tracking
     deletedAt: { type: Date },

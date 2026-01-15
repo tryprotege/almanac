@@ -200,9 +200,13 @@
             "type": "path",
             "path": "$.owner.login"
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.created_at"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "$.updated_at"
           },
           "tags": {
             "type": "paths",
@@ -244,9 +248,13 @@
             "type": "paths",
             "paths": ["$.user.login", "$.assignees[*].login"]
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.created_at"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "$.updated_at"
           },
           "tags": {
             "type": "paths",
@@ -307,9 +315,13 @@
               "$.merged_by.login"
             ]
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.created_at"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "$.updated_at"
           },
           "tags": {
             "type": "paths",
@@ -393,7 +405,7 @@
             "type": "path",
             "path": "$.author.login"
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.published_at"
           },
@@ -437,9 +449,13 @@
             "type": "paths",
             "paths": ["$.user.login", "$.answer_chosen_by.login"]
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.created_at"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "$.updated_at"
           },
           "tags": {
             "type": "paths",

@@ -147,7 +147,7 @@
             "type": "paths",
             "paths": ["$.calendar_invitees[*].name"]
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.created_at"
           },
@@ -170,7 +170,7 @@
             "processor": "transcript-to-markdown",
             "input": "$.transcript"
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.created_at"
           }
@@ -197,7 +197,7 @@
             "type": "path",
             "path": "$.summary"
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.created_at"
           }

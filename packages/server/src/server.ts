@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import 'dotenv/config';
 import express, { NextFunction, Request, Response } from 'express';
 
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -8,11 +7,13 @@ import { router } from './api/index.js';
 import { mcpClientManager } from './mcp/client.js';
 import { initializeServices, mcpServer, shutdownServices } from './mcp/initialization.js';
 import { DataSourceModel } from './models/data-source.model.js';
-import { syncMcpServerQueue } from './services/queue/sync.queue.js';
+import { syncMcpServerQueue, syncMcpServerWorker } from './services/queue/sync.queue.js';
 import { presetLoader } from './services/presets/preset-loader.service.js';
 import { syncScheduler } from './services/scheduler/sync-scheduler.service.js';
 import logger from './utils/logger.js';
 import { env } from './env.js';
+import { indexVectorWorker } from './services/queue/index-vector.queue.js';
+import { indexGraphWorker } from './services/queue/index-graph.queue.js';
 
 // Start server
 const runServer = async () => {
@@ -199,12 +200,40 @@ const runServer = async () => {
   });
 };
 
+let shuttingDown = false;
+
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
-  logger.info('Shutting down MCP server...');
-  await syncScheduler.shutdown();
-  await mcpClientManager.disconnectAll();
-  await shutdownServices();
+  // this can be called multiple times
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  // Use console.log for shutdown messages since pino-pretty runs in a worker thread
+  // and won't flush before process.exit()
+  console.log('\n🛑 SIGINT received - Shutting down MCP server...');
+
+  try {
+    // Cancel any in-progress sync jobs
+    console.log('Cancelling in-progress sync/indexing jobs...');
+    // Close workers to stop processing new jobs and cancel active ones
+    await Promise.allSettled([
+      syncMcpServerWorker.close(),
+      indexVectorWorker.close(),
+      indexGraphWorker.close(),
+    ]);
+
+    console.log('✅ All workers closed and jobs cancelled');
+
+    // Shutdown other services
+    await syncScheduler.shutdown();
+    await mcpClientManager.disconnectAll();
+    await shutdownServices();
+
+    console.log('👋 Server shutdown complete\n');
+  } catch (err) {
+    console.error('Error during shutdown:', err);
+  }
+
   process.exit(0);
 });
 

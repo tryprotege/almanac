@@ -282,7 +282,9 @@ const removeRepeatableJobsForDataSource = async (dataSourceName: string): Promis
  */
 const removeAllRepeatableJobs = async (): Promise<void> => {
   const repeatableJobs = await syncMcpServerQueue.getJobSchedulers();
-  await Promise.all(repeatableJobs.map((job) => syncMcpServerQueue.removeJobScheduler(job.key)));
+  await Promise.allSettled(
+    repeatableJobs.map((job) => syncMcpServerQueue.removeJobScheduler(job.key)),
+  );
 };
 
 /**
@@ -297,7 +299,7 @@ const getRepeatableJobs = async (): Promise<ScheduledJob[]> => {
  * Check if any job exists for a data source
  */
 const checkJobExistsForDataSource = async (dataSourceName: string): Promise<boolean> => {
-  const repeatableJobs = await syncMcpServerQueue.getRepeatableJobs();
+  const repeatableJobs = await syncMcpServerQueue.getJobSchedulers();
   return repeatableJobs.some((job) => isJobForDataSource(job, dataSourceName));
 };
 
@@ -585,9 +587,18 @@ const removeDataSource = async (dataSourceName: string): Promise<void> => {
 /**
  * Shutdown the scheduler
  */
-const shutdown = (): SchedulerState => {
+const shutdown = async (): Promise<SchedulerState> => {
   logger.info('Shutting down sync scheduler...');
-  logger.info('Sync scheduler shut down (BullMQ will handle cleanup)');
+
+  try {
+    // Remove all scheduled recurring jobs
+    await removeAllRepeatableJobs();
+    logger.info('All scheduled sync jobs removed');
+  } catch (err) {
+    logger.error({ err }, 'Error removing scheduled jobs during shutdown');
+  }
+
+  logger.info('Sync scheduler shut down');
   return { isInitialized: false };
 };
 
@@ -616,8 +627,8 @@ const createSyncScheduler = () => {
     getScheduledJobs: getRepeatableJobs,
     isJobScheduled: checkJobExistsForDataSource,
 
-    shutdown: () => {
-      state = shutdown();
+    shutdown: async () => {
+      state = await shutdown();
     },
   };
 };

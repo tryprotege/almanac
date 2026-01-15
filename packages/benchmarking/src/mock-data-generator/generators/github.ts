@@ -29,7 +29,7 @@ const ISSUE_LABELS = [
   ['refactor'],
   ['testing'],
 ];
-``;
+
 const ISSUE_STATES = ['open', 'closed'] as const;
 
 export async function generateGitHubIssues(

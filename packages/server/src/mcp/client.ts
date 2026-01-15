@@ -426,7 +426,7 @@ class MCPClientManager {
    */
   async disconnectAll(): Promise<void> {
     const promises = Array.from(this.clients.keys()).map((name) => this.disconnect(name));
-    await Promise.all(promises);
+    await Promise.allSettled(promises);
   }
 
   /**

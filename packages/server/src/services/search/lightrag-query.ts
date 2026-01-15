@@ -12,13 +12,13 @@ import { embed } from '../../utils/embedding.js';
 import { extractKeywordsNER } from '../../utils/keyword-extractor.js';
 import OpenAI from 'openai';
 import {
-  LightRAGQuery,
   LightRAGResponse,
   LightRAGRecord,
   LightRAGChunkFull,
   LightRAGEntity,
   LightRAGRelationship,
   ExtractedKeywords,
+  LightRAGQueryInput,
 } from '../../types/lightrag.types.js';
 import logger from '../../utils/logger.js';
 import { GraphEmbeddingMetadata } from '../../models/graph-embedding-metadata.model.js';
@@ -42,7 +42,7 @@ export interface LightRAGDependencies {
 // ============================================
 
 export async function lightragQuery(
-  query: LightRAGQuery,
+  query: LightRAGQueryInput,
   deps: LightRAGDependencies,
 ): Promise<LightRAGResponse> {
   const startTime = Date.now();
@@ -138,7 +138,7 @@ export async function lightragQuery(
 // ============================================
 
 async function naiveMode(
-  params: LightRAGQuery,
+  params: LightRAGQueryInput,
   deps: LightRAGDependencies,
 ): Promise<{ chunks: LightRAGRecord[]; vectorMatches: number }> {
   logger.info({ msg: `[LightRAG] Running naive mode (vector-only)` });
@@ -173,7 +173,7 @@ async function naiveMode(
 }
 
 async function localMode(
-  params: LightRAGQuery,
+  params: LightRAGQueryInput,
   keywords: ExtractedKeywords,
   deps: LightRAGDependencies,
 ): Promise<{
@@ -214,7 +214,7 @@ async function localMode(
 }
 
 async function globalMode(
-  params: LightRAGQuery,
+  params: LightRAGQueryInput,
   keywords: ExtractedKeywords,
   deps: LightRAGDependencies,
 ): Promise<{
@@ -252,7 +252,7 @@ async function globalMode(
 }
 
 async function hybridMode(
-  params: LightRAGQuery,
+  params: LightRAGQueryInput,
   keywords: ExtractedKeywords,
   deps: LightRAGDependencies,
 ): Promise<{
@@ -281,7 +281,7 @@ async function hybridMode(
 }
 
 async function mixMode(
-  params: LightRAGQuery,
+  params: LightRAGQueryInput,
   keywords: ExtractedKeywords,
   deps: LightRAGDependencies,
 ): Promise<{
@@ -667,7 +667,7 @@ function countUniqueDocuments(chunks: LightRAGRecord[]): number {
   return new Set(chunks.map((c) => c.document_id)).size;
 }
 
-function applyDefaults(query: LightRAGQuery): LightRAGQuery {
+function applyDefaults(query: LightRAGQueryInput): LightRAGQueryInput {
   return {
     ...query,
     mode: query.mode || 'mix',

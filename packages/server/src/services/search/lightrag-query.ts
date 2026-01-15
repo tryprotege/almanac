@@ -378,7 +378,7 @@ async function searchEntitiesByKeywords(
       description: record.content.substring(0, 200),
       source: record.source as import('../../types/index.js').SourceType,
       sourceId: record.sourceId,
-      date: record.primaryDate?.toISOString(),
+      date: record.sourceCreatedAt?.toISOString(),
       relevanceScore,
     };
   });
@@ -467,7 +467,7 @@ async function getEntitiesByIds(
       rank: calculateNodeRank(degree),
       source: record.source as import('../../types/index.js').SourceType,
       sourceId: record.sourceId,
-      date: record.primaryDate?.toISOString(),
+      date: record.sourceCreatedAt?.toISOString(),
       relevanceScore: 0,
     };
   });

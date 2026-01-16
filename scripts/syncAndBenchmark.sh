@@ -124,7 +124,7 @@ fi
 
 if should_enable_server "fathom"; then
   # Read Notion indexingConfig from config file
-  fathom_CONFIG=$(jq '.indexingConfig' ../data-sources-config/fathom.json)
+  FATHOM_CONFIG=$(jq '.indexingConfig' ../data-sources-config/fathom.json)
 
   echo "Enabling Fathom MCP server..."
   curl --request POST --url http://localhost:3000/api/data-sources --header 'Content-Type: application/json' --data '
@@ -137,13 +137,16 @@ if should_enable_server "fathom"; then
 
   curl --request POST --url http://localhost:3000/api/indexing-config/save --header 'Content-Type: application/json' --data "
   {
-    \"config\": ${NOTION_CONFIG},
+    \"config\": ${FATHOM_CONFIG},
     \"status\": \"active\"
   }
   "
 fi
 
 if should_enable_server "slack"; then
+    # Read Slack indexingConfig from config file
+  SLACK_CONFIG=$(jq '.indexingConfig' ../data-sources-config/slack.json)
+
   echo "Enabling Slack MCP server..."
   curl --request POST --url http://localhost:3000/api/data-sources --header 'Content-Type: application/json' --data '
   {
@@ -152,6 +155,17 @@ if should_enable_server "slack"; then
     "url": "http://localhost:4000/mcp/slack"
   }
   '
+
+  curl --request POST --url http://localhost:3000/api/indexing-config/save --header 'Content-Type: application/json' --data "
+  {
+    \"config\": ${SLACK_CONFIG},
+    \"status\": \"active\",
+    \"startingPointValues\": {
+      \"channelTypes\": [\"public_channel,private_channel\"],
+      \"messageHistoryLimit\": [\"100d\"]
+    }
+  }
+  "
 fi
 
 # Sync records

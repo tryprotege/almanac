@@ -148,36 +148,6 @@ export const lightragQueryInputSchema = z.object({
     .describe(
       'Minimum relevance score (0.0 to 1.0) for results to be included. Lower values return more results but with lower confidence. Higher values return fewer but more relevant results. Range: 0.0-1.0. Recommended: 0.5 for high recall, 0.7 for balanced, 0.8+ for high precision. Default: 0.6',
     ),
-  // filters: z
-  //   .object({
-  //     sources: z
-  //       .array(z.enum(['notion', 'slack', 'calendar', 'jira', 'github']))
-  //       .optional()
-  //       .describe(
-  //         "Filter results to specific data sources. Example: ['notion', 'slack']. Available sources: notion, slack, calendar, jira",
-  //       ),
-  //     dateRange: z
-  //       .object({
-  //         start: z
-  //           .string()
-  //           .optional()
-  //           .describe(
-  //             "Filter results to documents created/updated after this date. ISO 8601 format. Example: '2024-01-01T00:00:00Z'",
-  //           ),
-  //         end: z
-  //           .string()
-  //           .optional()
-  //           .describe(
-  //             "Filter results to documents created/updated before this date. ISO 8601 format. Example: '2024-12-31T23:59:59Z'",
-  //           ),
-  //       })
-  //       .optional()
-  //       .describe(
-  //         'Filter results to documents within a specific date range (based on document creation/update time)',
-  //       ),
-  //   })
-  //   .optional()
-  //   .describe('Optional filters to narrow down search results by source or date range.'),
 });
 
 // Infer the type from the schema

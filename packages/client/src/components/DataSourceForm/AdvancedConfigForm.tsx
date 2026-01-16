@@ -71,6 +71,7 @@ export function AdvancedConfigForm({
   useEffect(() => {
     if (server) {
       // Editing existing server
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         name: server.name,
         type: server.type,

@@ -16,7 +16,7 @@ import { VectorStore } from '../stores/vector.store.js';
 import logger from '../utils/logger.js';
 
 export async function initializeRemoteServers(
-  dataSources: (DataSource & { _id: any })[],
+  dataSources: DataSource[],
   mcpSever: McpServer,
   skipMcpProxy = false,
 ): Promise<void> {

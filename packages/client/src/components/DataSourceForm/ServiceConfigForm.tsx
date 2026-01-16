@@ -90,6 +90,7 @@ export function ServiceConfigForm({
         const existingValue = existingSource.env?.[env.key] || '';
         newEnvVars[env.key] = { value: existingValue, showValue: false };
       });
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEnvVars(newEnvVars);
 
       const newHeaders: Record<string, EnvVarState> = {};

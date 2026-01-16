@@ -13,6 +13,7 @@ export function PersonaEditor() {
   // Initialize local state when persona loads
   useEffect(() => {
     if (persona !== undefined) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLocalPersona(persona);
     }
   }, [persona]);

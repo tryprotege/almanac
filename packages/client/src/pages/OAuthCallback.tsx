@@ -12,6 +12,7 @@ export default function OAuthCallback() {
     const description = params.get('description');
 
     if (success) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus('success');
       // Notify parent window (popup opener)
       if (window.opener) {

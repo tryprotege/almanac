@@ -9,7 +9,7 @@ import type { ToolClassification } from '@almanac/indexing-engine';
 import { EventEmitter } from 'events';
 import pRetry, { AbortError } from 'p-retry';
 import logger from '../utils/logger.js';
-import { oauthProviderFactory } from '../oauth/mcp-oauth-provider.js';
+import { MCPOAuthProvider, oauthProviderFactory } from '../oauth/mcp-oauth-provider.js';
 import { discoverSseOAuth } from '../oauth/sse-oauth.js';
 import type { DataSource } from '../models/data-source.model.js';
 import { env } from '../env.js';
@@ -200,7 +200,7 @@ class MCPClientManager {
   /**
    * Create OAuth provider for a server
    */
-  private createOAuthProvider(dataSource: DataSource): any | undefined {
+  private createOAuthProvider(dataSource: DataSource): MCPOAuthProvider | undefined {
     if (dataSource.authType !== 'oauth' || !dataSource._id) {
       return undefined;
     }

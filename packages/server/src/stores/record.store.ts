@@ -1,3 +1,4 @@
+import { QueryFilter } from 'mongoose';
 import { RecordModel, Record } from '../models/record.model.js';
 import { SourceType } from '../types/index.js';
 
@@ -11,7 +12,7 @@ export class RecordStore {
    */
   async upsert({ _id, ...record }: Partial<Record>): Promise<Record> {
     // Build update object, excluding undefined indexing metadata
-    const updateData: any = { ...record };
+    const updateData: Partial<Record> = { ...record };
 
     // Prevent accidental clearing of indexing metadata
     // If these fields are undefined, remove them from the update
@@ -70,7 +71,7 @@ export class RecordStore {
     recordType?: string,
     options?: { limit?: number; skip?: number; includeDeleted?: boolean },
   ): Promise<Record[]> {
-    const filter: any = { source };
+    const filter: QueryFilter<Record> = { source };
 
     // Only add recordType to filter if it's provided and not empty
     if (recordType) {
@@ -185,7 +186,7 @@ export class RecordStore {
    * Count entities by source
    */
   async countBySource(source: SourceType, includeDeleted: boolean = false): Promise<number> {
-    const filter: any = { source };
+    const filter: QueryFilter<Record> = { source };
     if (!includeDeleted) {
       filter.deletedAt = null;
     }
@@ -200,7 +201,7 @@ export class RecordStore {
     recordType?: string,
     options?: { includeDeleted?: boolean },
   ): Promise<number> {
-    const filter: any = { source };
+    const filter: QueryFilter<Record> = { source };
 
     // Only add recordType to filter if it's provided and not empty
     if (recordType) {
@@ -233,7 +234,7 @@ export class RecordStore {
       skip?: number;
     },
   ): Promise<Record[]> {
-    const filter: any = {
+    const filter: QueryFilter<Record> = {
       $text: { $search: query },
       deletedAt: null,
     };
@@ -266,7 +267,7 @@ export class RecordStore {
       limit?: number;
     },
   ): Promise<Record[]> {
-    const filter: any = {
+    const filter: QueryFilter<Record> = {
       people: { $in: people },
       deletedAt: null,
     };
@@ -296,7 +297,7 @@ export class RecordStore {
       limit?: number;
     },
   ): Promise<Record[]> {
-    const filter: any = {
+    const filter: QueryFilter<Record> = {
       primaryDate: { $gte: startDate, $lte: endDate },
       deletedAt: null,
     };
@@ -328,7 +329,7 @@ export class RecordStore {
       limit?: number;
     },
   ): Promise<Record[]> {
-    const filter: any = {
+    const filter: QueryFilter<Record> = {
       tags: { $in: tags },
       deletedAt: null,
     };

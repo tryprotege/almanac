@@ -1,5 +1,5 @@
 import { Request, Response, Router } from 'express';
-import { DataSourceModel } from '../../models/data-source.model.js';
+import { DataSourceModel, IDataSourceModel } from '../../models/data-source.model.js';
 import { IndexingConfigModel } from '../../models/indexing-config.model.js';
 import { MCPSyncStateModel } from '../../models/mcp-sync-state.model.js';
 import { mcpClientManager } from '../../mcp/client.js';
@@ -163,7 +163,7 @@ dataSourcesRouter.post('/', async (req: Request, res: Response) => {
     }
 
     // Convert env and headers to Map if provided
-    const dataSourceData: any = {
+    const dataSourceData: IDataSourceModel = {
       ...config,
       env: config.env ? new Map(Object.entries(config.env)) : undefined,
       headers: config.headers ? new Map(Object.entries(config.headers)) : undefined,

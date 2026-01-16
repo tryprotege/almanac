@@ -1,4 +1,3 @@
-import { jsonSchemaToZod } from 'json-schema-to-zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import OpenAI from 'openai';
 
@@ -6,8 +5,7 @@ import { lightragQuery, LightRAGDependencies } from './lightrag-query.js';
 import { GraphStore } from '../../stores/graph.store.js';
 import { VectorStore } from '../../stores/vector.store.js';
 import { RecordStore } from '../../stores/record.store.js';
-import { lightragQueryTool, LightRAGQuery } from '../../types/lightrag.types.js';
-import { resolveSerializedZodOutput } from '../../utils/resolveSerializedZodOutput.js';
+import { lightragQueryTool } from '../../types/lightrag.types.js';
 import { env } from '../../env.js';
 import { MemgraphConnection } from '../../connections/memgraph.js';
 import { QdrantConnection } from '../../connections/qdrant.js';
@@ -47,22 +45,19 @@ export async function registerLightRAGTool(
     name,
     {
       description,
-      inputSchema: resolveSerializedZodOutput(jsonSchemaToZod(inputSchema)) as {},
+      inputSchema,
     },
     async (args) => {
       try {
-        const query = args as unknown as LightRAGQuery;
-
         // Apply defaults for optional parameters
-        query.mode = 'mix';
+        args.mode = 'mix';
         // query.response_format = query.response_format ?? "compact";
         // query.top_k = query.top_k ?? 60;
         // query.chunk_top_k = query.chunk_top_k ?? 20;
-        query.enable_rerank = true;
-        query.score_threshold = 0.5;
-        query.filters = {};
+        args.enable_rerank = true;
+        args.score_threshold = 0.5;
 
-        const response = await lightragQuery(query, deps);
+        const response = await lightragQuery(args, deps);
 
         return {
           content: [

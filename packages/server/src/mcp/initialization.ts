@@ -169,7 +169,7 @@ export async function initializeServices(skipMcpProxy = false): Promise<ServiceC
 
 export async function shutdownServices(): Promise<void> {
   if (services) {
-    await Promise.all([
+    await Promise.allSettled([
       services.qdrant.close(),
       services.memgraph.close(),
       services.redis.close(),

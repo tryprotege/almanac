@@ -36,7 +36,8 @@ export interface TransformedRecord {
   title: string;
   content: string;
   people?: string[];
-  primaryDate?: Date | null;
+  sourceCreatedAt?: Date | null;
+  sourceUpdatedAt?: Date | null;
   tags?: string[];
   parentId?: string | null;
 

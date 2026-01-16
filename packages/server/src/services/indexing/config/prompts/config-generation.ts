@@ -184,7 +184,8 @@ These fetch additional details for discovered records:
           "processor": "blocks-to-markdown",
           "input": "enrichments.blocks"
         },
-        "primaryDate": { "type": "path", "path": "$.created_time" }
+        "sourceCreatedAt": { "type": "path", "path": "$.created_time" },
+        "sourceUpdatedAt": { "type": "path", "path": "$.last_edited_time" }
       }
     }
   }
@@ -212,7 +213,8 @@ These fetch additional details for discovered records:
         "content": { "type": "path", "path": "$.description" },
         "people": { "type": "paths", "paths": ["$.assignee.name", "$.creator.name"] },
         "tags": { "type": "paths", "paths": ["$.labels[*].name", "$.state.name"] },
-        "primaryDate": { "type": "path", "path": "$.createdAt" }
+        "sourceCreatedAt": { "type": "path", "path": "$.createdAt" },
+        "sourceUpdatedAt": { "type": "path", "path": "$.updatedAt" }
       },
       "entities": [
         {
@@ -268,7 +270,7 @@ These fetch additional details for discovered records:
           "input": "$.text"
         },
         "people": { "type": "path", "path": "$.user.name" },
-        "primaryDate": { "type": "path", "path": "$.timestamp" }
+        "sourceCreatedAt": { "type": "path", "path": "$.timestamp" }
       },
       "grouping": {
         "strategy": "thread",
@@ -322,7 +324,7 @@ These fetch additional details for discovered records:
         "title": { "type": "path", "path": "$.title" },
         "content": { "type": "path", "path": "$.description" },
         "people": { "type": "paths", "paths": ["$.participants[*].name"] },
-        "primaryDate": { "type": "path", "path": "$.start_time" }
+        "sourceCreatedAt": { "type": "path", "path": "$.start_time" }
       }
     },
     "transcript": {
@@ -416,7 +418,8 @@ Map discovered data to these unified fields:
       "fields": {
         "title": { "type": "path", "path": "$.name" },
         "content": { "type": "path", "path": "enrichments.details" },
-        "primaryDate": { "type": "path", "path": "$.created_at" }
+        "sourceCreatedAt": { "type": "path", "path": "$.created_at" },
+        "sourceUpdatedAt": { "type": "path", "path": "$.updated_at" }
       },
       "entities": [
         {

@@ -37,12 +37,12 @@ export class FathomClient {
   // Recording Methods
   async getSummary(recordingId: string): Promise<FathomSummary> {
     const response = await this.client.get(`/recordings/${recordingId}/summary`);
-    return response.data;
+    return { id: `summary-${recordingId}`, ...response.data };
   }
 
   async getTranscript(recordingId: string): Promise<FathomTranscript> {
     const response = await this.client.get(`/recordings/${recordingId}/transcript`);
-    return response.data;
+    return { id: `transcript-${recordingId}`, ...response.data };
   }
 
   // Teams Methods

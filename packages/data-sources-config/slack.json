@@ -74,14 +74,6 @@
           "public_channel",
           "public_channel,private_channel,im"
         ]
-      },
-      {
-        "name": "messageHistoryLimit",
-        "description": "How far back to fetch message history (e.g., 7d, 30d, 90d, or a number like 100)",
-        "required": false,
-        "userProvided": true,
-        "default": "30d",
-        "examples": ["7d", "30d", "90d", "100"]
       }
     ],
     "syncOrder": ["fetchChannels", "fetchMessages", "fetchThreadReplies"],
@@ -140,9 +132,6 @@
         },
         "params": {
           "include_activity_messages": false
-        },
-        "paramsFromStartingPoints": {
-          "limit": "messageHistoryLimit"
         },
         "pagination": {
           "type": "cursor",

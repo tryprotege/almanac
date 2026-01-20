@@ -8,6 +8,7 @@
 import type { FormatProcessor } from '../types/format-processors.js';
 import TurndownService from 'turndown';
 import { parse } from 'csv-parse/sync';
+import { JSONPath } from 'jsonpath-plus';
 
 /**
  * Built-in format processors
@@ -237,18 +238,18 @@ export const formatProcessors: Record<string, FormatProcessor> = {
     process: async (
       segments: any[],
       options?: {
-        speakerPath?: string; // Path to speaker field (default: "speaker")
-        textPath?: string; // Path to text field (default: "text")
-        timestampPath?: string; // Path to timestamp field (default: "start_time")
+        speakerPath?: string; // JSONPath to speaker field (default: "$.speaker")
+        textPath?: string; // JSONPath to text field (default: "$.text")
+        timestampPath?: string; // JSONPath to timestamp field (default: "$.start_time")
         timeFormat?: 'seconds' | 'milliseconds' | 'timestamp';
       },
     ) => {
       if (!Array.isArray(segments)) return '';
 
       const opts = {
-        speakerPath: options?.speakerPath || 'speaker',
-        textPath: options?.textPath || 'text',
-        timestampPath: options?.timestampPath || 'start_time',
+        speakerPath: options?.speakerPath || '$.speaker.display_name',
+        textPath: options?.textPath || '$.text',
+        timestampPath: options?.timestampPath || '$.start_time',
         timeFormat: options?.timeFormat || 'seconds',
       };
 
@@ -262,12 +263,23 @@ export const formatProcessors: Record<string, FormatProcessor> = {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
       }
 
+      function extractValue(seg: any, path: string): any {
+        try {
+          const result = JSONPath({ path, json: seg, wrap: false });
+          return result;
+        } catch (error) {
+          console.warn(`JSONPath extraction failed for ${path}:`, error);
+          return undefined;
+        }
+      }
+
       return segments
         .map((seg) => {
-          const speaker = seg[opts.speakerPath] || 'Unknown';
-          const text = seg[opts.textPath] || '';
-          const timestamp = seg[opts.timestampPath];
-          const time = timestamp ? `[${formatTime(timestamp)}]` : '';
+          const speaker = extractValue(seg, opts.speakerPath) || 'Unknown';
+          const text = extractValue(seg, opts.textPath) || '';
+          const timestamp = extractValue(seg, opts.timestampPath);
+          const time =
+            timestamp !== undefined && timestamp !== null ? `[${formatTime(timestamp)}]` : '';
 
           return `${time} **${speaker}**: ${text}`;
         })

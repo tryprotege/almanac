@@ -154,7 +154,10 @@ recordTypes:
           - $.created_by.email
           - $.last_edited_by.email
 
-      primaryDate:
+      sourceCreatedAt:
+        type: path
+        path: $.created_at
+      sourceUpdatedAt:
         type: path
         path: $.created_time
 

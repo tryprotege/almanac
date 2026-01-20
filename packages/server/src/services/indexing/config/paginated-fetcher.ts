@@ -875,7 +875,7 @@ export async function fetchPage(
     }
 
     // Determine if there are more pages
-    if (nextCursor !== undefined && nextCursor !== null) {
+    if (nextCursor) {
       hasMore = true;
     } else {
       hasMore = false;

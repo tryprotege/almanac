@@ -43,7 +43,7 @@ async function persistToMongo(records: TransformedRecord[]): Promise<void> {
             title: record.title || '',
             content: record.content || '',
             people: record.people || [],
-            sourceCreatedAt: record.sourceCreatedAt || new Date(),
+            sourceCreatedAt: record.sourceCreatedAt,
             sourceUpdatedAt: finalSourceUpdatedAt,
             tags: record.tags || [],
             rawData: record.rawData || {},

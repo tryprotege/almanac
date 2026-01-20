@@ -423,7 +423,8 @@ export interface FieldMappings {
   title: FieldMapping;
   content: FieldMapping;
   people?: FieldMapping;
-  primaryDate?: FieldMapping;
+  sourceCreatedAt?: FieldMapping;
+  sourceUpdatedAt?: FieldMapping;
   tags?: FieldMapping;
   parentId?: FieldMapping;
 }
@@ -714,7 +715,8 @@ export interface ParentFieldMappings {
   title: ParentFieldMapping;
   content: ParentFieldMapping;
   people?: ParentFieldMapping;
-  primaryDate?: ParentFieldMapping;
+  sourceCreatedAt?: ParentFieldMapping;
+  sourceUpdatedAt?: ParentFieldMapping;
   tags?: ParentFieldMapping;
 }
 

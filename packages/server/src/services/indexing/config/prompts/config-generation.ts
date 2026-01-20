@@ -336,7 +336,7 @@ These fetch additional details for discovered records:
           "processor": "transcript-to-markdown",
           "input": "$.transcript"
         },
-        "primaryDate": { "type": "path", "path": "$.start_time" }
+        "sourceCreatedAt": { "type": "path", "path": "$.start_time" }
       },
       "relationships": [
         {
@@ -352,7 +352,7 @@ These fetch additional details for discovered records:
       "fields": {
         "title": { "type": "template", "template": "Summary: \${record.title}" },
         "content": { "type": "path", "path": "$.summary" },
-        "primaryDate": { "type": "path", "path": "$.start_time" }
+        "sourceCreatedAt": { "type": "path", "path": "$.start_time" }
       },
       "relationships": [
         {
@@ -373,7 +373,7 @@ Using the patterns above as guidance, create a config for "${displayName}":
 
 1. **Identify discovery tools** from the tool catalog (tools that list/search without IDs)
 2. **Select enrichment tools** that provide full content for discovered items
-3. **Map fields** to the standard schema (title, content, people, primaryDate, tags)
+3. **Map fields** to the standard schema (title, content, people, sourceCreatedAt, sourceUpdatedAt, tags)
 4. **Extract entities** from sample data (users, statuses, projects, etc.)
 5. **Define relationships** between records and entities
 
@@ -384,7 +384,8 @@ Map discovered data to these unified fields:
 - **title** (required): Short, human-readable title/summary
 - **content** (required): Main searchable text content
 - **people** (optional): Names or IDs of people involved
-- **primaryDate** (optional): Main timestamp (created, modified, published)
+- **sourceCreatedAt** (optional): Creation timestamp from the source system
+- **sourceUpdatedAt** (optional): Last update timestamp from the source system
 - **tags** (optional): Categories, labels, statuses
 - **parentId** (optional): Reference to parent record
 

@@ -215,6 +215,18 @@ const mapToScheduledJob = (job: JobSchedulerJson<SyncMcpServerJobData>): Schedul
 // ============================================================================
 
 /**
+ * Clear all pending jobs from the sync queue
+ */
+const clearSyncQueue = async (): Promise<void> => {
+  try {
+    // Remove all waiting jobs
+    await syncMcpServerQueue.drain();
+  } catch (err) {
+    logger.error({ err }, 'Failed to clear sync queue - continuing anyway');
+  }
+};
+
+/**
  * Reset any MCP sync states that were in 'syncing' status when the server stopped.
  * These syncs were interrupted and should be resynced.
  */
@@ -486,7 +498,11 @@ const initialize = async (state: SchedulerState): Promise<SchedulerState> => {
   try {
     logger.info('Initializing hybrid sync scheduler...');
 
-    // Step 0: Reset any incomplete syncs from previous server shutdown
+    // Step 0: Clear the sync queue of any pending jobs from previous server session
+    logger.info('Clearing sync queue...');
+    await clearSyncQueue();
+
+    // Step 1: Reset any incomplete syncs from previous server shutdown
     logger.info('Checking for incomplete syncs...');
     const incompleteSyncs = await resetIncompleteSyncs();
 
@@ -498,7 +514,7 @@ const initialize = async (state: SchedulerState): Promise<SchedulerState> => {
       return { isInitialized: true };
     }
 
-    // Step 1: Validate cron schedule (required for startup sync logic)
+    // Step 2: Validate cron schedule (required for startup sync logic)
     if (!config.cronSchedule) {
       logger.info('No SYNC_CRON_SCHEDULE configured - checking for interrupted syncs only');
 
@@ -518,7 +534,7 @@ const initialize = async (state: SchedulerState): Promise<SchedulerState> => {
       return { isInitialized: true };
     }
 
-    // Step 2: Identify and process startup syncs based on cron schedule
+    // Step 3: Identify and process startup syncs based on cron schedule
     const sourcesNeedingSync = filterDataSourcesNeedingSync(
       dataSources,
       config.cronSchedule,
@@ -538,7 +554,7 @@ const initialize = async (state: SchedulerState): Promise<SchedulerState> => {
       config.cronSchedule,
     );
 
-    // Step 3: Setup recurring syncs
+    // Step 4: Setup recurring syncs
 
     await scheduleRecurringSyncs(dataSources, config.cronSchedule, config.timezone);
 

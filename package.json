@@ -20,8 +20,14 @@
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
     "lint:all": "pnpm format:check && pnpm lint && pnpm type-check",
     "docker:infra": "docker compose up -d",
-    "docker:all": "docker compose --profile app up -d",
-    "docker:down": "docker compose --profile app down"
+    "docker:dev": "docker compose --profile app up -d",
+    "docker:dev:build": "docker compose --profile app build && docker compose --profile app up -d",
+    "docker:prod": "docker compose -f docker-compose.prod.yml up -d",
+    "docker:prod:build": "docker compose -f docker-compose.prod.yml build && docker compose -f docker-compose.prod.yml up -d",
+    "docker:down": "docker compose --profile app down",
+    "docker:down:prod": "docker compose -f docker-compose.prod.yml down",
+    "docker:logs": "docker compose --profile app logs -f",
+    "docker:logs:prod": "docker compose -f docker-compose.prod.yml logs -f"
   },
   "engines": {
     "node": ">=24.0.0",

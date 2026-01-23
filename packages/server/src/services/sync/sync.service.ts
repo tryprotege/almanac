@@ -1,4 +1,3 @@
-import { loadProxyConfig } from '../../mcp/config-loader.js';
 import type { DataSource } from '../../models/data-source.model.js';
 import { IndexingConfigModel } from '../../models/indexing-config.model.js';
 import { RecordStore } from '../../stores/record.store.js';
@@ -80,6 +79,11 @@ async function indexToVectors(
   }
 }
 
+export interface SyncResult {
+  recordsProcessed: number;
+  fetcherStats: Map<string, { recordCount: number }>;
+}
+
 /**
  * Sync a single MCP server data source
  * All sources must have an active IndexingConfig
@@ -87,7 +91,7 @@ async function indexToVectors(
 export const syncMcpServer = async (
   dataSource: DataSource & { _id: any },
   _options?: { limit?: number },
-) => {
+): Promise<SyncResult> => {
   // 1. Get IndexingConfig (required - no fallback)
   const syncConfig = await IndexingConfigModel.findOne({
     serverName: dataSource.name,
@@ -100,6 +104,8 @@ export const syncMcpServer = async (
     );
   }
 
+  console.log('🚀🚀🚀🚀 start syncing....');
+
   logger.info({ serverName: dataSource.name }, 'Starting config-based sync');
 
   // 2. Initialize stores
@@ -108,6 +114,7 @@ export const syncMcpServer = async (
   const vectorStore = new VectorStore(qdrant);
 
   let recordsProcessed = 0;
+  const fetcherStats = new Map<string, { recordCount: number }>();
 
   // 3. Fetch & transform via config-indexer
   const syncGenerator = indexAll(
@@ -117,7 +124,7 @@ export const syncMcpServer = async (
   );
 
   // 4. Process records in batches
-  for await (const { records } of syncGenerator) {
+  for await (const { records, progress } of syncGenerator) {
     // 4a. Persist to MongoDB
     await persistToMongo(records);
 
@@ -125,11 +132,26 @@ export const syncMcpServer = async (
     await indexToVectors(records, recordStore, vectorStore);
 
     recordsProcessed += records.length;
+
+    // Track stats per fetcher
+    if (!fetcherStats.has(progress.fetcherName)) {
+      fetcherStats.set(progress.fetcherName, { recordCount: 0 });
+    }
+    const stats = fetcherStats.get(progress.fetcherName)!;
+    stats.recordCount += records.length;
+
     logger.info(`Processed ${recordsProcessed} records from ${dataSource.name}`);
   }
 
+  console.log('✅✅✅ sync completed');
   logger.info({
     msg: `✅ Sync completed for ${dataSource.name}`,
     recordsProcessed,
+    fetcherStats: Object.fromEntries(fetcherStats),
   });
+
+  return {
+    recordsProcessed,
+    fetcherStats,
+  };
 };

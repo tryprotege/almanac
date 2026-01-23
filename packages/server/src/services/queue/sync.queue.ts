@@ -2,6 +2,8 @@ import { Processor, Queue, Worker } from 'bullmq';
 
 import type { DataSource } from '../../models/data-source.model.js';
 import { DataSourceModel } from '../../models/data-source.model.js';
+import { MCPSyncStateModel } from '../../models/mcp-sync-state.model.js';
+import { IndexingConfigModel } from '../../models/indexing-config.model.js';
 import { syncMcpServer } from '../sync/sync.service.js';
 import { indexGraphQueue } from './index-graph.queue.js';
 import { indexVectorQueue } from './index-vector.queue.js';
@@ -18,14 +20,48 @@ const processor: Processor<SyncMcpServerJobData, SyncMcpServerJobResult, string>
     logger.info({ dataSourceName: mcpConfig.name }, 'Starting scheduled sync job');
   }
 
-  // Mark sync as in-progress
+  // Get the indexing config to link with sync state
+  const indexingConfig = await IndexingConfigModel.findOne({
+    serverName: mcpConfig.name,
+    status: 'active',
+  });
+
+  if (!indexingConfig) {
+    logger.error({ serverName: mcpConfig.name }, 'No active indexing config found for sync');
+    throw new Error(`No active indexing config found for '${mcpConfig.name}'`);
+  }
+
+  // Initialize or update MCPSyncState to 'syncing' status
+  let syncState = await MCPSyncStateModel.findOne({ serverName: mcpConfig.name });
+
+  if (!syncState) {
+    syncState = await MCPSyncStateModel.create({
+      serverName: mcpConfig.name,
+      configId: indexingConfig._id,
+      configVersion: indexingConfig.configVersion,
+      status: 'syncing',
+      fetcherCursors: new Map(),
+      totalRecordsSynced: 0,
+      consecutiveErrors: 0,
+    });
+    logger.info({ serverName: mcpConfig.name }, 'Created new MCPSyncState');
+  } else {
+    syncState.status = 'syncing';
+    syncState.configId = indexingConfig._id;
+    syncState.configVersion = indexingConfig.configVersion;
+    await syncState.save();
+    logger.info({ serverName: mcpConfig.name }, 'Updated MCPSyncState to syncing status');
+  }
+
+  // Mark sync as in-progress in DataSource
   await DataSourceModel.findOneAndUpdate(
     { name: mcpConfig.name },
     { lastSyncStatus: 'in-progress' },
+    { upsert: true },
   );
 
   try {
-    await syncMcpServer(mcpConfig);
+    const syncResult = await syncMcpServer(mcpConfig);
 
     await Promise.all([
       indexVectorQueue.add(mcpConfig.name, {
@@ -36,7 +72,15 @@ const processor: Processor<SyncMcpServerJobData, SyncMcpServerJobResult, string>
       }),
     ]);
 
-    // Mark sync as successful
+    // Update MCPSyncState with success
+    syncState.status = 'idle';
+    syncState.lastFullSyncAt = new Date();
+    syncState.totalRecordsSynced += syncResult.recordsProcessed;
+    syncState.consecutiveErrors = 0;
+    syncState.lastError = undefined;
+    await syncState.save();
+
+    // Mark sync as successful in DataSource
     await DataSourceModel.findOneAndUpdate(
       { name: mcpConfig.name },
       {
@@ -44,10 +88,35 @@ const processor: Processor<SyncMcpServerJobData, SyncMcpServerJobResult, string>
         lastSyncStatus: 'success',
       },
     );
-  } catch (error) {
-    // Mark sync as failed
+
+    logger.info(
+      {
+        serverName: mcpConfig.name,
+        recordsProcessed: syncResult.recordsProcessed,
+      },
+      'Sync completed successfully',
+    );
+  } catch (err) {
+    // Update MCPSyncState with error
+    syncState.status = 'error';
+    syncState.lastError = {
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+      occurredAt: new Date(),
+    };
+    syncState.consecutiveErrors += 1;
+    await syncState.save();
+
+    // Mark sync as failed in DataSource
     await DataSourceModel.findOneAndUpdate({ name: mcpConfig.name }, { lastSyncStatus: 'failed' });
-    throw error;
+
+    logger.error({
+      msg: 'Sync job failed',
+      config: mcpConfig.name,
+      consecutiveErrors: syncState.consecutiveErrors,
+      err,
+    });
+    throw err;
   }
 };
 
@@ -66,6 +135,7 @@ export const syncMcpServerWorker = new Worker<SyncMcpServerJobData, SyncMcpServe
     autorun: false,
     skipLockRenewal: true,
     skipStalledCheck: true,
+    lockDuration: 5 * 60 * 60 * 1000,
   },
 );
 

@@ -157,6 +157,7 @@ export async function* indexAll(
   config: IndexingConfig,
   serverName: string,
   userProvidedStartingPoints?: Record<string, string[]>,
+  updateSyncState = true,
 ): AsyncGenerator<{
   records: TransformedRecord[];
   progress: IndexProgress;
@@ -232,6 +233,9 @@ export async function* indexAll(
     );
   }
 
+  // Load or create sync state for cursor tracking
+  let syncState = updateSyncState ? await MCPSyncStateModel.findOne({ serverName }) : null;
+
   // Track fetcher results for forEach references
   const fetcherResults: ForEachContext = {};
 
@@ -285,6 +289,7 @@ export async function* indexAll(
     logger.info(`Starting fetch: ${fetcherName}`);
 
     let recordsProcessed = 0;
+    let fetcherRecordsCount = 0;
 
     // Find record types for this fetcher
     const recordTypes = Object.values(config.recordTypes).filter(
@@ -589,6 +594,8 @@ export async function* indexAll(
 
       // Yield final batch for this page
       if (finalBatch.length > 0) {
+        fetcherRecordsCount += finalBatch.length;
+
         yield {
           records: finalBatch,
           progress: {
@@ -601,6 +608,26 @@ export async function* indexAll(
           },
         };
       }
+    }
+
+    // Update fetcher cursor in sync state after completing this fetcher
+    if (syncState && updateSyncState) {
+      const existingCursor = syncState.fetcherCursors.get(fetcherName);
+      syncState.fetcherCursors.set(fetcherName, {
+        lastSyncAt: new Date(),
+        syncedCount: (existingCursor?.syncedCount || 0) + fetcherRecordsCount,
+        cursor: undefined, // Could be updated if pagination cursor is available
+        lastRecordId: allFetcherRecords[allFetcherRecords.length - 1]?.id,
+      });
+      await syncState.save();
+      logger.debug(
+        {
+          fetcherName,
+          syncedCount: fetcherRecordsCount,
+          totalSynced: syncState.fetcherCursors.get(fetcherName)?.syncedCount,
+        },
+        'Updated fetcher cursor in sync state',
+      );
     }
 
     // Save results for future fetchers to reference

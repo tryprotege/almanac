@@ -182,7 +182,7 @@
           "paramMapping": {
             "block_id": "$.id",
             "format": "json",
-            "page_size": "100"
+            "page_size": 100
           },
           "concurrency": 5,
           "continueOnError": true,
@@ -231,7 +231,7 @@
           "paramMapping": {
             "database_id": "$.id",
             "format": "json",
-            "page_size": "100"
+            "page_size": 100
           },
           "concurrency": 3,
           "continueOnError": true,

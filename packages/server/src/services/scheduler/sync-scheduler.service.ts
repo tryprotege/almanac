@@ -1,6 +1,8 @@
 import { DataSourceModel } from '../../models/data-source.model.js';
 import { MCPSyncStateModel } from '../../models/mcp-sync-state.model.js';
 import { SyncMcpServerJobData, syncMcpServerQueue } from '../queue/sync.queue.js';
+import { indexVectorQueue } from '../queue/index-vector.queue.js';
+import { indexGraphQueue } from '../queue/index-graph.queue.js';
 import { env } from '../../env.js';
 import logger from '../../utils/logger.js';
 import { JobSchedulerJson } from 'bullmq';
@@ -215,14 +217,26 @@ const mapToScheduledJob = (job: JobSchedulerJson<SyncMcpServerJobData>): Schedul
 // ============================================================================
 
 /**
- * Clear all pending jobs from the sync queue
+ * Clear all pending jobs from all queues
  */
 const clearSyncQueue = async (): Promise<void> => {
   try {
-    // Remove all waiting jobs
-    await syncMcpServerQueue.drain();
+    // Clear sync queue
+    const syncJobSchedulers = await syncMcpServerQueue.getJobSchedulers();
+    await Promise.all(
+      syncJobSchedulers.map((job) => syncMcpServerQueue.removeJobScheduler(job.key)),
+    );
+    await syncMcpServerQueue.obliterate({ force: true });
+
+    // Clear index vector queue
+    await indexVectorQueue.obliterate({ force: true });
+
+    // Clear index graph queue
+    await indexGraphQueue.obliterate({ force: true });
+
+    logger.info('Successfully cleared all jobs from sync, vector, and graph queues');
   } catch (err) {
-    logger.error({ err }, 'Failed to clear sync queue - continuing anyway');
+    logger.error({ err }, 'Failed to clear queues - continuing anyway');
   }
 };
 

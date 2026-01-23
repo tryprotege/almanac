@@ -331,6 +331,8 @@ export interface ForEachConfig {
   /** JSONPath to iterate over source records, e.g., "$[*]" for all */
   path: string;
 
+  params?: Record<string, any>; // Static params (can include "${startingPoint:name.field}" template syntax)
+
   /** Map source record fields to tool parameters */
   paramMapping: Record<string, string>; // e.g., { "team": "$.name" }
 

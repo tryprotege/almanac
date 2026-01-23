@@ -86,12 +86,17 @@ If you prefer to configure manually:
 Run everything in Docker (no local Node.js required):
 
 ```bash
-# Start all services including app
-pnpm docker:all
+# Development mode
+pnpm run docker:dev
 
-# Stop all services
-pnpm docker:down
+# Production mode
+pnpm run docker:prod
+
+# Stop services
+pnpm run docker:down
 ```
+
+**For detailed Docker instructions, see [DOCKER.md](DOCKER.md)**
 
 ## 📚 Available Scripts
 

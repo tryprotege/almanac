@@ -1,13 +1,12 @@
-import { AlertCircle, Database, Loader2, Plus, Store } from 'lucide-react';
+import { AlertCircle, Database, Loader2, Plus, RefreshCw, Store } from 'lucide-react';
 import { useState } from 'react';
-import { useDataSources } from '../hooks/useDataSources';
+import { useDataSources, useSyncDataSource } from '../hooks/useDataSources';
 import { useSyncConfigs } from '../hooks/useSyncConfigs';
 import { useSyncStatuses } from '../hooks/useSyncStatus';
 import { DataSourceWizard } from '../components/DataSourceWizard';
 import { MarketplaceModal } from '../components/MarketplaceModal';
 import { MCPServerCard } from '../components/MCPServerCard';
 import { PageHeader } from '../components/ui/PageHeader';
-import { Badge } from '../components/ui/Badge';
 import type { DataSourceConfig } from '../lib/api';
 
 export default function DataSources() {
@@ -18,6 +17,9 @@ export default function DataSources() {
   const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [editingSource, setEditingSource] = useState<DataSourceConfig | null>(null);
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const [syncAllError, setSyncAllError] = useState<string | null>(null);
+  const syncMutation = useSyncDataSource();
 
   // Fetch sync statuses with polling
   const { data: syncStatuses } = useSyncStatuses();
@@ -62,17 +64,43 @@ export default function DataSources() {
     setIsWizardOpen(true);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge variant="success">Active</Badge>;
-      case 'connected':
-        return <Badge variant="success">Connected</Badge>;
-      case 'disabled':
-        return <Badge variant="neutral">Disabled</Badge>;
-      default:
-        return null;
+  const handleSyncAll = async () => {
+    setIsSyncingAll(true);
+    setSyncAllError(null);
+
+    // Filter active data sources
+    const activeSources = dataSources.filter((s) => s.status === 'active');
+
+    if (activeSources.length === 0) {
+      setSyncAllError('No active data sources to sync');
+      setIsSyncingAll(false);
+      return;
     }
+
+    const errors: { serverName: string; error: string }[] = [];
+    let successCount = 0;
+
+    await Promise.all(
+      activeSources.map(async ({ server }) => {
+        server._id &&
+          (await syncMutation.mutateAsync({
+            configId: server._id,
+            name: server.name,
+          }));
+      }),
+    );
+
+    // Show summary
+    if (errors.length > 0) {
+      const errorMessages = errors.map((e) => `${e.serverName}: ${e.error}`).join(', ');
+      setSyncAllError(
+        `Synced ${successCount}/${activeSources.length} sources. Failures: ${errorMessages}`,
+      );
+    } else {
+      console.log(`Successfully queued ${successCount} data sources for sync`);
+    }
+
+    setIsSyncingAll(false);
   };
 
   return (
@@ -195,12 +223,46 @@ export default function DataSources() {
       {/* Data Sources Grid */}
       {!isLoading && !error && dataSources.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold text-text-primary mb-4">Your Data Sources</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-text-primary">Your Data Sources</h2>
+            <button
+              onClick={handleSyncAll}
+              disabled={
+                isSyncingAll || dataSources.filter((s) => s.status === 'active').length === 0
+              }
+              className="btn btn-secondary flex items-center gap-2 text-sm"
+            >
+              {isSyncingAll ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Syncing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  Sync All
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Sync All Error */}
+          {syncAllError && (
+            <div className="card bg-error-bg border-error-border mb-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-error-text flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-sm font-medium text-error-text">Sync Error</h3>
+                  <p className="mt-1 text-sm text-error-text/80">{syncAllError}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {dataSources.map((source) => {
               // Check if this server is currently syncing or queued
               const isSyncing = syncStatuses?.syncing.some((s) => s.serverName === source.name);
-              const isQueued = syncStatuses?.queued.some((s) => s.serverName === source.name);
 
               return (
                 <MCPServerCard
@@ -209,7 +271,6 @@ export default function DataSources() {
                   syncConfig={source.config}
                   onEdit={handleEdit}
                   isSyncing={isSyncing}
-                  isQueued={isQueued}
                 />
               );
             })}

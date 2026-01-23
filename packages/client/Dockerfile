@@ -6,8 +6,9 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Set working directory
 WORKDIR /app
 
-# Copy workspace configuration
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+# Copy workspace configuration (use Docker-specific workspace file)
+COPY package.json pnpm-lock.yaml pnpm-workspace.docker.yaml ./
+RUN mv pnpm-workspace.docker.yaml pnpm-workspace.yaml
 
 # Development stage
 FROM base AS development
@@ -17,9 +18,12 @@ COPY packages/client/package.json ./packages/client/
 COPY packages/server/package.json ./packages/server/
 COPY packages/shared-util/package.json ./packages/shared-util/
 COPY packages/indexing-engine/package.json ./packages/indexing-engine/
+COPY packages/fathom-mcp-server/package.json ./packages/fathom-mcp-server/
+COPY packages/data-sources-config/ ./packages/data-sources-config/
 
-# Install all dependencies
-RUN pnpm install --frozen-lockfile
+# Install all dependencies with cache mount for speed
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # Copy shared packages (needed for type definitions)
 COPY packages/server ./packages/server
@@ -38,14 +42,20 @@ CMD ["pnpm", "--filter", "client", "run", "dev", "--", "--host", "0.0.0.0"]
 # Production build stage
 FROM base AS builder
 
+# Copy lockfile for faster, deterministic installs
+COPY pnpm-lock.yaml ./
+
 # Copy all package.json files
 COPY packages/client/package.json ./packages/client/
 COPY packages/server/package.json ./packages/server/
 COPY packages/shared-util/package.json ./packages/shared-util/
 COPY packages/indexing-engine/package.json ./packages/indexing-engine/
+COPY packages/fathom-mcp-server/package.json ./packages/fathom-mcp-server/
+COPY packages/data-sources-config/ ./packages/data-sources-config/
 
-# Install all dependencies (needed for build)
-RUN pnpm install --frozen-lockfile
+# Install with cache mount for speed
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # Copy source code
 COPY packages/server ./packages/server
@@ -53,8 +63,8 @@ COPY packages/shared-util ./packages/shared-util
 COPY packages/indexing-engine ./packages/indexing-engine
 COPY packages/client ./packages/client
 
-# Build the client (skip type-check, vite build only)
-RUN pnpm --filter client exec vite build
+# Build the client
+RUN pnpm --filter client run build
 
 # Production stage - serve with nginx
 FROM nginx:alpine AS production

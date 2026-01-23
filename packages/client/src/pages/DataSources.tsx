@@ -7,7 +7,6 @@ import { DataSourceWizard } from '../components/DataSourceWizard';
 import { MarketplaceModal } from '../components/MarketplaceModal';
 import { MCPServerCard } from '../components/MCPServerCard';
 import { PageHeader } from '../components/ui/PageHeader';
-import { Badge } from '../components/ui/Badge';
 import type { DataSourceConfig } from '../lib/api';
 
 export default function DataSources() {
@@ -60,19 +59,6 @@ export default function DataSources() {
   const handleSelectPreset = (presetId: string) => {
     setSelectedPresetId(presetId);
     setIsWizardOpen(true);
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge variant="success">Active</Badge>;
-      case 'connected':
-        return <Badge variant="success">Connected</Badge>;
-      case 'disabled':
-        return <Badge variant="neutral">Disabled</Badge>;
-      default:
-        return null;
-    }
   };
 
   return (

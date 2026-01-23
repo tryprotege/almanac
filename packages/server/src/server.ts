@@ -188,7 +188,7 @@ const runServer = async () => {
 
   app.listen(PORT, HOST, () => {
     logger.info({
-      msg: '🚀 eBee MCP server running',
+      msg: '🚀 Almanac MCP server running',
       host: HOST,
       port: PORT,
       endpoints: {

@@ -1,8 +1,7 @@
 import { Shield, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { DataSourceConfig, oauthApi, dataSourcesApi } from '../../lib/api';
+import { DataSourceConfig, dataSourcesApi } from '../../lib/api';
 import { OAuthConnectButton } from '../OAuthConnectButton';
-import toast from 'react-hot-toast';
 
 interface OAuthStepProps {
   serverConfig: Omit<DataSourceConfig, '_id' | 'createdAt' | 'updatedAt'>;

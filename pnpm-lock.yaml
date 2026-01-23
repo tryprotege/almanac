@@ -1480,8 +1480,8 @@ packages:
     resolution: {integrity: sha512-058GAcqHd3I7oYLnLIMhcZMdg8i6hCvD4K3s5PY8RuSXp7QAl9/+usOIxrDSfNMGK4cfya94LqHj+txwIe3wUQ==}
     engines: {node: '>=18'}
 
-  '@sourcegraph/amp@0.0.1768364346-g8260fe':
-    resolution: {integrity: sha512-C7LBlmIfEjLWrs3JZDEwWTYff3fV4RArFtdaUFaZyBrTU/d5cRzeMd5mIK8WmfMcsJctoZwm5hzRL9GiHBsTsA==}
+  '@sourcegraph/amp@0.0.1769155285-g3e80a2':
+    resolution: {integrity: sha512-XWxhzlokALfEWc1AVrE4Aun0r164pj6zWramms4K7RVriMUZtZ9BAfChgR7ww2uWJpVr3VdyLAVnt/dv7GGBKA==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -5553,10 +5553,10 @@ snapshots:
 
   '@sourcegraph/amp-sdk@0.1.0-20251217003600-gcd4203a':
     dependencies:
-      '@sourcegraph/amp': 0.0.1768364346-g8260fe
+      '@sourcegraph/amp': 0.0.1769155285-g3e80a2
       zod: 3.25.76
 
-  '@sourcegraph/amp@0.0.1768364346-g8260fe':
+  '@sourcegraph/amp@0.0.1769155285-g3e80a2':
     dependencies:
       '@napi-rs/keyring': 1.1.9
 

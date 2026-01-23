@@ -23,7 +23,7 @@ export async function registerLightRAGTool(
     qdrant: QdrantConnection;
   },
 ): Promise<void> {
-  logger.info('� Registering eBee Search tool...');
+  logger.info('� Registering Almanac Search tool...');
 
   // Initialize OpenAI client
   const openaiClient = new OpenAI({
@@ -90,5 +90,5 @@ export async function registerLightRAGTool(
     },
   );
 
-  logger.info('✅ eBee Search tool registered');
+  logger.info('✅ Almanac Search tool registered');
 }

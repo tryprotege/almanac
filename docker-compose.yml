@@ -72,7 +72,7 @@ services:
       - MONGO_PORT=27017
       - MONGO_USERNAME=admin
       - MONGO_PASSWORD=admin123
-      - MONGO_DB_NAME=ebee
+      - MONGO_DB_NAME=almanac
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=

@@ -6,8 +6,9 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Set working directory
 WORKDIR /app
 
-# Copy workspace configuration
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+# Copy workspace configuration (use Docker-specific workspace file)
+COPY package.json pnpm-workspace.docker.yaml ./
+RUN mv pnpm-workspace.docker.yaml pnpm-workspace.yaml
 
 # Development stage
 FROM base AS development
@@ -16,9 +17,11 @@ FROM base AS development
 COPY packages/server/package.json ./packages/server/
 COPY packages/shared-util/package.json ./packages/shared-util/
 COPY packages/indexing-engine/package.json ./packages/indexing-engine/
+COPY packages/fathom-mcp-server/package.json ./packages/fathom-mcp-server/
+COPY packages/data-sources-config/ ./packages/data-sources-config/
 
-# Install all dependencies
-RUN pnpm install --frozen-lockfile
+# Install all dependencies (without frozen lockfile since we're using filtered workspace)
+RUN pnpm install --no-frozen-lockfile
 
 # Copy shared packages source code
 COPY packages/shared-util ./packages/shared-util
@@ -40,9 +43,11 @@ FROM base AS builder
 COPY packages/server/package.json ./packages/server/
 COPY packages/shared-util/package.json ./packages/shared-util/
 COPY packages/indexing-engine/package.json ./packages/indexing-engine/
+COPY packages/fathom-mcp-server/package.json ./packages/fathom-mcp-server/
+COPY packages/data-sources-config/ ./packages/data-sources-config/
 
 # Install all dependencies (needed for TypeScript compilation)
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Copy source code
 COPY packages/shared-util ./packages/shared-util
@@ -64,13 +69,16 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
 # Copy package files
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json pnpm-workspace.docker.yaml ./
+RUN mv pnpm-workspace.docker.yaml pnpm-workspace.yaml
 COPY packages/server/package.json ./packages/server/
 COPY packages/shared-util/package.json ./packages/shared-util/
 COPY packages/indexing-engine/package.json ./packages/indexing-engine/
+COPY packages/fathom-mcp-server/package.json ./packages/fathom-mcp-server/
+COPY packages/data-sources-config/ ./packages/data-sources-config/
 
 # Install all dependencies (tsx is needed to run TypeScript imports)
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Copy source and built files from builder
 COPY --from=builder /app/packages/shared-util ./packages/shared-util

@@ -5,8 +5,8 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - ./data/mongodb:/data/db
-      - ./data/mongodb-config:/data/configdb
+      - ./.data/mongodb:/data/db
+      - ./.data/mongodb-config:/data/configdb
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=admin123
@@ -21,7 +21,7 @@ services:
       - "6333:6333"
       - "6334:6334"
     volumes:
-      - ./data/qdrant:/qdrant/storage
+      - ./.data/qdrant:/qdrant/storage
     restart: unless-stopped
     networks:
       - almanac-network
@@ -33,7 +33,7 @@ services:
       - "7687:7687"
       - "7444:7444"
     volumes:
-      - ./data/memgraph:/var/lib/memgraph
+      - ./.data/memgraph:/var/lib/memgraph
     environment:
       - MEMGRAPH_LOG_LEVEL=WARNING
     restart: unless-stopped
@@ -46,7 +46,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - ./data/redis:/data
+      - ./.data/redis:/data
     command: redis-server --appendonly yes
     restart: unless-stopped
     networks:
@@ -66,7 +66,7 @@ services:
       - MONGO_PORT=27017
       - MONGO_USERNAME=admin
       - MONGO_PASSWORD=admin123
-      - MONGO_DB_NAME=ebee
+      - MONGO_DB_NAME=almanac
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
@@ -96,7 +96,7 @@ services:
       target: production
     container_name: almanac_client_prod
     ports:
-      - "80:80"
+      - "5173:80"
     depends_on:
       - server
     restart: unless-stopped

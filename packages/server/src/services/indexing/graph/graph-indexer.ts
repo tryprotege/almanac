@@ -56,13 +56,14 @@ export const extractGraphFromRecord = async (
   } = {},
 ): Promise<ExtractionResult> => {
   // Check if record needs re-indexing (skip check if force=true)
+  // Use checksum-based detection: if content hasn't changed, skip extraction
   if (
     !options.force &&
     record.lastGraphIndexAt &&
-    record.sourceUpdatedAt &&
-    record.sourceUpdatedAt <= record.lastGraphIndexAt
+    record.lastGraphIndexChecksum &&
+    record.checksum === record.lastGraphIndexChecksum
   ) {
-    // Record is up-to-date, skip extraction
+    // Record content is unchanged, skip extraction
     return {
       entities: [],
       relationships: [],
@@ -254,15 +255,20 @@ export const indexAllRecords = async (
   const { entityTypes: existingEntityTypes, relationshipTypes: existingRelTypes } =
     getCurrentSchemaTypes(currentSchema);
 
-  // Get total record count for progress tracking
-  const totalRecords = await recordStore.countBySourceAndType(source, recordType, {
-    includeDeleted: false,
-  });
+  // Get count of records needing indexing (unless force=true, then get all records)
+  const totalRecords = force
+    ? await recordStore.countBySourceAndType(source, recordType, {
+        includeDeleted: false,
+      })
+    : await recordStore.countNeedingGraphIndex(source, recordType, {
+        includeDeleted: false,
+      });
 
   logger.info({
-    msg: `📊 Total records to process: ${totalRecords}`,
+    msg: `📊 Records needing indexing: ${totalRecords}`,
     source,
     recordType: recordType || 'all',
+    mode: force ? 'force (all records)' : 'incremental (updated only)',
   });
 
   // Create concurrency limiter
@@ -283,11 +289,18 @@ export const indexAllRecords = async (
       break;
     }
 
-    const records = await recordStore.findBySourceAndType(source, recordType, {
-      limit: batchSize,
-      skip,
-      includeDeleted: false,
-    });
+    // Fetch only records that need indexing (unless force=true, then fetch all)
+    const records = force
+      ? await recordStore.findBySourceAndType(source, recordType, {
+          limit: batchSize,
+          skip,
+          includeDeleted: false,
+        })
+      : await recordStore.findNeedingGraphIndex(source, recordType, {
+          limit: batchSize,
+          skip,
+          includeDeleted: false,
+        });
 
     if (records.length === 0) {
       hasMore = false;
@@ -1016,12 +1029,15 @@ export const indexAllRecords = async (
 
       // Update ALL record metadata in parallel (MongoDB handles concurrency)
       await Promise.all(
-        validResults.map((result) =>
-          recordStore.upsert({
+        validResults.map((result) => {
+          // Find the original record to get its checksum
+          const record = records.find((r) => r._id === result.recordId);
+          return recordStore.upsert({
             _id: result.recordId,
             lastGraphIndexAt: new Date(),
-          }),
-        ),
+            lastGraphIndexChecksum: record?.checksum, // Store checksum at time of indexing
+          });
+        }),
       );
 
       // Update successful count

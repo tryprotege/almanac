@@ -66,6 +66,7 @@ export async function insertAllRecordsToVectorDB(
     // If source is updated and lastEmbeddedAt is older, we will re-index it
     const recordsToProcess = records.filter((record) => {
       if (!record.lastEmbeddedAt) return true;
+      if (!record.sourceUpdatedAt) return false; // if there's no updated at value, skip it
       return record.sourceUpdatedAt.getTime() > record.lastEmbeddedAt.getTime();
     });
 

@@ -10,8 +10,8 @@
     "./types/*": "./dist/types/*.js"
   },
   "scripts": {
-    "dev": "LOG_LEVEL=debug tsx watch --watch --env-file=.env src/server.ts",
-    "dev:indexer": "LOG_LEVEL=debug tsx watch src/indexer-worker.ts",
+    "dev": "tsx watch --watch --env-file=.env src/server.ts",
+    "dev:indexer": "tsx watch src/indexer-worker.ts",
     "indexer": "tsx src/indexer-worker.ts",
     "build": "tsc",
     "start": "node dist/server.js",

@@ -331,6 +331,8 @@ export interface ForEachConfig {
   /** JSONPath to iterate over source records, e.g., "$[*]" for all */
   path: string;
 
+  params?: Record<string, any>; // Static params (can include "${startingPoint:name.field}" template syntax)
+
   /** Map source record fields to tool parameters */
   paramMapping: Record<string, string>; // e.g., { "team": "$.name" }
 
@@ -423,7 +425,8 @@ export interface FieldMappings {
   title: FieldMapping;
   content: FieldMapping;
   people?: FieldMapping;
-  primaryDate?: FieldMapping;
+  sourceCreatedAt?: FieldMapping;
+  sourceUpdatedAt?: FieldMapping;
   tags?: FieldMapping;
   parentId?: FieldMapping;
 }
@@ -714,7 +717,8 @@ export interface ParentFieldMappings {
   title: ParentFieldMapping;
   content: ParentFieldMapping;
   people?: ParentFieldMapping;
-  primaryDate?: ParentFieldMapping;
+  sourceCreatedAt?: ParentFieldMapping;
+  sourceUpdatedAt?: ParentFieldMapping;
   tags?: ParentFieldMapping;
 }
 

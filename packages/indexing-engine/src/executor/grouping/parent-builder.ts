@@ -69,9 +69,18 @@ export class ParentRecordBuilder {
             group.groupId,
           )
         : undefined,
-      primaryDate: config.fields.primaryDate
+      sourceCreatedAt: config.fields.sourceCreatedAt
         ? await this.buildField(
-            config.fields.primaryDate,
+            config.fields.sourceCreatedAt,
+            group.records,
+            firstChild,
+            lastChild,
+            group.groupId,
+          )
+        : undefined,
+      sourceUpdatedAt: config.fields.sourceUpdatedAt
+        ? await this.buildField(
+            config.fields.sourceUpdatedAt,
             group.records,
             firstChild,
             lastChild,
@@ -125,7 +134,8 @@ export class ParentRecordBuilder {
       title: String(fields.title || ''),
       content: String(fields.content || ''),
       people: fields.people as string[] | undefined,
-      primaryDate: fields.primaryDate as Date | null | undefined,
+      sourceCreatedAt: fields.sourceCreatedAt as Date | null | undefined,
+      sourceUpdatedAt: fields.sourceUpdatedAt as Date | null | undefined,
       tags: fields.tags as string[] | undefined,
       parentId: null,
       rawData,

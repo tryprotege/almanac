@@ -13,6 +13,7 @@ import { applyCutoffDateToParams } from './config-indexer.service.js';
 import logger from '../../../utils/logger.js';
 import { env } from '../../../env.js';
 import { executeProcessor } from '@almanac/indexing-engine';
+import { buildParams } from './enrichment-executor.js';
 
 export interface PageResult {
   records: any[];
@@ -277,22 +278,10 @@ export async function* fetchWithForEach(
 
     const batchPromises = batch.map(async (item: any) => {
       // Build params from static params + mapped params
-      const params = { ...config.params };
+      const params = { ...(forEach.params || {}), ...buildParams(item, forEach.paramMapping) };
 
       // Apply cutoff date parameters if configured
       applyCutoffDateToParams(params, config);
-
-      for (const [paramName, jsonPath] of Object.entries(forEach.paramMapping)) {
-        const value = JSONPath({ path: jsonPath, json: item, wrap: false });
-        if (value !== undefined) {
-          // Apply type coercion if specified
-          if ((forEach as any).paramTypes?.[paramName] === 'string') {
-            params[paramName] = String(value);
-          } else {
-            params[paramName] = value;
-          }
-        }
-      }
 
       // Call with retries
       let lastError: Error | null = null;
@@ -875,7 +864,7 @@ export async function fetchPage(
     }
 
     // Determine if there are more pages
-    if (nextCursor !== undefined && nextCursor !== null) {
+    if (nextCursor) {
       hasMore = true;
     } else {
       hasMore = false;

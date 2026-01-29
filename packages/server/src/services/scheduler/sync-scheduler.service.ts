@@ -1,5 +1,8 @@
 import { DataSourceModel } from '../../models/data-source.model.js';
+import { MCPSyncStateModel } from '../../models/mcp-sync-state.model.js';
 import { SyncMcpServerJobData, syncMcpServerQueue } from '../queue/sync.queue.js';
+import { indexVectorQueue } from '../queue/index-vector.queue.js';
+import { indexGraphQueue } from '../queue/index-graph.queue.js';
 import { env } from '../../env.js';
 import logger from '../../utils/logger.js';
 import { JobSchedulerJson } from 'bullmq';
@@ -214,6 +217,73 @@ const mapToScheduledJob = (job: JobSchedulerJson<SyncMcpServerJobData>): Schedul
 // ============================================================================
 
 /**
+ * Clear all pending jobs from all queues
+ */
+const clearSyncQueue = async (): Promise<void> => {
+  try {
+    // Clear sync queue
+    const syncJobSchedulers = await syncMcpServerQueue.getJobSchedulers();
+    await Promise.all(
+      syncJobSchedulers.map((job) => syncMcpServerQueue.removeJobScheduler(job.key)),
+    );
+    await syncMcpServerQueue.obliterate({ force: true });
+
+    // Clear index vector queue
+    await indexVectorQueue.obliterate({ force: true });
+
+    // Clear index graph queue
+    await indexGraphQueue.obliterate({ force: true });
+
+    logger.info('Successfully cleared all jobs from sync, vector, and graph queues');
+  } catch (err) {
+    logger.error({ err }, 'Failed to clear queues - continuing anyway');
+  }
+};
+
+/**
+ * Reset any MCP sync states that were in 'syncing' status when the server stopped.
+ * These syncs were interrupted and should be resynced.
+ */
+const resetIncompleteSyncs = async (): Promise<Set<string>> => {
+  try {
+    // First, find all incomplete syncs
+    const incompleteSyncs = await MCPSyncStateModel.find({ status: 'syncing' }, { serverName: 1 });
+
+    if (incompleteSyncs.length === 0) {
+      logger.debug('No incomplete syncs found to reset');
+      return new Set();
+    }
+
+    const serverNames = new Set(incompleteSyncs.map((sync) => sync.serverName));
+
+    // Then reset them with audit trail
+    await MCPSyncStateModel.updateMany(
+      { status: 'syncing' },
+      {
+        $set: {
+          status: 'idle',
+          updatedAt: new Date(),
+          lastError: {
+            message: 'Sync interrupted by server shutdown',
+            occurredAt: new Date(),
+          },
+        },
+      },
+    );
+
+    logger.info(
+      { count: serverNames.size, servers: Array.from(serverNames) },
+      'Reset incomplete syncs to idle status',
+    );
+
+    return serverNames;
+  } catch (error) {
+    logger.error({ error }, 'Failed to reset incomplete syncs - continuing anyway');
+    return new Set();
+  }
+};
+
+/**
  * Fetch enabled data sources from database
  */
 const fetchEnabledDataSources = async (): Promise<DataSource[]> =>
@@ -313,9 +383,13 @@ const checkJobExistsForDataSource = async (dataSourceName: string): Promise<bool
 const processStartupSyncs = async (
   dataSources: DataSource[],
   sourcesNeedingSync: string[],
+  incompleteSyncs: Set<string>,
   cronSchedule: string,
 ): Promise<void> => {
-  if (sourcesNeedingSync.length === 0) {
+  // Combine sources that missed scheduled sync with sources that were interrupted
+  const allSourcesNeedingSync = new Set([...sourcesNeedingSync, ...incompleteSyncs]);
+
+  if (allSourcesNeedingSync.size === 0) {
     logger.info(
       { cronSchedule },
       'No data sources need startup sync (all synced after last scheduled time)',
@@ -325,21 +399,24 @@ const processStartupSyncs = async (
 
   logger.info(
     {
-      count: sourcesNeedingSync.length,
-      sources: sourcesNeedingSync,
+      count: allSourcesNeedingSync.size,
+      sources: Array.from(allSourcesNeedingSync),
+      missedScheduled: sourcesNeedingSync.length,
+      interrupted: incompleteSyncs.size,
       cronSchedule,
     },
-    'Triggering startup syncs for data sources that missed scheduled sync',
+    'Triggering startup syncs for data sources',
   );
 
   await Promise.all(
-    sourcesNeedingSync.map(async (dataSourceName) => {
+    Array.from(allSourcesNeedingSync).map(async (dataSourceName) => {
       const dataSource = dataSources.find((ds) => ds.name === dataSourceName);
       if (!dataSource) return;
 
       try {
-        await queueSyncJob(dataSourceName, dataSource, 'startup');
-        logger.info({ dataSourceName }, 'Queued startup sync for data source');
+        const reason = incompleteSyncs.has(dataSourceName) ? 'interrupted' : 'missed-schedule';
+        await queueSyncJob(dataSourceName, dataSource, `startup-${reason}`);
+        logger.info({ dataSourceName, reason }, 'Queued startup sync for data source');
       } catch (err) {
         logger.error({ err, dataSourceName }, 'Failed to queue startup sync');
       }
@@ -437,6 +514,14 @@ const initialize = async (state: SchedulerState): Promise<SchedulerState> => {
   try {
     logger.info('Initializing hybrid sync scheduler...');
 
+    // Step 0: Clear the sync queue of any pending jobs from previous server session
+    logger.info('Clearing sync queue...');
+    await clearSyncQueue();
+
+    // Step 1: Reset any incomplete syncs from previous server shutdown
+    logger.info('Checking for incomplete syncs...');
+    const incompleteSyncs = await resetIncompleteSyncs();
+
     const config = getSchedulerConfig();
     const dataSources = await fetchEnabledDataSources();
 
@@ -445,9 +530,15 @@ const initialize = async (state: SchedulerState): Promise<SchedulerState> => {
       return { isInitialized: true };
     }
 
-    // Step 1: Validate cron schedule (required for startup sync logic)
+    // Step 2: Validate cron schedule (required for startup sync logic)
     if (!config.cronSchedule) {
-      logger.info('No SYNC_CRON_SCHEDULE configured - skipping scheduler setup');
+      logger.info('No SYNC_CRON_SCHEDULE configured - checking for interrupted syncs only');
+
+      // Even without cron schedule, we should resync interrupted syncs
+      if (incompleteSyncs.size > 0) {
+        await processStartupSyncs(dataSources, [], incompleteSyncs, 'none');
+      }
+
       return { isInitialized: true };
     }
 
@@ -459,7 +550,7 @@ const initialize = async (state: SchedulerState): Promise<SchedulerState> => {
       return { isInitialized: true };
     }
 
-    // Step 2: Identify and process startup syncs based on cron schedule
+    // Step 3: Identify and process startup syncs based on cron schedule
     const sourcesNeedingSync = filterDataSourcesNeedingSync(
       dataSources,
       config.cronSchedule,
@@ -472,9 +563,14 @@ const initialize = async (state: SchedulerState): Promise<SchedulerState> => {
       logSyncDecision(ds.name, decision, ds.lastSyncAt);
     });
 
-    await processStartupSyncs(dataSources, sourcesNeedingSync, config.cronSchedule);
+    await processStartupSyncs(
+      dataSources,
+      sourcesNeedingSync,
+      incompleteSyncs,
+      config.cronSchedule,
+    );
 
-    // Step 3: Setup recurring syncs
+    // Step 4: Setup recurring syncs
 
     await scheduleRecurringSyncs(dataSources, config.cronSchedule, config.timezone);
 
@@ -483,7 +579,8 @@ const initialize = async (state: SchedulerState): Promise<SchedulerState> => {
         scheduledCount: dataSources.length,
         cronSchedule: config.cronSchedule,
         timezone: config.timezone,
-        startupSyncs: sourcesNeedingSync.length,
+        startupSyncs: sourcesNeedingSync.length + incompleteSyncs.size,
+        interrupted: incompleteSyncs.size,
       },
       'Hybrid sync scheduler initialized successfully',
     );

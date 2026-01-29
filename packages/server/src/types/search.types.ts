@@ -27,7 +27,8 @@ export interface SearchResult {
   source: string | SourceType;
   type: string;
   url?: string;
-  primaryDate?: Date;
+  sourceCreatedAt?: Date;
+  sourceUpdatedAt?: Date;
   date?: string;
   people: string[];
   attributes: Record<string, any>;

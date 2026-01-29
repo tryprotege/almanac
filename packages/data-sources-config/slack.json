@@ -214,10 +214,6 @@
             "type": "template",
             "template": "${record.topic || record.purpose || ''}"
           },
-          "primaryDate": {
-            "type": "code",
-            "code": "return new Date().toISOString();"
-          },
           "tags": {
             "type": "code",
             "code": "const tags = []; if (record.name && record.name.startsWith('#')) tags.push('public_channel'); if (record.memberCount) tags.push(`members:${record.memberCount}`); return tags;"
@@ -249,7 +245,7 @@
             "type": "paths",
             "paths": ["UserID"]
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "code",
             "code": "const ts = parseFloat(record.Time || record.MsgID); return new Date(ts * 1000).toISOString();"
           },
@@ -323,7 +319,7 @@
                 "function": "unique",
                 "path": "$.UserID"
               },
-              "primaryDate": {
+              "sourceCreatedAt": {
                 "type": "aggregate",
                 "function": "first",
                 "path": "$.Time"
@@ -361,7 +357,7 @@
             "type": "paths",
             "paths": ["UserID"]
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "code",
             "code": "const ts = parseFloat(record.Time || record.MsgID); return new Date(ts * 1000).toISOString();"
           },
@@ -422,7 +418,7 @@
                 "function": "unique",
                 "path": "$.UserID"
               },
-              "primaryDate": {
+              "sourceCreatedAt": {
                 "type": "aggregate",
                 "function": "first",
                 "path": "$.Time"

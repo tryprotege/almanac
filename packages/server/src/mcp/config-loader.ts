@@ -5,7 +5,7 @@ import type { DataSource } from '../models/data-source.model.js';
 /**
  * Load MCP proxy configuration from a file or environment variable
  */
-export async function loadProxyConfig(): Promise<Array<DataSource & { _id: any }>> {
+export async function loadProxyConfig(): Promise<Array<DataSource>> {
   const remoteServerConfigs = await DataSourceModel.find({
     isDisabled: false,
   });

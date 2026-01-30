@@ -28,6 +28,7 @@ export function MCPServerForm({ isOpen, onClose, server }: MCPServerFormProps) {
       // Editing existing server - skip to configure step with preset
       const preset = getPresetById(server.name);
       if (preset) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedPreset(preset);
         setStep('configure');
       } else {

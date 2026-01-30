@@ -111,7 +111,7 @@ const processEnv = {
 
 function partialParse<T extends z.ZodRawShape>(schema: z.ZodObject<T>, input: unknown) {
   const shape = schema.shape;
-  const result: any = {};
+  const result: Partial<z.infer<typeof schema>> = {};
 
   for (const key in shape) {
     const fieldSchema = shape[key];

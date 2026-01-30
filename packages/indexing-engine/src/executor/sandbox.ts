@@ -56,6 +56,7 @@ export async function executeSandboxCode(
       // Only allow specific safe modules
       const allowedModules = ['crypto', 'url', 'querystring'];
       if (allowedModules.includes(module)) {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         return require(module);
       }
       throw new Error(`Module ${module} is not allowed in sandbox`);

@@ -88,10 +88,7 @@ export interface SyncResult {
  * Sync a single MCP server data source
  * All sources must have an active IndexingConfig
  */
-export const syncMcpServer = async (
-  dataSource: DataSource & { _id: any },
-  _options?: { limit?: number },
-): Promise<SyncResult> => {
+export const syncMcpServer = async (dataSource: DataSource, _options?: { limit?: number }) => {
   // 1. Get IndexingConfig (required - no fallback)
   const syncConfig = await IndexingConfigModel.findOne({
     serverName: dataSource.name,

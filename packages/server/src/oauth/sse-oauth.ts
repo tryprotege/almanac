@@ -59,9 +59,7 @@ export async function discoverSseOAuth(sseUrl: string): Promise<SseOAuthDiscover
       };
     } catch (error) {
       // Clean up transport
-      try {
-        await transport.close();
-      } catch {}
+      await transport.close().catch(() => void 0);
 
       // Debug logging to see error structure
       logger.info(

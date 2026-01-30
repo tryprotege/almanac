@@ -84,22 +84,16 @@ export function DataSourceWizard({
       if (isPresetBased) {
         // Try to find the preset by presetId first, then fallback to name
         const preset = getPresetById(existingSource.presetId || existingSource.name);
-        console.log(
-          'DataSourceWizard: Editing preset-based source',
-          existingSource.name,
-          'preset:',
-          preset?.id,
-        );
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedPreset(preset || CUSTOM_PRESET);
       } else {
         // This is a custom server - use CUSTOM_PRESET
-        console.log('DataSourceWizard: Editing custom source', existingSource.name);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedPreset(CUSTOM_PRESET);
       }
       setStep('configure');
     } else if (isOpen && presetId && presetData) {
       // New source from marketplace preset
-      console.log('DataSourceWizard: Creating from preset', presetId);
       // Create a preset object for the wizard
       const connection = presetData.data.connection;
       const preset: ServicePreset = {
@@ -174,7 +168,7 @@ export function DataSourceWizard({
     };
 
     // If OAuth is required, create server first, then go to OAuth step
-    if (config.authType === ('oauth' as const)) {
+    if (config.authType === 'oauth') {
       try {
         // Create the server first
         toast.loading('Creating data source...', { id: 'create-server' });

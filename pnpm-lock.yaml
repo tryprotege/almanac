@@ -356,6 +356,9 @@ importers:
       zod:
         specifier: 3.25.76
         version: 3.25.76
+      zod-to-json-schema:
+        specifier: ^3.25.1
+        version: 3.25.1(zod@3.25.76)
     devDependencies:
       '@jest/globals':
         specifier: ^30.2.0
@@ -1483,8 +1486,8 @@ packages:
     resolution: {integrity: sha512-058GAcqHd3I7oYLnLIMhcZMdg8i6hCvD4K3s5PY8RuSXp7QAl9/+usOIxrDSfNMGK4cfya94LqHj+txwIe3wUQ==}
     engines: {node: '>=18'}
 
-  '@sourcegraph/amp@0.0.1769688231-g1d909c':
-    resolution: {integrity: sha512-izpY18gXeymKqmXaBBO4ml978gyyRyzCYw7BuMzZ4K/cPSFNm5fAjd1yU4eyH5rd/5SMo5TNjLtFU42hRUR2MA==}
+  '@sourcegraph/amp@0.0.1769774567-g3dfaea':
+    resolution: {integrity: sha512-tFWVoLvMlYoW9nifqOZFvAv7GiLL3OH5mh5/5GnXtD9nBfRIX+fNVJEn0pomiIGXfEogiJT7Fp16I34zQFuatg==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -5383,7 +5386,7 @@ snapshots:
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
       zod: 3.25.76
-      zod-to-json-schema: 3.25.0(zod@3.25.76)
+      zod-to-json-schema: 3.25.1(zod@3.25.76)
     transitivePeerDependencies:
       - supports-color
 
@@ -5402,7 +5405,7 @@ snapshots:
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
       zod: 4.1.13
-      zod-to-json-schema: 3.25.0(zod@4.1.13)
+      zod-to-json-schema: 3.25.1(zod@4.1.13)
     transitivePeerDependencies:
       - supports-color
 
@@ -5628,10 +5631,10 @@ snapshots:
 
   '@sourcegraph/amp-sdk@0.1.0-20251217003600-gcd4203a':
     dependencies:
-      '@sourcegraph/amp': 0.0.1769688231-g1d909c
+      '@sourcegraph/amp': 0.0.1769774567-g3dfaea
       zod: 3.25.76
 
-  '@sourcegraph/amp@0.0.1769688231-g1d909c':
+  '@sourcegraph/amp@0.0.1769774567-g3dfaea':
     dependencies:
       '@napi-rs/keyring': 1.1.9
 
@@ -9266,13 +9269,13 @@ snapshots:
     dependencies:
       zod: 3.25.76
 
-  zod-to-json-schema@3.25.0(zod@4.1.13):
-    dependencies:
-      zod: 4.1.13
-
   zod-to-json-schema@3.25.1(zod@3.25.76):
     dependencies:
       zod: 3.25.76
+
+  zod-to-json-schema@3.25.1(zod@4.1.13):
+    dependencies:
+      zod: 4.1.13
 
   zod-validation-error@4.0.2(zod@3.25.76):
     dependencies:

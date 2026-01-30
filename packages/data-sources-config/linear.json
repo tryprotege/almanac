@@ -95,9 +95,13 @@
             "type": "template",
             "template": "Linear user **${record.email}**"
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.createdAt"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "$.updatedAt"
           }
         }
       },
@@ -116,9 +120,13 @@
             "type": "template",
             "template": "Team **${record.name}** (ID: ${record.id})"
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.createdAt"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "$.updatedAt"
           }
         }
       },
@@ -175,9 +183,13 @@
             "type": "path",
             "path": "$.description"
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.createdAt"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "$.updatedAt"
           },
           "tags": {
             "type": "paths",
@@ -292,9 +304,13 @@
             "type": "path",
             "path": "$.description"
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.createdAt"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "$.updatedAt"
           },
           "tags": {
             "type": "paths",
@@ -321,9 +337,13 @@
             "type": "path",
             "path": "$.body"
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.createdAt"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "$.updatedAt"
           },
           "parentId": {
             "type": "path",

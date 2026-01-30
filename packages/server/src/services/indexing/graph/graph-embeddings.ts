@@ -53,12 +53,10 @@ export async function indexEntityEmbeddings(
   const entitiesToEmbed: typeof entityMetadata = [];
 
   for (const entity of entityMetadata) {
-    // TODO: always re-embed for now.
-    const needsEmbedding = true;
-    // const needsEmbedding = await shouldReembedEntity(
-    //   entity._id,
-    //   entity.recordId
-    // );
+    // Check if entity needs embedding by comparing checksums
+    const entityText = getEntityEmbeddingText(entity);
+    const currentChecksum = computeChecksum(entityText);
+    const needsEmbedding = !entity.embeddedChecksum || entity.embeddedChecksum !== currentChecksum;
 
     if (needsEmbedding) {
       entitiesToEmbed.push(entity);
@@ -233,23 +231,15 @@ export async function indexRelationshipEmbeddings(
   const relsToEmbed: typeof relationships = [];
 
   for (const rel of relationships) {
-    // TODO: always re-embed for now.
-    const needsEmbedding = true;
-    // const relId = `rel_${rel.sourceRecordId}_${rel.type}_${rel.targetRecordId}`;
-    // // Use Memgraph IDs for getting the embedding text
-    // const relForText = {
-    //   sourceId: rel.sourceMemgraphId,
-    //   targetId: rel.targetMemgraphId,
-    //   type: rel.type,
-    //   confidence: rel.confidence,
-    // };
-    // const relText = await getRelationshipEmbeddingText(
-    //   relForText,
-    //   deps.recordStore
-    // );
-    // const checksum = computeChecksum(relText);
-
-    // const needsEmbedding = await shouldReembedRelationship(relId, checksum);
+    // Check if relationship needs embedding by comparing checksums
+    const relText = await getRelationshipEmbeddingText({
+      relMetadata: rel,
+      sourceId: rel.sourceId!,
+      targetId: rel.targetId!,
+      type: rel.relType!,
+    });
+    const currentChecksum = computeChecksum(relText);
+    const needsEmbedding = !rel.embeddedChecksum || rel.embeddedChecksum !== currentChecksum;
 
     if (needsEmbedding) {
       relsToEmbed.push(rel);

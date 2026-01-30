@@ -213,7 +213,7 @@ async function executeEnrichment(
  * Maps parameter names to values extracted from record using JSONPath
  * or uses literal values directly
  */
-function buildParams(record: any, paramMapping: Record<string, any>): Record<string, any> {
+export function buildParams(record: any, paramMapping: Record<string, any>): Record<string, any> {
   const result: Record<string, any> = {};
 
   for (const [paramName, value] of Object.entries(paramMapping)) {

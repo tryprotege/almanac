@@ -46,7 +46,10 @@ function App() {
 
         // Log warnings for missing environment variables
         if (!setupComplete && missing && missing.length > 0) {
-          console.warn('⚠️ eBee Configuration Required - Missing environment variables:', missing);
+          console.warn(
+            '⚠️ Almanac Configuration Required - Missing environment variables:',
+            missing,
+          );
           console.warn(
             'Please configure these variables in Settings → Environment or in packages/server/.env',
           );

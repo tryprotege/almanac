@@ -319,12 +319,14 @@ router.post('/sync', async (req, res) => {
         const normalizedContent = `${record.title || ''}\n${record.content || ''}`.trim();
         const checksum = createHash('sha256').update(normalizedContent).digest('hex');
 
-        // Extract sourceUpdatedAt from rawData if available
-        const sourceUpdatedAt = record.rawData?.updated_time
-          ? new Date(record.rawData.updated_time)
-          : record.rawData?.last_edited_time
-            ? new Date(record.rawData.last_edited_time)
-            : new Date();
+        // Fallback for sourceUpdatedAt if not provided by transformer
+        const finalSourceUpdatedAt =
+          record.sourceUpdatedAt ||
+          (record.rawData?.updated_time
+            ? new Date(record.rawData.updated_time)
+            : record.rawData?.last_edited_time
+              ? new Date(record.rawData.last_edited_time)
+              : undefined);
 
         return {
           updateOne: {
@@ -339,11 +341,11 @@ router.post('/sync', async (req, res) => {
                 title: record.title || '',
                 content: record.content || '',
                 people: record.people || [],
-                primaryDate: record.primaryDate || new Date(),
+                sourceCreatedAt: record.sourceCreatedAt,
+                sourceUpdatedAt: finalSourceUpdatedAt,
                 tags: record.tags || [],
                 rawData: record.rawData || {},
                 checksum,
-                sourceUpdatedAt,
                 syncedAt: new Date(),
               },
               $inc: { version: 1 },

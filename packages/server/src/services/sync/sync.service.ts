@@ -1,4 +1,3 @@
-import { loadProxyConfig } from '../../mcp/config-loader.js';
 import type { DataSource } from '../../models/data-source.model.js';
 import { IndexingConfigModel } from '../../models/indexing-config.model.js';
 import { RecordStore } from '../../stores/record.store.js';
@@ -19,11 +18,14 @@ async function persistToMongo(records: TransformedRecord[]): Promise<void> {
     const normalizedContent = `${record.title || ''}\n${record.content || ''}`.trim();
     const checksum = createHash('sha256').update(normalizedContent).digest('hex');
 
-    const sourceUpdatedAt = record.rawData?.updated_time
-      ? new Date(record.rawData.updated_time)
-      : record.rawData?.last_edited_time
-        ? new Date(record.rawData.last_edited_time)
-        : new Date();
+    // Fallback for sourceUpdatedAt if not provided by transformer
+    const finalSourceUpdatedAt =
+      record.sourceUpdatedAt ||
+      (record.rawData?.updated_time
+        ? new Date(record.rawData.updated_time)
+        : record.rawData?.last_edited_time
+          ? new Date(record.rawData.last_edited_time)
+          : undefined);
 
     return {
       updateOne: {
@@ -40,11 +42,11 @@ async function persistToMongo(records: TransformedRecord[]): Promise<void> {
             title: record.title || '',
             content: record.content || '',
             people: record.people || [],
-            primaryDate: record.primaryDate || new Date(),
+            sourceCreatedAt: record.sourceCreatedAt,
+            sourceUpdatedAt: finalSourceUpdatedAt,
             tags: record.tags || [],
             rawData: record.rawData || {},
             checksum,
-            sourceUpdatedAt,
             syncedAt: new Date(),
           },
           $inc: { version: 1 },
@@ -77,6 +79,11 @@ async function indexToVectors(
   }
 }
 
+export interface SyncResult {
+  recordsProcessed: number;
+  fetcherStats: Map<string, { recordCount: number }>;
+}
+
 /**
  * Sync a single MCP server data source
  * All sources must have an active IndexingConfig
@@ -102,6 +109,7 @@ export const syncMcpServer = async (dataSource: DataSource, _options?: { limit?:
   const vectorStore = new VectorStore(qdrant);
 
   let recordsProcessed = 0;
+  const fetcherStats = new Map<string, { recordCount: number }>();
 
   // 3. Fetch & transform via config-indexer
   const syncGenerator = indexAll(
@@ -111,7 +119,7 @@ export const syncMcpServer = async (dataSource: DataSource, _options?: { limit?:
   );
 
   // 4. Process records in batches
-  for await (const { records } of syncGenerator) {
+  for await (const { records, progress } of syncGenerator) {
     // 4a. Persist to MongoDB
     await persistToMongo(records);
 
@@ -119,50 +127,26 @@ export const syncMcpServer = async (dataSource: DataSource, _options?: { limit?:
     await indexToVectors(records, recordStore, vectorStore);
 
     recordsProcessed += records.length;
+
+    // Track stats per fetcher
+    if (!fetcherStats.has(progress.fetcherName)) {
+      fetcherStats.set(progress.fetcherName, { recordCount: 0 });
+    }
+    const stats = fetcherStats.get(progress.fetcherName)!;
+    stats.recordCount += records.length;
+
     logger.info(`Processed ${recordsProcessed} records from ${dataSource.name}`);
   }
 
+  console.log('✅✅✅ sync completed');
   logger.info({
     msg: `✅ Sync completed for ${dataSource.name}`,
     recordsProcessed,
+    fetcherStats: Object.fromEntries(fetcherStats),
   });
+
+  return {
+    recordsProcessed,
+    fetcherStats,
+  };
 };
-
-/**
- * Sync records from all configured sources to MongoDB (direct execution)
- * This bypasses the queue and runs synchronously - useful for testing or single-run scripts
- * @deprecated Use queueAllRemoteMcpServers() with the worker for production
- */
-export async function syncAllRemoteMcpServers(options?: { limit?: number }): Promise<void> {
-  const validConfigs = await loadProxyConfig();
-
-  // Use allSettled to continue syncing even if one source fails
-  const results = await Promise.allSettled(
-    validConfigs.map((config) => syncMcpServer(config, options)),
-  );
-
-  // Log results
-  let successCount = 0;
-  let failureCount = 0;
-
-  const failures: Array<{ source: string; error: any }> = [];
-
-  results.forEach((result, index) => {
-    const config = validConfigs[index];
-    if (result.status === 'fulfilled') {
-      successCount++;
-    } else {
-      failureCount++;
-      failures.push({ source: config.name, error: result.reason });
-      logger.error({ err: result.reason, source: config.name }, `❌ Failed to sync source`);
-    }
-  });
-
-  logger.info({
-    msg: '📊 Sync Summary',
-    successful: successCount,
-    failed: failureCount,
-    total: validConfigs.length,
-    failures: failures.length > 0 ? failures.map((f) => f.source) : undefined,
-  });
-}

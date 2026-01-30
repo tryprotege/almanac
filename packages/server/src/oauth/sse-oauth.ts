@@ -39,7 +39,7 @@ export async function discoverSseOAuth(sseUrl: string): Promise<SseOAuthDiscover
     // Create temporary SSE client
     const transport = new SSEClientTransport(new URL(sseUrl));
     const client = new Client(
-      { name: 'ebee-oauth-discovery', version: '0.1.0' },
+      { name: 'almanac-oauth-discovery', version: '0.1.0' },
       { capabilities: {} },
     );
 

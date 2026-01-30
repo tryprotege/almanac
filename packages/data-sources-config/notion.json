@@ -182,7 +182,7 @@
           "paramMapping": {
             "block_id": "$.id",
             "format": "json",
-            "page_size": "100"
+            "page_size": 100
           },
           "concurrency": 5,
           "continueOnError": true,
@@ -231,7 +231,7 @@
           "paramMapping": {
             "database_id": "$.id",
             "format": "json",
-            "page_size": "100"
+            "page_size": 100
           },
           "concurrency": 3,
           "continueOnError": true,
@@ -281,7 +281,11 @@
             "type": "paths",
             "paths": ["created_by.id", "last_edited_by.id"]
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
+            "type": "path",
+            "path": "created_time"
+          },
+          "sourceUpdatedAt": {
             "type": "path",
             "path": "last_edited_time"
           },
@@ -338,7 +342,11 @@
             "type": "paths",
             "paths": ["created_by.id", "last_edited_by.id"]
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
+            "type": "path",
+            "path": "created_time"
+          },
+          "sourceUpdatedAt": {
             "type": "path",
             "path": "last_edited_time"
           },
@@ -392,7 +400,11 @@
             "paths": ["description[*].plain_text"],
             "join": " "
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
+            "type": "path",
+            "path": "created_time"
+          },
+          "sourceUpdatedAt": {
             "type": "path",
             "path": "last_edited_time"
           },
@@ -427,7 +439,11 @@
             "type": "code",
             "code": "const props = record.properties; let content = []; let title = ''; for (const key in props) { const prop = props[key]; if (prop.type === 'title' && prop.title && prop.title[0]) { title = prop.title[0].plain_text; } else if (prop.type === 'rich_text' && prop.rich_text) { content.push(prop.rich_text.map(rt => rt.plain_text).join('')); } } const pageContent = record.pageContent || []; const blockText = pageContent.map(block => { const blockType = block.type; const blockData = block[blockType]; if (!blockData || !blockData.rich_text) return ''; return blockData.rich_text.map(rt => rt.plain_text).join(''); }).filter(text => text.length > 0).join('\\n\\n'); const propertyText = content.join(' '); const parts = [title]; if (propertyText) parts.push(propertyText); if (blockText) parts.push(blockText); return parts.join('\\n\\n');"
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
+            "type": "path",
+            "path": "created_time"
+          },
+          "sourceUpdatedAt": {
             "type": "path",
             "path": "last_edited_time"
           },

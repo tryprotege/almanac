@@ -127,7 +127,8 @@ export async function transformRecord(
   const title = await resolveField(config.fields.title, context, source);
   const content = await resolveField(config.fields.content, context, source);
   const people = await resolveField(config.fields.people, context, source);
-  const primaryDate = await resolveField(config.fields.primaryDate, context, source);
+  const sourceCreatedAt = await resolveField(config.fields.sourceCreatedAt, context, source);
+  const sourceUpdatedAt = await resolveField(config.fields.sourceUpdatedAt, context, source);
   const tags = await resolveField(config.fields.tags, context, source);
   const parentId = await resolveField(config.fields.parentId, context, source);
 
@@ -143,7 +144,8 @@ export async function transformRecord(
     title: title || 'Untitled',
     content: content || '',
     people: Array.isArray(people) ? people : people ? [people] : undefined,
-    primaryDate: primaryDate ? parseDate(primaryDate) : null,
+    sourceCreatedAt: sourceCreatedAt ? parseDate(sourceCreatedAt) : null,
+    sourceUpdatedAt: sourceUpdatedAt ? parseDate(sourceUpdatedAt) : null,
     tags: Array.isArray(tags) ? tags : tags ? [tags] : undefined,
     parentId,
 
@@ -300,7 +302,7 @@ async function resolveProcessorMapping(
   context: { record: any; enrichments: Record<string, any> },
 ): Promise<any> {
   // Get input data via JSONPath
-  const inputData = JSONPath({ path: mapping.input, json: context });
+  const inputData = JSONPath({ path: mapping.input, json: context.record });
   const actualInput = Array.isArray(inputData) && inputData.length > 0 ? inputData[0] : inputData;
 
   // Execute processor

@@ -1,4 +1,13 @@
-import { CheckSquare, FileText, Search, Server, Workflow, X } from 'lucide-react';
+import {
+  CheckSquare,
+  FileText,
+  Loader2,
+  RefreshCw,
+  Search,
+  Server,
+  Workflow,
+  X,
+} from 'lucide-react';
 import { ActivityFeed } from '../components/ui/ActivityFeed';
 import { Badge } from '../components/ui/Badge';
 import { DataTable } from '../components/ui/DataTable';
@@ -6,8 +15,9 @@ import { MetricCard } from '../components/ui/MetricCard';
 import { PageHeader } from '../components/ui/PageHeader';
 import { IconDisplay } from '../components/ui/IconDisplay';
 import { useStats } from '../hooks/useStats';
-import { useDataSources } from '../hooks/useDataSources';
+import { useDataSources, useSyncDataSource } from '../hooks/useDataSources';
 import { useSyncConfigs } from '../hooks/useSyncConfigs';
+import { useSyncStatuses } from '../hooks/useSyncStatus';
 import { statsApi, ActivityItem } from '../lib/api';
 import { capitalCase } from 'change-case';
 import { useEffect, useState } from 'react';
@@ -33,6 +43,8 @@ export default function Dashboard() {
   const { stats, isLoading, error } = useStats();
   const { servers, isLoading: sourcesLoading } = useDataSources();
   const { data: configs, isLoading: configsLoading } = useSyncConfigs();
+  const { data: syncStatuses } = useSyncStatuses();
+  const syncMutation = useSyncDataSource();
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
 
@@ -74,22 +86,51 @@ export default function Dashboard() {
       const config = configs?.find((c) => c.serverName === server.name);
       const hasData = sourceData && sourceData.records > 0;
 
+      // Check if this server is currently syncing or queued
+      const isSyncing = syncStatuses?.syncing.some((s) => s.serverName === server.name);
+      const isQueued = syncStatuses?.queued.some((s) => s.serverName === server.name);
+
+      // Determine status based on sync state
+      let status: string;
+      if (isSyncing) {
+        status = 'Syncing';
+      } else if (isQueued) {
+        status = 'Queued';
+      } else if (hasData) {
+        status = 'Has Data';
+      } else {
+        status = 'No Data';
+      }
+
       return {
         name: capitalCase(server.name),
         icon: config?.icon,
         records: sourceData?.records || 0,
         embedded: sourceData?.embedded || 0,
         graphIndexed: sourceData?.graphIndexed || 0,
-        status: hasData ? 'Has Data' : 'No Data',
+        status,
         lastSync: formatRelativeTime(sourceData?.lastSync),
+        serverId: server._id,
+        serverName: server.name,
+        isSyncing,
+        isQueued,
       };
     }) || [];
+
+  const handleSync = async (serverId: string | undefined, serverName: string) => {
+    if (!serverId) return;
+
+    await syncMutation.mutateAsync({
+      configId: serverId,
+      name: serverName,
+    });
+  };
 
   return (
     <div className="pb-8">
       <PageHeader
         title="Dashboard"
-        subtitle="Overview of your eBee system statistics and connected services"
+        subtitle="Overview of your Almanac system statistics and connected services"
       />
 
       {/* Main Content Grid */}
@@ -172,16 +213,50 @@ export default function Dashboard() {
               {
                 key: 'status',
                 header: 'Status',
-                render: (item) => (
-                  <Badge
-                    variant={item.status === 'Has Data' ? 'success' : 'neutral'}
-                    dot={item.status === 'Has Data'}
-                  >
-                    {item.status}
-                  </Badge>
-                ),
+                render: (item) => {
+                  const getVariant = () => {
+                    switch (item.status) {
+                      case 'Syncing':
+                        return 'warning';
+                      case 'Queued':
+                        return 'neutral';
+                      case 'Has Data':
+                        return 'success';
+                      default:
+                        return 'neutral';
+                    }
+                  };
+
+                  return (
+                    <Badge
+                      variant={getVariant()}
+                      dot={item.status === 'Has Data' || item.status === 'Syncing'}
+                    >
+                      {item.status}
+                    </Badge>
+                  );
+                },
               },
               { key: 'lastSync', header: 'Last Sync' },
+              {
+                key: 'actions',
+                header: 'Actions',
+                render: (item) => (
+                  <button
+                    onClick={() => handleSync(item.serverId, item.serverName)}
+                    disabled={item.isSyncing || item.isQueued || syncMutation.isPending}
+                    className="btn btn-icon-sm btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={item.isSyncing ? 'Syncing...' : item.isQueued ? 'Queued' : 'Sync Data'}
+                  >
+                    {item.isSyncing ||
+                    (syncMutation.isPending && syncMutation.variables?.name === item.serverName) ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4" />
+                    )}
+                  </button>
+                ),
+              },
             ]}
             data={dataSourcesList}
             loading={isLoading || sourcesLoading || configsLoading}

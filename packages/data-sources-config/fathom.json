@@ -49,6 +49,12 @@
         },
         "detection": {
           "type": "always"
+        },
+        "cutoffDate": {
+          "strategy": "both",
+          "apiParam": "created_after",
+          "apiFormat": "iso8601",
+          "dateFieldPath": "$.created_at"
         }
       },
       "get_transcripts": {
@@ -66,6 +72,14 @@
         "resultPath": "$.content[0].text",
         "detection": {
           "type": "always"
+        },
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.created_at"
+        },
+        "formatProcessor": {
+          "name": "transcript-to-markdown",
+          "options": {}
         }
       },
       "get_summaries": {
@@ -83,6 +97,10 @@
         "resultPath": "$.content[0].text",
         "detection": {
           "type": "always"
+        },
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.created_at"
         }
       },
       "list_teams": {
@@ -139,15 +157,11 @@
             "type": "path",
             "path": "$.title"
           },
-          "content": {
-            "type": "path",
-            "path": "$.description"
-          },
           "people": {
             "type": "paths",
             "paths": ["$.calendar_invitees[*].name"]
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.created_at"
           },
@@ -170,7 +184,7 @@
             "processor": "transcript-to-markdown",
             "input": "$.transcript"
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.created_at"
           }
@@ -195,9 +209,9 @@
           },
           "content": {
             "type": "path",
-            "path": "$.summary"
+            "path": "$.summary.markdown_formatted"
           },
-          "primaryDate": {
+          "sourceCreatedAt": {
             "type": "path",
             "path": "$.created_at"
           }

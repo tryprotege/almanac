@@ -122,7 +122,7 @@ export function useReloadFromMarketplace() {
       const response = await syncConfigApi.reloadFromMarketplace(serverName);
       return response.data.data;
     },
-    onSuccess: (data, serverName) => {
+    onSuccess: (_data, serverName) => {
       // Invalidate the specific config and the list
       queryClient.invalidateQueries({
         queryKey: ['indexing-config', serverName],

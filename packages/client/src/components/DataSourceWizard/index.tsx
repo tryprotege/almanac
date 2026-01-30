@@ -220,21 +220,7 @@ export function DataSourceWizard({
           }
 
           // No existing config - show config choice for non-OAuth servers
-          if (config.authType !== ('oauth' as const)) {
-            setStep('config-choice');
-          } else {
-            // OAuth server - close wizard, user needs to complete OAuth first
-            toast.success(
-              'Data source updated. Complete OAuth authorization, then configure sync.',
-              {
-                id: 'oauth-notice',
-                duration: 5000,
-              },
-            );
-            onClose();
-            resetWizard();
-            return; // Don't proceed to config-choice
-          }
+          setStep('config-choice');
         } else {
           // Create new server
           toast.loading('Creating data source...', { id: 'create-server' });
@@ -244,32 +230,18 @@ export function DataSourceWizard({
 
           // Only auto-connect for non-OAuth servers
           // OAuth servers need to complete OAuth flow first
-          if (config.authType !== ('oauth' as const)) {
-            // Connect to the server to cache tools
-            toast.loading('Connecting to data source...', {
-              id: 'connect-server',
-            });
-            await connectMutation.mutateAsync(config.name);
-            toast.success('Connected to data source', { id: 'connect-server' });
+          // Connect to the server to cache tools
+          toast.loading('Connecting to data source...', {
+            id: 'connect-server',
+          });
+          await connectMutation.mutateAsync(config.name);
+          toast.success('Connected to data source', { id: 'connect-server' });
 
-            // Wait a moment for tool caching to complete
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+          // Wait a moment for tool caching to complete
+          await new Promise((resolve) => setTimeout(resolve, 1000));
 
-            // Show config choice
-            setStep('config-choice');
-          } else {
-            // OAuth server - close wizard, user needs to complete OAuth first
-            toast.success(
-              'Data source created. Complete OAuth authorization, then configure sync.',
-              {
-                id: 'oauth-notice',
-                duration: 5000,
-              },
-            );
-            onClose();
-            resetWizard();
-            return; // Don't proceed to config-choice
-          }
+          // Show config choice
+          setStep('config-choice');
         }
       } catch (error) {
         console.error('Failed to setup custom server:', error);

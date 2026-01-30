@@ -71,15 +71,9 @@ syncStatusRouter.get('/', async (_req: Request, res: Response) => {
       })),
     ];
 
-    // Map waiting and delayed jobs to status
+    // Map only waiting jobs to status (exclude delayed jobs which are scheduled for future execution)
     const queuedStatuses: SyncJobStatus[] = [
       ...syncWaitingJobs.map((job) => ({
-        serverName: job.data.mcpConfig.name,
-        status: 'queued' as const,
-        jobType: 'sync' as const,
-        jobId: job.id?.toString(),
-      })),
-      ...syncDelayedJobs.map((job) => ({
         serverName: job.data.mcpConfig.name,
         status: 'queued' as const,
         jobType: 'sync' as const,
@@ -91,19 +85,7 @@ syncStatusRouter.get('/', async (_req: Request, res: Response) => {
         jobType: 'index-vector' as const,
         jobId: job.id?.toString(),
       })),
-      ...vectorDelayedJobs.map((job) => ({
-        serverName: job.data.source,
-        status: 'queued' as const,
-        jobType: 'index-vector' as const,
-        jobId: job.id?.toString(),
-      })),
       ...graphWaitingJobs.map((job) => ({
-        serverName: job.data.source,
-        status: 'queued' as const,
-        jobType: 'index-graph' as const,
-        jobId: job.id?.toString(),
-      })),
-      ...graphDelayedJobs.map((job) => ({
         serverName: job.data.source,
         status: 'queued' as const,
         jobType: 'index-graph' as const,
@@ -200,8 +182,8 @@ syncStatusRouter.get('/:serverName', async (req: Request, res: Response) => {
         };
       }
 
-      // Check waiting or delayed
-      const queuedJob = waitingJobs.find(matchesServerName) || delayedJobs.find(matchesServerName);
+      // Check waiting only (exclude delayed jobs which are scheduled for future execution)
+      const queuedJob = waitingJobs.find(matchesServerName);
       if (queuedJob) {
         return {
           serverName,

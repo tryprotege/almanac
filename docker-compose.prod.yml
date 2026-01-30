@@ -1,7 +1,7 @@
 services:
   mongodb:
     image: mongo:8.2.2
-    container_name: almanac_mongodb
+    container_name: almanac_mongodb_prod
     ports:
       - "27017:27017"
     volumes:
@@ -16,7 +16,7 @@ services:
 
   qdrant:
     image: qdrant/qdrant:v1.16.0
-    container_name: almanac_qdrant
+    container_name: almanac_qdrant_prod
     ports:
       - "6333:6333"
       - "6334:6334"
@@ -28,7 +28,7 @@ services:
 
   memgraph:
     image: memgraph/memgraph:3.7.0
-    container_name: almanac_memgraph
+    container_name: almanac_memgraph_prod
     ports:
       - "7687:7687"
       - "7444:7444"
@@ -42,7 +42,7 @@ services:
 
   redis:
     image: redis:alpine3.22
-    container_name: almanac_redis
+    container_name: almanac_redis_prod
     ports:
       - "6379:6379"
     volumes:
@@ -53,21 +53,15 @@ services:
       - almanac-network
 
   server:
-    profiles: ["app"] # <-- only start when profile enabled
     build:
       context: .
       dockerfile: packages/server/Dockerfile
-      target: development
-    container_name: almanac_server
+      target: production
+    container_name: almanac_server_prod
     ports:
       - "3000:3000"
-    volumes:
-      - ./packages/server/src:/app/packages/server/src
-      - ./packages/shared-util:/app/packages/shared-util
-      - ./packages/indexing-engine:/app/packages/indexing-engine
-      - /app/node_modules
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - MONGO_HOST=mongodb
       - MONGO_PORT=27017
       - MONGO_USERNAME=admin
@@ -96,24 +90,13 @@ services:
       - almanac-network
 
   client:
-    profiles: ["app"] # <-- only start when profile enabled
     build:
       context: .
       dockerfile: packages/client/Dockerfile
-      target: development
-    container_name: almanac_client
+      target: production
+    container_name: almanac_client_prod
     ports:
-      - "5173:5173"
-    volumes:
-      - ./packages/client/src:/app/packages/client/src
-      - ./packages/client/index.html:/app/packages/client/index.html
-      - ./packages/client/vite.config.ts:/app/packages/client/vite.config.ts
-      - ./packages/client/tsconfig.json:/app/packages/client/tsconfig.json
-      - ./packages/client/postcss.config.js:/app/packages/client/postcss.config.js
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-      - VITE_API_TARGET=http://server:3000
+      - "5173:80"
     depends_on:
       - server
     restart: unless-stopped

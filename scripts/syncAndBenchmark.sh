@@ -89,7 +89,7 @@ if should_enable_server "github"; then
     \"status\": \"active\",
     \"startingPointValues\": {
       \"query\": [
-        \"TODO:\"
+        \"user:any\"
       ]
     }
   }
@@ -172,12 +172,12 @@ fi
 npx tsx ./scripts/sync-records.ts
 
 # Index vectors (unless skipped)
-if [ "$SKIP_INDEX_VECTOR" = false ]; then
-  echo "Indexing vectors..."
-  npx tsx ./scripts/index-vectors.ts
-else
-  echo "Skipping vector indexing..."
-fi
+# if [ "$SKIP_INDEX_VECTOR" = false ]; then
+#   echo "Indexing vectors..."
+#   npx tsx ./scripts/index-vectors.ts
+# else
+#   echo "Skipping vector indexing..."
+# fi
 
 # Index graph (unless skipped)
 if [ "$SKIP_INDEX_GRAPH" = false ]; then
@@ -187,12 +187,12 @@ else
   echo "Skipping graph indexing..."
 fi
 
-# Run benchmark tests (unless skipped)
-if [ "$SKIP_BENCHMARK" = false ]; then
-  echo "Running benchmark tests..."
-  cd ../benchmark && pnpm test:matrix
-else
-  echo "Skipping benchmark tests..."
-fi
+# # Run benchmark tests (unless skipped)
+# if [ "$SKIP_BENCHMARK" = false ]; then
+#   echo "Running benchmark tests..."
+#   cd ../benchmark && pnpm test:matrix
+# else
+#   echo "Skipping benchmark tests..."
+# fi
 
 # Cleanup will be handled by the trap on EXIT

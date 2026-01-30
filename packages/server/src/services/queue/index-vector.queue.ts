@@ -38,6 +38,7 @@ export const indexVectorWorker = new Worker<IndexVectorJobData, IndexVectorJobRe
     autorun: false,
     skipLockRenewal: true,
     skipStalledCheck: true,
+    lockDuration: 5 * 60 * 60 * 1000,
   },
 );
 

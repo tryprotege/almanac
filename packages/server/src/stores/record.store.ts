@@ -22,6 +22,9 @@ export class RecordStore {
     if (updateData.lastGraphIndexAt === undefined) {
       delete updateData.lastGraphIndexAt;
     }
+    if (updateData.lastGraphIndexChecksum === undefined) {
+      delete updateData.lastGraphIndexChecksum;
+    }
     if (updateData.embeddingModelVersion === undefined) {
       delete updateData.embeddingModelVersion;
     }
@@ -98,91 +101,6 @@ export class RecordStore {
   }
 
   /**
-   * Check if record exists and get checksum
-   */
-  async getChecksum(id: string): Promise<string | null> {
-    const record = await RecordModel.findById(id, { checksum: 1 });
-    return record?.checksum || null;
-  }
-
-  /**
-   * Get multiple checksums efficiently
-   */
-  async getChecksums(ids: string[]): Promise<Map<string, string>> {
-    const entities = await RecordModel.find({ _id: { $in: ids } }, { _id: 1, checksum: 1 });
-
-    const checksumMap = new Map<string, string>();
-    entities.forEach((record) => {
-      checksumMap.set(record._id, record.checksum);
-    });
-
-    return checksumMap;
-  }
-
-  /**
-   * Soft delete record
-   */
-  async softDelete(id: string): Promise<void> {
-    await RecordModel.findByIdAndUpdate(id, {
-      $set: {
-        deletedAt: new Date(),
-      },
-    });
-  }
-
-  /**
-   * Soft delete multiple entities
-   */
-  async softDeleteBatch(ids: string[]): Promise<void> {
-    if (ids.length === 0) return;
-
-    await RecordModel.updateMany(
-      { _id: { $in: ids } },
-      {
-        $set: {
-          deletedAt: new Date(),
-        },
-      },
-    );
-  }
-
-  /**
-   * Hard delete record
-   */
-  async hardDelete(id: string): Promise<void> {
-    await RecordModel.findByIdAndDelete(id);
-  }
-
-  /**
-   * Hard delete multiple entities
-   */
-  async hardDeleteBatch(ids: string[]): Promise<void> {
-    if (ids.length === 0) return;
-
-    await RecordModel.deleteMany({ _id: { $in: ids } });
-  }
-
-  /**
-   * Get entities modified since timestamp
-   */
-  async findModifiedSince(
-    source: SourceType,
-    since: Date,
-    options?: { limit?: number },
-  ): Promise<Record[]> {
-    let query = RecordModel.find({
-      source,
-      sourceUpdatedAt: { $gt: since },
-    }).sort({ sourceUpdatedAt: 1 });
-
-    if (options?.limit) {
-      query = query.limit(options.limit);
-    }
-
-    return await query.exec();
-  }
-
-  /**
    * Count entities by source
    */
   async countBySource(source: SourceType, includeDeleted: boolean = false): Promise<number> {
@@ -223,127 +141,67 @@ export class RecordStore {
   }
 
   /**
-   * Search entities by text
+   * Find records that need graph indexing (never indexed OR content changed since last index)
    */
-  async searchByText(
-    query: string,
-    options?: {
-      source?: SourceType;
-      recordType?: string;
-      limit?: number;
-      skip?: number;
-    },
+  async findNeedingGraphIndex(
+    source: SourceType,
+    recordType?: string,
+    options?: { limit?: number; skip?: number; includeDeleted?: boolean },
   ): Promise<Record[]> {
     const filter: QueryFilter<Record> = {
-      $text: { $search: query },
-      deletedAt: null,
+      source,
+      $or: [
+        // Never been indexed
+        { lastGraphIndexAt: null },
+        // Content changed since last index (checksum-based detection)
+        { $expr: { $ne: ['$checksum', '$lastGraphIndexChecksum'] } },
+      ],
     };
 
-    if (options?.source) {
-      filter.source = options.source;
+    // Only add recordType to filter if it's provided and not empty
+    if (recordType) {
+      filter.recordType = recordType;
     }
 
-    if (options?.recordType) {
-      filter.recordType = options.recordType;
+    if (!options?.includeDeleted) {
+      filter.deletedAt = null;
     }
 
-    let searchQuery = RecordModel.find(filter).sort({
-      score: { $meta: 'textScore' },
-    });
+    let query = RecordModel.find(filter);
 
-    if (options?.skip) searchQuery = searchQuery.skip(options.skip);
-    if (options?.limit) searchQuery = searchQuery.limit(options.limit);
-
-    return await searchQuery.exec();
-  }
-
-  /**
-   * Get entities by people
-   */
-  async findByPeople(
-    people: string[],
-    options?: {
-      source?: SourceType;
-      limit?: number;
-    },
-  ): Promise<Record[]> {
-    const filter: QueryFilter<Record> = {
-      people: { $in: people },
-      deletedAt: null,
-    };
-
-    if (options?.source) {
-      filter.source = options.source;
-    }
-
-    let query = RecordModel.find(filter).sort({ primaryDate: -1 });
-
-    if (options?.limit) {
-      query = query.limit(options.limit);
-    }
+    if (options?.skip) query = query.skip(options.skip);
+    if (options?.limit) query = query.limit(options.limit);
 
     return await query.exec();
   }
 
   /**
-   * Get entities by date range
+   * Count records that need graph indexing
    */
-  async findByDateRange(
-    startDate: Date,
-    endDate: Date,
-    options?: {
-      source?: SourceType;
-      recordType?: string;
-      limit?: number;
-    },
-  ): Promise<Record[]> {
+  async countNeedingGraphIndex(
+    source: SourceType,
+    recordType?: string,
+    options?: { includeDeleted?: boolean },
+  ): Promise<number> {
     const filter: QueryFilter<Record> = {
-      primaryDate: { $gte: startDate, $lte: endDate },
-      deletedAt: null,
+      source,
+      $or: [
+        // Never been indexed
+        { lastGraphIndexAt: null },
+        // Content changed since last index (checksum-based detection)
+        { $expr: { $ne: ['$checksum', '$lastGraphIndexChecksum'] } },
+      ],
     };
 
-    if (options?.source) {
-      filter.source = options.source;
+    // Only add recordType to filter if it's provided and not empty
+    if (recordType) {
+      filter.recordType = recordType;
     }
 
-    if (options?.recordType) {
-      filter.recordType = options.recordType;
+    if (!options?.includeDeleted) {
+      filter.deletedAt = null;
     }
 
-    let query = RecordModel.find(filter).sort({ primaryDate: -1 });
-
-    if (options?.limit) {
-      query = query.limit(options.limit);
-    }
-
-    return await query.exec();
-  }
-
-  /**
-   * Get entities by tags
-   */
-  async findByTags(
-    tags: string[],
-    options?: {
-      source?: SourceType;
-      limit?: number;
-    },
-  ): Promise<Record[]> {
-    const filter: QueryFilter<Record> = {
-      tags: { $in: tags },
-      deletedAt: null,
-    };
-
-    if (options?.source) {
-      filter.source = options.source;
-    }
-
-    let query = RecordModel.find(filter).sort({ syncedAt: -1 });
-
-    if (options?.limit) {
-      query = query.limit(options.limit);
-    }
-
-    return await query.exec();
+    return await RecordModel.countDocuments(filter);
   }
 }

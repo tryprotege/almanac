@@ -10,8 +10,8 @@
     "./types/*": "./dist/types/*.js"
   },
   "scripts": {
-    "dev": "LOG_LEVEL=debug tsx watch --watch --env-file=.env src/server.ts",
-    "dev:indexer": "LOG_LEVEL=debug tsx watch src/indexer-worker.ts",
+    "dev": "tsx watch --watch --env-file=.env src/server.ts",
+    "dev:indexer": "tsx watch src/indexer-worker.ts",
     "indexer": "tsx src/indexer-worker.ts",
     "build": "tsc",
     "start": "node dist/server.js",
@@ -62,6 +62,7 @@
     "@types/jmespath": "^0.15.2",
     "@types/node": "^24.10.1",
     "jest": "^30.2.0",
+    "mongodb-memory-server": "^11.0.1",
     "ts-jest": "^29.4.5",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"

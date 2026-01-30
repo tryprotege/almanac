@@ -121,7 +121,7 @@ export class UserSessionGrouper implements IGroupingStrategy {
       return value.getTime();
     }
 
-    // Fallback to record's primaryDate
-    return record.primaryDate ? new Date(record.primaryDate).getTime() : 0;
+    // Fallback to record's sourceCreatedAt
+    return record.sourceCreatedAt ? new Date(record.sourceCreatedAt).getTime() : 0;
   }
 }

@@ -23,7 +23,6 @@
     "docker:dev": "docker compose --profile app up -d",
     "docker:dev:build": "docker compose --profile app build && docker compose --profile app up -d",
     "docker:prod": "docker compose -f docker-compose.prod.yml up -d",
-    "docker:prod:build": "docker compose -f docker-compose.prod.yml build && docker compose -f docker-compose.prod.yml up -d",
     "docker:down": "docker compose --profile app down",
     "docker:down:prod": "docker compose -f docker-compose.prod.yml down",
     "docker:logs": "docker compose --profile app logs -f",

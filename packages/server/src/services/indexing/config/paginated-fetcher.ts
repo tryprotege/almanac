@@ -265,7 +265,7 @@ export async function* fetchWithForEach(
     return;
   }
 
-  const concurrency = forEach.concurrency ?? 3;
+  const concurrency = forEach.concurrency ?? 20;
   const continueOnError = forEach.continueOnError ?? true;
   const maxRetries = forEach.retries ?? 2;
 

@@ -104,8 +104,6 @@ export const syncMcpServer = async (
     );
   }
 
-  console.log('🚀🚀🚀🚀 start syncing....');
-
   logger.info({ serverName: dataSource.name }, 'Starting config-based sync');
 
   // 2. Initialize stores

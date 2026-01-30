@@ -246,8 +246,8 @@
             "paths": ["UserID"]
           },
           "sourceCreatedAt": {
-            "type": "code",
-            "code": "const ts = parseFloat(record.Time || record.MsgID); return new Date(ts * 1000).toISOString();"
+            "type": "path",
+            "path": "Time"
           },
           "tags": {
             "type": "code",

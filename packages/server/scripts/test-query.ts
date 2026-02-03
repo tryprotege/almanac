@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Comprehensive test script for eBee search functionality
+ * Comprehensive test script for Almanac search functionality
  * Tests all query modes, parameters, filters, and edge cases
  *
  * Prerequisites:
- * - eBee server must be running (default: http://localhost:3000)
+ * - Almanac server must be running (default: http://localhost:3000)
  * - Data should be indexed for meaningful results
  *
  * Usage:
@@ -444,7 +444,7 @@ class TestRunner {
   async connect(): Promise<void> {
     this.client = new Client(
       {
-        name: 'ebee-test-client',
+        name: 'almanac-test-client',
         version: '1.0.0',
       },
       {
@@ -478,7 +478,7 @@ class TestRunner {
 
     try {
       const result = await this.client.callTool({
-        name: 'ebee_search',
+        name: 'almanac_search',
         arguments: {
           query: testCase.query,
           ...testCase.arguments,
@@ -730,7 +730,7 @@ async function main() {
     return;
   } else if (args.includes('--help') || args.includes('-h')) {
     console.log(`
-🐝 eBee Search Test Suite
+Almanac Search Test Suite
 
 Usage:
   pnpm tsx scripts/test-query.ts [options]
@@ -768,7 +768,7 @@ Examples:
     process.exit(1);
   }
 
-  console.log(`\n🐝 eBee Search Test Suite`);
+  console.log(`\n📚 Almanac Search Test Suite`);
   console.log(`${'='.repeat(80)}`);
   console.log(`Server: http://localhost:${PORT}/mcp`);
   console.log(`Tests to run: ${testsToRun.length}`);
@@ -777,7 +777,7 @@ Examples:
   const runner = new TestRunner(PORT);
 
   try {
-    console.log(`\n🔌 Connecting to eBee...`);
+    console.log(`\n🔌 Connecting to Almanac...`);
     await runner.connect();
     console.log(`✅ Connected!`);
 

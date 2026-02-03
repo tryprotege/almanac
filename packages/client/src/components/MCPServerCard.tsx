@@ -134,7 +134,7 @@ export function MCPServerCard({
     <div className="card relative flex flex-col">
       {/* Compact Header */}
       <div className="flex items-start gap-3 mb-3">
-        <div className="p-2 rounded-lg text-brand-purple bg-brand-purple/10 flex-shrink-0">
+        <div className="p-2 rounded-lg text-brand-lime bg-brand-lime/10 flex-shrink-0">
           <IconDisplay icon={syncConfig?.icon} fallbackIcon={ServiceIcon} size="md" />
         </div>
         <div className="flex-1 min-w-0">
@@ -145,7 +145,7 @@ export function MCPServerCard({
             {/* Status Indicator - Spinner when syncing, dot otherwise */}
             {isSyncing ? (
               <div title="Syncing in progress">
-                <Loader2 className="w-4 h-4 text-brand-purple animate-spin flex-shrink-0" />
+                <Loader2 className="w-4 h-4 text-brand-lime animate-spin flex-shrink-0" />
               </div>
             ) : isQueued ? (
               <div title="Queued for sync">

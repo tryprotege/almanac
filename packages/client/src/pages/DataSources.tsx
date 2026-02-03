@@ -174,7 +174,7 @@ export default function DataSources() {
       {/* Loading State */}
       {isLoading && (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 text-brand-purple animate-spin" />
+          <Loader2 className="w-8 h-8 text-brand-lime animate-spin" />
         </div>
       )}
 

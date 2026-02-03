@@ -29,16 +29,16 @@ export function ConfigChoiceStep({
         <button
           onClick={onChooseAutoGenerate}
           disabled={isLoading}
-          className="group relative p-6 border-2 border-border-secondary rounded-lg hover:border-brand-purple hover:bg-brand-purple/5 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
+          className="group relative p-6 border-2 border-border-secondary rounded-lg hover:border-brand-lime hover:bg-brand-lime/5 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div className="flex items-start gap-4">
-            <div className="p-3 rounded-lg bg-brand-purple/10 text-brand-purple group-hover:bg-brand-purple/20 transition-colors">
+            <div className="p-3 rounded-lg bg-brand-lime/10 text-brand-lime group-hover:bg-brand-lime/20 transition-colors">
               <Sparkles className="w-6 h-6" />
             </div>
             <div className="flex-1">
               <h4 className="text-base font-semibold text-text-primary mb-2">
                 🤖 Auto-Generate
-                <span className="ml-2 text-xs font-normal text-brand-purple">(Recommended)</span>
+                <span className="ml-2 text-xs font-normal text-brand-lime">(Recommended)</span>
               </h4>
               <p className="text-sm text-text-secondary mb-3">
                 Let AI analyze your MCP server and generate a configuration automatically.
@@ -47,7 +47,7 @@ export function ConfigChoiceStep({
                 <p>✓ Connects to your server</p>
                 <p>✓ Analyzes available tools</p>
                 <p>✓ Generates optimized config</p>
-                <p className="mt-2 text-brand-purple">
+                <p className="mt-2 text-brand-lime">
                   Best for: New servers without existing configs
                 </p>
               </div>

@@ -71,7 +71,7 @@ export async function runMatrixBenchmark(
     config.agents.map(async (agent) => {
       console.log(`\n🤖 Testing Agent: ${agent.name} (${agent.model})\n`);
 
-      const ebeeResults: MatrixCellResult[] = [];
+      const almanacResults: MatrixCellResult[] = [];
       const directResults: MatrixCellResult[] = [];
 
       await Promise.all(
@@ -132,8 +132,8 @@ export async function runMatrixBenchmark(
                   }
 
                   const cell = toMatrixCell(result, scenario);
-                  if (setup.name === 'ebee') {
-                    ebeeResults.push(cell);
+                  if (setup.name === 'almanac') {
+                    almanacResults.push(cell);
                   } else {
                     directResults.push(cell);
                   }
@@ -180,21 +180,21 @@ export async function runMatrixBenchmark(
       );
 
       // Average results across iterations
-      const avgEbee = average(ebeeResults);
+      const avgAlmanac = average(almanacResults);
       const avgDirect = average(directResults);
 
       matrix[agent.name] = {
-        ebee: avgEbee,
+        almanac: avgAlmanac,
         direct: avgDirect,
       };
 
       // Show comparison for this agent
-      const speedup = avgDirect.time / avgEbee.time;
-      const tokenSavings = ((avgDirect.tokens - avgEbee.tokens) / avgDirect.tokens) * 100;
+      const speedup = avgDirect.time / avgAlmanac.time;
+      const tokenSavings = ((avgDirect.tokens - avgAlmanac.tokens) / avgDirect.tokens) * 100;
 
       console.log(`\n  📊 ${agent.name} Summary:`);
-      console.log(`     eBee:   ${avgEbee.time}ms, ${avgEbee.tokens} tokens`);
-      console.log(`     Direct: ${avgDirect.time}ms, ${avgDirect.tokens} tokens`);
+      console.log(`     Almanac: ${avgAlmanac.time}ms, ${avgAlmanac.tokens} tokens`);
+      console.log(`     Direct:  ${avgDirect.time}ms, ${avgDirect.tokens} tokens`);
       console.log(`     Speedup: ${speedup.toFixed(2)}x`);
       console.log(`     Token Savings: ${tokenSavings.toFixed(1)}%\n`);
     }),
@@ -211,11 +211,11 @@ export async function runMatrixBenchmark(
   console.table(
     Object.entries(matrix).map(([agent, results]) => ({
       Agent: agent,
-      'eBee Time': `${results.ebee.time}ms`,
-      'eBee Tokens': results.ebee.tokens,
+      'Almanac Time': `${results.almanac.time}ms`,
+      'Almanac Tokens': results.almanac.tokens,
       'Direct Time': `${results.direct.time}ms`,
       'Direct Tokens': results.direct.tokens,
-      Speedup: `${(results.direct.time / results.ebee.time).toFixed(2)}x`,
+      Speedup: `${(results.direct.time / results.almanac.time).toFixed(2)}x`,
     })),
   );
 
@@ -271,8 +271,8 @@ function analyzeMatrix(matrix: MatrixResult): MatrixAnalysis {
   let bestScore = Infinity;
 
   // Find fastest with each setup
-  let fastestWithEbee = '';
-  let fastestEbeeTime = Infinity;
+  let fastestWithAlmanac = '';
+  let fastestAlmanacTime = Infinity;
   let fastestWithDirect = '';
   let fastestDirectTime = Infinity;
 
@@ -284,10 +284,10 @@ function analyzeMatrix(matrix: MatrixResult): MatrixAnalysis {
   for (const agent of agents) {
     const results = matrix[agent];
 
-    // Check eBee performance
-    if (results.ebee.time < fastestEbeeTime) {
-      fastestEbeeTime = results.ebee.time;
-      fastestWithEbee = `${agent} + eBee`;
+    // Check Almanac performance
+    if (results.almanac.time < fastestAlmanacTime) {
+      fastestAlmanacTime = results.almanac.time;
+      fastestWithAlmanac = `${agent} + Almanac`;
     }
 
     // Check Direct performance
@@ -296,19 +296,19 @@ function analyzeMatrix(matrix: MatrixResult): MatrixAnalysis {
       fastestWithDirect = `${agent} + Direct`;
     }
 
-    // Calculate best overall (using eBee time + cost as score)
-    const score = results.ebee.time + results.ebee.cost * 1000;
+    // Calculate best overall (using Almanac time + cost as score)
+    const score = results.almanac.time + results.almanac.cost * 1000;
     if (score < bestScore) {
       bestScore = score;
-      bestCombination = `${agent} + eBee`;
+      bestCombination = `${agent} + Almanac`;
     }
 
     // Calculate per-agent metrics
-    speedupByAgent[agent] = results.direct.time / results.ebee.time;
+    speedupByAgent[agent] = results.direct.time / results.almanac.time;
     tokenSavingsByAgent[agent] =
-      ((results.direct.tokens - results.ebee.tokens) / results.direct.tokens) * 100;
+      ((results.direct.tokens - results.almanac.tokens) / results.direct.tokens) * 100;
     costSavingsByAgent[agent] =
-      ((results.direct.cost - results.ebee.cost) / results.direct.cost) * 100;
+      ((results.direct.cost - results.almanac.cost) / results.direct.cost) * 100;
   }
 
   // Most efficient = best speedup
@@ -318,7 +318,7 @@ function analyzeMatrix(matrix: MatrixResult): MatrixAnalysis {
 
   return {
     bestCombination,
-    fastestWithEbee,
+    fastestWithEbee: fastestWithAlmanac,
     fastestWithDirect,
     mostEfficient: `${mostEfficientAgent} (${speedupByAgent[mostEfficientAgent].toFixed(
       2,

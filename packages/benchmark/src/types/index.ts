@@ -270,7 +270,7 @@ export interface ComparisonMetrics {
   readonly scenarioId: string;
   readonly agentName: string;
 
-  readonly ebeeQuery: {
+  readonly almanacQuery: {
     readonly totalTime: number;
     readonly mcpCalls: number;
     readonly tokensUsed: number;
@@ -479,7 +479,7 @@ export interface DetailedQueryResult {
 }
 
 export interface MatrixAgentResult {
-  readonly ebee: MatrixCellResult;
+  readonly almanac: MatrixCellResult;
   readonly direct: MatrixCellResult;
 }
 

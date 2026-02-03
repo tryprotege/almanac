@@ -3,10 +3,10 @@
 @variant dark (.dark &);
 
 @theme {
-  /* Brand/Primary Colors - Purple Theme */
-  --color-brand-purple: #7f56d9;
-  --color-brand-purple-dark: #6941c6;
-  --color-brand-purple-light: #9e77ed;
+  /* Brand/Primary Colors - Lime Theme */
+  --color-brand-lime: #99f400;
+  --color-brand-lime-dark: #7acc00;
+  --color-brand-lime-light: #b3ff33;
 
   /* Accent Colors */
   --color-brand-blue: #2e90fa;
@@ -122,7 +122,7 @@
 
   /* Button Variants */
   .btn-primary {
-    @apply bg-brand-purple text-white hover:bg-brand-purple-dark hover:shadow-lg hover:shadow-brand-purple/25 focus:ring-brand-purple;
+    @apply bg-brand-lime text-black hover:bg-brand-lime-dark hover:shadow-lg hover:shadow-brand-lime/25 focus:ring-brand-lime;
   }
 
   .btn-secondary {
@@ -174,11 +174,11 @@
   }
 
   .card-interactive {
-    @apply bg-bg-primary rounded-xl border border-border-secondary p-6 transition-all duration-200 cursor-pointer hover:border-border-primary hover:shadow-lg hover:shadow-brand-purple/5;
+    @apply bg-bg-primary rounded-xl border border-border-secondary p-6 transition-all duration-200 cursor-pointer hover:border-border-primary hover:shadow-lg hover:shadow-brand-lime/5;
   }
 
   .card-highlighted {
-    @apply bg-brand-purple/5 rounded-xl border border-brand-purple/30 p-6 transition-all duration-200;
+    @apply bg-brand-lime/5 rounded-xl border border-brand-lime/30 p-6 transition-all duration-200;
   }
 
   .card-compact {
@@ -187,15 +187,15 @@
 
   /* Input Components */
   .input {
-    @apply w-full px-3 py-2 border border-border-primary bg-bg-primary text-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent placeholder:text-text-quaternary transition-all duration-200;
+    @apply w-full px-3 py-2 border border-border-primary bg-bg-primary text-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-brand-lime focus:border-transparent placeholder:text-text-quaternary transition-all duration-200;
   }
 
   .textarea {
-    @apply w-full px-3 py-2 border border-border-primary bg-bg-primary text-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent resize-none placeholder:text-text-quaternary transition-all duration-200;
+    @apply w-full px-3 py-2 border border-border-primary bg-bg-primary text-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-brand-lime focus:border-transparent resize-none placeholder:text-text-quaternary transition-all duration-200;
   }
 
   .select {
-    @apply w-full px-3 py-2 border border-border-primary bg-bg-primary text-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent placeholder:text-text-quaternary appearance-none cursor-pointer transition-all duration-200;
+    @apply w-full px-3 py-2 border border-border-primary bg-bg-primary text-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-brand-lime focus:border-transparent placeholder:text-text-quaternary appearance-none cursor-pointer transition-all duration-200;
   }
 
   /* Input Validation States */
@@ -429,7 +429,7 @@
   }
 
   .horizontal-tabs button.active {
-    @apply border-brand-purple text-brand-purple;
+    @apply border-brand-lime text-brand-lime;
   }
 
   /* Modal Components */
@@ -490,10 +490,10 @@
   }
 
   /* Gradient Utilities */
-  .gradient-purple {
+  .gradient-lime {
     background: linear-gradient(
       135deg,
-      var(--color-brand-purple) 0%,
+      var(--color-brand-lime) 0%,
       var(--color-brand-indigo) 100%
     );
   }
@@ -506,13 +506,13 @@
     @apply relative;
     background:
       linear-gradient(var(--color-bg-primary), var(--color-bg-primary)) padding-box,
-      linear-gradient(135deg, var(--color-brand-purple), var(--color-brand-blue)) border-box;
+      linear-gradient(135deg, var(--color-brand-lime), var(--color-brand-blue)) border-box;
     border: 1px solid transparent;
   }
 
   .text-gradient {
     @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, var(--color-brand-purple), var(--color-brand-blue));
+    background-image: linear-gradient(135deg, var(--color-brand-lime), var(--color-brand-blue));
   }
 
   /* Interaction Utilities */
@@ -529,7 +529,7 @@
   }
 
   .focus-ring {
-    @apply focus:ring-2 focus:ring-brand-purple focus:ring-offset-2 focus:ring-offset-bg-primary focus:outline-none;
+    @apply focus:ring-2 focus:ring-brand-lime focus:ring-offset-2 focus:ring-offset-bg-primary focus:outline-none;
   }
 
   /* Modal Animations */

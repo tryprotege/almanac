@@ -28,7 +28,7 @@ export default function ConfigTabs({ tabs, children, defaultTab }: ConfigTabsPro
                 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
                 ${
                   activeTab === tab.id
-                    ? 'border-brand-purple text-brand-purple'
+                    ? 'border-brand-lime text-brand-lime'
                     : 'border-transparent text-text-tertiary hover:text-text-secondary hover:border-border-primary'
                 }
               `}

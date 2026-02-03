@@ -132,7 +132,7 @@ export function ConfigImportStep({ onBack, onSubmit, isLoading }: ConfigImportSt
           value={jsonText}
           onChange={(e) => handleTextChange(e.target.value)}
           placeholder={JSON.stringify(exampleConfig, null, 2)}
-          className="w-full h-96 px-3 py-2 bg-bg-tertiary border border-border-secondary rounded-lg font-mono text-sm text-text-primary placeholder:text-text-quaternary focus:outline-none focus:ring-2 focus:ring-brand-purple resize-none"
+          className="w-full h-96 px-3 py-2 bg-bg-tertiary border border-border-secondary rounded-lg font-mono text-sm text-text-primary placeholder:text-text-quaternary focus:outline-none focus:ring-2 focus:ring-brand-lime resize-none"
           spellCheck={false}
         />
 
@@ -164,8 +164,8 @@ export function ConfigImportStep({ onBack, onSubmit, isLoading }: ConfigImportSt
       <div className="bg-brand-blue/10 border border-brand-blue/30 rounded-lg p-4">
         <h4 className="text-sm font-medium text-brand-blue mb-2">Need an example?</h4>
         <p className="text-xs text-text-secondary mb-2">
-          A sync config must have <code className="text-brand-purple">fetchers</code> and{' '}
-          <code className="text-brand-purple">recordTypes</code> objects.
+          A sync config must have <code className="text-brand-lime">fetchers</code> and{' '}
+          <code className="text-brand-lime">recordTypes</code> objects.
         </p>
         <button
           type="button"

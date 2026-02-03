@@ -79,7 +79,7 @@ export function OAuthStep({ serverConfig, onBack, onComplete, isLoading }: OAuth
       <div className="card">
         <div className="flex items-start gap-4">
           <div className="mt-1">
-            {oauthStatus === 'pending' && <Shield className="w-6 h-6 text-brand-purple" />}
+            {oauthStatus === 'pending' && <Shield className="w-6 h-6 text-brand-lime" />}
             {oauthStatus === 'success' && <CheckCircle className="w-6 h-6 text-brand-success" />}
             {oauthStatus === 'error' && <AlertCircle className="w-6 h-6 text-brand-error" />}
           </div>
@@ -142,15 +142,15 @@ export function OAuthStep({ serverConfig, onBack, onComplete, isLoading }: OAuth
           <h4 className="text-sm font-medium text-text-primary mb-3">What happens next?</h4>
           <ol className="space-y-2 text-sm text-text-secondary">
             <li className="flex gap-2">
-              <span className="text-brand-purple font-medium">1.</span>
+              <span className="text-brand-lime font-medium">1.</span>
               <span>A popup window will open with the authorization page</span>
             </li>
             <li className="flex gap-2">
-              <span className="text-brand-purple font-medium">2.</span>
+              <span className="text-brand-lime font-medium">2.</span>
               <span>Sign in and grant the requested permissions</span>
             </li>
             <li className="flex gap-2">
-              <span className="text-brand-purple font-medium">3.</span>
+              <span className="text-brand-lime font-medium">3.</span>
               <span>
                 Return here - the wizard will automatically continue once authorization is complete
               </span>

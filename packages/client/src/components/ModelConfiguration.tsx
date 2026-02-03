@@ -91,7 +91,7 @@ export function ModelConfiguration() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <RefreshCw className="w-6 h-6 animate-spin text-brand-purple" />
+        <RefreshCw className="w-6 h-6 animate-spin text-brand-lime" />
       </div>
     );
   }

@@ -263,10 +263,10 @@ export function AdvancedConfigForm({
     <form onSubmit={handleSubmit} className="p-6 text-left space-y-4">
       {/* Preset Badge */}
       {isPreset && (
-        <div className="bg-brand-purple/20 border-2 border-brand-purple/50 rounded-lg p-4 flex items-start gap-3">
-          <Lock className="w-5 h-5 text-brand-purple flex-shrink-0 mt-0.5" />
+        <div className="bg-brand-lime/20 border-2 border-brand-lime/50 rounded-lg p-4 flex items-start gap-3">
+          <Lock className="w-5 h-5 text-brand-lime flex-shrink-0 mt-0.5" />
           <div>
-            <h4 className="text-base font-bold text-brand-purple mb-1">
+            <h4 className="text-base font-bold text-brand-lime mb-1">
               {preset ? `${preset.displayName} Preset Configuration` : 'Preset-Based Data Source'}
             </h4>
             <p className="text-sm text-text-secondary leading-relaxed">
@@ -415,7 +415,7 @@ export function AdvancedConfigForm({
                   type="button"
                   onClick={addEnvVar}
                   disabled={isLoading}
-                  className="text-sm text-brand-purple hover:text-brand-purple/80 flex items-center gap-1"
+                  className="text-sm text-brand-lime hover:text-brand-lime/80 flex items-center gap-1"
                 >
                   <Plus className="w-4 h-4" />
                   Add Variable
@@ -581,7 +581,7 @@ export function AdvancedConfigForm({
                   type="button"
                   onClick={addHeader}
                   disabled={isLoading}
-                  className="text-sm text-brand-purple hover:text-brand-purple/80 flex items-center gap-1"
+                  className="text-sm text-brand-lime hover:text-brand-lime/80 flex items-center gap-1"
                 >
                   <Plus className="w-4 h-4" />
                   Add Header
@@ -633,9 +633,9 @@ export function AdvancedConfigForm({
 
           {/* OAuth Configuration - Simplified */}
           {formData.authType === 'oauth' && (
-            <div className="border border-brand-purple/30 rounded-lg p-4 bg-brand-purple/10">
+            <div className="border border-brand-lime/30 rounded-lg p-4 bg-brand-lime/10">
               <div className="flex items-start gap-3">
-                <div className="text-brand-purple text-xl">🔐</div>
+                <div className="text-brand-lime text-xl">🔐</div>
                 <div>
                   <h4 className="text-sm font-semibold text-text-primary mb-1">
                     OAuth 2.1 Authentication
@@ -663,7 +663,7 @@ export function AdvancedConfigForm({
             checked={formData.isDisabled}
             onChange={(e) => setFormData({ ...formData, isDisabled: e.target.checked })}
             disabled={isLoading}
-            className="w-4 h-4 text-brand-purple border-border-primary rounded focus:ring-brand-purple"
+            className="w-4 h-4 text-brand-lime border-border-primary rounded focus:ring-brand-lime"
           />
           <span className="ml-2 text-sm text-text-secondary">
             Disable this server (prevent automatic connection)

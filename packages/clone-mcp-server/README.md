@@ -12,7 +12,7 @@ Mock MCP server providing GitHub, Fathom, Notion, and Slack tools for testing an
 ## Installation
 
 ```bash
-npm install @ebee-oss/clone-mcp-server
+npm install @almanac/clone-mcp-server
 ```
 
 ## Usage

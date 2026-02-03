@@ -138,7 +138,7 @@ export default function StartingPointsTab({ serverName }: StartingPointsTabProps
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 text-brand-purple animate-spin mx-auto mb-4" />
+          <Loader2 className="w-8 h-8 text-brand-lime animate-spin mx-auto mb-4" />
           <p className="text-text-secondary">Loading starting points...</p>
         </div>
       </div>
@@ -192,7 +192,7 @@ export default function StartingPointsTab({ serverName }: StartingPointsTabProps
           <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden">
             <div
               className={`h-full transition-all duration-300 ${
-                progressPercent === 100 ? 'bg-brand-success' : 'bg-brand-purple'
+                progressPercent === 100 ? 'bg-brand-success' : 'bg-brand-lime'
               }`}
               style={{ width: `${progressPercent}%` }}
             />
@@ -273,7 +273,7 @@ export default function StartingPointsTab({ serverName }: StartingPointsTabProps
                         value={value}
                         onChange={(e) => updateValue(sp.name, index, e.target.value)}
                         placeholder={`Enter ${sp.name} value`}
-                        className="flex-1 px-3 py-2 bg-bg-primary border border-border-secondary rounded-lg text-text-primary text-sm placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-colors"
+                        className="flex-1 px-3 py-2 bg-bg-primary border border-border-secondary rounded-lg text-text-primary text-sm placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-brand-lime focus:border-transparent transition-colors"
                       />
                       <button
                         onClick={() => removeValue(sp.name, index)}
@@ -290,7 +290,7 @@ export default function StartingPointsTab({ serverName }: StartingPointsTabProps
               {/* Add Button */}
               <button
                 onClick={() => addValue(sp.name)}
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-brand-purple hover:text-brand-purple-dark hover:bg-brand-purple/10 rounded-lg transition-colors"
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-brand-lime hover:text-brand-lime-dark hover:bg-brand-lime/10 rounded-lg transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 Add {sp.name.replace(/_/g, ' ')}
@@ -316,7 +316,7 @@ export default function StartingPointsTab({ serverName }: StartingPointsTabProps
           <button
             onClick={handleSave}
             disabled={saving || !hasUnsavedChanges()}
-            className="px-4 py-2 text-sm font-medium text-white bg-brand-purple hover:bg-brand-purple-dark rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-4 py-2 text-sm font-medium text-white bg-brand-lime hover:bg-brand-lime-dark rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {saving ? (
               <>

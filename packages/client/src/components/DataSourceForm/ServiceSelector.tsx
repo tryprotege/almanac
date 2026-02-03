@@ -42,7 +42,7 @@ function ServiceCard({ preset, onSelect }: ServiceCardProps) {
         ${
           isComingSoon
             ? 'border-border-secondary bg-bg-secondary cursor-not-allowed opacity-60'
-            : 'border-border-secondary hover:border-brand-purple hover:shadow-lg bg-bg-primary'
+            : 'border-border-secondary hover:border-brand-lime hover:shadow-lg bg-bg-primary'
         }
       `}
     >
@@ -56,11 +56,11 @@ function ServiceCard({ preset, onSelect }: ServiceCardProps) {
         <div
           className={`
           p-3 rounded-lg
-          ${isComingSoon ? 'bg-bg-active' : 'bg-brand-purple/10'}
+          ${isComingSoon ? 'bg-bg-active' : 'bg-brand-lime/10'}
         `}
         >
           <Icon
-            className={`w-6 h-6 ${isComingSoon ? 'text-text-quaternary' : 'text-brand-purple'}`}
+            className={`w-6 h-6 ${isComingSoon ? 'text-text-quaternary' : 'text-brand-lime'}`}
           />
         </div>
 

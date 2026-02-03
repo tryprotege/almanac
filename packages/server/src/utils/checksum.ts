@@ -120,7 +120,15 @@ export function calculateEmbeddingChecksum(content: {
   relType?: string;
 }): string {
   // Normalize all fields to lowercase and trim whitespace
-  const normalized: any = {};
+  const normalized: Partial<{
+    text: string;
+    entityType: string;
+    description: string;
+    relationships: Array<{ type: string; target: string }>;
+    sourceId: string;
+    targetId: string;
+    relType: string;
+  }> = {};
 
   if (content.text) {
     normalized.text = content.text.toLowerCase().trim();

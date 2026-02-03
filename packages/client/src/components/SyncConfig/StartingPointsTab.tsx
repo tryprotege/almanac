@@ -24,7 +24,6 @@ export default function StartingPointsTab({ serverName }: StartingPointsTabProps
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [allRequired, setAllRequired] = useState(0);
-  const [allProvided, setAllProvided] = useState(0);
 
   useEffect(() => {
     loadStartingPoints();
@@ -40,7 +39,6 @@ export default function StartingPointsTab({ serverName }: StartingPointsTabProps
         const data = response.data.data;
         setStartingPoints(data.startingPoints);
         setAllRequired(data.allRequired);
-        setAllProvided(data.allProvided);
 
         // Parse current values into arrays
         const parsedValues: Record<string, string[]> = {};

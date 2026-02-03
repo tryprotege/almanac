@@ -57,6 +57,7 @@ export default [
       globals: {
         ...globals.node,
         ...globals.es2021,
+        RequestInit: 'readonly',
       },
     },
     plugins: {
@@ -132,6 +133,8 @@ export default [
       '@typescript-eslint/no-non-null-assertion': 'warn',
       'react/prop-types': 'off', // Using TypeScript for prop validation
       'react/react-in-jsx-scope': 'off', // Not needed in React 17+
+      'no-undef': 'off',
+      'react/no-unescaped-entities': 'warn',
     },
   },
 

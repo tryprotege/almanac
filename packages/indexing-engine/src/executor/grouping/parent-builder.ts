@@ -36,7 +36,7 @@ export class ParentRecordBuilder {
   /**
    * Build a single parent record
    */
-  private async buildParentRecord(
+  public async buildParentRecord(
     group: RecordGroup,
     sourceId: string,
     config: ParentRecordConfig,
@@ -108,6 +108,31 @@ export class ParentRecordBuilder {
       const childIdsField = config.childIdsField || 'childIds';
       rawData[childIdsField] = group.records.map((r) => r.sourceId);
     }
+
+    // Process any additional custom fields from config (e.g., metadata)
+    const additionalFields: Record<string, any> = {};
+    const standardFields = [
+      'title',
+      'content',
+      'people',
+      'sourceCreatedAt',
+      'sourceUpdatedAt',
+      'tags',
+    ];
+    for (const [fieldName, mapping] of Object.entries(config.fields)) {
+      if (!standardFields.includes(fieldName)) {
+        additionalFields[fieldName] = await this.buildField(
+          mapping,
+          group.records,
+          firstChild,
+          lastChild,
+          group.groupId,
+        );
+      }
+    }
+
+    // Merge additional fields into rawData
+    Object.assign(rawData, additionalFields);
 
     // Extract entities from children if configured
     const extractedEntities = config.entities
@@ -193,7 +218,7 @@ export class ParentRecordBuilder {
    */
   private aggregateField(mapping: any, children: TransformedRecord[]): any {
     const values = children
-      .map((child) => extractValue(child, mapping.path))
+      .map((child) => extractValue(child.rawData, mapping.path))
       .filter((v) => v != null);
 
     switch (mapping.function) {
@@ -202,10 +227,10 @@ export class ParentRecordBuilder {
           // Apply template to each item
           const formatted = children
             .map((child) => {
-              const value = extractValue(child, mapping.path);
+              const value = extractValue(child.rawData, mapping.path);
               if (!value) return null;
               return this.evaluateTemplate(mapping.itemTemplate, {
-                child,
+                child: child.rawData,
                 value,
               });
             })

@@ -110,38 +110,62 @@ LLM_EMBEDDING_MODEL=your-embedding-model
 ### MongoDB
 
 ```bash
-# Development (Docker)
-MONGODB_URI=mongodb://localhost:27017/almanac
+# Development (Docker - uses default credentials from docker-compose.yml)
+MONGO_HOST=localhost
+MONGO_PORT=27017
+MONGO_USERNAME=admin
+MONGO_PASSWORD=admin123
+MONGO_DB_NAME=almanac
 
 # Production (MongoDB Atlas)
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/almanac?retryWrites=true&w=majority
+MONGO_HOST=cluster.mongodb.net
+MONGO_PORT=27017
+MONGO_USERNAME=your-user
+MONGO_PASSWORD=your-password
+MONGO_DB_NAME=almanac
+# Add connection options as needed
 
 # Options
 MONGODB_MAX_POOL_SIZE=50
 MONGODB_MIN_POOL_SIZE=10
 ```
 
+**Note**: The new Docker setup uses separate environment variables for host, port, username, and password instead of a single connection URI. This provides better flexibility for different deployment scenarios.
+
 ### Redis
 
 ```bash
-# Development (Docker)
-REDIS_URL=redis://localhost:6379
+# Development (Docker - no password by default)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
 
 # Production (Redis Cloud)
-REDIS_URL=redis://user:pass@redis-12345.cloud.redislabs.com:12345
+REDIS_HOST=redis-12345.cloud.redislabs.com
+REDIS_PORT=12345
+REDIS_PASSWORD=your-password
+REDIS_DB=0
+REDIS_TLS=true  # Enable TLS for production
 
-# With TLS
-REDIS_URL=rediss://user:pass@redis-12345.cloud.redislabs.com:12345
+# AWS ElastiCache
+REDIS_HOST=my-cluster.abcdef.0001.use1.cache.amazonaws.com
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
 ```
 
 ### Qdrant (Vector Database)
 
 ```bash
-# Development (Docker)
-QDRANT_URL=http://localhost:6333
+# Development (Docker - no API key needed)
+QDRANT_HOST=localhost
+QDRANT_PORT=6333
+QDRANT_API_KEY=
 
 # Production (Qdrant Cloud)
-QDRANT_URL=https://xyz-abc123.cloud.qdrant.io:6333
+QDRANT_HOST=xyz-abc123.cloud.qdrant.io
+QDRANT_PORT=6333
 QDRANT_API_KEY=your-api-key
 
 # Collection settings
@@ -159,14 +183,16 @@ QDRANT_VECTOR_SIZE=3072  # Match your embedding model
 ### Memgraph (Graph Database)
 
 ```bash
-# Development (Docker)
-MEMGRAPH_URI=bolt://localhost:7687
-MEMGRAPH_USER=
+# Development (Docker - no authentication by default)
+MEMGRAPH_HOST=localhost
+MEMGRAPH_PORT=7687
+MEMGRAPH_USERNAME=
 MEMGRAPH_PASSWORD=
 
 # Production (Memgraph Cloud)
-MEMGRAPH_URI=bolt://cloud-xyz.memgraph.com:7687
-MEMGRAPH_USER=memgraph
+MEMGRAPH_HOST=cloud-xyz.memgraph.com
+MEMGRAPH_PORT=7687
+MEMGRAPH_USERNAME=memgraph
 MEMGRAPH_PASSWORD=your-password
 ```
 
@@ -409,20 +435,30 @@ LLM_EMBEDDING_MODEL=text-embedding-3-large
 
 # === Database Configuration ===
 # MongoDB
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/almanac
+MONGO_HOST=cluster.mongodb.net
+MONGO_PORT=27017
+MONGO_USERNAME=your-user
+MONGO_PASSWORD=your-password
+MONGO_DB_NAME=almanac
 
 # Redis
-REDIS_URL=rediss://user:pass@redis.cloud.com:12345
+REDIS_HOST=redis.cloud.com
+REDIS_PORT=12345
+REDIS_PASSWORD=your-password
+REDIS_DB=0
+REDIS_TLS=true
 
 # Qdrant
-QDRANT_URL=https://xyz.cloud.qdrant.io:6333
+QDRANT_HOST=xyz.cloud.qdrant.io
+QDRANT_PORT=6333
 QDRANT_API_KEY=your-api-key
 QDRANT_COLLECTION_NAME=almanac
 QDRANT_VECTOR_SIZE=3072
 
 # Memgraph
-MEMGRAPH_URI=bolt://cloud.memgraph.com:7687
-MEMGRAPH_USER=memgraph
+MEMGRAPH_HOST=cloud.memgraph.com
+MEMGRAPH_PORT=7687
+MEMGRAPH_USERNAME=memgraph
 MEMGRAPH_PASSWORD=your-password
 
 # === Server Configuration ===
@@ -527,7 +563,7 @@ Error: LLM_CHAT_MODEL not specified
 Error: Failed to connect to MongoDB
 ```
 
-**Fix**: Check `MONGODB_URI` is correct and database is accessible
+**Fix**: Check `MONGO_HOST`, `MONGO_PORT`, and credentials are correct and database is accessible
 
 ### OAuth Not Working
 

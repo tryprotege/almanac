@@ -388,12 +388,12 @@ export type DataSource = InferSchemaType<typeof DataSourceSchema> & {
   idString: string;
 };
 
-export interface DataSourceModel extends mongoose.Model<DataSource> {
+export interface IDataSourceModel extends mongoose.Model<DataSource> {
   loadMCPServers(): Promise<(mongoose.Document<unknown, {}, DataSource> & DataSource)[]>;
 }
 
 // Export the model
-export const DataSourceModel = mongoose.model<DataSource, DataSourceModel>(
+export const DataSourceModel = mongoose.model<DataSource, IDataSourceModel>(
   'DataSource',
   DataSourceSchema,
 );

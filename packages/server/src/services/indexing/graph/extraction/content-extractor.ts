@@ -10,7 +10,12 @@ import logger from '../../../../utils/logger.js';
 import sleep from '../../../../utils/sleep.js';
 import { env } from '../../../../env.js';
 import { buildCombinedExtractionPrompt, buildSingleEntityExtractionPrompt } from './prompts.js';
-import { COMBINED_EXTRACTION_SCHEMA, SINGLE_ENTITY_EXTRACTION_SCHEMA } from './schemas.js';
+import {
+  CombinedExtractionResponse,
+  combinedExtractionSchema,
+  SingleEntityResponse,
+  singleEntitySchema,
+} from './schemas.js';
 import { stripExtraQuotes, sanitizeEntityName, inferEntityTypeFromRelationship } from './utils.js';
 
 /**
@@ -64,14 +69,14 @@ async function extractBothFromContent(
             type: 'json_schema',
             json_schema: {
               name: 'combined_extraction',
-              schema: COMBINED_EXTRACTION_SCHEMA,
+              schema: combinedExtractionSchema,
               strict: true,
             },
           },
         },
       );
 
-      const extracted = JSON.parse(response);
+      const extracted: CombinedExtractionResponse = JSON.parse(response);
 
       // Sanitize and filter entities
       const rawEntities = extracted.entities || [];
@@ -251,7 +256,7 @@ async function extractMissingEntity(
           type: 'json_schema',
           json_schema: {
             name: 'single_entity_extraction',
-            schema: SINGLE_ENTITY_EXTRACTION_SCHEMA,
+            schema: singleEntitySchema,
             strict: true,
           },
         },
@@ -263,7 +268,7 @@ async function extractMissingEntity(
       response,
     });
 
-    let result;
+    let result: SingleEntityResponse;
     try {
       result = JSON.parse(response);
     } catch (parseErr) {

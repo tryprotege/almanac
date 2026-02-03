@@ -13,7 +13,6 @@ import {
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
-  useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Filter, RefreshCw, Info } from 'lucide-react';
@@ -77,8 +76,7 @@ function GraphDataVisualizationInner({
   onRefresh,
 }: GraphDataVisualizationProps) {
   const { theme } = useTheme();
-  const { fitView } = useReactFlow();
-  const [showAllNodes, setShowAllNodes] = useState(true); // Show all nodes by default
+  const [showAllNodes, _setShowAllNodes] = useState(true); // Show all nodes by default
   const [selectedNodeTypes, setSelectedNodeTypes] = useState<string[]>([]);
   const [showTypeFilter, setShowTypeFilter] = useState(false);
   const [showLegend, setShowLegend] = useState(false);

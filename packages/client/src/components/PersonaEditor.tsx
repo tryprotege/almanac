@@ -13,6 +13,7 @@ export function PersonaEditor() {
   // Initialize local state when persona loads
   useEffect(() => {
     if (persona !== undefined) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLocalPersona(persona);
     }
   }, [persona]);
@@ -63,7 +64,7 @@ export function PersonaEditor() {
         <div className="w-full">
           <h3 className="text-lg font-semibold text-text-primary">👤 User Persona</h3>
           <p className="text-sm text-text-tertiary mt-1">
-            Define your role and context to help eBee understand your data better
+            Define your role and context to help Almanac understand your data better
           </p>
         </div>
         {(isUpdating || isDeleting) && (

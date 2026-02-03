@@ -130,7 +130,7 @@ export default function Dashboard() {
     <div className="pb-8">
       <PageHeader
         title="Dashboard"
-        subtitle="Overview of your eBee system statistics and connected services"
+        subtitle="Overview of your Almanac system statistics and connected services"
       />
 
       {/* Main Content Grid */}

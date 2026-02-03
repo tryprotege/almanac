@@ -246,8 +246,8 @@
             "paths": ["UserID"]
           },
           "sourceCreatedAt": {
-            "type": "code",
-            "code": "const ts = parseFloat(record.Time || record.MsgID); return new Date(ts * 1000).toISOString();"
+            "type": "path",
+            "path": "Time"
           },
           "tags": {
             "type": "code",
@@ -279,7 +279,7 @@
           "parentRecord": {
             "recordType": "slackThread",
             "sourceIdStrategy": "first_child",
-            "sourceIdTemplate": "thread-${firstChild.ThreadTs}",
+            "sourceIdTemplate": "thread-${groupId}",
             "storeChildIds": true,
             "childIdsField": "childIds",
             "entities": [
@@ -312,7 +312,7 @@
                 "function": "concat",
                 "path": "$.Text",
                 "separator": "\n",
-                "itemTemplate": "[${child.UserName || child.UserID}]: ${value}"
+                "itemTemplate": "[${child.UserName}]: ${value}"
               },
               "people": {
                 "type": "aggregate",
@@ -327,10 +327,6 @@
               "tags": {
                 "type": "code",
                 "code": "return ['thread', 'conversation'];"
-              },
-              "metadata": {
-                "type": "code",
-                "code": "const firstChild = children[0]; return { threadTs: firstChild.ThreadTs, channelId: firstChild.Channel, messageCount: children.length, participants: [...new Set(children.map(c => c.UserID).filter(Boolean))] };"
               }
             }
           },
@@ -358,8 +354,8 @@
             "paths": ["UserID"]
           },
           "sourceCreatedAt": {
-            "type": "code",
-            "code": "const ts = parseFloat(record.Time || record.MsgID); return new Date(ts * 1000).toISOString();"
+            "type": "path",
+            "path": "Time"
           },
           "tags": {
             "type": "code",
@@ -378,7 +374,7 @@
           "parentRecord": {
             "recordType": "slackThread",
             "sourceIdStrategy": "first_child",
-            "sourceIdTemplate": "thread-${firstChild.ThreadTs}",
+            "sourceIdTemplate": "thread-${groupId}",
             "storeChildIds": true,
             "childIdsField": "childIds",
             "entities": [
@@ -411,7 +407,7 @@
                 "function": "concat",
                 "path": "$.Text",
                 "separator": "\n",
-                "itemTemplate": "[${child.UserName || child.UserID}]: ${value}"
+                "itemTemplate": "[${child.UserName}]: ${value}"
               },
               "people": {
                 "type": "aggregate",
@@ -426,10 +422,6 @@
               "tags": {
                 "type": "code",
                 "code": "return ['thread', 'conversation'];"
-              },
-              "metadata": {
-                "type": "code",
-                "code": "const firstChild = children[0]; return { threadTs: firstChild.ThreadTs, channelId: firstChild.Channel, messageCount: children.length, participants: [...new Set(children.map(c => c.UserID).filter(Boolean))] };"
               }
             }
           },

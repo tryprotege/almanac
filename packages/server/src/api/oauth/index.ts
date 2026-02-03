@@ -160,7 +160,7 @@ router.post('/start-remote/:mcpServerId', async (req, res) => {
             Accept: 'application/json',
           },
           body: JSON.stringify({
-            client_name: `eBee MCP Client - ${dataSource.name}`,
+            client_name: `Almanac MCP Client - ${dataSource.name}`,
             redirect_uris: [redirectUri],
             grant_types: ['authorization_code', 'refresh_token'],
             response_types: ['code'],

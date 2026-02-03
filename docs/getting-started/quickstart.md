@@ -20,16 +20,15 @@ cd almanac
 # Install dependencies
 pnpm install
 
-# Start everything (Docker services + dev servers)
+# Start everything (Docker databases + local dev servers)
 pnpm start
 ```
 
 This command will:
 
-- ✅ Start MongoDB, Redis, Qdrant, and Memgraph in Docker
-- ✅ Wait for services to be healthy
-- ✅ Start the backend server (port 3000)
-- ✅ Start the frontend UI (port 5173)
+- ✅ Start database services in Docker (MongoDB, Redis, Qdrant, Memgraph)
+- ✅ Start the backend server locally (port 3000)
+- ✅ Start the frontend UI locally (port 5173)
 
 ## Initial Configuration
 

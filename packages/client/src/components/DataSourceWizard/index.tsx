@@ -72,7 +72,6 @@ export function DataSourceWizard({
   > | null>(null);
   const [isCustomServerCreated, setIsCustomServerCreated] = useState(false);
   const [importedConfig, setImportedConfig] = useState<any>(null);
-  const [oauthCompleted, setOauthCompleted] = useState(false);
   const [savingStatus, setSavingStatus] = useState<SavingStepStatus>(null);
   const [savingError, setSavingError] = useState<string | null>(null);
   const [startingPointValues, setStartingPointValues] = useState<Record<string, string[]>>({});
@@ -85,22 +84,16 @@ export function DataSourceWizard({
       if (isPresetBased) {
         // Try to find the preset by presetId first, then fallback to name
         const preset = getPresetById(existingSource.presetId || existingSource.name);
-        console.log(
-          'DataSourceWizard: Editing preset-based source',
-          existingSource.name,
-          'preset:',
-          preset?.id,
-        );
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedPreset(preset || CUSTOM_PRESET);
       } else {
         // This is a custom server - use CUSTOM_PRESET
-        console.log('DataSourceWizard: Editing custom source', existingSource.name);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedPreset(CUSTOM_PRESET);
       }
       setStep('configure');
     } else if (isOpen && presetId && presetData) {
       // New source from marketplace preset
-      console.log('DataSourceWizard: Creating from preset', presetId);
       // Create a preset object for the wizard
       const connection = presetData.data.connection;
       const preset: ServicePreset = {
@@ -175,11 +168,11 @@ export function DataSourceWizard({
     };
 
     // If OAuth is required, create server first, then go to OAuth step
-    if (config.authType === ('oauth' as const)) {
+    if (config.authType === 'oauth') {
       try {
         // Create the server first
         toast.loading('Creating data source...', { id: 'create-server' });
-        const response = await createMutation.mutateAsync(configWithPreset);
+        await createMutation.mutateAsync(configWithPreset);
         toast.success('Data source created', { id: 'create-server' });
         setIsCustomServerCreated(true);
 
@@ -227,21 +220,7 @@ export function DataSourceWizard({
           }
 
           // No existing config - show config choice for non-OAuth servers
-          if (config.authType !== ('oauth' as const)) {
-            setStep('config-choice');
-          } else {
-            // OAuth server - close wizard, user needs to complete OAuth first
-            toast.success(
-              'Data source updated. Complete OAuth authorization, then configure sync.',
-              {
-                id: 'oauth-notice',
-                duration: 5000,
-              },
-            );
-            onClose();
-            resetWizard();
-            return; // Don't proceed to config-choice
-          }
+          setStep('config-choice');
         } else {
           // Create new server
           toast.loading('Creating data source...', { id: 'create-server' });
@@ -251,32 +230,18 @@ export function DataSourceWizard({
 
           // Only auto-connect for non-OAuth servers
           // OAuth servers need to complete OAuth flow first
-          if (config.authType !== ('oauth' as const)) {
-            // Connect to the server to cache tools
-            toast.loading('Connecting to data source...', {
-              id: 'connect-server',
-            });
-            await connectMutation.mutateAsync(config.name);
-            toast.success('Connected to data source', { id: 'connect-server' });
+          // Connect to the server to cache tools
+          toast.loading('Connecting to data source...', {
+            id: 'connect-server',
+          });
+          await connectMutation.mutateAsync(config.name);
+          toast.success('Connected to data source', { id: 'connect-server' });
 
-            // Wait a moment for tool caching to complete
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+          // Wait a moment for tool caching to complete
+          await new Promise((resolve) => setTimeout(resolve, 1000));
 
-            // Show config choice
-            setStep('config-choice');
-          } else {
-            // OAuth server - close wizard, user needs to complete OAuth first
-            toast.success(
-              'Data source created. Complete OAuth authorization, then configure sync.',
-              {
-                id: 'oauth-notice',
-                duration: 5000,
-              },
-            );
-            onClose();
-            resetWizard();
-            return; // Don't proceed to config-choice
-          }
+          // Show config choice
+          setStep('config-choice');
         }
       } catch (error) {
         console.error('Failed to setup custom server:', error);
@@ -392,7 +357,7 @@ export function DataSourceWizard({
     }
   };
 
-  const handleOAuthComplete = async (serverId: string) => {
+  const handleOAuthComplete = async () => {
     if (!serverConfig) return;
 
     try {
@@ -404,8 +369,7 @@ export function DataSourceWizard({
       // Wait a moment for tool caching
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Proceed to config choice
-      setStep('config-choice');
+      setStep('review');
     } catch (error) {
       console.error('Failed to connect after OAuth:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to connect', {
@@ -420,7 +384,6 @@ export function DataSourceWizard({
     setServerConfig(null);
     setIsCustomServerCreated(false);
     setImportedConfig(null);
-    setOauthCompleted(false);
     setSavingStatus(null);
     setSavingError(null);
     generateConfig.reset();

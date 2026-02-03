@@ -9,7 +9,7 @@ import type { ToolClassification } from '@almanac/indexing-engine';
 import { EventEmitter } from 'events';
 import pRetry, { AbortError } from 'p-retry';
 import logger from '../utils/logger.js';
-import { oauthProviderFactory } from '../oauth/mcp-oauth-provider.js';
+import { MCPOAuthProvider, oauthProviderFactory } from '../oauth/mcp-oauth-provider.js';
 import { discoverSseOAuth } from '../oauth/sse-oauth.js';
 import type { DataSource } from '../models/data-source.model.js';
 import { env } from '../env.js';
@@ -123,6 +123,46 @@ function isNonRetryableError(error: any): boolean {
 }
 
 /**
+ * Coerce parameter values to match JSON Schema types
+ * This ensures parameters match the tool's expected types even when
+ * values are extracted through JSONPath or other transformations
+ */
+function coerceParamsToSchema(
+  params: Record<string, unknown>,
+  schema: any,
+): Record<string, unknown> {
+  if (!schema?.properties) return params;
+
+  const coerced = { ...params };
+
+  for (const [key, value] of Object.entries(coerced)) {
+    const propSchema = schema.properties[key];
+    if (!propSchema || value === undefined || value === null) continue;
+
+    const expectedType = propSchema.type;
+
+    // Coerce to expected type
+    if (expectedType === 'string' && typeof value !== 'string') {
+      coerced[key] = String(value);
+    } else if (
+      (expectedType === 'number' || expectedType === 'integer') &&
+      typeof value === 'string'
+    ) {
+      const num = Number(value);
+      if (!isNaN(num)) {
+        coerced[key] = num;
+      }
+    } else if (expectedType === 'boolean' && typeof value === 'string') {
+      coerced[key] = value === 'true';
+    } else {
+      coerced[key] = value;
+    }
+  }
+
+  return coerced;
+}
+
+/**
  * Retry a function with exponential backoff using p-retry
  */
 async function retryWithBackoff<T>(
@@ -200,7 +240,7 @@ class MCPClientManager {
   /**
    * Create OAuth provider for a server
    */
-  private createOAuthProvider(dataSource: DataSource): any | undefined {
+  private createOAuthProvider(dataSource: DataSource): MCPOAuthProvider | undefined {
     if (dataSource.authType !== 'oauth' || !dataSource._id) {
       return undefined;
     }
@@ -513,6 +553,17 @@ class MCPClientManager {
     }
 
     const actualToolName = toolName.replace(`${serverName}__`, '');
+
+    // Get tool schema and coerce params to match expected types
+    const tools = this.toolCache.get(serverName) || [];
+    const tool = tools.find((t) => t.name === actualToolName);
+    if (tool?.inputSchema) {
+      args = coerceParamsToSchema(args, tool.inputSchema);
+      logger.debug(
+        { serverName, toolName: actualToolName },
+        'Applied parameter type coercion based on tool schema',
+      );
+    }
 
     // Log the MCP call with parameters
     logger.info(

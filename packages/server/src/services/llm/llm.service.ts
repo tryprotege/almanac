@@ -50,10 +50,10 @@ export class LLMService {
       ...(options?.reasoning && {
         reasoning: options.reasoning,
       }),
-      ...(options?.reasoningEffort &&
-        !options?.reasoning && {
-          reasoning_effort: options.reasoningEffort,
-        }),
+      // ...(options?.reasoningEffort &&
+      //   !options?.reasoning && {
+      //     reasoning_effort: options.reasoningEffort,
+      //   }),
       ...(options?.responseFormat && {
         response_format: options.responseFormat,
       }),

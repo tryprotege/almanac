@@ -369,8 +369,7 @@ export function DataSourceWizard({
       // Wait a moment for tool caching
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Proceed to config choice
-      setStep('config-choice');
+      setStep('review');
     } catch (error) {
       console.error('Failed to connect after OAuth:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to connect', {

@@ -153,51 +153,45 @@ dataSourcesRouter.post('/', async (req: Request, res: Response) => {
     }
 
     // Check if data source already exists
-    const existing = await DataSourceModel.findOne({ name: config.name });
-    if (existing) {
-      res.status(409).json({
-        success: false,
-        error: `Data source '${config.name}' already exists`,
-      });
-      return;
-    }
+    let dataSource = await DataSourceModel.findOne({ name: config.name });
+    if (!dataSource) {
+      // Convert env and headers to Map if provided
+      const dataSourceData: IDataSourceModel = {
+        ...config,
+        env: config.env ? new Map(Object.entries(config.env)) : undefined,
+        headers: config.headers ? new Map(Object.entries(config.headers)) : undefined,
+      };
 
-    // Convert env and headers to Map if provided
-    const dataSourceData: IDataSourceModel = {
-      ...config,
-      env: config.env ? new Map(Object.entries(config.env)) : undefined,
-      headers: config.headers ? new Map(Object.entries(config.headers)) : undefined,
-    };
+      // Create new data source
+      dataSource = new DataSourceModel(dataSourceData);
+      await dataSource.save();
 
-    // Create new data source
-    const dataSource = new DataSourceModel(dataSourceData);
-    await dataSource.save();
+      logger.info({ name: config.name }, 'Data source created');
 
-    logger.info({ name: config.name }, 'Data source created');
-
-    // Auto-create indexing config from preset if presetId is provided
-    if (config.presetId) {
-      try {
-        const preset = presetLoader.getPreset(config.presetId);
-        if (preset?.indexingConfig) {
-          const indexingConfig = new IndexingConfigModel({
-            serverName: config.name,
-            displayName: preset.displayName,
-            status: 'active',
-            configVersion: 1,
-            config: preset.indexingConfig,
-          });
-          await indexingConfig.save();
-          logger.info(
-            { name: config.name, presetId: config.presetId },
-            'Auto-created indexing config from preset',
+      // Auto-create indexing config from preset if presetId is provided
+      if (config.presetId) {
+        try {
+          const preset = presetLoader.getPreset(config.presetId);
+          if (preset?.indexingConfig) {
+            const indexingConfig = new IndexingConfigModel({
+              serverName: config.name,
+              displayName: preset.displayName,
+              status: 'active',
+              configVersion: 1,
+              config: preset.indexingConfig,
+            });
+            await indexingConfig.save();
+            logger.info(
+              { name: config.name, presetId: config.presetId },
+              'Auto-created indexing config from preset',
+            );
+          }
+        } catch (presetErr) {
+          logger.warn(
+            { err: presetErr, name: config.name, presetId: config.presetId },
+            'Failed to auto-create indexing config from preset',
           );
         }
-      } catch (presetErr) {
-        logger.warn(
-          { err: presetErr, name: config.name, presetId: config.presetId },
-          'Failed to auto-create indexing config from preset',
-        );
       }
     }
 

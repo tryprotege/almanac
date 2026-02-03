@@ -3,23 +3,10 @@ import {
   generateConfig,
   generateConfigIterative,
 } from '../../services/indexing/config/config-generator.service.js';
-import {
-  indexAll,
-  runIncrementalSync,
-} from '../../services/indexing/config/config-indexer.service.js';
 import { IndexingConfigModel } from '../../models/indexing-config.model.js';
-import { RecordModel } from '../../models/record.model.js';
 import { transformRecord } from '@almanac/indexing-engine';
-import { RecordStore } from '../../stores/record.store.js';
-import { VectorStore } from '../../stores/vector.store.js';
-import { insertRecordToVectorDB } from '../../services/indexing/embeddings/vector-indexer.service.js';
-import { indexConfigEntities } from '../../services/indexing/graph/config-entity-indexer.js';
-import { GraphStore } from '../../stores/graph.store.js';
-import { connectMemgraph } from '../../connections/memgraph.js';
-import { createHash } from 'crypto';
 import logger from '../../utils/logger.js';
 import type { IndexingConfig, ValidationError, ValidationWarning } from '@almanac/indexing-engine';
-import { connectQdrant } from '../../connections/qdrant.js';
 
 const router: Router = Router();
 
@@ -244,12 +231,12 @@ router.post('/save', async (req, res) => {
  *
  * Request body:
  * - serverName: string (required)
- * - incremental: boolean (optional, default: false)
- * - startingPoints: Record<string, string[]> (optional) - User-provided starting point values
+ * - incremental: boolean (optional, default: false) - NOTE: Currently not used, all syncs are queued as full syncs
+ * - startingPoints: Record<string, string[]> (optional) - NOTE: Currently not used, starting points are loaded from saved config
  */
 router.post('/sync', async (req, res) => {
   try {
-    const { serverName, incremental = false, startingPoints } = req.body;
+    const { serverName } = req.body;
 
     if (!serverName) {
       return res.status(400).json({ error: 'serverName is required' });
@@ -267,153 +254,45 @@ router.post('/sync', async (req, res) => {
       });
     }
 
-    // Start sync in background
-    let recordsProcessed = 0;
+    // Get the data source to pass to the queue
+    const { DataSourceModel } = await import('../../models/data-source.model.js');
+    const dataSource = await DataSourceModel.findOne({ name: serverName });
 
-    // Load starting point values from MongoDB if not provided in request
-    let startingPointsToUse: Record<string, string[]> = startingPoints || {};
-    if (!startingPoints && configDoc.startingPointValues) {
-      // Convert Mongoose Map or object to plain object
-      if (configDoc.startingPointValues instanceof Map) {
-        configDoc.startingPointValues.forEach((value, key) => {
-          startingPointsToUse[key] = value;
-        });
-      } else {
-        // Already a plain object
-        Object.assign(startingPointsToUse, configDoc.startingPointValues);
-      }
-      logger.info(
-        { serverName, startingPoints: startingPointsToUse },
-        'Loaded starting point values from database',
-      );
-    }
-
-    // Use incremental or full sync
-    const syncGenerator = incremental
-      ? runIncrementalSync(configDoc.config, serverName)
-      : indexAll(configDoc.config, serverName, startingPointsToUse);
-
-    // Initialize stores for persistence
-    const recordStore = new RecordStore();
-    const qdrant = await connectQdrant();
-    const vectorStore = new VectorStore(qdrant);
-
-    // Initialize graph store (optional - fails gracefully if Memgraph unavailable)
-    let graphStore: GraphStore | null = null;
-    try {
-      const memgraphConnection = await connectMemgraph();
-      graphStore = new GraphStore(memgraphConnection);
-      logger.info('Memgraph connected for entity indexing');
-    } catch (err) {
-      logger.warn('Memgraph not available, skipping entity indexing');
-    }
-
-    let vectorChunks = 0;
-    let entitiesIndexed = 0;
-
-    // Process batches
-    for await (const { records } of syncGenerator) {
-      // 1. Save to MongoDB
-      const mongoOps = records.map((record) => {
-        // Calculate checksum
-        const normalizedContent = `${record.title || ''}\n${record.content || ''}`.trim();
-        const checksum = createHash('sha256').update(normalizedContent).digest('hex');
-
-        // Fallback for sourceUpdatedAt if not provided by transformer
-        const finalSourceUpdatedAt =
-          record.sourceUpdatedAt ||
-          (record.rawData?.updated_time
-            ? new Date(record.rawData.updated_time)
-            : record.rawData?.last_edited_time
-              ? new Date(record.rawData.last_edited_time)
-              : undefined);
-
-        return {
-          updateOne: {
-            filter: { _id: record._id },
-            update: {
-              $set: {
-                _id: record._id,
-                source: record.source,
-                sourceId: record.sourceId,
-                recordType: record.recordType,
-                parentId: record.parentId,
-                title: record.title || '',
-                content: record.content || '',
-                people: record.people || [],
-                sourceCreatedAt: record.sourceCreatedAt,
-                sourceUpdatedAt: finalSourceUpdatedAt,
-                tags: record.tags || [],
-                rawData: record.rawData || {},
-                checksum,
-                syncedAt: new Date(),
-              },
-              $inc: { version: 1 },
-            },
-            upsert: true,
-          },
-        };
+    if (!dataSource) {
+      return res.status(404).json({
+        error: `Data source '${serverName}' not found`,
       });
-
-      await RecordModel.bulkWrite(mongoOps);
-
-      // 2. Index to vector store
-      for (const record of records) {
-        try {
-          const mongoRecord = await RecordModel.findById(record._id);
-
-          if (mongoRecord) {
-            const vectorIds = await insertRecordToVectorDB(recordStore, vectorStore, mongoRecord);
-            vectorChunks += vectorIds.length;
-          }
-        } catch (error) {
-          logger.error(
-            { error, recordId: record.sourceId },
-            `Failed to index record to vector store`,
-          );
-        }
-
-        // 3. Index entities to graph store (if available and record has entities)
-        if (
-          graphStore &&
-          (record.extractedEntities?.length || record.extractedRelationships?.length)
-        ) {
-          try {
-            await indexConfigEntities(
-              record._id,
-              record.title || '',
-              serverName,
-              record.extractedEntities || [],
-              record.extractedRelationships || [],
-              graphStore,
-            );
-            entitiesIndexed += record.extractedEntities?.length || 0;
-          } catch (error) {
-            logger.error(
-              { error, recordId: record._id },
-              `Failed to index entities to graph store`,
-            );
-          }
-        }
-      }
-
-      recordsProcessed += records.length;
-
-      logger.info(
-        `Processed ${recordsProcessed} records from ${serverName} (${vectorChunks} vectors, ${entitiesIndexed} entities)`,
-      );
     }
+
+    // Queue the sync job
+    const { syncMcpServerQueue } = await import('../../services/queue/sync.queue.js');
+    const job = await syncMcpServerQueue.add(
+      `sync-${serverName}-${Date.now()}`,
+      {
+        mcpConfig: dataSource as any,
+      },
+      {
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    );
+
+    logger.info({ serverName, jobId: job.id }, `Queued sync job for ${serverName}`);
 
     return res.json({
-      success: true,
-      recordsProcessed,
-      vectorChunks,
-      entitiesIndexed,
-      syncType: incremental ? 'incremental' : 'full',
+      data: {
+        success: true,
+        jobId: job.id,
+        serverName,
+        message: 'Sync job queued successfully',
+      },
     });
   } catch (err) {
-    logger.error({ err }, 'Failed to sync with config');
-    return res.status(500).json({ error: 'Sync failed' });
+    logger.error({ err }, 'Failed to queue sync job');
+    return res.status(500).json({
+      error: 'Failed to queue sync job',
+      message: err instanceof Error ? err.message : 'Unknown error',
+    });
   }
 });
 

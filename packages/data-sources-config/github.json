@@ -37,13 +37,7 @@
       "allowBurst": true,
       "burstMultiplier": 1.5
     },
-    "syncOrder": [
-      "search_repositories",
-      "list_issues",
-      "list_pull_requests",
-      "list_releases",
-      "list_discussions"
-    ],
+    "syncOrder": ["search_repositories", "list_issues", "list_pull_requests", "list_releases"],
     "fetchers": {
       "search_repositories": {
         "tool": "search_repositories",
@@ -151,35 +145,6 @@
         "cutoffDate": {
           "strategy": "post_fetch",
           "dateFieldPath": "$.published_at"
-        }
-      },
-      "list_discussions": {
-        "tool": "list_discussions",
-        "forEach": {
-          "source": "search_repositories",
-          "path": "$[*]",
-          "paramMapping": {
-            "owner": "$.owner.login",
-            "repo": "$.name"
-          },
-          "concurrency": 3,
-          "continueOnError": true,
-          "retries": 2
-        },
-        "resultPath": "$.content[0].text",
-        "arrayPath": "$.discussions[*]",
-        "pagination": {
-          "type": "cursor",
-          "cursorParam": "after",
-          "cursorPath": "$.pageInfo.endCursor",
-          "hasNextPath": "$.pageInfo.hasNextPage"
-        },
-        "detection": {
-          "type": "always"
-        },
-        "cutoffDate": {
-          "strategy": "post_fetch",
-          "dateFieldPath": "$.created_at"
         }
       }
     },
@@ -432,68 +397,6 @@
             "condition": "record.author && record.author.login"
           }
         ]
-      },
-      "discussion": {
-        "name": "discussion",
-        "fetcher": "list_discussions",
-        "fields": {
-          "title": {
-            "type": "path",
-            "path": "$.title"
-          },
-          "content": {
-            "type": "path",
-            "path": "$.body"
-          },
-          "people": {
-            "type": "paths",
-            "paths": ["$.user.login", "$.answer_chosen_by.login"]
-          },
-          "sourceCreatedAt": {
-            "type": "path",
-            "path": "$.created_at"
-          },
-          "sourceUpdatedAt": {
-            "type": "path",
-            "path": "$.updated_at"
-          },
-          "tags": {
-            "type": "paths",
-            "paths": ["$.state", "$.category.name"]
-          }
-        },
-        "entities": [
-          {
-            "name": "author",
-            "type": "User",
-            "idPath": "$.user.login",
-            "titlePath": "$.user.login",
-            "condition": "record.user && record.user.login"
-          },
-          {
-            "name": "answer_chooser",
-            "type": "User",
-            "idPath": "$.answer_chosen_by.login",
-            "titlePath": "$.answer_chosen_by.login",
-            "condition": "record.answer_chosen_by && record.answer_chosen_by.login"
-          }
-        ],
-        "relationships": [
-          {
-            "name": "started_by",
-            "type": "STARTED_BY",
-            "targetType": "User",
-            "targetIdPath": "$.user.login",
-            "condition": "record.user && record.user.login"
-          },
-          {
-            "name": "answered_by",
-            "type": "ANSWERED_BY",
-            "targetType": "User",
-            "targetIdPath": "$.answer_chosen_by.login",
-            "condition": "record.answer_chosen_by && record.answer_chosen_by.login"
-          }
-        ]
       }
     },
     "toolClassifications": {
@@ -539,10 +442,6 @@
       },
       "list_secret_scanning_alerts": {
         "toolName": "list_secret_scanning_alerts",
-        "category": "read"
-      },
-      "list_discussions": {
-        "toolName": "list_discussions",
         "category": "read"
       }
     }

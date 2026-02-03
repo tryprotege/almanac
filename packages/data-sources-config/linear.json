@@ -26,12 +26,22 @@
       "list_users": {
         "tool": "list_users",
         "description": "All users in the Linear workspace",
-        "resultPath": "$.content[0].text"
+        "resultPath": "$.content[0].text",
+        "arrayPath": "$.users[*]",
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.updatedAt"
+        }
       },
       "list_teams": {
         "tool": "list_teams",
         "description": "All teams in the Linear workspace",
-        "resultPath": "$.content[0].text"
+        "resultPath": "$.content[0].text",
+        "arrayPath": "$.teams[*]",
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.updatedAt"
+        }
       },
       "list_statuses": {
         "tool": "list_issue_statuses",
@@ -46,22 +56,34 @@
           "continueOnError": true,
           "retries": 2
         },
-        "resultPath": "$.content[0].text"
+        "resultPath": "$.content[0].text",
+        "arrayPath": "$[*]"
       },
       "list_labels": {
         "tool": "list_issue_labels",
         "description": "All issue labels (workspace‑wide)",
-        "resultPath": "$.content[0].text"
+        "resultPath": "$.content[0].text",
+        "arrayPath": "$.labels[*]"
       },
       "list_projects": {
         "tool": "list_projects",
         "description": "All projects in the workspace",
-        "resultPath": "$.content[0].text"
+        "resultPath": "$.content[0].text",
+        "arrayPath": "$.projects[*]",
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.updatedAt"
+        }
       },
       "list_issues": {
         "tool": "list_issues",
         "description": "All issues (including archived) – will be filtered later by record type",
-        "resultPath": "$.content[0].text"
+        "resultPath": "$.content[0].text",
+        "arrayPath": "$.issues[*]",
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.updatedAt"
+        }
       },
       "list_comments": {
         "tool": "list_comments",
@@ -76,7 +98,12 @@
           "continueOnError": true,
           "retries": 2
         },
-        "resultPath": "$.content[0].text"
+        "resultPath": "$.content[0].text",
+        "arrayPath": "$[*]",
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.updatedAt"
+        }
       }
     },
     "recordTypes": {

@@ -60,6 +60,7 @@ async function persistToMongo(records: TransformedRecord[]): Promise<void> {
 }
 
 /**
+ * TODO: remove if unused
  * Helper: Index records to vector store
  */
 async function indexToVectors(
@@ -103,11 +104,6 @@ export const syncMcpServer = async (dataSource: DataSource, _options?: { limit?:
 
   logger.info({ serverName: dataSource.name }, 'Starting config-based sync');
 
-  // 2. Initialize stores
-  const recordStore = new RecordStore();
-  const qdrant = await connectQdrant();
-  const vectorStore = new VectorStore(qdrant);
-
   let recordsProcessed = 0;
   const fetcherStats = new Map<string, { recordCount: number }>();
 
@@ -120,11 +116,7 @@ export const syncMcpServer = async (dataSource: DataSource, _options?: { limit?:
 
   // 4. Process records in batches
   for await (const { records, progress } of syncGenerator) {
-    // 4a. Persist to MongoDB
     await persistToMongo(records);
-
-    // 4b. Index to vectors
-    await indexToVectors(records, recordStore, vectorStore);
 
     recordsProcessed += records.length;
 

@@ -195,7 +195,7 @@ const TEST_SUITE: TestCase[] = [
     arguments: {
       mode: 'mix',
       chunk_top_k: 15,
-      enable_rerank: false,
+      disable_rerank: true,
     },
     expected: {
       mode: 'mix',
@@ -284,7 +284,7 @@ const TEST_SUITE: TestCase[] = [
       mode: 'mix',
       score_threshold: 0.8,
       chunk_top_k: 10,
-      enable_rerank: true,
+      disable_rerank: false,
     },
     expected: {
       minScore: 0.8,

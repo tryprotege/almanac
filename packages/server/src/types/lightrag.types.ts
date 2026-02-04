@@ -100,6 +100,7 @@ export type LightRAGResponse = {
   recordType: string;
   rawData: any;
   score: number;
+  content: string;
 }[];
 
 // ============================================
@@ -136,11 +137,11 @@ export const lightragQueryInputSchema = z.object({
     .describe(
       "Maximum number of document chunks (text excerpts) to return in the final results. This is the actual number of results you'll receive. Range: 5-50. Recommended: 10-20 for focused context, 30-50 for broad context. Default: 20",
     ),
-  enable_rerank: z
+  disable_rerank: z
     .boolean()
     .optional()
     .describe(
-      "Whether to use LLM-based reranking to improve result relevance. Reranking re-scores the initial results using semantic understanding, significantly improving accuracy but adding ~200ms processing time. Highly recommended for production. Only has effect when mode is 'mix'. Default: true",
+      "Whether to disable LLM-based reranking. When false (default), reranking re-scores the initial results using semantic understanding, significantly improving accuracy but adding ~200ms processing time. Set to true to skip reranking for faster results. Only has effect when mode is 'mix'. Default: false",
     ),
   score_threshold: z
     .number()

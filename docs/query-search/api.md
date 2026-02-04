@@ -28,7 +28,7 @@ POST http://localhost:3000/api/query
   "top_k": 60,
   "chunk_top_k": 20,
   "score_threshold": 0.5,
-  "enable_rerank": true,
+  "disable_rerank": false,
   "source": "slack",
   "record_types": ["message", "thread"],
   "date_range": {
@@ -159,24 +159,24 @@ Minimum relevance score (0.0-1.0) for results.
 
 ---
 
-#### `enable_rerank` (boolean)
+#### `disable_rerank` (boolean)
 
-Enable LLM-based reranking (only for `mix` mode).
+Disable LLM-based reranking (only for `mix` mode).
 
-**Default**: `true`
+**Default**: `false`
 
 ```json
 {
   "query": "...",
   "mode": "mix",
-  "enable_rerank": true
+  "disable_rerank": false
 }
 ```
 
 **Performance Impact**:
 
-- Enabled: Slower (~300-600ms) but more accurate
-- Disabled: Faster (~200-400ms) but less accurate
+- Disabled (false): Slower (~300-600ms) but more accurate
+- Enabled (true): Faster (~200-400ms) but less accurate
 
 ---
 
@@ -445,12 +445,12 @@ curl -X POST http://localhost:3000/api/query \
 
 ```typescript
 const query = async (question: string) => {
-  const response = await fetch("http://localhost:3000/api/query", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+  const response = await fetch('http://localhost:3000/api/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       query: question,
-      mode: "mix",
+      mode: 'mix',
       top_k: 60,
       chunk_top_k: 20,
     }),
@@ -535,20 +535,20 @@ Query multiple sources in parallel:
 
 ```typescript
 const multiSourceQuery = async (question: string) => {
-  const sources = ["slack", "github", "notion"];
+  const sources = ['slack', 'github', 'notion'];
 
   const results = await Promise.all(
     sources.map((source) =>
-      fetch("http://localhost:3000/api/query", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      fetch('http://localhost:3000/api/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: question,
           source,
-          mode: "hybrid",
+          mode: 'hybrid',
         }),
-      }).then((r) => r.json())
-    )
+      }).then((r) => r.json()),
+    ),
   );
 
   // Combine and sort
@@ -564,15 +564,14 @@ Start with fast mode, upgrade if needed:
 ```typescript
 const smartQuery = async (question: string) => {
   // Try naive first
-  const naiveResults = await query({ query: question, mode: "naive" });
+  const naiveResults = await query({ query: question, mode: 'naive' });
 
   // Check quality
-  const avgScore =
-    naiveResults.reduce((sum, r) => sum + r.score, 0) / naiveResults.length;
+  const avgScore = naiveResults.reduce((sum, r) => sum + r.score, 0) / naiveResults.length;
 
   // Upgrade to mix if scores are low
   if (avgScore < 0.7) {
-    return await query({ query: question, mode: "mix" });
+    return await query({ query: question, mode: 'mix' });
   }
 
   return naiveResults;
@@ -584,19 +583,15 @@ const smartQuery = async (question: string) => {
 For large result sets:
 
 ```typescript
-const paginatedQuery = async (
-  question: string,
-  page: number,
-  pageSize: number
-) => {
+const paginatedQuery = async (question: string, page: number, pageSize: number) => {
   const offset = page * pageSize;
 
-  return await fetch("http://localhost:3000/api/query", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+  return await fetch('http://localhost:3000/api/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       query: question,
-      mode: "mix",
+      mode: 'mix',
       top_k: 200, // Retrieve many candidates
       chunk_top_k: pageSize,
       offset, // Skip previous pages
@@ -620,13 +615,13 @@ For higher limits, contact support or self-host.
 
 ```typescript
 // Fast queries
-mode: "naive"; // 50-100ms
+mode: 'naive'; // 50-100ms
 
 // Balanced
-mode: "hybrid"; // 200-400ms
+mode: 'hybrid'; // 200-400ms
 
 // Accurate
-mode: "mix"; // 300-600ms
+mode: 'mix'; // 300-600ms
 ```
 
 ### 2. Adjust `top_k`
@@ -645,7 +640,7 @@ top_k: 100;
 // For speed-sensitive applications
 {
   mode: "hybrid",
-  enable_rerank: false
+  disable_rerank: true
 }
 ```
 

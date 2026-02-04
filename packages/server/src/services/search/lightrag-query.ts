@@ -129,6 +129,7 @@ export async function lightragQuery(
       source: r.source,
       recordType: r.recordType,
       rawData: r.rawData,
+      content: r.content,
       score: sortedChunks.find((c) => c.document_id === r._id)?.score || 0,
     }));
 }
@@ -295,8 +296,8 @@ async function mixMode(
   // Run hybrid mode first
   const hybridResult = await hybridMode(params, keywords, deps);
 
-  // Apply reranking if enabled
-  if (params.enable_rerank !== false && env.RERANKER_ENABLED && hybridResult.chunks.length > 0) {
+  // Apply reranking if not disabled
+  if (!params.disable_rerank && env.RERANKER_ENABLED && hybridResult.chunks.length > 0) {
     logger.debug({ msg: `[LightRAG] Applying reranking...` });
     const rerankedChunks = await rerankChunks(params.query, hybridResult.chunks);
 
@@ -674,7 +675,7 @@ function applyDefaults(query: LightRAGQueryInput): LightRAGQueryInput {
     response_format: query.response_format || 'compact',
     top_k: query.top_k ?? 60,
     chunk_top_k: query.chunk_top_k ?? 20,
-    enable_rerank: query.enable_rerank ?? true,
+    disable_rerank: query.disable_rerank ?? false,
     score_threshold: query.score_threshold ?? 0,
   };
 }

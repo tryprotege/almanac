@@ -3,6 +3,7 @@ import { DataSourceModel, IDataSourceModel } from '../../models/data-source.mode
 import { IndexingConfigModel } from '../../models/indexing-config.model.js';
 import { MCPSyncStateModel } from '../../models/mcp-sync-state.model.js';
 import { mcpClientManager } from '../../mcp/client.js';
+import { registerDataSourceTools, mcpServer } from '../../mcp/initialization.js';
 import { presetLoader } from '../../services/presets/preset-loader.service.js';
 import logger from '../../utils/logger.js';
 
@@ -396,11 +397,38 @@ dataSourcesRouter.post('/:name/connect', async (req: Request, res: Response) => 
     // Connect (or reconnect)
     await mcpClientManager.connect(dataSource);
 
-    logger.info({ name }, 'Data source connected');
+    // Load tool classifications from preset before registering tools
+    // This ensures write tools are properly filtered during registration
+    if (dataSource.presetId) {
+      const preset = presetLoader.getPreset(dataSource.presetId);
+      if (preset?.indexingConfig?.toolClassifications) {
+        mcpClientManager.setToolClassifications(
+          dataSource.name,
+          preset.indexingConfig.toolClassifications,
+        );
+        logger.info(
+          {
+            serverName: dataSource.name,
+            presetId: dataSource.presetId,
+            count: Object.keys(preset.indexingConfig.toolClassifications).length,
+          },
+          'Loaded tool classifications from preset before tool registration',
+        );
+      }
+    }
+
+    // Wait a moment for tools to be cached, then register them
+    // The connect method calls refreshTools but it may take a moment to complete
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Register tools on the MCP server
+    const toolCount = await registerDataSourceTools(name, mcpServer);
+
+    logger.info({ name, toolCount }, 'Data source connected and tools registered');
 
     res.json({
       success: true,
-      message: `Connected to '${name}'`,
+      message: `Connected to '${name}' and registered ${toolCount} tools`,
     });
   } catch (err) {
     logger.error({ err, name: req.params.name }, 'Error connecting to data source');

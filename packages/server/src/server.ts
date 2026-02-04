@@ -17,18 +17,8 @@ import { indexGraphWorker } from './services/queue/index-graph.queue.js';
 
 // Start server
 const runServer = async () => {
-  // In setup mode, only initialize MongoDB for storing config
-  // In normal mode, initialize all services
-  if (!env.isSetupMode) {
-    await initializeServices();
-  } else {
-    // Only connect to MongoDB in setup mode
-    const { connectMongoose } = await import('./connections/mongoose.js');
-    await connectMongoose();
-    logger.warn('⚠️  Running in SETUP MODE - LLM features disabled until configured');
-  }
-
-  // Load presets from data-sources-config directory
+  // Load presets from data-sources-config directory FIRST
+  // This must happen before initializeServices() so tool classifications are available
   logger.info('Loading data source presets...');
   try {
     await presetLoader.loadPresetsAtStartup();
@@ -38,6 +28,17 @@ const runServer = async () => {
     );
   } catch (error) {
     logger.error({ error }, 'Failed to load presets, continuing anyway');
+  }
+
+  // In setup mode, only initialize MongoDB for storing config
+  // In normal mode, initialize all services
+  if (!env.isSetupMode) {
+    await initializeServices();
+  } else {
+    // Only connect to MongoDB in setup mode
+    const { connectMongoose } = await import('./connections/mongoose.js');
+    await connectMongoose();
+    logger.warn('⚠️  Running in SETUP MODE - LLM features disabled until configured');
   }
 
   // Initialize sync scheduler

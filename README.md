@@ -263,6 +263,18 @@ cp packages/server/.env.example packages/server/.env
 
 See [`packages/server/.env.example`](packages/server/.env.example) for all available options.
 
+## 🤖 Connect AI Clients
+
+Almanac exposes an MCP (Model Context Protocol) server that allows AI clients to directly access your indexed data:
+
+- **Claude Desktop** - Connect via MCP configuration
+- **Cline (VS Code)** - Integrate with your development workflow
+- **ChatGPT** - Use Developer Mode (requires public server)
+
+**[View AI Client Setup Guide →](docs/getting-started/ai-clients.md)**
+
+Once connected, your AI assistant can search across all your data sources using natural language queries.
+
 ## 📄 License
 
 This project is licensed under the terms specified in the LICENSE file.

@@ -7,6 +7,7 @@
 - [Quickstart](getting-started/quickstart.md)
 - [Installation](getting-started/installation.md)
 - [Configuration](getting-started/configuration.md)
+- [Connecting AI Clients](getting-started/ai-clients.md)
 
 ## Core Concepts
 

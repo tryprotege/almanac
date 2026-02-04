@@ -29,7 +29,7 @@ interface GraphDataVisualizationProps {
 
 // Custom node component for actual graph nodes
 function DataNode({ data }: { data: any }) {
-  const getNodeColor = (type: string) => {
+  const getNodeColor = (type: string | null | undefined) => {
     const colors: Record<string, string> = {
       page: 'bg-brand-blue',
       task: 'bg-brand-success',
@@ -38,6 +38,7 @@ function DataNode({ data }: { data: any }) {
       database: 'bg-brand-error',
       default: 'bg-text-tertiary',
     };
+    if (!type) return colors.default;
     return colors[type.toLowerCase()] || colors.default;
   };
 
@@ -112,7 +113,7 @@ function GraphDataVisualizationInner({
     const nodes: Node[] = [];
     const edges: Edge[] = [];
 
-    if (!graphData || !graphData.nodes) {
+    if (!graphData || !graphData.nodes || !graphData.relationships) {
       return {
         initialNodes: [],
         initialEdges: [],
@@ -229,7 +230,7 @@ function GraphDataVisualizationInner({
     console.log('Node clicked:', node);
   }, []);
 
-  if (!graphData || graphData.nodes.length === 0) {
+  if (!graphData || !graphData.nodes || graphData.nodes.length === 0) {
     return (
       <div className="flex items-center justify-center h-96 bg-bg-secondary rounded-lg border-2 border-dashed border-border-secondary">
         <div className="text-center">

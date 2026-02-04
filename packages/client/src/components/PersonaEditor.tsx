@@ -51,7 +51,7 @@ export function PersonaEditor() {
     return (
       <div className="card">
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-brand-purple" />
+          <Loader2 className="w-6 h-6 animate-spin text-brand-lime" />
           <span className="ml-2 text-text-tertiary">Loading persona...</span>
         </div>
       </div>
@@ -68,7 +68,7 @@ export function PersonaEditor() {
           </p>
         </div>
         {(isUpdating || isDeleting) && (
-          <Loader2 className="w-5 h-5 animate-spin text-brand-purple" />
+          <Loader2 className="w-5 h-5 animate-spin text-brand-lime" />
         )}
       </div>
 

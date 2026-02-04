@@ -98,7 +98,7 @@ export default function IndexingConfigDetail() {
       <div className="pb-8">
         <div className="w-full py-8">
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-brand-purple animate-spin" />
+            <Loader2 className="w-8 h-8 text-brand-lime animate-spin" />
           </div>
         </div>
       </div>
@@ -185,7 +185,7 @@ export default function IndexingConfigDetail() {
           {/* Generating State */}
           {generationStep === 'generating' && (
             <div className="card text-center py-12">
-              <Loader2 className="w-12 h-12 text-brand-purple animate-spin mx-auto mb-4" />
+              <Loader2 className="w-12 h-12 text-brand-lime animate-spin mx-auto mb-4" />
               <h3 className="text-lg font-medium text-text-primary mb-2">Generating Config...</h3>
               <p className="text-text-tertiary">
                 Analyzing MCP server and generating indexing configuration
@@ -214,8 +214,8 @@ export default function IndexingConfigDetail() {
 
                 <div className="card">
                   <div className="flex items-center gap-3">
-                    <div className="p-3 bg-brand-purple/10 rounded-lg">
-                      <FileJson className="w-6 h-6 text-brand-purple" />
+                    <div className="p-3 bg-brand-lime/10 rounded-lg">
+                      <FileJson className="w-6 h-6 text-brand-lime" />
                     </div>
                     <div>
                       <p className="text-sm text-text-tertiary">Fetchers</p>
@@ -311,7 +311,7 @@ export default function IndexingConfigDetail() {
 
               {/* Sync Pipeline */}
               {generatedResult.config.syncOrder && generatedResult.config.syncOrder.length > 0 && (
-                <div className="bg-gradient-to-r from-brand-blue/5 to-brand-purple/5 border border-brand-blue/30 rounded-lg p-4">
+                <div className="bg-gradient-to-r from-brand-blue/5 to-brand-lime/5 border border-brand-blue/30 rounded-lg p-4">
                   <h3 className="text-xs font-medium text-text-tertiary uppercase mb-3">
                     Sync Pipeline
                   </h3>
@@ -493,7 +493,7 @@ export default function IndexingConfigDetail() {
       <div className="pb-8">
         <div className="w-full py-8">
           <div className="card text-center py-12">
-            <Loader2 className="w-12 h-12 text-brand-purple animate-spin mx-auto mb-4" />
+            <Loader2 className="w-12 h-12 text-brand-lime animate-spin mx-auto mb-4" />
             <h3 className="text-lg font-medium text-text-primary mb-2">Regenerating Config...</h3>
             <p className="text-text-tertiary">
               Analyzing MCP server and generating new indexing configuration
@@ -545,8 +545,8 @@ export default function IndexingConfigDetail() {
 
               <div className="card">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-brand-purple/10 rounded-lg">
-                    <FileJson className="w-6 h-6 text-brand-purple" />
+                  <div className="p-3 bg-brand-lime/10 rounded-lg">
+                    <FileJson className="w-6 h-6 text-brand-lime" />
                   </div>
                   <div>
                     <p className="text-sm text-text-tertiary">Fetchers</p>
@@ -642,7 +642,7 @@ export default function IndexingConfigDetail() {
 
             {/* Sync Pipeline */}
             {generatedResult.config.syncOrder && generatedResult.config.syncOrder.length > 0 && (
-              <div className="bg-gradient-to-r from-brand-blue/5 to-brand-purple/5 border border-brand-blue/30 rounded-lg p-4">
+              <div className="bg-gradient-to-r from-brand-blue/5 to-brand-lime/5 border border-brand-blue/30 rounded-lg p-4">
                 <h3 className="text-xs font-medium text-text-tertiary uppercase mb-3">
                   Sync Pipeline
                 </h3>
@@ -867,10 +867,10 @@ export default function IndexingConfigDetail() {
 
         {/* Post-Processing Info */}
         {(config.config as any).postProcessing?.enabled && (
-          <div className="mb-6 bg-gradient-to-r from-brand-purple/5 to-brand-blue/5 border border-brand-purple/30 rounded-lg p-4">
+          <div className="mb-6 bg-gradient-to-r from-brand-lime/5 to-brand-blue/5 border border-brand-lime/30 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-brand-purple/10 rounded-lg flex-shrink-0">
-                <RefreshCw className="w-5 h-5 text-brand-purple" />
+              <div className="p-2 bg-brand-lime/10 rounded-lg flex-shrink-0">
+                <RefreshCw className="w-5 h-5 text-brand-lime" />
               </div>
               <div className="flex-1">
                 <h3 className="text-sm font-medium text-text-primary mb-1">
@@ -908,7 +908,7 @@ export default function IndexingConfigDetail() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-bg-primary border border-border-secondary rounded-lg p-4">
             <div className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-brand-purple" />
+              <Database className="w-5 h-5 text-brand-lime" />
               <div>
                 <p className="text-xs text-text-quaternary">Fetchers</p>
                 <p className="text-xl font-bold text-text-primary">
@@ -932,7 +932,7 @@ export default function IndexingConfigDetail() {
 
           <div className="bg-bg-primary border border-border-secondary rounded-lg p-4">
             <div className="flex items-center gap-2">
-              <GitBranch className="w-5 h-5 text-brand-purple" />
+              <GitBranch className="w-5 h-5 text-brand-lime" />
               <div>
                 <p className="text-xs text-text-quaternary">Entities</p>
                 <p className="text-xl font-bold text-text-primary">
@@ -963,7 +963,7 @@ export default function IndexingConfigDetail() {
 
         {/* Sync Pipeline */}
         {(config.config as any).syncOrder && (config.config as any).syncOrder.length > 0 && (
-          <div className="mb-6 bg-gradient-to-r from-brand-blue/5 to-brand-purple/5 border border-brand-blue/30 rounded-lg p-4">
+          <div className="mb-6 bg-gradient-to-r from-brand-blue/5 to-brand-lime/5 border border-brand-blue/30 rounded-lg p-4">
             <h3 className="text-xs font-medium text-text-tertiary uppercase mb-3">Sync Pipeline</h3>
             <div className="flex items-center gap-2 overflow-x-auto pb-2">
               {(config.config as any).syncOrder.map((fetcherName: string, index: number) => (
@@ -1173,7 +1173,7 @@ export default function IndexingConfigDetail() {
                             }
                           }
                         }}
-                        className="w-full bg-bg-tertiary text-text-primary p-4 rounded-lg font-mono text-sm resize-y min-h-96 max-h-[600px] focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                        className="w-full bg-bg-tertiary text-text-primary p-4 rounded-lg font-mono text-sm resize-y min-h-96 max-h-[600px] focus:outline-none focus:ring-2 focus:ring-brand-lime"
                         spellCheck={false}
                       />
                     ) : (

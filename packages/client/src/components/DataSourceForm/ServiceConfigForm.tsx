@@ -242,8 +242,8 @@ export function ServiceConfigForm({
     <form onSubmit={handleSubmit} className="p-6 space-y-6 w-full">
       {/* Header */}
       <div className="flex items-start gap-4">
-        <div className="p-3 rounded-lg bg-brand-purple/10">
-          <Icon className="w-6 h-6 text-brand-purple" />
+        <div className="p-3 rounded-lg bg-brand-lime/10">
+          <Icon className="w-6 h-6 text-brand-lime" />
         </div>
         <div className="flex-1">
           <h3 className="text-lg font-semibold text-text-primary">
@@ -284,7 +284,7 @@ export function ServiceConfigForm({
                   href={preset.authGuide}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-sm text-brand-purple hover:underline"
+                  className="inline-flex items-center gap-1 text-sm text-brand-lime hover:underline"
                 >
                   Get Credentials
                   <ExternalLink className="w-3 h-3" />
@@ -295,7 +295,7 @@ export function ServiceConfigForm({
                   href={preset.documentation}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-sm text-brand-purple hover:underline"
+                  className="inline-flex items-center gap-1 text-sm text-brand-lime hover:underline"
                 >
                   Documentation
                   <ExternalLink className="w-3 h-3" />
@@ -403,7 +403,7 @@ export function ServiceConfigForm({
             checked={isDisabled}
             onChange={(e) => setIsDisabled(e.target.checked)}
             disabled={isLoading}
-            className="w-4 h-4 text-brand-purple border-border-primary rounded focus:ring-brand-purple"
+            className="w-4 h-4 text-brand-lime border-border-primary rounded focus:ring-brand-lime"
           />
           <span className="text-sm text-text-secondary">
             Disable this server (prevent automatic connection)

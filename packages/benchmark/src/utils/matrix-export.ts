@@ -55,15 +55,15 @@ async function exportMatrixCSV(results: MatrixBenchmarkResults, filepath: string
 
   // Data rows
   for (const [agent, agentResults] of Object.entries(results.matrix)) {
-    // eBee row
+    // Almanac row
     rows.push(
       [
         agent,
-        'ebee',
-        agentResults.ebee.time,
-        agentResults.ebee.tokens,
-        agentResults.ebee.cost.toFixed(4),
-        agentResults.ebee.quality.toFixed(2),
+        'almanac',
+        agentResults.almanac.time,
+        agentResults.almanac.tokens,
+        agentResults.almanac.cost.toFixed(4),
+        agentResults.almanac.quality.toFixed(2),
       ].join(','),
     );
 

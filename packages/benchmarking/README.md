@@ -247,7 +247,7 @@ Navigate to the mock-mcp-server and set up the environment:
       "command": "npx",
       "args": ["-y", "./packages/mock-mcp-server"],
       "env": {
-        "MOCK_DATA_PATH": "/Users/viveksingh/Desktop/Projects/ebee-oss/packages/benchmarking/output/combined/data.json",
+        "MOCK_DATA_PATH": "/Users/viveksingh/Desktop/Projects/almanac/packages/benchmarking/output/combined/data.json",
         "SOURCE_TYPE": "slack"
       }
     },
@@ -255,7 +255,7 @@ Navigate to the mock-mcp-server and set up the environment:
       "command": "npx",
       "args": ["-y", "./packages/mock-mcp-server"],
       "env": {
-        "MOCK_DATA_PATH": "/Users/viveksingh/Desktop/Projects/ebee-oss/packages/benchmarking/output/combined/data.json",
+        "MOCK_DATA_PATH": "/Users/viveksingh/Desktop/Projects/almanac/packages/benchmarking/output/combined/data.json",
         "SOURCE_TYPE": "github"
       }
 }
@@ -304,7 +304,7 @@ pnpm run generate:small
       "command": "npx",
       "args": ["-y", "./packages/mock-mcp-server"],
       "env": {
-        "MOCK_DATA_PATH": "/Users/viveksingh/Desktop/Projects/ebee-oss/packages/benchmarking/output/combined/data.json",
+        "MOCK_DATA_PATH": "/Users/viveksingh/Desktop/Projects/almanac/packages/benchmarking/output/combined/data.json",
         "SOURCE_TYPE": "slack"
       }
     },
@@ -312,21 +312,21 @@ pnpm run generate:small
       "command": "npx",
       "args": ["-y", "./packages/mock-mcp-server"],
       "env": {
-        "MOCK_DATA_PATH": "/Users/viveksingh/Desktop/Projects/ebee-oss/packages/benchmarking/output/combined/data.json",
+        "MOCK_DATA_PATH": "/Users/viveksingh/Desktop/Projects/almanac/packages/benchmarking/output/combined/data.json",
         "SOURCE_TYPE": "github"
     },
     "fathom-mock": {
       "command": "npx",
       "args": ["-y", "./packages/mock-mcp-server"],
       "env": {
-        "MOCK_DATA_PATH": "/Users/viveksingh/Desktop/Projects/ebee-oss/packages/benchmarking/output/combined/data.json",
+        "MOCK_DATA_PATH": "/Users/viveksingh/Desktop/Projects/almanac/packages/benchmarking/output/combined/data.json",
         "SOURCE_TYPE": "fathom"
     },
     "notion-mock": {
       "command": "npx",
       "args": ["-y", "./packages/mock-mcp-server"],
       "env": {
-        "MOCK_DATA_PATH": "/Users/viveksingh/Desktop/Projects/ebee-oss/packages/benchmarking/output/combined/data.json",
+        "MOCK_DATA_PATH": "/Users/viveksingh/Desktop/Projects/almanac/packages/benchmarking/output/combined/data.json",
         "SOURCE_TYPE": "notion"
     },
 }

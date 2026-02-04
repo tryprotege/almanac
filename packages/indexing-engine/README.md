@@ -1,4 +1,4 @@
-# @ebee-oss/indexing-engine
+# @almanac/indexing-engine
 
 Config-based indexing engine for MCP servers. Eliminates the need for hand-coded adapters by using LLM-generated configurations.
 
@@ -58,7 +58,7 @@ pnpm build
 ### Basic Transformation
 
 ```typescript
-import { RecordTransformer } from '@ebee-oss/indexing-engine';
+import { RecordTransformer } from '@almanac/indexing-engine';
 
 const recordTypeConfig = {
   name: 'page',
@@ -102,7 +102,7 @@ const result = await transformer.transform({
 ### Using Format Processors Directly
 
 ```typescript
-import { getFormatProcessor } from '@ebee-oss/indexing-engine';
+import { getFormatProcessor } from '@almanac/indexing-engine';
 
 const processor = getFormatProcessor('notion-blocks');
 const markdown = processor(notionBlocks);
@@ -179,7 +179,7 @@ The indexing engine is integrated with the server via:
 
 ```typescript
 // packages/server/src/services/indexing/config/config-indexer.service.ts
-import { RecordTransformer } from '@ebee-oss/indexing-engine';
+import { RecordTransformer } from '@almanac/indexing-engine';
 
 const indexer = new ConfigBasedIndexer(config, serverName);
 

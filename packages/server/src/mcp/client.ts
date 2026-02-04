@@ -399,7 +399,7 @@ class MCPClientManager {
     }
 
     const client = new Client(
-      { name: `ebee-proxy-client-${dataSource.name}`, version: '0.1.0' },
+      { name: `almanac-proxy-client-${dataSource.name}`, version: '0.1.0' },
       { capabilities: {} },
     );
 

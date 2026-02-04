@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "ebee": {
+    "almanac": {
       "command": "npx",
       "args": [
         "-y",

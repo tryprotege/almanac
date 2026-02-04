@@ -1,6 +1,6 @@
-# @ebee-oss/benchmark
+# @almanac/benchmark
 
-Benchmarking framework for eBee MCP server performance testing using **CLI-based execution** for accurate, real-world metrics.
+Benchmarking framework for Almanac MCP server performance testing using **CLI-based execution** for accurate, real-world metrics.
 
 ## Features
 
@@ -71,8 +71,8 @@ Both Amp and Claude use Anthropic's API, so you can use the same API key for bot
 The primary benchmark compares different CLI agents with eBee vs Direct MCP setups:
 
 ```typescript
-import { runMatrixBenchmark } from '@ebee-oss/benchmark';
-import type { MatrixBenchmarkConfig } from '@ebee-oss/benchmark';
+import { runMatrixBenchmark } from '@almanac/benchmark';
+import type { MatrixBenchmarkConfig } from '@almanac/benchmark';
 
 const config: MatrixBenchmarkConfig = {
   name: 'Agent × MCP Matrix Comparison',
@@ -94,13 +94,13 @@ const config: MatrixBenchmarkConfig = {
 
   // MCP setup configurations
   mcpSetups: {
-    ebee: {
+    almanac: {
       url: 'http://localhost:3000',
     },
     direct: {
       servers: ['fathom', 'notion'],
       packages: {
-        fathom: '@ebee-oss/fathom-mcp-server',
+        fathom: '@almanac/fathom-mcp-server',
         notion: '@notionhq/notion-mcp-server',
       },
     },
@@ -129,7 +129,7 @@ pnpm test:matrix
 
 This will:
 
-1. Test each agent with **eBee** (unified search)
+1. Test each agent with **Almanac** (unified search)
 2. Test each agent with **Direct MCP** (individual server queries)
 3. Generate a comparison matrix showing which combination is fastest/cheapest
 
@@ -138,16 +138,16 @@ This will:
 The matrix benchmark produces a table like this:
 
 ```
-Agent      | eBee Time | eBee Tokens | Direct Time | Direct Tokens | Speedup
------------|-----------|-------------|-------------|---------------|--------
-amp        | 2100ms    | 1200        | 3500ms      | 2100         | 1.67x
-claude-cli | 2500ms    | 1400        | 4200ms      | 2300         | 1.68x
+Agent      | Almanac Time | Almanac Tokens | Direct Time | Direct Tokens | Speedup
+-----------|--------------|----------------|-------------|---------------|--------
+amp        | 2100ms       | 1200           | 3500ms      | 2100         | 1.67x
+claude-cli | 2500ms       | 1400           | 4200ms      | 2300         | 1.68x
 ```
 
 This shows:
 
 - **Which agent is fastest** with each setup
-- **How much speedup** eBee provides over Direct
+- **How much speedup** Almanac provides over Direct
 - **Token efficiency** of each combination
 - **Cost savings** per agent
 
@@ -159,9 +159,9 @@ Results are exported to CSV files in your output directory.
 
 ```csv
 agent,setup,time_ms,tokens,cost_usd,quality
-amp,ebee,2100,1200,0.0180,0.85
+amp,almanac,2100,1200,0.0180,0.85
 amp,direct,3500,2100,0.0315,0.82
-claude-cli,ebee,2500,1400,0.0210,0.90
+claude-cli,almanac,2500,1400,0.0210,0.90
 claude-cli,direct,4200,2300,0.0345,0.88
 ```
 
@@ -173,8 +173,8 @@ amp,1.67,42.9,42.9
 claude-cli,1.68,39.1,39.1
 
 # Summary
-best_combination,amp + eBee
-fastest_with_ebee,amp + eBee
+best_combination,amp + Almanac
+fastest_with_almanac,amp + Almanac
 fastest_with_direct,amp + Direct
 most_efficient,amp (1.67x speedup)
 ```
@@ -183,9 +183,9 @@ most_efficient,amp (1.67x speedup)
 
 **Key Metrics:**
 
-- **speedup > 1.0** = eBee is faster than Direct
-- **token_savings > 0** = eBee uses fewer tokens
-- **cost_savings > 0** = eBee is cheaper to run
+- **speedup > 1.0** = Almanac is faster than Direct
+- **token_savings > 0** = Almanac uses fewer tokens
+- **cost_savings > 0** = Almanac is cheaper to run
 
 **Best Combination** = Fastest overall with lowest cost
 **Most Efficient** = Highest speedup ratio
@@ -211,7 +211,7 @@ Install from https://claude.ai/code
 The benchmark will automatically validate CLI tools are installed before running:
 
 ```typescript
-import { validateCLIAgent, checkCLIAvailable } from '@ebee-oss/benchmark';
+import { validateCLIAgent, checkCLIAvailable } from '@almanac/benchmark';
 
 // Check if tool is available
 const hasAmp = await checkCLIAvailable('amp');
@@ -251,8 +251,8 @@ interface MatrixBenchmarkConfig {
   outputDir: string;
   agents: AgentConfig[];
   mcpSetups: {
-    ebee: {
-      url: string; // eBee server URL
+    almanac: {
+      url: string; // Almanac server URL
     };
     direct: {
       servers: string[]; // MCP server names
@@ -274,7 +274,7 @@ interface MatrixBenchmarkConfig {
 
 **Analysis:**
 
-- Speedup factor (eBee vs Direct per agent)
+- Speedup factor (Almanac vs Direct per agent)
 - Token efficiency percentage
 - Cost savings percentage
 - Best overall combination

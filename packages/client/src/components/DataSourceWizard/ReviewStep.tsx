@@ -79,7 +79,7 @@ export function ReviewStep({
             Sync Configuration
             {isImported && <span className="ml-2 text-xs text-brand-blue">(Imported)</span>}
             {!isImported && (
-              <span className="ml-2 text-xs text-brand-purple">(Auto-Generated)</span>
+              <span className="ml-2 text-xs text-brand-lime">(Auto-Generated)</span>
             )}
           </h4>
           <div className="space-y-2">

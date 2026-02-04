@@ -43,8 +43,8 @@ export default function Schema() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="card">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-brand-purple/10 rounded-lg">
-                <Database className="w-6 h-6 text-brand-purple" />
+              <div className="p-3 bg-brand-lime/10 rounded-lg">
+                <Database className="w-6 h-6 text-brand-lime" />
               </div>
               <div>
                 <p className="text-sm text-text-tertiary">Entity Types</p>
@@ -92,7 +92,7 @@ export default function Schema() {
             {isLoading ? (
               <div className="flex items-center justify-center h-96">
                 <div className="flex flex-col items-center gap-3">
-                  <RefreshCw className="w-8 h-8 animate-spin text-brand-purple" />
+                  <RefreshCw className="w-8 h-8 animate-spin text-brand-lime" />
                   <p className="text-text-secondary">Loading schema...</p>
                 </div>
               </div>
@@ -125,7 +125,7 @@ export default function Schema() {
             {isLoadingGraphData ? (
               <div className="flex items-center justify-center h-96">
                 <div className="flex flex-col items-center gap-3">
-                  <RefreshCw className="w-8 h-8 animate-spin text-brand-purple" />
+                  <RefreshCw className="w-8 h-8 animate-spin text-brand-lime" />
                   <p className="text-text-secondary">Loading graph data...</p>
                 </div>
               </div>
@@ -194,7 +194,7 @@ export default function Schema() {
                       )}
                     </div>
                     {entityType.mcpSource && (
-                      <span className="px-2 py-1 bg-brand-purple/10 text-brand-purple text-xs rounded">
+                      <span className="px-2 py-1 bg-brand-lime/10 text-brand-lime text-xs rounded">
                         {entityType.mcpSource}
                       </span>
                     )}
@@ -226,7 +226,7 @@ export default function Schema() {
                       <h3 className="font-semibold text-text-primary">
                         {relType.name}
                         {relType.bidirectional && (
-                          <span className="ml-2 text-xs text-brand-purple">↔ Bidirectional</span>
+                          <span className="ml-2 text-xs text-brand-lime">↔ Bidirectional</span>
                         )}
                       </h3>
                       <p className="text-sm text-text-secondary mt-1">{relType.description}</p>
@@ -256,7 +256,7 @@ export default function Schema() {
                       </div>
                     </div>
                     {relType.mcpSource && (
-                      <span className="px-2 py-1 bg-brand-purple/10 text-brand-purple text-xs rounded">
+                      <span className="px-2 py-1 bg-brand-lime/10 text-brand-lime text-xs rounded">
                         {relType.mcpSource}
                       </span>
                     )}

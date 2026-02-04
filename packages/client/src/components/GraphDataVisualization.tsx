@@ -29,15 +29,16 @@ interface GraphDataVisualizationProps {
 
 // Custom node component for actual graph nodes
 function DataNode({ data }: { data: any }) {
-  const getNodeColor = (type: string) => {
+  const getNodeColor = (type: string | null | undefined) => {
     const colors: Record<string, string> = {
       page: 'bg-brand-blue',
       task: 'bg-brand-success',
-      person: 'bg-brand-purple',
+      person: 'bg-brand-lime',
       project: 'bg-brand-warning',
       database: 'bg-brand-error',
       default: 'bg-text-tertiary',
     };
+    if (!type) return colors.default;
     return colors[type.toLowerCase()] || colors.default;
   };
 
@@ -112,7 +113,7 @@ function GraphDataVisualizationInner({
     const nodes: Node[] = [];
     const edges: Edge[] = [];
 
-    if (!graphData || !graphData.nodes) {
+    if (!graphData || !graphData.nodes || !graphData.relationships) {
       return {
         initialNodes: [],
         initialEdges: [],
@@ -229,7 +230,7 @@ function GraphDataVisualizationInner({
     console.log('Node clicked:', node);
   }, []);
 
-  if (!graphData || graphData.nodes.length === 0) {
+  if (!graphData || !graphData.nodes || graphData.nodes.length === 0) {
     return (
       <div className="flex items-center justify-center h-96 bg-bg-secondary rounded-lg border-2 border-dashed border-border-secondary">
         <div className="text-center">
@@ -261,7 +262,7 @@ function GraphDataVisualizationInner({
               <Filter className="w-4 h-4" />
               Filter
               {selectedNodeTypes.length > 0 && (
-                <span className="px-1.5 py-0.5 bg-brand-purple text-white rounded-full text-xs">
+                <span className="px-1.5 py-0.5 bg-brand-lime text-white rounded-full text-xs">
                   {selectedNodeTypes.length}
                 </span>
               )}
@@ -290,7 +291,7 @@ function GraphDataVisualizationInner({
                           setSelectedNodeTypes(selectedNodeTypes.filter((t) => t !== type));
                         }
                       }}
-                      className="w-3 h-3 text-brand-purple bg-bg-secondary border-border-secondary rounded"
+                      className="w-3 h-3 text-brand-lime bg-bg-secondary border-border-secondary rounded"
                     />
                     <span className="text-xs text-text-secondary">{type}</span>
                   </label>
@@ -298,7 +299,7 @@ function GraphDataVisualizationInner({
                 {selectedNodeTypes.length > 0 && (
                   <button
                     onClick={() => setSelectedNodeTypes([])}
-                    className="w-full mt-2 text-xs text-brand-purple hover:underline"
+                    className="w-full mt-2 text-xs text-brand-lime hover:underline"
                   >
                     Clear all
                   </button>
@@ -320,7 +321,7 @@ function GraphDataVisualizationInner({
                 {totalNodeCount - connectedNodeCount} hidden
               </div>
             )}
-            <div className="px-2 py-1 bg-brand-purple/10 text-brand-purple rounded">
+            <div className="px-2 py-1 bg-brand-lime/10 text-brand-lime rounded">
               <span className="font-semibold">{graphData.relationships.length}</span> edges
             </div>
           </div>

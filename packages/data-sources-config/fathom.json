@@ -15,7 +15,7 @@
       "label": "Fathom API Key",
       "type": "password",
       "required": true,
-      "helpText": "Your Fathom API key from Settings > API Keys"
+      "helpText": "Your Fathom API key from Settings > API Access"
     }
   ],
   "indexingConfig": {

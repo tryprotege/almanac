@@ -14,8 +14,8 @@ const envSchema = z.object({
   AMP_API_KEY: z.string().min(1, 'AMP_API_KEY is required'),
   CLAUDE_API_KEY: z.string().min(1, 'CLAUDE_API_KEY is required'),
 
-  // eBee Configuration
-  EBEE_URL: z.string().url(),
+  // Almanac Configuration
+  ALMANAC_URL: z.string().url(),
 
   // Benchmark Configuration
   BENCHMARK_OUTPUT_DIR: z.string(),

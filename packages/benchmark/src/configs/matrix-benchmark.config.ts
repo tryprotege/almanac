@@ -7,7 +7,7 @@
  * ╠═══════════════════════════════════════════════════════════════════════════╣
  * ║  This benchmark will test ALL combinations of:                            ║
  * ║  - Agents (amp, claude-cli)                                               ║
- * ║  - MCP Setups (ebee, direct, clone-mcp)                                  ║
+ * ║  - MCP Setups (almanac, direct, clone-mcp)                               ║
  * ║  - Queries (generated from JSON or hardcoded scenarios)                   ║
  * ║                                                                           ║
  * ║  To skip a configuration:                                                 ║
@@ -29,7 +29,7 @@ const __dirname = path.dirname(__filename);
 
 export const matrixBenchmarkConfig: MatrixBenchmarkConfig = {
   name: 'Agent × MCP Matrix Comparison',
-  description: 'Compare different CLI agents (Amp, Claude) with eBee vs Direct MCP setups',
+  description: 'Compare different CLI agents (Amp, Claude) with Almanac vs Direct MCP setups',
   type: 'matrix',
   iterations: env.BENCHMARK_ITERATIONS,
   outputDir: env.BENCHMARK_OUTPUT_DIR,
@@ -78,13 +78,13 @@ export const matrixBenchmarkConfig: MatrixBenchmarkConfig = {
   // Comment out any setup you don't want to test
   // Each setup will be tested with ALL agents and ALL queries
   mcpSetups: [
-    // ── eBee Setup ────────────────────────────────────────────────────────
-    // Uses centralized eBee server for MCP orchestration
+    // ── Almanac Setup ─────────────────────────────────────────────────────
+    // Uses centralized Almanac server for MCP orchestration
     {
-      name: 'ebee',
+      name: 'almanac',
       servers: ['almanac'],
       packages: {
-        'almanac': {
+        almanac: {
           command: 'npx',
           args: ['-y', 'tsx', path.join(__dirname, '../../../server/src/mcp/stdio.ts')],
         },
@@ -162,9 +162,9 @@ export const matrixBenchmarkConfig: MatrixBenchmarkConfig = {
 // USAGE EXAMPLES
 // ============================================================================
 //
-// Example 1: Test generated queries with eBee (DEFAULT)
+// Example 1: Test generated queries with Almanac (DEFAULT)
 //   - queriesSource: { type: "generated", file: "..." }
-//   - mcpSetups: [{ name: "ebee", url: "..." }]
+//   - mcpSetups: [{ name: "almanac", url: "..." }]
 //   - Runs all 5 workflows × 3 test cases = 15 queries
 //
 // Example 2: Test generated queries, skip some workflows
@@ -175,11 +175,11 @@ export const matrixBenchmarkConfig: MatrixBenchmarkConfig = {
 //   - Runs 4 workflows × 3 test cases = 12 queries
 //
 // Example 3: Test with Clone MCP Server
-//   - Comment out eBee setup
+//   - Comment out Almanac setup
 //   - Uncomment clone-mcp or clone-mcp-http setup
 //
-// Example 4: Compare eBee vs Clone MCP
-//   - Uncomment both eBee and clone-mcp setups
+// Example 4: Compare Almanac vs Clone MCP
+//   - Uncomment both Almanac and clone-mcp setups
 //   - Results show performance and accuracy comparison
 //
 // Example 5: Test hardcoded scenarios

@@ -72,7 +72,7 @@ export function GeneratingStep({ isGenerating, error, onBack }: GeneratingStepPr
               key={step.key}
               className={`flex items-start gap-4 p-4 rounded-lg border-2 transition-all ${
                 stepStatus === 'active'
-                  ? 'border-brand-purple bg-brand-purple/5'
+                  ? 'border-brand-lime bg-brand-lime/5'
                   : stepStatus === 'complete'
                     ? 'border-brand-success bg-brand-success/5'
                     : 'border-border-secondary bg-bg-secondary'
@@ -82,7 +82,7 @@ export function GeneratingStep({ isGenerating, error, onBack }: GeneratingStepPr
                 {stepStatus === 'complete' ? (
                   <CheckCircle className="w-5 h-5 text-brand-success" />
                 ) : stepStatus === 'active' ? (
-                  <Loader2 className="w-5 h-5 text-brand-purple animate-spin" />
+                  <Loader2 className="w-5 h-5 text-brand-lime animate-spin" />
                 ) : (
                   <div className="w-5 h-5 rounded-full border-2 border-border-secondary" />
                 )}
@@ -91,7 +91,7 @@ export function GeneratingStep({ isGenerating, error, onBack }: GeneratingStepPr
                 <h4
                   className={`text-sm font-medium ${
                     stepStatus === 'active'
-                      ? 'text-brand-purple'
+                      ? 'text-brand-lime'
                       : stepStatus === 'complete'
                         ? 'text-brand-success'
                         : 'text-text-tertiary'

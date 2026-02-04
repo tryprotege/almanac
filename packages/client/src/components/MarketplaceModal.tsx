@@ -37,7 +37,7 @@ export function MarketplaceModal({ isOpen, onClose, onSelectPreset }: Marketplac
         {/* Loading State */}
         {isLoading && (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-brand-purple animate-spin" />
+            <Loader2 className="w-8 h-8 text-brand-lime animate-spin" />
           </div>
         )}
 
@@ -74,7 +74,7 @@ export function MarketplaceModal({ isOpen, onClose, onSelectPreset }: Marketplac
                 <button
                   key={preset.id}
                   onClick={() => handleSelectPreset(preset.id)}
-                  className="card hover:border-brand-purple hover:shadow-lg transition-all text-left p-6 group relative"
+                  className="card hover:border-brand-lime hover:shadow-lg transition-all text-left p-6 group relative"
                 >
                   {/* Connected Badge */}
                   {isConnected && (
@@ -100,7 +100,7 @@ export function MarketplaceModal({ isOpen, onClose, onSelectPreset }: Marketplac
 
                     {/* Content */}
                     <div className="flex-1 min-w-0 pr-20">
-                      <h3 className="text-lg font-semibold text-text-primary mb-1 group-hover:text-brand-purple transition-colors">
+                      <h3 className="text-lg font-semibold text-text-primary mb-1 group-hover:text-brand-lime transition-colors">
                         {preset.displayName}
                       </h3>
                       <p className="text-sm text-text-tertiary line-clamp-2">
@@ -111,7 +111,7 @@ export function MarketplaceModal({ isOpen, onClose, onSelectPreset }: Marketplac
 
                   {/* Connect indicator */}
                   <div className="mt-4 pt-4 border-t border-border-primary">
-                    <span className="text-sm font-medium text-brand-purple group-hover:underline">
+                    <span className="text-sm font-medium text-brand-lime group-hover:underline">
                       {isConnected ? 'Manage →' : 'Connect →'}
                     </span>
                   </div>

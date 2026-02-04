@@ -60,7 +60,7 @@ export default function EntitiesTab({ config }: EntitiesTabProps) {
                       {entity.name}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <span className="px-2 py-1 bg-brand-purple/10 border border-brand-purple/30 rounded text-xs text-brand-purple">
+                      <span className="px-2 py-1 bg-brand-lime/10 border border-brand-lime/30 rounded text-xs text-brand-lime">
                         {entity.type}
                       </span>
                     </td>

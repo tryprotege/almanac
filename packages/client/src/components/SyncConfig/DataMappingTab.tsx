@@ -60,7 +60,7 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
               </div>
               <div className="flex items-center gap-3">
                 {fetcher.forEach && (
-                  <span className="px-2 py-1 bg-brand-purple/10 border border-brand-purple/30 rounded text-xs text-brand-purple flex items-center gap-1">
+                  <span className="px-2 py-1 bg-brand-lime/10 border border-brand-lime/30 rounded text-xs text-brand-lime flex items-center gap-1">
                     <RefreshCw className="w-3 h-3" />
                     forEach
                   </span>
@@ -87,7 +87,7 @@ export default function DataMappingTab({ config }: DataMappingTabProps) {
                       <RefreshCw className="w-3 h-3" />
                       Dynamic Iteration
                     </h4>
-                    <div className="bg-brand-purple/5 border border-brand-purple/20 rounded-lg p-3 space-y-3">
+                    <div className="bg-brand-lime/5 border border-brand-lime/20 rounded-lg p-3 space-y-3">
                       {/* Data flow visualization */}
                       <div className="flex items-center gap-2 text-xs">
                         <span className="px-2 py-1 bg-brand-blue/10 border border-brand-blue/30 rounded text-brand-blue">

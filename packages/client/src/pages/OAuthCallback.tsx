@@ -53,7 +53,7 @@ export default function OAuthCallback() {
       <div className="text-center p-8 max-w-md">
         {status === 'processing' && (
           <>
-            <Loader2 className="w-16 h-16 mx-auto mb-4 text-brand-purple animate-spin" />
+            <Loader2 className="w-16 h-16 mx-auto mb-4 text-brand-lime animate-spin" />
             <h1 className="text-2xl font-bold text-text-primary mb-2">Processing OAuth...</h1>
             <p className="text-text-secondary">This window will close automatically.</p>
           </>

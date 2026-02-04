@@ -75,7 +75,7 @@ export class MCPServerManager {
 
       const client = new Client(
         {
-          name: 'ebee-benchmark',
+          name: 'almanac-benchmark',
           version: '1.0.0',
         },
         {
@@ -157,7 +157,7 @@ export class MCPServerManager {
 
       const client = new Client(
         {
-          name: 'ebee-benchmark',
+          name: 'almanac-benchmark',
           version: '1.0.0',
         },
         {

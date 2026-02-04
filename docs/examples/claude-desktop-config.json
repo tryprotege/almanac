@@ -1,13 +1,9 @@
 {
   "mcpServers": {
     "almanac": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote",
-        "http://localhost:3000/mcp",
-        "--allow-http"
-      ]
+      "url": "http://127.0.0.1:3000/mcp",
+      "type": "streamableHttp",
+      "disabled": false
     }
   }
 }

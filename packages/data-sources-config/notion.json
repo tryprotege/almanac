@@ -51,6 +51,30 @@
       "notion_update_page_properties": {
         "toolName": "notion_update_page_properties",
         "category": "write"
+      },
+      "notion_delete_block": {
+        "toolName": "notion_delete_block",
+        "category": "write"
+      },
+      "notion_update_block": {
+        "toolName": "notion_update_block",
+        "category": "write"
+      },
+      "notion_update_database": {
+        "toolName": "notion_update_database",
+        "category": "write"
+      },
+      "notion_create_database_item": {
+        "toolName": "notion_create_database_item",
+        "category": "write"
+      },
+      "notion_create_comment": {
+        "toolName": "notion_create_comment",
+        "category": "write"
+      },
+      "notion_create_database": {
+        "toolName": "notion_create_database",
+        "category": "write"
       }
     },
     "startingPoints": [

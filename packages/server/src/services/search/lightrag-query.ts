@@ -346,7 +346,7 @@ async function searchEntitiesByKeywords(
   // Search entity embeddings in Qdrant
   const results = await deps.vectorStore.searchEntities(queryVector, {
     limit,
-    scoreThreshold: scoreThreshold || 0.5,
+    scoreThreshold: scoreThreshold || 0.3,
   });
 
   const graphEmbeddingMetadata = await GraphEmbeddingMetadata.find({
@@ -400,7 +400,7 @@ async function searchRelationshipsByKeywords(
   // Search relationship embeddings in Qdrant
   const results = await deps.vectorStore.searchRelationships(queryVector, {
     limit,
-    scoreThreshold: scoreThreshold || 0.5,
+    scoreThreshold: scoreThreshold || 0.3,
   });
 
   // Fetch entity details for source/target (filter undefined for type safety)

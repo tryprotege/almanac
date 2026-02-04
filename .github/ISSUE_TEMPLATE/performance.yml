@@ -1,0 +1,140 @@
+name: ⚡ Performance Issue
+description: Report performance problems or suggest optimizations
+title: '[Performance]: '
+labels: ['performance', 'needs-triage']
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a performance issue! Performance data helps us optimize the system.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues for similar performance reports
+          required: true
+        - label: I have profiled the application to identify the bottleneck
+          required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Performance Issue Description
+      description: Describe the performance problem you're experiencing
+      placeholder: What operation is slow? What are you observing?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which component is experiencing performance issues?
+      options:
+        - Query Performance
+        - Indexing Performance
+        - API Response Time
+        - Database Operations
+        - Client Rendering
+        - Memory Usage
+        - Network Requests
+        - Build/Compilation Time
+        - Docker Container Performance
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Performance Metrics
+      description: Provide concrete performance measurements
+      placeholder: |
+        - Current performance: [e.g., 5000ms response time, 2GB memory usage]
+        - Expected performance: [e.g., <500ms response time, <500MB memory]
+        - Dataset size: [e.g., 10,000 documents, 1GB data]
+        - Query: [if applicable, the query being run]
+      value: |
+        - Current performance: 
+        - Expected performance: 
+        - Dataset size: 
+        - Frequency:
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this performance issue?
+      placeholder: |
+        1. Set up environment with...
+        2. Load data...
+        3. Execute operation...
+        4. Measure performance...
+      value: |
+        1. 
+        2. 
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details
+      description: Provide system and environment information
+      value: |
+        - OS: [e.g., macOS 14.0, Ubuntu 22.04]
+        - Node.js version: [e.g., 20.x]
+        - CPU: [e.g., Apple M1, Intel i7-9700K]
+        - RAM: [e.g., 16GB]
+        - Docker version (if applicable): [e.g., 24.x]
+        - Database versions: [e.g., Memgraph 2.x, MongoDB 7.x]
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: profiling
+    attributes:
+      label: Profiling Data
+      description: If you've profiled the application, share the results
+      placeholder: |
+        - Tool used: [e.g., Chrome DevTools, Node.js profiler]
+        - Findings: [e.g., bottleneck in function X]
+        - Stack traces or flamegraphs: [paste or link]
+      render: markdown
+
+  - type: textarea
+    id: optimization
+    attributes:
+      label: Suggested Optimization
+      description: Do you have ideas on how to improve performance?
+      placeholder: |
+        - Potential solutions...
+        - Caching strategies...
+        - Algorithm improvements...
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other relevant information
+      placeholder: |
+        - Related issues or PRs
+        - Performance comparison with other tools
+        - Business impact
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Would you like to contribute a fix?
+      options:
+        - label: I would like to work on optimizing this
+          required: false

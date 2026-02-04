@@ -79,12 +79,12 @@ Deep dive into complex scenarios:
 ### Basic Query (TypeScript)
 
 ```typescript
-import axios from "axios";
+import axios from 'axios';
 
 const query = async (question: string) => {
-  const response = await axios.post("http://localhost:3000/api/query", {
+  const response = await axios.post('http://localhost:3000/api/query', {
     query: question,
-    mode: "mix",
+    mode: 'mix',
     top_k: 60,
     chunk_top_k: 20,
   });
@@ -93,7 +93,7 @@ const query = async (question: string) => {
 };
 
 // Usage
-const results = await query("What did we discuss about the API refactor?");
+const results = await query('What did we discuss about the API refactor?');
 console.log(results);
 ```
 
@@ -102,27 +102,27 @@ console.log(results);
 ```typescript
 // Fast keyword search
 const naiveResults = await query({
-  query: "API refactor",
-  mode: "naive",
+  query: 'API refactor',
+  mode: 'naive',
 });
 
 // Entity-focused search
 const localResults = await query({
-  query: "What is Alice working on?",
-  mode: "local",
+  query: 'What is Alice working on?',
+  mode: 'local',
 });
 
 // Relationship search
 const globalResults = await query({
-  query: "How does auth connect to billing?",
-  mode: "global",
+  query: 'How does auth connect to billing?',
+  mode: 'global',
 });
 
 // Best accuracy
 const mixResults = await query({
-  query: "Complex question requiring context",
-  mode: "mix",
-  enable_rerank: true,
+  query: 'Complex question requiring context',
+  mode: 'mix',
+  disable_rerank: false,
 });
 ```
 
@@ -132,23 +132,23 @@ const mixResults = await query({
 const safeQuery = async (question: string) => {
   try {
     const response = await axios.post(
-      "http://localhost:3000/api/query",
+      'http://localhost:3000/api/query',
       {
         query: question,
-        mode: "mix",
+        mode: 'mix',
       },
       {
         timeout: 30000, // 30 second timeout
-      }
+      },
     );
 
     if (response.data.results.length === 0) {
-      return { error: "No results found", results: [] };
+      return { error: 'No results found', results: [] };
     }
 
     return { results: response.data.results };
   } catch (error) {
-    console.error("Query failed:", error);
+    console.error('Query failed:', error);
     return { error: error.message, results: [] };
   }
 };
@@ -158,14 +158,11 @@ const safeQuery = async (question: string) => {
 
 ```typescript
 // For real-time updates in UI
-const streamQuery = async (
-  question: string,
-  onResult: (result: any) => void
-) => {
-  const response = await fetch("http://localhost:3000/api/query/stream", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query: question, mode: "mix" }),
+const streamQuery = async (question: string, onResult: (result: any) => void) => {
+  const response = await fetch('http://localhost:3000/api/query/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: question, mode: 'mix' }),
   });
 
   const reader = response.body.getReader();
@@ -182,8 +179,8 @@ const streamQuery = async (
 };
 
 // Usage
-await streamQuery("your question", (result) => {
-  console.log("Got result:", result);
+await streamQuery('your question', (result) => {
+  console.log('Got result:', result);
   // Update UI with result
 });
 ```
@@ -196,11 +193,11 @@ Start with fast mode, upgrade to accurate mode if needed:
 
 ```typescript
 // Try naive first (fast)
-let results = await query({ query: question, mode: "naive" });
+let results = await query({ query: question, mode: 'naive' });
 
 // If low scores, upgrade to mix
 if (results.every((r) => r.score < 0.7)) {
-  results = await query({ query: question, mode: "mix" });
+  results = await query({ query: question, mode: 'mix' });
 }
 
 return results;
@@ -213,9 +210,9 @@ Search across multiple data sources:
 ```typescript
 const multiSourceQuery = async (question: string) => {
   const [slackResults, githubResults, notionResults] = await Promise.all([
-    query({ query: question, source: "slack", mode: "hybrid" }),
-    query({ query: question, source: "github", mode: "hybrid" }),
-    query({ query: question, source: "notion", mode: "hybrid" }),
+    query({ query: question, source: 'slack', mode: 'hybrid' }),
+    query({ query: question, source: 'github', mode: 'hybrid' }),
+    query({ query: question, source: 'notion', mode: 'hybrid' }),
   ]);
 
   // Combine and rerank
@@ -234,9 +231,9 @@ const contextualQuery = async (question: string, previousResults: any[]) => {
   const entities = previousResults.flatMap((r) => r.entities || []).slice(0, 5);
 
   // Add context to query
-  const enhancedQuery = `${question} (context: ${entities.join(", ")})`;
+  const enhancedQuery = `${question} (context: ${entities.join(', ')})`;
 
-  return await query({ query: enhancedQuery, mode: "local" });
+  return await query({ query: enhancedQuery, mode: 'local' });
 };
 ```
 
@@ -344,31 +341,31 @@ curl -s http://localhost:3000/api/query \
 
 ```typescript
 // Good - Start with one data source
-await connectDataSource("slack");
-await query("test question");
+await connectDataSource('slack');
+await query('test question');
 
 // Then expand
-await connectDataSource("github");
-await query("test question");
+await connectDataSource('github');
+await query('test question');
 ```
 
 ### DO: Use Appropriate Modes
 
 ```typescript
 // Good - Match mode to query type
-await query({ query: "Alice", mode: "local" }); // Entity lookup
-await query({ query: "How does X relate to Y?", mode: "global" }); // Relationships
-await query({ query: "Complex question", mode: "mix" }); // Best results
+await query({ query: 'Alice', mode: 'local' }); // Entity lookup
+await query({ query: 'How does X relate to Y?', mode: 'global' }); // Relationships
+await query({ query: 'Complex question', mode: 'mix' }); // Best results
 ```
 
 ### DON'T: Always Use Mix Mode
 
 ```typescript
 // Bad - Mix mode for everything (slow + expensive)
-await query({ query: "simple keyword", mode: "mix" });
+await query({ query: 'simple keyword', mode: 'mix' });
 
 // Good - Naive for simple keywords
-await query({ query: "simple keyword", mode: "naive" });
+await query({ query: 'simple keyword', mode: 'naive' });
 ```
 
 ### DO: Handle Errors Gracefully
@@ -376,10 +373,10 @@ await query({ query: "simple keyword", mode: "naive" });
 ```typescript
 // Good - Graceful degradation
 try {
-  return await query({ query: q, mode: "mix" });
+  return await query({ query: q, mode: 'mix' });
 } catch (err) {
-  console.error("Mix mode failed, falling back to hybrid");
-  return await query({ query: q, mode: "hybrid" });
+  console.error('Mix mode failed, falling back to hybrid');
+  return await query({ query: q, mode: 'hybrid' });
 }
 ```
 

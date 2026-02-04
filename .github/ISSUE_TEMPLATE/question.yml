@@ -1,0 +1,72 @@
+name: ❓ Question
+description: Ask a question about Almanac
+title: '[Question]: '
+labels: ['question', 'needs-triage']
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question about using Almanac? Ask here!
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues and discussions
+          required: true
+        - label: I have checked the documentation
+          required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Question Category
+      description: What is your question about?
+      options:
+        - Installation/Setup
+        - Configuration
+        - MCP Servers
+        - Data Sources
+        - Indexing/Search
+        - Query Modes
+        - API Usage
+        - Performance Optimization
+        - Docker/Deployment
+        - Architecture/Design
+        - Best Practices
+        - Troubleshooting
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+      placeholder: Ask your question here...
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Provide any relevant context or what you've tried so far
+      placeholder: |
+        - What I'm trying to achieve: ...
+        - What I've tried: ...
+        - Relevant setup/configuration: ...
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Information
+      description: Any other relevant details
+      placeholder: |
+        - Environment: [OS, Node version, etc.]
+        - Related documentation: [links]
+        - Similar examples: [if any]

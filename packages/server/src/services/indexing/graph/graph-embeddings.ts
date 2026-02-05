@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { embed } from '../../../utils/embedding.js';
 import { VectorStore } from '../../../stores/vector.store.js';
 import { RecordStore } from '../../../stores/record.store.js';
@@ -16,6 +15,27 @@ import {
 } from './entity-conflict-resolution.js';
 import { env } from '../../../env.js';
 import logger from '../../../utils/logger.js';
+
+// ============================================
+// UNIVERSAL UUID SYSTEM DOCUMENTATION
+// ============================================
+//
+// This file uses a universal UUID system where the same UUID is used across:
+// - MongoDB _id (GraphEmbeddingMetadata document ID)
+// - Memgraph node/relationship ID
+// - Qdrant vector point ID
+//
+// Benefits:
+// - Simplified ID management - one ID to rule them all
+// - No need for ID mapping between systems
+// - Deterministic UUIDs for entities and relationships enable idempotent operations
+//
+// UUID Generation:
+// - Entities: Deterministic UUID based on SHA-256 hash of entityType:normalizedName
+// - Relationships: Deterministic UUID based on SHA-256 hash of sourceId:type:targetId
+// - This ensures the same entity/relationship always gets the same UUID
+//
+// ============================================
 
 // ============================================
 // Entity Embedding Functions (Global)
@@ -86,17 +106,14 @@ export async function indexEntityEmbeddings(
       // Generate embeddings
       const embeddings = await embed(entityTexts);
 
-      // Create vector points with UUIDs
+      // Create vector points using _id as the Qdrant point ID (universal UUID)
       const points = batch.map((entity, index) => {
-        const existingQdrantId = entity.qdrantId;
-        const qdrantId = existingQdrantId || randomUUID();
-
         return {
-          id: qdrantId,
+          id: entity._id.toString(), // Use MongoDB _id directly as Qdrant point ID
           vector: embeddings[index],
           payload: {
             type: 'entity' as const,
-            graphEmbeddingMetadataId: entity._id.toString(),
+            entityId: entity._id.toString(),
             source: source,
             checksum: computeChecksum(entityTexts[index]),
           } satisfies EntityVectorPayload,
@@ -107,20 +124,16 @@ export async function indexEntityEmbeddings(
       await deps.vectorStore.upsertPoints(points);
       stats.indexed += points.length;
 
-      // Update or create GraphEmbeddingMetadata using memgraphEntityId as _id
+      // Update GraphEmbeddingMetadata with embedding info
       for (let j = 0; j < batch.length; j++) {
         const entity = batch[j];
         const embeddedChecksum = computeChecksum(entityTexts[j]);
-        const qdrantId = points[j].id;
-
-        // await entity.save({});
 
         await GraphEmbeddingMetadata.updateOne(
-          { memgraphId: entity.memgraphId },
+          { _id: entity._id },
           {
             $set: {
               itemType: 'entity',
-              qdrantId: qdrantId,
               embeddedChecksum: embeddedChecksum,
               embeddedAt: new Date(),
               embeddingModelVersion: env.LLM_EMBEDDING_MODEL,
@@ -168,7 +181,7 @@ export async function indexRelationshipEmbeddings(
   const relMetadata = await GraphEmbeddingMetadata.find({
     itemType: 'relationship',
     'sources.0': source, // the 1st source is the primary one
-  });
+  }).lean();
 
   if (relMetadata.length === 0) {
     return stats;
@@ -178,46 +191,23 @@ export async function indexRelationshipEmbeddings(
     msg: `Found ${relMetadata.length} relationships in MongoDB metadata`,
   });
 
-  // Map Memgraph entity IDs to MongoDB document IDs
-  // Get all unique entity IDs from relationships
-  const uniqueEntityIds = new Set<string>();
-  relMetadata.forEach((meta) => {
-    if (meta.sourceId) uniqueEntityIds.add(meta.sourceId);
-    if (meta.targetId) uniqueEntityIds.add(meta.targetId);
-  });
-
-  // Look up MongoDB IDs for these entity IDs
-  const entityMetadata = await GraphEmbeddingMetadata.find({
-    itemType: 'entity',
-    memgraphId: { $in: Array.from(uniqueEntityIds) },
-  });
-
-  // Create mapping from Memgraph entity ID to MongoDB document ID
-  const entityIdToMongoId = new Map<string, string>();
-  entityMetadata.forEach((meta) => {
-    if (meta.memgraphId && meta.sourceRecordIds.length > 0) {
-      entityIdToMongoId.set(meta.memgraphId, meta.sourceRecordIds[0]);
-    }
-  });
-
-  // Convert metadata to the format we need with MongoDB IDs
+  // With universal UUID system, sourceId and targetId ARE the GraphEmbeddingMetadata document IDs
+  // No mapping needed!
   const relationships = relMetadata
     .map((meta) => {
-      const sourceRecordId = entityIdToMongoId.get(meta.sourceId!);
-      const targetRecordId = entityIdToMongoId.get(meta.targetId!);
-
-      // Skip relationships where we can't map to MongoDB IDs
-      if (!sourceRecordId || !targetRecordId) {
-        logger.warn(
-          `Skipping relationship ${meta.sourceId} -> ${meta.targetId}: Cannot map to MongoDB IDs`,
-        );
+      // Skip relationships with missing entity IDs
+      if (!meta.sourceId || !meta.targetId) {
+        logger.warn({
+          relationshipId: meta._id?.toString(),
+          msg: 'Skipping relationship: Missing sourceId or targetId',
+        });
         return null;
       }
 
       return {
         ...meta,
-        sourceRecordId,
-        targetRecordId,
+        sourceEntityId: meta.sourceId,
+        targetEntityId: meta.targetId,
         confidence: 1.0, // TODO: is it ok to hardcode?
       };
     })
@@ -234,8 +224,8 @@ export async function indexRelationshipEmbeddings(
     // Check if relationship needs embedding by comparing checksums
     const relText = await getRelationshipEmbeddingText({
       relMetadata: rel,
-      sourceId: rel.sourceId!,
-      targetId: rel.targetId!,
+      sourceEntityId: rel.sourceEntityId!,
+      targetEntityId: rel.targetEntityId!,
       type: rel.relType!,
     });
     const currentChecksum = computeChecksum(relText);
@@ -267,13 +257,13 @@ export async function indexRelationshipEmbeddings(
     });
 
     try {
-      // Create relationship texts for embedding using Memgraph IDs
+      // Create relationship texts for embedding
       const relTexts = await Promise.all(
         batch.map((rel) => {
           return getRelationshipEmbeddingText({
             relMetadata: rel,
-            sourceId: rel.sourceId!,
-            targetId: rel.targetId!,
+            sourceEntityId: rel.sourceEntityId!,
+            targetEntityId: rel.targetEntityId!,
             type: rel.relType!,
           });
         }),
@@ -282,18 +272,15 @@ export async function indexRelationshipEmbeddings(
       // Generate embeddings
       const embeddings = await embed(relTexts);
 
-      // Create vector points with UUIDs
+      // Create vector points using _id as the Qdrant point ID (universal UUID)
       const points = batch.map((rel, index) => {
-        const existingQdrantId = rel.qdrantId;
-        const qdrantId = existingQdrantId || randomUUID();
-
         return {
-          id: qdrantId,
+          id: rel._id.toString(), // Use MongoDB _id directly as Qdrant point ID
           vector: embeddings[index],
           payload: {
             type: 'relationship',
-            sourceId: rel.sourceRecordId, // MongoDB ID
-            targetId: rel.targetRecordId, // MongoDB ID
+            sourceEntityId: rel.sourceEntityId!,
+            targetEntityId: rel.targetEntityId!,
             relType: rel.relType!,
             confidence: rel.confidence,
             checksum: computeChecksum(relTexts[index]),
@@ -305,18 +292,16 @@ export async function indexRelationshipEmbeddings(
       await deps.vectorStore.upsertPoints(points);
       stats.indexed += points.length;
 
-      // Update or create GraphEmbeddingMetadata using MongoDB IDs
+      // Update GraphEmbeddingMetadata with embedding info
       for (let j = 0; j < batch.length; j++) {
         const rel = batch[j];
         const embeddedChecksum = computeChecksum(relTexts[j]);
-        const qdrantId = points[j].id;
 
         await GraphEmbeddingMetadata.updateOne(
-          { memgraphId: rel.memgraphId },
+          { _id: rel._id },
           {
             $set: {
               itemType: 'relationship',
-              qdrantId: qdrantId,
               embeddedChecksum: embeddedChecksum,
               embeddedAt: new Date(),
               embeddingModelVersion: env.LLM_EMBEDDING_MODEL,
@@ -380,10 +365,8 @@ export async function cleanupDeletedEntityEmbeddings(
 
     if (allDeleted) {
       try {
-        // Delete from Qdrant using the stored qdrantId
-        if (metadata.qdrantId) {
-          await deps.vectorStore.deleteByIds([metadata.qdrantId]);
-        }
+        // Delete from Qdrant using the _id (universal UUID)
+        await deps.vectorStore.deleteByIds([metadata._id.toString()]);
 
         // Delete metadata
         await GraphEmbeddingMetadata.deleteOne({ _id: metadata._id });
@@ -439,10 +422,8 @@ export async function cleanupDeletedRelationshipEmbeddings(
 
     if (!exists) {
       try {
-        // Delete from Qdrant using the stored qdrantId
-        if (metadata.qdrantId) {
-          await deps.vectorStore.deleteByIds([metadata.qdrantId]);
-        }
+        // Delete from Qdrant using the _id (universal UUID)
+        await deps.vectorStore.deleteByIds([metadata._id.toString()]);
 
         // Delete metadata
         await GraphEmbeddingMetadata.deleteOne({ _id: metadata._id });

@@ -15,8 +15,8 @@ export function getEntityEmbeddingText(metadata: GraphEmbeddingMetadataSchema): 
   // Use LLM-extracted description from metadata
   const description = metadata.entityDescription || 'No description available';
 
-  // Format: "EntityType - EntityID\nDescription"
-  return `${metadata.entityType} - ${metadata.memgraphId}\n${description}`;
+  // Format: "EntityType - EntityName\nDescription"
+  return `${metadata.entityType} - ${metadata.entityName}\n${description}`;
 }
 
 /**
@@ -25,16 +25,16 @@ export function getEntityEmbeddingText(metadata: GraphEmbeddingMetadataSchema): 
  */
 export async function getRelationshipEmbeddingText(rel: {
   relMetadata: GraphEmbeddingMetadataSchema;
-  sourceId: string;
-  targetId: string;
+  sourceEntityId: string;
+  targetEntityId: string;
   type: string;
 }): Promise<string> {
-  // Try to get entity names from their metadata
-  const sourceMetadata = await GraphEmbeddingMetadata.findById(rel.sourceId);
-  const targetMetadata = await GraphEmbeddingMetadata.findById(rel.targetId);
+  // Try to get entity names from their GraphEmbeddingMetadata documents
+  const sourceMetadata = await GraphEmbeddingMetadata.findById(rel.sourceEntityId);
+  const targetMetadata = await GraphEmbeddingMetadata.findById(rel.targetEntityId);
 
-  const sourceName = sourceMetadata?.memgraphId || 'Unknown';
-  const targetName = targetMetadata?.memgraphId || 'Unknown';
+  const sourceName = sourceMetadata?.entityName || 'Unknown';
+  const targetName = targetMetadata?.entityName || 'Unknown';
 
   // Use LLM-extracted description from metadata
   const description = rel.relMetadata.relationshipDescription || 'No description available';

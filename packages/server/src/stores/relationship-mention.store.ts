@@ -1,6 +1,6 @@
 import { GraphEmbeddingMetadata } from '../models/graph-embedding-metadata.model.js';
 import logger from '../utils/logger.js';
-import { generateRelationshipMemgraphId } from '../utils/graph-id.js';
+import { generateRelationshipId } from '../utils/graph-id.js';
 
 /**
  * Store for managing relationship mention tracking in MongoDB
@@ -21,22 +21,21 @@ export class RelationshipMentionStore {
     },
     recordId: string,
   ): Promise<void> {
-    const memgraphId = generateRelationshipMemgraphId(
+    const relationshipId = generateRelationshipId(
       relationship.sourceEntityId,
       relationship.type,
       relationship.targetEntityId,
     );
 
     await GraphEmbeddingMetadata.findOneAndUpdate(
-      { memgraphId },
+      { _id: relationshipId },
       {
         $setOnInsert: {
-          memgraphId,
+          _id: relationshipId,
           itemType: 'relationship',
           sourceId: relationship.sourceEntityId,
           targetId: relationship.targetEntityId,
           relType: relationship.type,
-          contentChecksum: memgraphId, // Use memgraphId as checksum for now
           lastUpdatedBy: recordId,
         },
         $addToSet: {
@@ -67,7 +66,7 @@ export class RelationshipMentionStore {
     if (relationships.length === 0) return;
 
     const bulkOps = relationships.map((rel) => {
-      const memgraphId = generateRelationshipMemgraphId(
+      const relationshipId = generateRelationshipId(
         rel.sourceEntityId,
         rel.type,
         rel.targetEntityId,
@@ -75,15 +74,14 @@ export class RelationshipMentionStore {
 
       return {
         updateOne: {
-          filter: { memgraphId },
+          filter: { _id: relationshipId },
           update: {
             $setOnInsert: {
-              memgraphId,
+              _id: relationshipId,
               itemType: 'relationship',
               sourceId: rel.sourceEntityId,
               targetId: rel.targetEntityId,
               relType: rel.type,
-              contentChecksum: memgraphId,
               lastUpdatedBy: recordId,
             },
             $addToSet: {

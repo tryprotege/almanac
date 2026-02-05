@@ -45,7 +45,7 @@ export async function cleanupOrphanedEmbeddings(
 
     for (const meta of entityMetadata) {
       try {
-        const exists = await graphStore.nodeExists(meta.memgraphId!);
+        const exists = await graphStore.nodeExists(meta._id);
         if (!exists) {
           // Delete from MongoDB
           await GraphEmbeddingMetadata.deleteOne({ _id: meta._id });

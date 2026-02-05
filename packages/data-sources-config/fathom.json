@@ -23,11 +23,8 @@
     "source": "fathom",
     "displayName": "fathom",
     "rateLimit": {
-      "maxRequests": 40,
-      "windowSeconds": 60,
-      "strategy": "token_bucket",
-      "allowBurst": true,
-      "burstMultiplier": 2
+      "maxRequests": 50,
+      "windowSeconds": 60
     },
     "syncOrder": [
       "list_meetings",
@@ -65,7 +62,7 @@
           "paramMapping": {
             "recording_id": "$.recording_id"
           },
-          "concurrency": 3,
+          "concurrency": 1,
           "continueOnError": true,
           "retries": 2
         },
@@ -90,7 +87,7 @@
           "paramMapping": {
             "recording_id": "$.recording_id"
           },
-          "concurrency": 3,
+          "concurrency": 1,
           "continueOnError": true,
           "retries": 2
         },
@@ -119,7 +116,7 @@
           "paramMapping": {
             "team": "$.name"
           },
-          "concurrency": 3,
+          "concurrency": 1,
           "continueOnError": true,
           "retries": 2
         },

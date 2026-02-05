@@ -82,11 +82,12 @@ export default function DataSources() {
 
     await Promise.all(
       activeSources.map(async ({ server }) => {
-        server._id &&
-          (await syncMutation.mutateAsync({
+        if (server._id) {
+          await syncMutation.mutateAsync({
             configId: server._id,
             name: server.name,
-          }));
+          });
+        }
       }),
     );
 

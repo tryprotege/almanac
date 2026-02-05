@@ -102,16 +102,10 @@
         "pagination": {
           "type": "cursor",
           "cursorParam": "cursor",
-          "cursorPath": "$.Cursor",
+          "cursorPath": "$[-1:].Cursor",
           "limitParam": "limit"
         },
-        "resultPath": "$",
-        "rateLimit": {
-          "maxRequests": 20,
-          "windowSeconds": 60,
-          "strategy": "token_bucket",
-          "allowBurst": true
-        }
+        "resultPath": "$"
       },
       "fetchMessages": {
         "tool": "conversations_history",
@@ -136,15 +130,9 @@
         "pagination": {
           "type": "cursor",
           "cursorParam": "cursor",
-          "cursorPath": "$.Cursor"
+          "cursorPath": "$[-1:].Cursor"
         },
         "resultPath": "$",
-        "rateLimit": {
-          "maxRequests": 50,
-          "windowSeconds": 60,
-          "strategy": "token_bucket",
-          "allowBurst": true
-        },
         "cutoffDate": {
           "strategy": "both",
           "apiParam": "oldest",
@@ -180,15 +168,9 @@
         "pagination": {
           "type": "cursor",
           "cursorParam": "cursor",
-          "cursorPath": "$.Cursor"
+          "cursorPath": "$[-1:].Cursor"
         },
         "resultPath": "$",
-        "rateLimit": {
-          "maxRequests": 50,
-          "windowSeconds": 60,
-          "strategy": "token_bucket",
-          "allowBurst": true
-        },
         "cutoffDate": {
           "strategy": "both",
           "apiParam": "oldest",
@@ -431,9 +413,7 @@
     },
     "rateLimit": {
       "maxRequests": 50,
-      "windowSeconds": 60,
-      "strategy": "token_bucket",
-      "allowBurst": true
+      "windowSeconds": 60
     }
   }
 }

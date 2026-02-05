@@ -1,12 +1,8 @@
 import type { DataSource } from '../../models/data-source.model.js';
 import { IndexingConfigModel } from '../../models/indexing-config.model.js';
-import { RecordStore } from '../../stores/record.store.js';
 import logger from '../../utils/logger.js';
 import { indexAll } from '../indexing/config/config-indexer.service.js';
 import { RecordModel } from '../../models/record.model.js';
-import { VectorStore } from '../../stores/vector.store.js';
-import { insertRecordToVectorDB } from '../indexing/embeddings/vector-indexer.service.js';
-import { connectQdrant } from '../../connections/qdrant.js';
 import { createHash } from 'crypto';
 import type { TransformedRecord } from '@almanac/indexing-engine';
 
@@ -57,27 +53,6 @@ async function persistToMongo(records: TransformedRecord[]): Promise<void> {
   });
 
   await RecordModel.bulkWrite(mongoOps);
-}
-
-/**
- * TODO: remove if unused
- * Helper: Index records to vector store
- */
-async function indexToVectors(
-  records: TransformedRecord[],
-  recordStore: RecordStore,
-  vectorStore: VectorStore,
-): Promise<void> {
-  for (const record of records) {
-    try {
-      const mongoRecord = await RecordModel.findById(record._id);
-      if (mongoRecord) {
-        await insertRecordToVectorDB(recordStore, vectorStore, mongoRecord);
-      }
-    } catch (error) {
-      logger.error({ error, recordId: record.sourceId }, 'Failed to index record to vector store');
-    }
-  }
 }
 
 export interface SyncResult {

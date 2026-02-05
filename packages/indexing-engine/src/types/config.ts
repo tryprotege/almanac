@@ -282,41 +282,6 @@ export interface RateLimitConfig {
    * Example: 60 for "60 requests per 60 seconds"
    */
   windowSeconds: number;
-
-  /**
-   * Strategy for handling rate limits
-   * - "respect_retry_after": Wait for Retry-After header from 429 responses (reactive)
-   * - "exponential_backoff": Exponentially increase wait time on 429s (reactive)
-   * - "token_bucket": Proactive rate limiting using token bucket algorithm (proactive)
-   * Default: "token_bucket"
-   */
-  strategy?: 'respect_retry_after' | 'exponential_backoff' | 'token_bucket';
-
-  /**
-   * Initial backoff delay in milliseconds (for exponential_backoff)
-   * Default: 1000
-   */
-  initialBackoffMs?: number;
-
-  /**
-   * Maximum backoff delay in milliseconds
-   * Default: 60000 (1 minute)
-   */
-  maxBackoffMs?: number;
-
-  /**
-   * Allow burst traffic beyond average rate
-   * When true, uses token bucket with burst capacity
-   * Default: true (mimics APIs like Notion that allow bursts)
-   */
-  allowBurst?: boolean;
-
-  /**
-   * Burst capacity multiplier (only for token_bucket strategy)
-   * Allows burst up to maxRequests * burstMultiplier
-   * Default: 1.5 (allows 50% burst capacity)
-   */
-  burstMultiplier?: number;
 }
 
 /**

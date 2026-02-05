@@ -89,12 +89,7 @@ export class ContentAggregatorService {
       formatProcessor: (fetcherConfig as any).formatProcessor, // Include formatProcessor if present
     };
 
-    const result = await fetchPage(
-      context.dataSourceId,
-      callConfig,
-      params,
-      fetcherConfig.rateLimit,
-    );
+    const result = await fetchPage(context.dataSourceId, callConfig, params);
 
     // Return just the records array, not the full PageResult
     // Apply transformResult if configured

@@ -1,5 +1,6 @@
 import { GraphEmbeddingMetadata } from '../models/graph-embedding-metadata.model.js';
 import logger from '../utils/logger.js';
+import { generateRelationshipId } from '../utils/graph-id.js';
 
 /**
  * Store for managing relationship mention tracking in MongoDB
@@ -7,14 +8,6 @@ import logger from '../utils/logger.js';
  * Used for orphan detection and cleanup
  */
 export class RelationshipMentionStore {
-  /**
-   * Generate consistent relationship key
-   * Format: "sourceId|type|targetId"
-   */
-  private getRelationshipKey(sourceEntityId: string, type: string, targetEntityId: string): string {
-    return `${sourceEntityId}|${type}|${targetEntityId}`;
-  }
-
   /**
    * Add a document mention to a relationship
    * Uses atomic upsert to avoid race conditions
@@ -28,24 +21,21 @@ export class RelationshipMentionStore {
     },
     recordId: string,
   ): Promise<void> {
-    const relationshipKey = this.getRelationshipKey(
+    const relationshipId = generateRelationshipId(
       relationship.sourceEntityId,
       relationship.type,
       relationship.targetEntityId,
     );
 
-    const _id = `rel_${relationshipKey}`;
-
     await GraphEmbeddingMetadata.findOneAndUpdate(
-      { _id },
+      { _id: relationshipId },
       {
         $setOnInsert: {
-          _id,
+          _id: relationshipId,
           itemType: 'relationship',
           sourceId: relationship.sourceEntityId,
           targetId: relationship.targetEntityId,
           relType: relationship.type,
-          contentChecksum: relationshipKey, // Use key as checksum for now
           lastUpdatedBy: recordId,
         },
         $addToSet: {
@@ -76,24 +66,22 @@ export class RelationshipMentionStore {
     if (relationships.length === 0) return;
 
     const bulkOps = relationships.map((rel) => {
-      const relationshipKey = this.getRelationshipKey(
+      const relationshipId = generateRelationshipId(
         rel.sourceEntityId,
         rel.type,
         rel.targetEntityId,
       );
-      const memgraphId = `rel_${relationshipKey}`;
 
       return {
         updateOne: {
-          filter: { memgraphId },
+          filter: { _id: relationshipId },
           update: {
             $setOnInsert: {
-              memgraphId,
+              _id: relationshipId,
               itemType: 'relationship',
               sourceId: rel.sourceEntityId,
               targetId: rel.targetEntityId,
               relType: rel.type,
-              contentChecksum: relationshipKey,
               lastUpdatedBy: recordId,
             },
             $addToSet: {

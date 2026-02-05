@@ -1,0 +1,156 @@
+name: 🐛 Bug Report
+description: Report a bug or unexpected behavior in almanac
+title: '[Bug]: '
+labels: ['bug', 'needs-triage']
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the information below to help us investigate and resolve the issue.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Please confirm the following before submitting
+      options:
+        - label: I have searched existing issues to ensure this bug hasn't been reported
+          required: true
+        - label: I have read the documentation
+          required: true
+        - label: I am using the latest version of almanac
+          required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is
+      placeholder: Describe the bug...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed steps to reproduce the behavior
+      placeholder: |
+        1. Set up environment with...
+        2. Run command...
+        3. Observe error...
+      value: |
+        1. 
+        2. 
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Describe what should have happened...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Describe what actually happened...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which part of the system is affected?
+      options:
+        - Server (packages/server)
+        - Client (packages/client)
+        - Indexing Engine (packages/indexing-engine)
+        - MCP Servers (clone-mcp-server, fathom-mcp-server)
+        - Benchmarking (packages/benchmark, packages/benchmarking)
+        - Data Sources Config
+        - Shared Utilities
+        - Documentation
+        - Docker/Deployment
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details
+      description: Please provide your environment information
+      value: |
+        - OS: [e.g., macOS 14.0, Ubuntu 22.04, Windows 11]
+        - Node.js version: [e.g., 20.x]
+        - Package manager: [e.g., pnpm 8.x]
+        - Docker version (if applicable): [e.g., 24.x]
+        - Database: [e.g., Memgraph, version]
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs/Error Messages
+      description: Please paste any relevant logs, error messages, or stack traces
+      render: shell
+      placeholder: |
+        Paste logs here...
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration Files
+      description: Share relevant configuration (remove sensitive data like API keys)
+      render: json
+      placeholder: |
+        {
+          "relevantConfig": "here"
+        }
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots/Recordings
+      description: If applicable, add screenshots or recordings to help explain the problem
+      placeholder: Drag and drop images here or paste URLs
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here
+      placeholder: Any other relevant information...
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity/Impact
+      description: How severe is this bug?
+      options:
+        - Critical - System is unusable
+        - High - Major functionality is impacted
+        - Medium - Feature is impacted but workaround exists
+        - Low - Minor issue, cosmetic problem
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Would you like to contribute a fix?
+      options:
+        - label: I would like to work on fixing this bug
+          required: false

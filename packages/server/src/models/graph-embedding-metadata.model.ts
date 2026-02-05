@@ -3,23 +3,17 @@ import { InferSchemaType, Schema, model } from 'mongoose';
 /**
  * Tracks embedding metadata for graph elements (entities and relationships)
  * One entry per global entity or relationship (deduplicated across documents)
- */
-
-/**
- * Represents a single mention of a relationship in a document
- * Used to track provenance: which documents mention which relationships
+ *
+ * UNIVERSAL UUID SYSTEM:
+ * - _id: UUID string (serves as MongoDB _id, Memgraph node/relationship id, AND Qdrant vector point id)
+ * - entityName: Human-readable name for entities (used in embedding text)
  */
 
 const graphEmbeddingMetadataSchema = new Schema(
   {
-    qdrantId: {
+    _id: {
       type: String,
-      index: true,
-      sparse: true,
-    },
-    memgraphId: {
-      type: String,
-      index: true,
+      required: true,
     },
     itemType: {
       type: String,
@@ -29,7 +23,7 @@ const graphEmbeddingMetadataSchema = new Schema(
     },
 
     // Entity fields
-    entityId: {
+    entityName: {
       type: String,
       index: true,
       sparse: true,

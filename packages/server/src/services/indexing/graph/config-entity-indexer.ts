@@ -132,10 +132,13 @@ export async function indexConfigEntities(
 
     // 6. Create MongoDB metadata for relationship embeddings
     const relMetadataOps = extractedRelationships.map((rel) => {
+      const relationshipDescription = `${rel.sourceType} ${rel.type} ${rel.targetType}`;
+
       const contentChecksum = calculateEmbeddingChecksum({
         sourceId: rel.sourceId,
         targetId: rel.targetId,
         relType: rel.type,
+        description: relationshipDescription,
       });
 
       return {
@@ -151,7 +154,7 @@ export async function indexConfigEntities(
               sourceId: rel.sourceId,
               targetId: rel.targetId,
               relType: rel.type,
-              relationshipDescription: `${rel.sourceType} ${rel.type} ${rel.targetType}`,
+              relationshipDescription: relationshipDescription,
               source: source,
               contentChecksum: contentChecksum,
               lastUpdatedBy: source,

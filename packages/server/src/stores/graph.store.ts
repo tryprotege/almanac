@@ -669,32 +669,6 @@ export class GraphStore {
   }
 
   /**
-   * Delete all entities extracted from a specific record
-   * Entities have IDs like: {recordId}_{entityName}
-   * Returns the number of nodes deleted
-   * @deprecated Use unlinkAllEntitiesFromDocument + deleteOrphanedEntities instead
-   */
-  async deleteRecordEntities(recordId: string): Promise<number> {
-    const query = `
-      MATCH (n)
-      WHERE n.id STARTS WITH $prefix
-      WITH n, count(n) AS nodeCount
-      DETACH DELETE n
-      RETURN nodeCount
-    `;
-
-    const results = await this.memgraph.executeQuery<{ nodeCount: number }>(query, {
-      prefix: `${recordId}_`,
-    });
-
-    // Handle both Neo4j Integer objects and regular numbers
-    const count = results[0]?.nodeCount || 0;
-    return typeof count === 'object' && count !== null && 'toNumber' in count
-      ? (count as any).toNumber()
-      : count || 0;
-  }
-
-  /**
    * Create or update an entity node (without document binding)
    */
   async upsertEntityNode(entity: {
@@ -1161,49 +1135,6 @@ export class GraphStore {
     `;
 
     await this.memgraph.executeQuery(query, { sourceId, targetId });
-  }
-
-  /**
-   * Link a document to a relationship it mentions
-   * @deprecated This method is deprecated and will be removed. Use RelationshipMentionStore instead.
-   */
-  async linkDocumentToRelationship(
-    recordId: string,
-    relationshipType: string,
-    sourceEntityId: string,
-    targetEntityId: string,
-    metadata: { confidence: number },
-  ): Promise<void> {
-    const docNode = new Cypher.Node();
-    const sourceNode = new Cypher.Node();
-    const rel = new Cypher.Relationship();
-
-    const matchDoc = new Cypher.Match(
-      new Cypher.Pattern(docNode, {
-        properties: { id: new Cypher.Param(recordId) },
-      }),
-    );
-
-    const matchSource = new Cypher.Match(
-      new Cypher.Pattern(sourceNode, {
-        labels: ['Entity'],
-        properties: { id: new Cypher.Param(sourceEntityId) },
-      }),
-    );
-
-    const mergeRel = new Cypher.Merge(
-      new Cypher.Pattern(docNode).related(rel, { type: 'MENTIONS_REL' }).to(sourceNode),
-    ).set(
-      [rel.property('relationshipType'), new Cypher.Param(relationshipType)],
-      [rel.property('sourceEntityId'), new Cypher.Param(sourceEntityId)],
-      [rel.property('targetEntityId'), new Cypher.Param(targetEntityId)],
-      [rel.property('confidence'), new Cypher.Param(metadata.confidence)],
-      [rel.property('extractedAt'), Cypher.datetime()],
-    );
-
-    const query = Cypher.utils.concat(matchDoc, matchSource, mergeRel);
-    const { cypher, params } = query.build();
-    await this.memgraph.executeQuery(cypher, params);
   }
 
   /**

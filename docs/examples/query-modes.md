@@ -241,7 +241,7 @@ This is a complex question requiring:
 {
   "query": "What did we discuss about the API refactor last week?",
   "mode": "mix",
-  "enable_rerank": true
+  "disable_rerank": false
 }
 ```
 
@@ -415,8 +415,8 @@ Each mode accepts parameters to fine-tune behavior:
 // Use Mix mode for accuracy
 const results = await query({
   query: userQuestion,
-  mode: "mix",
-  enable_rerank: true,
+  mode: 'mix',
+  disable_rerank: false,
   chunk_top_k: 5, // Only show top 5 to user
 });
 ```
@@ -427,7 +427,7 @@ const results = await query({
 // Use Hybrid for balance
 const results = await query({
   query: searchQuery,
-  mode: "hybrid",
+  mode: 'hybrid',
   top_k: 60,
   chunk_top_k: 20,
 });
@@ -439,7 +439,7 @@ const results = await query({
 // Use Naive for speed
 const results = await query({
   query: partialQuery,
-  mode: "naive",
+  mode: 'naive',
   chunk_top_k: 10,
   score_threshold: 0.8, // Only high-confidence matches
 });

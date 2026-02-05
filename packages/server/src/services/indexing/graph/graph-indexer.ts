@@ -33,6 +33,7 @@ import logger from '../../../utils/logger.js';
 import { env } from '../../../env.js';
 import { calculateEmbeddingChecksum } from '../../../utils/checksum.js';
 import { sanitizeRelationshipType } from '../../../utils/cypher-escape.js';
+import { generateRelationshipId } from '../../../utils/graph-id.js';
 
 // ============================================================================
 // Core Functions
@@ -703,11 +704,12 @@ export const indexAllRecords = async (
 
           return {
             updateOne: {
-              filter: { memgraphId: node.id },
+              filter: { _id: node.id },
               update: {
                 $set: {
+                  _id: node.id, // UUID serves as MongoDB _id, Memgraph node id, AND Qdrant vector id
                   itemType: 'entity',
-                  memgraphId: node.id,
+                  entityName: node.title, // Human-readable name for embedding text
                   entityType: node.type,
                   entityDescription: node.description, // Store LLM-extracted description
                   contentChecksum: contentChecksum,
@@ -968,7 +970,7 @@ export const indexAllRecords = async (
         }
 
         const relMetadataOps = validRelationships.map((rel) => {
-          const relId = `rel_${rel.sourceId}_${rel.type}_${rel.targetId}`;
+          const relId = generateRelationshipId(rel.sourceId, rel.type, rel.targetId);
 
           // Look up description from original extraction
           const lookupKey = `${rel.sourceId}_${rel.type}_${rel.targetId}`;
@@ -979,6 +981,7 @@ export const indexAllRecords = async (
             sourceId: rel.sourceId,
             targetId: rel.targetId,
             relType: rel.type,
+            description: description,
           });
 
           // Find all documents that mention this relationship
@@ -996,11 +999,11 @@ export const indexAllRecords = async (
 
           return {
             updateOne: {
-              filter: { memgraphId: relId },
+              filter: { _id: relId },
               update: {
                 $set: {
+                  _id: relId, // UUID serves as MongoDB _id, Memgraph relationship id, AND Qdrant vector id
                   itemType: 'relationship',
-                  memgraphId: relId,
                   sourceId: rel.sourceId,
                   targetId: rel.targetId,
                   relType: rel.type,

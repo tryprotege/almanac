@@ -14,7 +14,7 @@ export interface LightRAGQuery {
   response_format?: 'compact' | 'full';
   top_k?: number;
   chunk_top_k?: number;
-  enable_rerank?: boolean;
+  disable_rerank?: boolean;
   score_threshold?: number;
 }
 
@@ -125,7 +125,7 @@ export interface QueryBenchmarkConfig extends BaseBenchmarkConfig {
   readonly parameters?: {
     readonly top_k?: readonly number[];
     readonly chunk_top_k?: readonly number[];
-    readonly enable_rerank?: readonly boolean[];
+    readonly disable_rerank?: readonly boolean[];
     readonly score_threshold?: readonly number[];
   };
 }

@@ -410,7 +410,7 @@ Each mode has configurable parameters:
   "top_k": 60, // How many candidates to retrieve
   "chunk_top_k": 20, // How many to return
   "score_threshold": 0.7, // Minimum relevance score
-  "enable_rerank": true // Use reranking (mix mode)
+  "disable_rerank": false // Use reranking (mix mode)
 }
 ```
 

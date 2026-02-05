@@ -10,22 +10,22 @@ Optimize your queries for speed, accuracy, and cost-effectiveness.
 
 ```typescript
 // ❌ BAD - Slow and expensive for simple queries
-await query({ query: "Alice", mode: "mix" });
+await query({ query: 'Alice', mode: 'mix' });
 ```
 
 **Do** match mode to query type:
 
 ```typescript
 // ✅ GOOD - Fast for entity lookups
-await query({ query: "Alice", mode: "local" });
+await query({ query: 'Alice', mode: 'local' });
 
 // ✅ GOOD - Fast for keywords
-await query({ query: "API refactor", mode: "naive" });
+await query({ query: 'API refactor', mode: 'naive' });
 
 // ✅ GOOD - Use mix for complex questions
 await query({
-  query: "What did Alice say about the API refactor last week?",
-  mode: "mix",
+  query: 'What did Alice say about the API refactor last week?',
+  mode: 'mix',
 });
 ```
 
@@ -35,18 +35,18 @@ await query({
 
 ```typescript
 // ❌ BAD - Unnecessarily slow
-await query({ query: "test", top_k: 200 });
+await query({ query: 'test', top_k: 200 });
 ```
 
 **Do** start small and increase if needed:
 
 ```typescript
 // ✅ GOOD - Fast for simple queries
-await query({ query: "test", top_k: 30 });
+await query({ query: 'test', top_k: 30 });
 
 // ✅ GOOD - More thorough for complex queries
 await query({
-  query: "complex question needing context",
+  query: 'complex question needing context',
   top_k: 100,
 });
 ```
@@ -76,14 +76,14 @@ Start fast, upgrade if needed:
 ```typescript
 const smartQuery = async (question: string) => {
   // Try fast mode first
-  let results = await query({ query: question, mode: "naive", top_k: 30 });
+  let results = await query({ query: question, mode: 'naive', top_k: 30 });
 
   // Check if results are good enough
   const avgScore = results.reduce((s, r) => s + r.score, 0) / results.length;
 
   // Upgrade to more accurate mode if needed
   if (avgScore < 0.7 || results.length < 5) {
-    results = await query({ query: question, mode: "mix", top_k: 60 });
+    results = await query({ query: question, mode: 'mix', top_k: 60 });
   }
 
   return results;
@@ -127,21 +127,21 @@ Is accuracy critical and cost/latency acceptable?
 
 ```typescript
 // Entity lookup → local
-query({ query: "Alice", mode: "local" });
-query({ query: "What is Alice working on?", mode: "local" });
+query({ query: 'Alice', mode: 'local' });
+query({ query: 'What is Alice working on?', mode: 'local' });
 
 // Relationship → global
-query({ query: "How does auth connect to billing?", mode: "global" });
-query({ query: "What depends on the API?", mode: "global" });
+query({ query: 'How does auth connect to billing?', mode: 'global' });
+query({ query: 'What depends on the API?', mode: 'global' });
 
 // Keywords → naive
-query({ query: "API documentation", mode: "naive" });
-query({ query: "bug fix", mode: "naive" });
+query({ query: 'API documentation', mode: 'naive' });
+query({ query: 'bug fix', mode: 'naive' });
 
 // Complex questions → mix
 query({
-  query: "What did Alice say about the API refactor last month?",
-  mode: "mix",
+  query: 'What did Alice say about the API refactor last month?',
+  mode: 'mix',
 });
 ```
 
@@ -149,18 +149,18 @@ query({
 
 ```typescript
 // ❌ Overkill - simple keyword doesn't need graph
-query({ query: "bug", mode: "mix" }); // Use naive instead
+query({ query: 'bug', mode: 'mix' }); // Use naive instead
 
 // ❌ Underpowered - complex question needs more
 query({
-  query: "What were the main concerns raised about the API refactor?",
-  mode: "naive", // Use mix instead
+  query: 'What were the main concerns raised about the API refactor?',
+  mode: 'naive', // Use mix instead
 });
 
 // ❌ Wrong focus - asking about relationships but using entity mode
 query({
-  query: "How do these components interact?",
-  mode: "local", // Use global or hybrid instead
+  query: 'How do these components interact?',
+  mode: 'local', // Use global or hybrid instead
 });
 ```
 
@@ -189,14 +189,14 @@ top_k: 100 - 200;
 // User asking quick question in chatbot
 await query({
   query: "What's our return policy?",
-  mode: "naive",
+  mode: 'naive',
   top_k: 30, // Fast, focused
 });
 
 // User doing research
 await query({
-  query: "Analyze all discussions about API security",
-  mode: "hybrid",
+  query: 'Analyze all discussions about API security',
+  mode: 'hybrid',
   top_k: 150, // Comprehensive
 });
 ```
@@ -223,13 +223,13 @@ chunk_top_k: 50 - 100;
 ```typescript
 // Display in UI with limited space
 await query({
-  query: "recent updates",
+  query: 'recent updates',
   chunk_top_k: 10,
 });
 
 // Export for analysis
 await query({
-  query: "all API discussions",
+  query: 'all API discussions',
   chunk_top_k: 100,
 });
 ```
@@ -256,13 +256,13 @@ score_threshold: 0.7 - 0.8;
 ```typescript
 // Chatbot - want high-quality answers only
 await query({
-  query: "how to reset password",
+  query: 'how to reset password',
   score_threshold: 0.7, // Only confident answers
 });
 
 // Research - want to see everything
 await query({
-  query: "mentions of security",
+  query: 'mentions of security',
   score_threshold: 0.3, // Cast wide net
 });
 ```
@@ -275,15 +275,15 @@ When querying multiple sources:
 
 ```typescript
 // ❌ BAD - Sequential (slow)
-const slack = await query({ query: q, source: "slack" });
-const github = await query({ query: q, source: "github" });
-const notion = await query({ query: q, source: "notion" });
+const slack = await query({ query: q, source: 'slack' });
+const github = await query({ query: q, source: 'github' });
+const notion = await query({ query: q, source: 'notion' });
 
 // ✅ GOOD - Parallel (3x faster)
 const [slack, github, notion] = await Promise.all([
-  query({ query: q, source: "slack" }),
-  query({ query: q, source: "github" }),
-  query({ query: q, source: "notion" }),
+  query({ query: q, source: 'slack' }),
+  query({ query: q, source: 'github' }),
+  query({ query: q, source: 'notion' }),
 ]);
 ```
 
@@ -306,7 +306,7 @@ const results = await Promise.all(questions.map((q) => query(q)));
 For search-as-you-type:
 
 ```typescript
-import { debounce } from "lodash";
+import { debounce } from 'lodash';
 
 const debouncedQuery = debounce(async (searchTerm: string) => {
   const results = await query(searchTerm);
@@ -320,8 +320,8 @@ const debouncedQuery = debounce(async (searchTerm: string) => {
 // On app load, prefetch frequently asked questions
 const commonQueries = [
   "What's our return policy?",
-  "How do I contact support?",
-  "Where is my order?",
+  'How do I contact support?',
+  'Where is my order?',
 ];
 
 // Warm up cache
@@ -333,8 +333,8 @@ await Promise.all(commonQueries.map((q) => query(q)));
 ```typescript
 // For real-time display
 const streamResults = async (question: string) => {
-  const response = await fetch("/api/query/stream", {
-    method: "POST",
+  const response = await fetch('/api/query/stream', {
+    method: 'POST',
     body: JSON.stringify({ query: question }),
   });
 
@@ -357,11 +357,11 @@ const streamResults = async (question: string) => {
 
 ```typescript
 // ❌ Expensive - reranking everything
-await query({ mode: "mix", enable_rerank: true }); // Uses LLM
+await query({ mode: 'mix', disable_rerank: false }); // Uses LLM
 
 // ✅ Cheaper - rerank only when needed
-const mode = isComplexQuery ? "mix" : "hybrid";
-await query({ mode, enable_rerank: isComplexQuery });
+const mode = isComplexQuery ? 'mix' : 'hybrid';
+await query({ mode, disable_rerank: !isComplexQuery });
 ```
 
 ### 2. Use Appropriate Embedding Models
@@ -397,14 +397,14 @@ await indexDocuments(documents); // Single API call
 const robustQuery = async (question: string) => {
   try {
     // Try best mode first
-    return await query({ query: question, mode: "mix" });
+    return await query({ query: question, mode: 'mix' });
   } catch (error) {
-    console.warn("Mix mode failed, falling back to hybrid");
+    console.warn('Mix mode failed, falling back to hybrid');
     try {
-      return await query({ query: question, mode: "hybrid" });
+      return await query({ query: question, mode: 'hybrid' });
     } catch (error) {
-      console.warn("Hybrid failed, falling back to naive");
-      return await query({ query: question, mode: "naive" });
+      console.warn('Hybrid failed, falling back to naive');
+      return await query({ query: question, mode: 'naive' });
     }
   }
 };
@@ -418,15 +418,15 @@ const queryWithTimeout = async (question: string, timeout = 30000) => {
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    const response = await fetch("/api/query", {
-      method: "POST",
+    const response = await fetch('/api/query', {
+      method: 'POST',
       signal: controller.signal,
       body: JSON.stringify({ query: question }),
     });
     return await response.json();
   } catch (error) {
-    if (error.name === "AbortError") {
-      throw new Error("Query timeout - try a simpler query");
+    if (error.name === 'AbortError') {
+      throw new Error('Query timeout - try a simpler query');
     }
     throw error;
   } finally {
@@ -462,22 +462,22 @@ Expand vague queries for better results:
 ```typescript
 const expandQuery = (query: string): string => {
   const expansions = {
-    api: "API OR REST API OR GraphQL API",
-    bug: "bug OR issue OR error OR problem",
-    docs: "documentation OR docs OR guide OR tutorial",
+    api: 'API OR REST API OR GraphQL API',
+    bug: 'bug OR issue OR error OR problem',
+    docs: 'documentation OR docs OR guide OR tutorial',
   };
 
   return Object.entries(expansions).reduce(
-    (q, [key, expansion]) => q.replace(new RegExp(key, "gi"), expansion),
-    query
+    (q, [key, expansion]) => q.replace(new RegExp(key, 'gi'), expansion),
+    query,
   );
 };
 
 // Usage
 const results = await query({
-  query: expandQuery("api bug"),
+  query: expandQuery('api bug'),
   // "API OR REST API OR GraphQL API bug OR issue OR error"
-  mode: "hybrid",
+  mode: 'hybrid',
 });
 ```
 
@@ -489,9 +489,9 @@ Rewrite natural language to search-friendly format:
 const rewriteQuery = (query: string): string => {
   // "What did Alice say about X?" → "Alice X"
   return query
-    .replace(/what did (.*?) say about/i, "$1")
-    .replace(/how does (.*?) work/i, "$1")
-    .replace(/when was (.*?) created/i, "$1")
+    .replace(/what did (.*?) say about/i, '$1')
+    .replace(/how does (.*?) work/i, '$1')
+    .replace(/when was (.*?) created/i, '$1')
     .trim();
 };
 ```
@@ -505,15 +505,15 @@ const complexQuery = async (question: string) => {
   // Step 1: Find relevant entities
   const entities = await query({
     query: question,
-    mode: "local",
+    mode: 'local',
     chunk_top_k: 5,
   });
 
   // Step 2: Get relationships for those entities
   const entityNames = entities.map((r) => r.entities).flat();
   const relationships = await query({
-    query: entityNames.join(" "),
-    mode: "global",
+    query: entityNames.join(' '),
+    mode: 'global',
     chunk_top_k: 10,
   });
 
@@ -530,8 +530,8 @@ const complexQuery = async (question: string) => {
 ```typescript
 // Slow and expensive
 await query({
-  query: "test",
-  mode: "mix",
+  query: 'test',
+  mode: 'mix',
   top_k: 200,
   chunk_top_k: 100,
   enable_rerank: true,
@@ -543,8 +543,8 @@ await query({
 ```typescript
 // Fast and appropriate
 await query({
-  query: "test",
-  mode: "naive",
+  query: 'test',
+  mode: 'naive',
   top_k: 30,
   chunk_top_k: 10,
 });
@@ -564,12 +564,12 @@ displayResults(results.results); // Might crash
 try {
   const results = await query(userInput);
   if (results.results.length === 0) {
-    showMessage("No results found");
+    showMessage('No results found');
   } else {
     displayResults(results.results);
   }
 } catch (error) {
-  showError("Search failed. Please try again.");
+  showError('Search failed. Please try again.');
 }
 ```
 
@@ -586,11 +586,11 @@ await query({ query: userInput });
 const safeQuery = (userInput: string) => {
   // Validate
   if (!userInput || userInput.trim().length < 2) {
-    throw new Error("Query too short");
+    throw new Error('Query too short');
   }
 
   if (userInput.length > 500) {
-    throw new Error("Query too long");
+    throw new Error('Query too long');
   }
 
   // Sanitize
@@ -613,18 +613,16 @@ const monitoredQuery = async (question: string, mode: string) => {
     const duration = Date.now() - start;
 
     // Log metrics
-    analytics.track("query", {
+    analytics.track('query', {
       duration,
       mode,
       resultsCount: results.results.length,
-      avgScore:
-        results.results.reduce((s, r) => s + r.score, 0) /
-        results.results.length,
+      avgScore: results.results.reduce((s, r) => s + r.score, 0) / results.results.length,
     });
 
     return results;
   } catch (error) {
-    analytics.track("query_error", {
+    analytics.track('query_error', {
       duration: Date.now() - start,
       mode,
       error: error.message,
@@ -638,16 +636,15 @@ const monitoredQuery = async (question: string, mode: string) => {
 
 ```typescript
 const abTestQuery = async (question: string) => {
-  const mode = Math.random() < 0.5 ? "hybrid" : "mix";
+  const mode = Math.random() < 0.5 ? 'hybrid' : 'mix';
 
   const results = await query({ query: question, mode });
 
   // Track which mode performed better
-  analytics.track("query_ab_test", {
+  analytics.track('query_ab_test', {
     mode,
     resultsCount: results.results.length,
-    avgScore:
-      results.results.reduce((s, r) => s + r.score, 0) / results.results.length,
+    avgScore: results.results.reduce((s, r) => s + r.score, 0) / results.results.length,
   });
 
   return results;
@@ -663,7 +660,7 @@ const abTestQuery = async (question: string) => {
   mode: "naive",
   top_k: 30,
   chunk_top_k: 10,
-  enable_rerank: false
+  disable_rerank: true
 }
 ```
 
@@ -674,7 +671,7 @@ const abTestQuery = async (question: string) => {
   mode: "mix",
   top_k: 100,
   chunk_top_k: 20,
-  enable_rerank: true
+  disable_rerank: false
 }
 ```
 
@@ -685,7 +682,7 @@ const abTestQuery = async (question: string) => {
   mode: "hybrid",
   top_k: 60,
   chunk_top_k: 20,
-  enable_rerank: false
+  disable_rerank: true
 }
 ```
 
@@ -696,7 +693,7 @@ const abTestQuery = async (question: string) => {
   mode: "naive",  // No LLM usage
   top_k: 40,
   chunk_top_k: 10,
-  enable_rerank: false  // No LLM reranking
+  disable_rerank: true  // No LLM reranking
 }
 ```
 

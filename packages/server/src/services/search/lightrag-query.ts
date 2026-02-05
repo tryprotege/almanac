@@ -129,6 +129,7 @@ export async function lightragQuery(
       source: r.source,
       recordType: r.recordType,
       rawData: r.rawData,
+      content: r.content,
       score: sortedChunks.find((c) => c.document_id === r._id)?.score || 0,
     }));
 }
@@ -295,8 +296,8 @@ async function mixMode(
   // Run hybrid mode first
   const hybridResult = await hybridMode(params, keywords, deps);
 
-  // Apply reranking if enabled
-  if (params.enable_rerank !== false && env.RERANKER_ENABLED && hybridResult.chunks.length > 0) {
+  // Apply reranking if not disabled
+  if (!params.disable_rerank && env.RERANKER_ENABLED && hybridResult.chunks.length > 0) {
     logger.debug({ msg: `[LightRAG] Applying reranking...` });
     const rerankedChunks = await rerankChunks(params.query, hybridResult.chunks);
 
@@ -345,14 +346,15 @@ async function searchEntitiesByKeywords(
   // Search entity embeddings in Qdrant
   const results = await deps.vectorStore.searchEntities(queryVector, {
     limit,
-    scoreThreshold: scoreThreshold || 0.5,
+    scoreThreshold: scoreThreshold || 0.3,
   });
 
+  // With universal UUID system, entityId IS the entity _id
   const graphEmbeddingMetadata = await GraphEmbeddingMetadata.find({
-    _id: { $in: results.map((r) => r.payload.graphEmbeddingMetadataId) },
+    _id: { $in: results.map((r) => r.payload.entityId) },
   }).lean();
 
-  // Fetch full records from MongoDB using entityId (which is now the MongoDB document ID)
+  // Fetch full records from MongoDB using sourceRecordIds
   const recordIds = Array.from(
     new Set(graphEmbeddingMetadata.map((i) => i.sourceRecordIds).flat()),
   );
@@ -362,9 +364,7 @@ async function searchEntitiesByKeywords(
   const entities = records.map<LightRAGEntity>((record) => {
     let relevanceScore = 0;
     results.forEach((r) => {
-      const metadata = graphEmbeddingMetadata.find(
-        (i) => i._id.toString() === r.payload.graphEmbeddingMetadataId,
-      );
+      const metadata = graphEmbeddingMetadata.find((i) => i._id.toString() === r.payload.entityId);
       if (metadata?.sourceRecordIds.includes(record._id)) {
         if (r.score > relevanceScore) {
           relevanceScore = r.score;
@@ -399,39 +399,72 @@ async function searchRelationshipsByKeywords(
   // Search relationship embeddings in Qdrant
   const results = await deps.vectorStore.searchRelationships(queryVector, {
     limit,
-    scoreThreshold: scoreThreshold || 0.5,
+    scoreThreshold: scoreThreshold || 0.3,
   });
 
-  // Fetch entity details for source/target (filter undefined for type safety)
+  // With universal UUID system, sourceEntityId and targetEntityId
+  // ARE the entity _ids, so we can fetch them directly
   const entityIds = new Set<string>();
   results.forEach((r) => {
-    if (r.payload.sourceId) entityIds.add(r.payload.sourceId);
-    if (r.payload.targetId) entityIds.add(r.payload.targetId);
+    if (r.payload.sourceEntityId) {
+      entityIds.add(r.payload.sourceEntityId);
+    }
+    if (r.payload.targetEntityId) {
+      entityIds.add(r.payload.targetEntityId);
+    }
   });
 
-  const records = await RecordModel.find({
+  // Fetch entity metadata to get sourceRecordIds
+  const entityMetadata = await GraphEmbeddingMetadata.find({
     _id: { $in: Array.from(entityIds) },
   }).lean();
-  const recordMap = new Map(records.map((r) => [r._id, r]));
+
+  // Extract all Record IDs from the entity metadata
+  const recordIds = Array.from(new Set(entityMetadata.map((meta) => meta.sourceRecordIds).flat()));
+
+  // Fetch the actual Record documents
+  const records = await RecordModel.find({
+    _id: { $in: recordIds },
+  }).lean();
+
+  // Create a map from entity _id to Record for quick lookup
+  const entityIdToRecordMap = new Map<string, (typeof records)[0]>();
+  entityMetadata.forEach((meta) => {
+    // Use the first sourceRecordId as the primary record for this entity
+    const primaryRecordId = meta.sourceRecordIds[0];
+    const record = records.find((r) => r._id.toString() === primaryRecordId.toString());
+    if (record) {
+      entityIdToRecordMap.set(meta._id.toString(), record);
+    }
+  });
 
   // Build LightRAGRelationship objects (filter out invalid relationships)
   const relationships: LightRAGRelationship[] = results
-    .filter((r) => r.payload.sourceId && r.payload.targetId && r.payload.relType)
+    .filter((r) => r.payload.sourceEntityId && r.payload.targetEntityId && r.payload.relType)
     .map((result) => {
-      const source = recordMap.get(result.payload.sourceId!);
-      const target = recordMap.get(result.payload.targetId!);
+      const sourceId = result.payload.sourceEntityId!;
+      const targetId = result.payload.targetEntityId!;
+
+      const sourceRecord = entityIdToRecordMap.get(sourceId);
+      const targetRecord = entityIdToRecordMap.get(targetId);
+
+      // Use the first sourceRecordId as the entity ID for the relationship
+      const sourceRecordId =
+        entityMetadata.find((m) => m._id.toString() === sourceId)?.sourceRecordIds[0] || sourceId;
+      const targetRecordId =
+        entityMetadata.find((m) => m._id.toString() === targetId)?.sourceRecordIds[0] || targetId;
 
       return {
-        id: `${result.payload.sourceId}_${result.payload.relType}_${result.payload.targetId}`,
+        id: `${sourceRecordId}_${result.payload.relType}_${targetRecordId}`,
         source: {
-          id: result.payload.sourceId!,
-          name: source?.title || 'Unknown',
-          type: source?.recordType || 'unknown',
+          id: sourceRecordId,
+          name: sourceRecord?.title || 'Unknown',
+          type: sourceRecord?.recordType || 'unknown',
         },
         target: {
-          id: result.payload.targetId!,
-          name: target?.title || 'Unknown',
-          type: target?.recordType || 'unknown',
+          id: targetRecordId,
+          name: targetRecord?.title || 'Unknown',
+          type: targetRecord?.recordType || 'unknown',
         },
         type: result.payload.relType!,
         confidence: result.payload.confidence,
@@ -674,7 +707,7 @@ function applyDefaults(query: LightRAGQueryInput): LightRAGQueryInput {
     response_format: query.response_format || 'compact',
     top_k: query.top_k ?? 60,
     chunk_top_k: query.chunk_top_k ?? 20,
-    enable_rerank: query.enable_rerank ?? true,
+    disable_rerank: query.disable_rerank ?? false,
     score_threshold: query.score_threshold ?? 0,
   };
 }

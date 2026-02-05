@@ -17,18 +17,8 @@ import { indexGraphWorker } from './services/queue/index-graph.queue.js';
 
 // Start server
 const runServer = async () => {
-  // In setup mode, only initialize MongoDB for storing config
-  // In normal mode, initialize all services
-  if (!env.isSetupMode) {
-    await initializeServices();
-  } else {
-    // Only connect to MongoDB in setup mode
-    const { connectMongoose } = await import('./connections/mongoose.js');
-    await connectMongoose();
-    logger.warn('⚠️  Running in SETUP MODE - LLM features disabled until configured');
-  }
-
-  // Load presets from data-sources-config directory
+  // Load presets from data-sources-config directory FIRST
+  // This must happen before initializeServices() so tool classifications are available
   logger.info('Loading data source presets...');
   try {
     await presetLoader.loadPresetsAtStartup();
@@ -38,6 +28,17 @@ const runServer = async () => {
     );
   } catch (error) {
     logger.error({ error }, 'Failed to load presets, continuing anyway');
+  }
+
+  // In setup mode, only initialize MongoDB for storing config
+  // In normal mode, initialize all services
+  if (!env.isSetupMode) {
+    await initializeServices();
+  } else {
+    // Only connect to MongoDB in setup mode
+    const { connectMongoose } = await import('./connections/mongoose.js');
+    await connectMongoose();
+    logger.warn('⚠️  Running in SETUP MODE - LLM features disabled until configured');
   }
 
   // Initialize sync scheduler
@@ -124,62 +125,6 @@ const runServer = async () => {
 
     await mcpServer.connect(transport);
     await transport.handleRequest(req, res, req.body);
-  });
-
-  app.post('/api/sync', async (req: Request, res: Response) => {
-    try {
-      const configId = req.body.configId;
-      const config = await DataSourceModel.findById(configId);
-
-      if (!config) {
-        res.status(404).json({
-          success: false,
-          error: 'Data source config not found',
-        });
-        return;
-      }
-
-      // Auto-connect if not already connected
-      if (!mcpClientManager.isConnected(config.name)) {
-        logger.info(
-          { serverName: config.name },
-          'MCP server not connected, attempting connection before sync',
-        );
-
-        try {
-          await mcpClientManager.connect(config);
-          logger.info({ serverName: config.name }, 'MCP server connected successfully');
-        } catch (connectError) {
-          logger.error(
-            { err: connectError, serverName: config.name },
-            'Failed to connect to MCP server',
-          );
-          res.status(500).json({
-            success: false,
-            error: 'Failed to connect to MCP server',
-            message: connectError instanceof Error ? connectError.message : 'Unknown error',
-          });
-          return;
-        }
-      }
-
-      // Queue sync job
-      const job = await syncMcpServerQueue.add(config._id.toString(), {
-        mcpConfig: config as any,
-      });
-
-      // Return jobId for progress tracking
-      res.status(200).json({
-        success: true,
-        data: { jobId: job.id },
-      });
-    } catch (err) {
-      logger.error({ err }, 'Error queueing sync job');
-      res.status(500).json({
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
   });
 
   // 404 for other routes

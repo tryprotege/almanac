@@ -6,13 +6,6 @@
 import Cypher from '@neo4j/cypher-builder';
 
 /**
- * Build a dynamic label for a node based on type
- */
-export function getNodeLabel(type: string): string {
-  return type.charAt(0).toUpperCase() + type.slice(1);
-}
-
-/**
  * Create a node pattern with optional label
  */
 export function createNodePattern(

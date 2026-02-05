@@ -1,19 +1,58 @@
-import type { FetcherConfig, RateLimitConfig } from '@almanac/indexing-engine';
+import type { FetcherConfig } from '@almanac/indexing-engine';
 import { mcpClientManager } from '../../../mcp/client.js';
 import { JSONPath } from 'jsonpath-plus';
 import {
-  applyRateLimit,
-  handleRateLimitError,
-  notifySuccess,
-  notifyRateLimitError,
-  rateLimiterManager,
-} from './rate-limiter.js';
-import { detectRateLimitError } from './mcp-error-parser.js';
-import { applyCutoffDateToParams } from './config-indexer.service.js';
+  applyCutoffDateToParams,
+  shouldFilterByCutoffDate,
+  extractRecordDate,
+} from './config-indexer.service.js';
 import logger from '../../../utils/logger.js';
 import { env } from '../../../env.js';
 import { executeProcessor } from '@almanac/indexing-engine';
 import { buildParams } from './enrichment-executor.js';
+
+/**
+ * Apply cutoff date filtering to records
+ */
+function applyCutoffDateFiltering(
+  records: any[],
+  fetcherConfig: FetcherConfig,
+  context: string,
+): any[] {
+  if (!shouldFilterByCutoffDate(fetcherConfig) || !env.SYNC_CUTOFF_DATE) {
+    return records;
+  }
+
+  const cutoffDate = new Date(env.SYNC_CUTOFF_DATE);
+  const beforeFiltering = records.length;
+
+  const filtered = records.filter((record: any) => {
+    const recordDate = extractRecordDate(record, fetcherConfig);
+    if (!recordDate) {
+      logger.debug(
+        { context, recordId: record.id || 'unknown' },
+        'Could not extract date from record for cutoff filtering, including record',
+      );
+      return true;
+    }
+    return recordDate >= cutoffDate;
+  });
+
+  const filteredCount = beforeFiltering - filtered.length;
+  if (filteredCount > 0) {
+    logger.info(
+      {
+        context,
+        filtered: filteredCount,
+        remaining: filtered.length,
+        cutoffDate: env.SYNC_CUTOFF_DATE,
+      },
+      'Filtered records by SYNC_CUTOFF_DATE (post-fetch)',
+    );
+  }
+
+  return filtered;
+}
 
 export interface PageResult {
   records: any[];
@@ -114,12 +153,6 @@ export async function* fetchWithSeedFrom(
       let lastError: Error | null = null;
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          // Apply rate limiting before each attempt (including retries)
-          if (attempt > 0) {
-            logger.debug(`[seedFrom] Applying rate limit before retry attempt ${attempt + 1}...`);
-            await applyRateLimit(config.rateLimit, serverName);
-          }
-
           // Create a minimal config for the tool call
           const callConfig: FetcherConfig = {
             tool: config.tool,
@@ -129,7 +162,7 @@ export async function* fetchWithSeedFrom(
             arrayPath: config.arrayPath, // Include arrayPath if present
             formatProcessor: (config as any).formatProcessor, // Include formatProcessor if present
           };
-          const result = await fetchPage(serverName, callConfig, params, config.rateLimit);
+          const result = await fetchPage(serverName, callConfig, params);
 
           logger.debug(`[seedFrom] Call succeeded, got ${result.records.length} records`);
           return result.records;
@@ -181,9 +214,132 @@ export async function* fetchWithSeedFrom(
 }
 
 /**
+ * Fetch all pages for a single iteration item
+ * Handles pagination within each forEach iteration
+ * Applies cutoff date filtering during pagination and stops early if records are past cutoff
+ */
+async function fetchAllPagesForItem(
+  serverName: string,
+  config: FetcherConfig,
+  baseParams: Record<string, any>,
+): Promise<any[]> {
+  const allRecords: any[] = [];
+  const shouldCheckCutoff = shouldFilterByCutoffDate(config) && env.SYNC_CUTOFF_DATE;
+  const cutoffDate = shouldCheckCutoff ? new Date(env.SYNC_CUTOFF_DATE!) : null;
+
+  // Check if pagination is configured
+  if (!config.pagination || config.pagination.type === 'none') {
+    // No pagination - single call
+    const result = await fetchPage(serverName, config, baseParams);
+
+    // Apply cutoff filtering if needed
+    if (shouldCheckCutoff && cutoffDate) {
+      const filtered = result.records.filter((record: any) => {
+        const recordDate = extractRecordDate(record, config);
+        if (!recordDate) {
+          logger.debug(
+            { recordId: record.id || 'unknown' },
+            'Could not extract date from record for cutoff filtering, including record',
+          );
+          return true;
+        }
+        return recordDate >= cutoffDate;
+      });
+
+      if (filtered.length < result.records.length) {
+        logger.info(
+          {
+            filtered: result.records.length - filtered.length,
+            remaining: filtered.length,
+            cutoffDate: env.SYNC_CUTOFF_DATE,
+          },
+          'Filtered records by SYNC_CUTOFF_DATE in single page call',
+        );
+      }
+
+      return filtered;
+    }
+
+    return result.records;
+  }
+
+  // With pagination - loop through pages
+  let cursor: string | undefined;
+  let hasMore = true;
+  let pagesProcessed = 0;
+
+  while (hasMore) {
+    const params = { ...baseParams };
+
+    // Add pagination parameters
+    addPaginationParams(params, cursor, config.pagination);
+
+    const result = await fetchPage(serverName, config, params);
+    pagesProcessed++;
+
+    if (shouldCheckCutoff && cutoffDate) {
+      // Filter records from this page
+      const filteredRecords = result.records.filter((record: any) => {
+        const recordDate = extractRecordDate(record, config);
+        if (!recordDate) {
+          logger.debug(
+            { recordId: record.id || 'unknown' },
+            'Could not extract date from record for cutoff filtering, including record',
+          );
+          return true;
+        }
+        return recordDate >= cutoffDate;
+      });
+
+      const filteredCount = result.records.length - filteredRecords.length;
+
+      if (filteredCount > 0) {
+        logger.debug(
+          {
+            page: pagesProcessed,
+            filtered: filteredCount,
+            remaining: filteredRecords.length,
+            total: result.records.length,
+          },
+          'Filtered records by SYNC_CUTOFF_DATE in paginated call',
+        );
+      }
+
+      allRecords.push(...filteredRecords);
+
+      // If ALL records in this page were filtered out (all past cutoff),
+      // stop pagination early. This assumes data is sorted newest-first.
+      if (filteredRecords.length === 0 && result.records.length > 0) {
+        logger.info(
+          {
+            page: pagesProcessed,
+            totalRecords: allRecords.length,
+            cutoffDate: env.SYNC_CUTOFF_DATE,
+          },
+          'All records in page past cutoff date, stopping pagination early',
+        );
+        break;
+      }
+    } else {
+      allRecords.push(...result.records);
+    }
+
+    cursor = result.nextCursor;
+    hasMore = result.hasMore;
+  }
+
+  logger.debug(
+    `[fetchAllPagesForItem] Fetched ${allRecords.length} total records across ${pagesProcessed} pages`,
+  );
+
+  return allRecords;
+}
+
+/**
  * Fetch records by iterating over results from a previous fetcher
  * Calls the tool once per item from the source, with mapped params
  * OR uses batch mode to call with array of values (more efficient)
+ * Now supports pagination and cutoff date filtering per iteration
  */
 export async function* fetchWithForEach(
   serverName: string,
@@ -287,23 +443,13 @@ export async function* fetchWithForEach(
       let lastError: Error | null = null;
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          // Apply rate limiting before each attempt (including retries)
-          if (attempt > 0) {
-            logger.debug(`[forEach] Applying rate limit before retry attempt ${attempt + 1}...`);
-            await applyRateLimit(config.rateLimit, serverName);
-          }
+          // Fetch all pages for this iteration item
+          const records = await fetchAllPagesForItem(serverName, config, params);
 
-          // Create a minimal config for the tool call (without arrayPath since forEach doesn't need it)
-          const callConfig: FetcherConfig = {
-            tool: config.tool,
-            resultPath: config.resultPath,
-            params,
-            rateLimit: config.rateLimit,
-            arrayPath: config.arrayPath, // Include arrayPath if present
-            formatProcessor: (config as any).formatProcessor, // Include formatProcessor if present
-          };
-          const result = await fetchPage(serverName, callConfig, params, config.rateLimit);
-          return result.records;
+          // Apply cutoff date filtering if configured
+          const filtered = applyCutoffDateFiltering(records, config, `forEach[${config.tool}]`);
+
+          return filtered;
         } catch (err) {
           lastError = err as Error;
           if (attempt < maxRetries) {
@@ -436,7 +582,7 @@ async function* fetchWithBatchMode(
           arrayPath: config.arrayPath, // Include arrayPath if present
           formatProcessor: (config as any).formatProcessor, // Include formatProcessor if present
         };
-        const result = await fetchPage(serverName, callConfig, params, config.rateLimit);
+        const result = await fetchPage(serverName, callConfig, params);
         allResults.push(...result.records);
         break; // Success
       } catch (err) {
@@ -495,8 +641,8 @@ export async function* fetchAll(
       addPaginationParams(params, cursor, config.pagination);
     }
 
-    // Fetch page with rate limiting
-    const result = await fetchPage(serverName, config, params, config.rateLimit);
+    // Fetch page - rate limiting handled by p-throttle in mcpClientManager
+    const result = await fetchPage(serverName, config, params);
 
     // Always yield result (even if 0 records) so we can access raw response
     yield result;
@@ -645,88 +791,24 @@ async function extractRecordsFromMCPResponse(
 
 /**
  * Fetch a single page
+ * Rate limiting is now handled by p-throttle at the mcpClientManager.callTool level
  */
 export async function fetchPage(
   serverName: string,
   config: FetcherConfig,
   params: Record<string, any>,
-  rateLimitConfig?: RateLimitConfig,
 ): Promise<PageResult> {
-  // Use server-level scope so all tools share the same rate limiter
-  // This is important for APIs like Fathom that have a global rate limit
-  const scopeId = serverName;
-
   logger.debug(
     `[Fetcher] About to call ${config.tool} with params: ${JSON.stringify(params, null, 2)}`,
   );
 
-  // Apply rate limiting before making the call
-  logger.debug(`[Fetcher] Applying rate limit for ${scopeId}...`);
-  const delayMs = await applyRateLimit(rateLimitConfig, scopeId);
-  if (delayMs > 0) {
-    logger.debug(`[Fetcher] Rate limit applied - waited ${delayMs}ms`);
-  }
-
-  logger.debug(`[Fetcher] Making API call to ${config.tool}...`);
   const callStartTime = Date.now();
 
-  // Check if server is paused due to rate limiting
-  await rateLimiterManager.waitIfPaused(serverName);
+  // Call tool - p-throttle in mcpClientManager handles rate limiting automatically
+  const response = await mcpClientManager.callTool(serverName, config.tool, params);
 
-  let response: any;
-  let caughtError: Error | undefined;
-
-  try {
-    response = await mcpClientManager.callTool(serverName, config.tool, params);
-
-    const callDuration = Date.now() - callStartTime;
-    logger.debug(`[Fetcher] API call to ${config.tool} succeeded in ${callDuration}ms`);
-  } catch (err: any) {
-    const callDuration = Date.now() - callStartTime;
-    logger.error(
-      { err, callDuration },
-      `[Fetcher] API call to ${config.tool} failed after ${callDuration}ms`,
-    );
-    caughtError = err;
-    response = err.response; // MCP errors may have response attached
-  }
-
-  // Check for rate limit in response or error
-  const rateLimitInfo = detectRateLimitError(response, caughtError);
-
-  if (rateLimitInfo.isRateLimit) {
-    logger.warn(
-      `[Fetcher] Rate limit detected for ${
-        config.tool
-      }: ${rateLimitInfo.errorMessage?.substring(0, 200)}`,
-    );
-
-    // Notify rate limiter to adjust
-    notifyRateLimitError(rateLimitConfig, scopeId, serverName, rateLimitInfo.retryAfter);
-
-    // Handle rate limit and wait
-    await handleRateLimitError(rateLimitConfig, scopeId, rateLimitInfo.retryAfter);
-
-    // Apply rate limit again before retry
-    logger.debug(`[Fetcher] Applying rate limit before retry...`);
-    await applyRateLimit(rateLimitConfig, scopeId);
-
-    // Retry the request
-    try {
-      response = await mcpClientManager.callTool(serverName, config.tool, params);
-      logger.debug(`[Fetcher] Retry succeeded for ${config.tool}`);
-      notifySuccess(rateLimitConfig, scopeId);
-    } catch (retryErr: any) {
-      logger.error({ retryErr }, `[Fetcher] Retry failed for ${config.tool}`);
-      throw retryErr;
-    }
-  } else if (caughtError) {
-    // Non-rate-limit error, re-throw
-    throw caughtError;
-  } else {
-    // Success on first try
-    notifySuccess(rateLimitConfig, scopeId);
-  }
+  const callDuration = Date.now() - callStartTime;
+  logger.debug(`[Fetcher] API call to ${config.tool} succeeded in ${callDuration}ms`);
 
   // Log MCP response based on debug flag
   if (env.MCP_DEBUG_LOGS) {
@@ -846,11 +928,17 @@ export async function fetchPage(
     // Try to extract cursor from paginationSource using configured path
     if (config.pagination.cursorPath) {
       try {
-        const extractedCursor = JSONPath({
+        let extractedCursor = JSONPath({
           path: config.pagination.cursorPath,
           json: paginationSource,
           wrap: false,
         });
+
+        // Handle array results (e.g., from slice expressions like $[-1:])
+        if (Array.isArray(extractedCursor) && extractedCursor.length > 0) {
+          extractedCursor = extractedCursor[0];
+        }
+
         nextCursor = extractedCursor;
         logger.debug(
           `[fetchPage] Extracted cursor from path "${config.pagination.cursorPath}": ${nextCursor}`,

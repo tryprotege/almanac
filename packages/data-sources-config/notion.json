@@ -490,9 +490,7 @@
     },
     "rateLimit": {
       "maxRequests": 3,
-      "windowSeconds": 1,
-      "strategy": "token_bucket",
-      "allowBurst": false
+      "windowSeconds": 1
     },
     "postProcessing": {
       "enabled": true,

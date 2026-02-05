@@ -8,11 +8,20 @@ import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
 import type { ToolClassification } from '@almanac/indexing-engine';
 import { EventEmitter } from 'events';
 import pRetry, { AbortError } from 'p-retry';
+import pThrottle from 'p-throttle';
 import logger from '../utils/logger.js';
 import { MCPOAuthProvider, oauthProviderFactory } from '../oauth/mcp-oauth-provider.js';
 import { discoverSseOAuth } from '../oauth/sse-oauth.js';
 import type { DataSource } from '../models/data-source.model.js';
 import { env } from '../env.js';
+
+/**
+ * Rate limit configuration for MCP servers
+ */
+interface RateLimitConfig {
+  maxRequests: number;
+  windowMs: number;
+}
 
 /**
  * Retry configuration for MCP tool calls
@@ -34,6 +43,89 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 };
 
 /**
+ * Check if an error is a rate limit error
+ */
+function isRateLimitError(error: any): boolean {
+  // HTTP 429 status code
+  if (error.status === 429 || error.code === 429) {
+    return true;
+  }
+
+  // Axios wraps HTTP errors in error.response
+  if (error.response?.status === 429) {
+    return true;
+  }
+
+  // Check error message for rate limit indicators
+  const message = error.message?.toLowerCase() || '';
+  const rateLimitKeywords = [
+    'rate limit',
+    'too many requests',
+    'quota exceeded',
+    'throttle',
+    'throttled',
+    'rate exceeded',
+  ];
+
+  return rateLimitKeywords.some((keyword) => message.includes(keyword));
+}
+
+/**
+ * Check if an MCP response indicates a rate limit error
+ * Some APIs return rate limit info in the response body with isError: true
+ */
+function isMcpResponseRateLimited(response: any): boolean {
+  // Check if response has isError flag
+  if (!response?.isError) {
+    return false;
+  }
+
+  // Check content array for rate limit indicators
+  if (Array.isArray(response.content)) {
+    for (const item of response.content) {
+      if (item.type === 'text' && item.text) {
+        try {
+          const parsed = JSON.parse(item.text);
+          const errorMsg = (parsed.error || '').toLowerCase();
+
+          const rateLimitKeywords = [
+            'rate limit',
+            'too many requests',
+            'quota exceeded',
+            'throttle',
+            'throttled',
+            'rate exceeded',
+            '429',
+          ];
+
+          if (rateLimitKeywords.some((keyword) => errorMsg.includes(keyword))) {
+            return true;
+          }
+        } catch {
+          // Not JSON, check raw text
+          const text = item.text.toLowerCase();
+          const rateLimitKeywords = [
+            'rate limit',
+            'too many requests',
+            'quota exceeded',
+            'throttle',
+            'throttled',
+            'rate exceeded',
+            '429',
+          ];
+
+          if (rateLimitKeywords.some((keyword) => text.includes(keyword))) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
  * Check if an error is retryable based on MCP error codes and error patterns
  *
  * MCP Error Code Reference: https://www.mcpevals.io/blog/mcp-error-codes
@@ -45,6 +137,11 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
  * - 502/503: Bad Gateway / Service Unavailable
  */
 function isRetryableError(error: any): boolean {
+  // Rate limit errors are always retryable
+  if (isRateLimitError(error)) {
+    return true;
+  }
+
   // MCP error -32603: Internal error - check for transient messages
   if (error.code === -32603) {
     const message = error.message?.toLowerCase() || '';
@@ -70,7 +167,7 @@ function isRetryableError(error: any): boolean {
   }
 
   // HTTP status codes for temporary failures
-  if (error.status === 503 || error.status === 502 || error.status === 429) {
+  if (error.status === 503 || error.status === 502) {
     return true;
   }
 
@@ -206,18 +303,34 @@ async function retryWithBackoff<T>(
       onFailedAttempt: (error) => {
         // p-retry wraps the original error, access it via error itself (it's any type)
         const err = error as any;
-        logger.info(
-          {
-            ...context,
-            attempt: error.attemptNumber,
-            retriesLeft: error.retriesLeft,
-            errorCode: err.code,
-            errorMessage: err.message,
-          },
-          `Retryable error, attempt ${error.attemptNumber}/${
-            config.maxRetries + 1
-          }, ${error.retriesLeft} retries left`,
-        );
+
+        // Check if this is a rate limit error for better logging
+        const isRateLimit = isRateLimitError(err);
+
+        const logContext = {
+          ...context,
+          attempt: error.attemptNumber,
+          retriesLeft: error.retriesLeft,
+          errorCode: err.code || err.status,
+          errorMessage: err.message,
+          isRateLimitError: isRateLimit,
+        };
+
+        if (isRateLimit) {
+          logger.warn(
+            logContext,
+            `Rate limit hit on ${context.serverName}.${context.toolName}, retry ${error.attemptNumber}/${
+              config.maxRetries + 1
+            }, ${error.retriesLeft} retries left`,
+          );
+        } else {
+          logger.info(
+            logContext,
+            `Retryable error on ${context.serverName}.${context.toolName}, retry ${error.attemptNumber}/${
+              config.maxRetries + 1
+            }, ${error.retriesLeft} retries left`,
+          );
+        }
       },
     },
   );
@@ -228,6 +341,8 @@ class MCPClientManager {
   private transports: Map<string, Transport> = new Map();
   private toolCache: Map<string, Tool[]> = new Map();
   private toolClassifications: Map<string, Record<string, ToolClassification>> = new Map();
+  private rateLimitConfigs: Map<string, RateLimitConfig> = new Map();
+  private throttlers: Map<string, ReturnType<typeof pThrottle>> = new Map();
   private eventEmitter = new EventEmitter();
   private pendingOAuthCallbacks: Map<
     string,
@@ -236,6 +351,49 @@ class MCPClientManager {
       reject: (error: Error) => void;
     }
   > = new Map();
+
+  /**
+   * Get or create throttler for a server
+   */
+  private getThrottler(serverName: string): ReturnType<typeof pThrottle> | null {
+    const rateLimitConfig = this.rateLimitConfigs.get(serverName);
+    if (!rateLimitConfig) {
+      return null;
+    }
+
+    if (!this.throttlers.has(serverName)) {
+      logger.info(
+        {
+          serverName,
+          maxRequests: rateLimitConfig.maxRequests,
+          windowMs: rateLimitConfig.windowMs,
+        },
+        'Creating p-throttle rate limiter for server',
+      );
+
+      const throttle = pThrottle({
+        limit: rateLimitConfig.maxRequests,
+        interval: rateLimitConfig.windowMs,
+      });
+
+      this.throttlers.set(serverName, throttle);
+    }
+
+    return this.throttlers.get(serverName)!;
+  }
+
+  /**
+   * Set rate limit configuration for a server
+   */
+  setRateLimitConfig(serverName: string, config: RateLimitConfig): void {
+    this.rateLimitConfigs.set(serverName, config);
+    // Clear existing throttler so it gets recreated with new config
+    this.throttlers.delete(serverName);
+    logger.debug(
+      { serverName, maxRequests: config.maxRequests, windowMs: config.windowMs },
+      'Rate limit configuration set for server',
+    );
+  }
 
   /**
    * Create OAuth provider for a server
@@ -457,6 +615,8 @@ class MCPClientManager {
       this.clients.delete(serverName);
       this.transports.delete(serverName);
       this.toolCache.delete(serverName);
+      this.rateLimitConfigs.delete(serverName);
+      this.throttlers.delete(serverName);
       logger.info(`Disconnected from MCP server: ${serverName}`);
     }
   }
@@ -539,7 +699,7 @@ class MCPClientManager {
   }
 
   /**
-   * Call a tool on a remote MCP server with automatic retry on transient errors
+   * Call a tool on a remote MCP server with automatic retry on transient errors and rate limiting
    */
   async callTool(
     serverName: string,
@@ -575,13 +735,40 @@ class MCPClientManager {
       `[MCP CALL] ${serverName}.${actualToolName}`,
     );
 
-    // Wrap the tool call with retry logic
+    // Get throttler if rate limiting is configured
+    const throttler = this.getThrottler(serverName);
+
+    // Define the actual tool call
+    const makeToolCall = async () => {
+      return await client.callTool({
+        name: actualToolName,
+        arguments: args,
+      });
+    };
+
+    // Wrap with throttling if configured
+    const throttledCall = throttler ? throttler(makeToolCall) : makeToolCall;
+
+    // Wrap the tool call with retry logic, including response body inspection
     const response = await retryWithBackoff(
       async () => {
-        return await client.callTool({
-          name: actualToolName,
-          arguments: args,
-        });
+        const result = await throttledCall();
+
+        // Check if the response indicates a rate limit (even with successful HTTP status)
+        if (isMcpResponseRateLimited(result)) {
+          logger.warn(
+            { serverName, toolName: actualToolName },
+            'Rate limit detected in MCP response body (isError: true)',
+          );
+
+          // Create a rate limit error to trigger retry logic
+          const rateLimitError = new Error('Rate limit detected in response body');
+          (rateLimitError as any).status = 429;
+          (rateLimitError as any).isFromResponseBody = true;
+          throw rateLimitError;
+        }
+
+        return result;
       },
       { ...DEFAULT_RETRY_CONFIG, ...retryConfig },
       { serverName, toolName: actualToolName },

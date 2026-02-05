@@ -32,10 +32,7 @@
     ],
     "rateLimit": {
       "maxRequests": 3600,
-      "windowSeconds": 3600,
-      "strategy": "token_bucket",
-      "allowBurst": true,
-      "burstMultiplier": 1.5
+      "windowSeconds": 3600
     },
     "syncOrder": ["search_repositories", "list_issues", "list_pull_requests", "list_releases"],
     "fetchers": {

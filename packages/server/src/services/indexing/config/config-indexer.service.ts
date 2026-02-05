@@ -18,7 +18,6 @@ import { extractEntities, extractRelationships } from './entity-extractor.js';
 import { MCPSyncStateModel } from '../../../models/mcp-sync-state.model.js';
 import { DataSourceModel } from '../../../models/data-source.model.js';
 import { mcpClientManager } from '../../../mcp/client.js';
-import { rateLimiterManager } from './rate-limiter.js';
 import { ContentAggregatorService } from './content-aggregator.service.js';
 import { env } from '../../../env.js';
 import logger from '../../../utils/logger.js';
@@ -39,7 +38,7 @@ export interface IndexProgress {
 /**
  * Check if record should be filtered by cutoff date
  */
-function shouldFilterByCutoffDate(fetcherConfig: FetcherConfig): boolean {
+export function shouldFilterByCutoffDate(fetcherConfig: FetcherConfig): boolean {
   if (!fetcherConfig.cutoffDate) return false;
   if (!env.SYNC_CUTOFF_DATE) return false;
 
@@ -50,7 +49,7 @@ function shouldFilterByCutoffDate(fetcherConfig: FetcherConfig): boolean {
 /**
  * Extract date from record for cutoff comparison
  */
-function extractRecordDate(record: any, fetcherConfig: FetcherConfig): Date | null {
+export function extractRecordDate(record: any, fetcherConfig: FetcherConfig): Date | null {
   if (!fetcherConfig.cutoffDate?.dateFieldPath) return null;
 
   try {
@@ -233,6 +232,22 @@ export async function* indexAll(
     );
   }
 
+  // Set rate limit configuration if available
+  if (config.rateLimit) {
+    mcpClientManager.setRateLimitConfig(serverName, {
+      maxRequests: config.rateLimit.maxRequests,
+      windowMs: config.rateLimit.windowSeconds * 1000,
+    });
+    logger.info(
+      {
+        serverName,
+        maxRequests: config.rateLimit.maxRequests,
+        windowSeconds: config.rateLimit.windowSeconds,
+      },
+      'Rate limit configuration loaded for indexing',
+    );
+  }
+
   // Load or create sync state for cursor tracking
   let syncState = updateSyncState ? await MCPSyncStateModel.findOne({ serverName }) : null;
 
@@ -315,12 +330,6 @@ export async function* indexAll(
 
     // Fetch pages
     for await (const pageResult of pageGenerator) {
-      // Check if server is paused due to rate limiting before processing page
-      const wasPaused = await rateLimiterManager.waitIfPaused(serverName);
-      if (wasPaused) {
-        logger.info({ fetcherName, serverName }, 'Resumed after server pause due to rate limiting');
-      }
-
       // Apply cutoff date filtering if configured
       let filteredRecords = pageResult.records;
       if (shouldFilterByCutoffDate(fetcherConfig) && env.SYNC_CUTOFF_DATE) {
@@ -407,9 +416,6 @@ export async function* indexAll(
 
             // Wait before continuing
             await sleep(BACKPRESSURE_CONFIG.BACKPRESSURE_DELAY);
-
-            // Check if server is paused again
-            await rateLimiterManager.waitIfPaused(serverName);
           }
         }
 
@@ -492,7 +498,6 @@ export async function* indexAll(
               serverName,
               recordWithAggregation,
               recordType.enrichments,
-              config.rateLimit,
             );
           }
 
@@ -711,12 +716,7 @@ export async function* runIncrementalSync(
         try {
           let enrichments = {};
           if (recordType.enrichments && recordType.enrichments.length > 0) {
-            enrichments = await enrichRecord(
-              serverName,
-              rawRecord,
-              recordType.enrichments,
-              config.rateLimit,
-            );
+            enrichments = await enrichRecord(serverName, rawRecord, recordType.enrichments);
           }
 
           const transformed = await transformRecord(

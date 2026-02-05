@@ -114,17 +114,5 @@ export interface DocumentRelationship {
   confidence: number; // 0.0 - 1.0
 }
 
-/**
- * Entity relationship extracted from source data
- * @deprecated Use DocumentRelationship for adapter relationships
- * This type is still used for backwards compatibility but will be removed
- */
-export interface EntityRelationship {
-  sourceId: string;
-  targetId: string;
-  type: string; // "BLOCKS", "REQUIRES", "ASSIGNED_TO", "RELATED_TO", etc.
-  confidence: number; // 0.0 - 1.0
-}
-
 // Re-export from new type files
 export * from './search.types.js';

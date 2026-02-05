@@ -1,0 +1,48 @@
+{
+  "name": "almanac",
+  "version": "0.1.0",
+  "description": "Lightning fast data access for Agents",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --parallel run dev",
+    "dev:server": "pnpm --filter server run dev",
+    "dev:client": "pnpm --filter client run dev",
+    "build": "pnpm --recursive run build",
+    "build:server": "pnpm --filter server run build",
+    "build:client": "pnpm --filter client run build",
+    "start": "pnpm run docker:infra && pnpm dev",
+    "test": "pnpm --recursive run test",
+    "type-check": "pnpm --recursive run type-check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx --quiet",
+    "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
+    "lint:all": "pnpm format:check && pnpm lint && pnpm type-check",
+    "docker:infra": "docker compose up -d",
+    "docker:dev": "docker compose --profile app up -d",
+    "docker:dev:build": "docker compose --profile app build && docker compose --profile app up -d",
+    "docker:prod": "docker compose -f docker-compose.prod.yml up -d",
+    "docker:down": "docker compose --profile app down",
+    "docker:down:prod": "docker compose -f docker-compose.prod.yml down",
+    "docker:logs": "docker compose --profile app logs -f",
+    "docker:logs:prod": "docker compose -f docker-compose.prod.yml logs -f"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@typescript-eslint/eslint-plugin": "^8.53.0",
+    "@typescript-eslint/parser": "^8.53.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "globals": "^17.0.0",
+    "prettier": "^3.7.4",
+    "typescript": "^5.9.3"
+  }
+}

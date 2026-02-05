@@ -1,0 +1,623 @@
+import { Router } from 'express';
+import {
+  generateConfig,
+  generateConfigIterative,
+} from '../../services/indexing/config/config-generator.service.js';
+import { IndexingConfigModel } from '../../models/indexing-config.model.js';
+import { transformRecord } from '@almanac/indexing-engine';
+import logger from '../../utils/logger.js';
+import type { IndexingConfig, ValidationError, ValidationWarning } from '@almanac/indexing-engine';
+
+const router: Router = Router();
+
+/**
+ * POST /api/indexing-config/generate
+ * Generate an IndexingConfig for an MCP server using LLM
+ *
+ * Options:
+ * - iterative: boolean (default: true) - Enable self-healing with dry run testing
+ * - maxIterations: number (default: 3) - Max debug iterations
+ */
+router.post('/generate', async (req, res) => {
+  try {
+    const {
+      serverName,
+      displayName,
+      sampleLimit,
+      iterative = true,
+      maxIterations = 3,
+      userGuidance,
+    } = req.body;
+
+    if (!serverName) {
+      return res.status(400).json({ error: 'serverName is required' });
+    }
+
+    let result;
+
+    if (iterative) {
+      logger.info(
+        `Starting iterative config generation for ${serverName} (max ${maxIterations} attempts)${
+          userGuidance ? ' with user guidance' : ''
+        }`,
+      );
+      result = await generateConfigIterative({
+        serverName,
+        displayName,
+        sampleLimit,
+        maxIterations,
+        userGuidance,
+      });
+
+      logger.info(
+        `Config generation completed for ${serverName}: ${
+          result.totalAttempts
+        } attempts, success: ${result.finalTestResult?.success ?? 'unknown'}`,
+      );
+    } else {
+      result = await generateConfig({
+        serverName,
+        displayName,
+        sampleLimit,
+      });
+      logger.info(`Successfully generated config for ${serverName}`);
+    }
+
+    // Include classification breakdown for UI display
+    const response = {
+      ...result,
+      toolClassifications: result.config.toolClassifications || {},
+    };
+
+    return res.json({ data: response });
+  } catch (err) {
+    logger.error({ err, msg: 'Failed to generate indexing config' });
+    return res.status(500).json({
+      error: 'Failed to generate config',
+      message: err instanceof Error ? err.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /api/indexing-config/validate
+ * Validate an IndexingConfig schema
+ */
+router.post('/validate', async (req, res) => {
+  try {
+    const config = req.body as IndexingConfig;
+
+    // TODO: Implement Zod schema validation
+    // For now, basic validation
+    const errors: ValidationError[] = [];
+    const warnings: ValidationWarning[] = [];
+
+    if (!config.version) {
+      errors.push({
+        path: 'version',
+        message: 'Missing version field',
+        code: 'MISSING_VERSION',
+      });
+    }
+
+    if (!config.source) {
+      errors.push({
+        path: 'source',
+        message: 'Missing source field',
+        code: 'MISSING_SOURCE',
+      });
+    }
+
+    return res.json({
+      valid: errors.length === 0,
+      errors,
+      warnings,
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to validate config');
+    return res.status(500).json({ error: 'Validation failed' });
+  }
+});
+
+/**
+ * POST /api/indexing-config/preview
+ * Transform sample records using a config (for testing)
+ */
+router.post('/preview', async (req, res) => {
+  try {
+    const { config, sampleRecords, recordTypeName } = req.body;
+
+    if (!config || !sampleRecords) {
+      return res.status(400).json({ error: 'config and sampleRecords are required' });
+    }
+
+    if (!recordTypeName) {
+      return res.status(400).json({ error: 'recordTypeName is required' });
+    }
+
+    const recordType = config.recordTypes[recordTypeName];
+
+    if (!recordType) {
+      return res.status(404).json({ error: `Record type '${recordTypeName}' not found in config` });
+    }
+
+    // Transform sample records
+    const transformedRecords = await Promise.all(
+      sampleRecords.map((record: any) =>
+        transformRecord({ record, enrichments: {} }, recordType, config.source),
+      ),
+    );
+
+    return res.json({
+      transformedRecords,
+      recordTypeName,
+      recordCount: transformedRecords.length,
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to preview config');
+    return res.status(500).json({
+      error: 'Preview failed',
+      message: err instanceof Error ? err.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /api/indexing-config/save
+ * Save an IndexingConfig to MongoDB
+ */
+router.post('/save', async (req, res) => {
+  try {
+    const { config, status = 'active', startingPointValues } = req.body;
+
+    if (!config || !config.source) {
+      return res.status(400).json({ error: 'Valid config is required' });
+    }
+
+    // Validate required starting points if values are provided
+    if (startingPointValues && config.startingPoints) {
+      const errors: string[] = [];
+      for (const sp of config.startingPoints) {
+        if (sp.required && sp.userProvided) {
+          const values = startingPointValues[sp.name];
+          if (!values || values.length === 0 || !values.some((v: string) => v.trim().length > 0)) {
+            errors.push(`Required starting point '${sp.name}' has no values`);
+          }
+        }
+      }
+
+      if (errors.length > 0) {
+        return res.status(400).json({
+          error: 'Starting point validation failed',
+          details: errors,
+        });
+      }
+    }
+
+    // Upsert config
+    const configDoc = await IndexingConfigModel.findOneAndUpdate(
+      { serverName: config.source },
+      {
+        serverName: config.source,
+        config,
+        status,
+        startingPointValues: startingPointValues || {},
+        updatedAt: new Date(),
+      },
+      { upsert: true, new: true },
+    );
+
+    logger.info(
+      { serverName: config.source, startingPointValues },
+      `Saved IndexingConfig for ${config.source}`,
+    );
+
+    return res.json({
+      data: {
+        success: true,
+        configId: configDoc._id,
+        serverName: configDoc.serverName,
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to save config');
+    return res.status(500).json({ error: 'Failed to save config' });
+  }
+});
+
+/**
+ * POST /api/indexing-config/sync
+ * Trigger sync using a saved IndexingConfig
+ *
+ * Request body:
+ * - serverName: string (required)
+ * - incremental: boolean (optional, default: false) - NOTE: Currently not used, all syncs are queued as full syncs
+ * - startingPoints: Record<string, string[]> (optional) - NOTE: Currently not used, starting points are loaded from saved config
+ */
+router.post('/sync', async (req, res) => {
+  try {
+    const { serverName } = req.body;
+
+    if (!serverName) {
+      return res.status(400).json({ error: 'serverName is required' });
+    }
+
+    // Load config from MongoDB
+    const configDoc = await IndexingConfigModel.findOne({
+      serverName,
+      status: 'active',
+    });
+
+    if (!configDoc) {
+      return res.status(404).json({
+        error: `No active IndexingConfig found for ${serverName}`,
+      });
+    }
+
+    // Get the data source to pass to the queue
+    const { DataSourceModel } = await import('../../models/data-source.model.js');
+    const dataSource = await DataSourceModel.findOne({ name: serverName });
+
+    if (!dataSource) {
+      return res.status(404).json({
+        error: `Data source '${serverName}' not found`,
+      });
+    }
+
+    // Queue the sync job
+    const { syncMcpServerQueue } = await import('../../services/queue/sync.queue.js');
+    const job = await syncMcpServerQueue.add(
+      `sync-${serverName}-${Date.now()}`,
+      {
+        mcpConfig: dataSource as any,
+      },
+      {
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    );
+
+    logger.info({ serverName, jobId: job.id }, `Queued sync job for ${serverName}`);
+
+    return res.json({
+      data: {
+        success: true,
+        jobId: job.id,
+        serverName,
+        message: 'Sync job queued successfully',
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to queue sync job');
+    return res.status(500).json({
+      error: 'Failed to queue sync job',
+      message: err instanceof Error ? err.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /api/indexing-config/:serverName
+ * Get IndexingConfig for a specific server
+ */
+router.get('/:serverName', async (req, res) => {
+  try {
+    const { serverName } = req.params;
+
+    const configDoc = await IndexingConfigModel.findOne({ serverName });
+
+    if (!configDoc) {
+      return res.status(404).json({ error: `No config found for ${serverName}` });
+    }
+
+    return res.json({ data: configDoc });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get config');
+    return res.status(500).json({ error: 'Failed to get config' });
+  }
+});
+
+/**
+ * GET /api/indexing-config
+ * List all IndexingConfigs
+ */
+router.get('/', async (_req, res) => {
+  try {
+    const configs = await IndexingConfigModel.find({}).sort({ updatedAt: -1 });
+
+    return res.json({
+      data: {
+        configs: configs.map((c) => ({
+          id: c._id,
+          serverName: c.serverName,
+          displayName: c.config.displayName,
+          icon: c.config.icon,
+          status: c.status,
+          updatedAt: c.updatedAt,
+          fetcherCount: Object.keys(c.config.fetchers).length,
+          recordTypeCount: Object.keys(c.config.recordTypes).length,
+        })),
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to list configs');
+    return res.status(500).json({ error: 'Failed to list configs' });
+  }
+});
+
+/**
+ * POST /api/indexing-config/reset-sync
+ * Reset sync state for a server to force full resync
+ */
+router.post('/reset-sync', async (req, res) => {
+  try {
+    const { serverName } = req.body;
+
+    if (!serverName) {
+      return res.status(400).json({ error: 'serverName is required' });
+    }
+
+    // Import MCPSyncStateModel
+    const { MCPSyncStateModel } = await import('../../models/mcp-sync-state.model.js');
+
+    // Delete sync state to force full resync
+    const result = await MCPSyncStateModel.deleteOne({ serverName });
+
+    logger.info(`Reset sync state for ${serverName} (deleted: ${result.deletedCount})`);
+
+    return res.json({
+      data: {
+        success: true,
+        serverName,
+        stateCleared: result.deletedCount > 0,
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to reset sync state');
+    return res.status(500).json({
+      error: 'Failed to reset sync state',
+      message: err instanceof Error ? err.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /api/indexing-config/:serverName/starting-points
+ * Get required starting points for a config
+ */
+router.get('/:serverName/starting-points', async (req, res) => {
+  try {
+    const { serverName } = req.params;
+
+    const configDoc = await IndexingConfigModel.findOne({
+      serverName,
+      status: 'active',
+    });
+
+    if (!configDoc) {
+      return res.status(404).json({
+        error: `No active config found for ${serverName}`,
+      });
+    }
+
+    const startingPoints = configDoc.config.startingPoints || [];
+
+    // Convert Mongoose Map to plain object
+    const userProvidedValues: Record<string, string[]> = {};
+    if (configDoc.startingPointValues) {
+      // Mongoose Map - need to convert to object
+      if (configDoc.startingPointValues instanceof Map) {
+        configDoc.startingPointValues.forEach((value, key) => {
+          userProvidedValues[key] = value;
+        });
+      } else {
+        // Already an object (shouldn't happen but handle gracefully)
+        Object.assign(userProvidedValues, configDoc.startingPointValues);
+      }
+    }
+
+    // Format response with current values
+    const formattedStartingPoints = startingPoints.map((sp) => ({
+      name: sp.name,
+      description: sp.description,
+      required: sp.required ?? false,
+      userProvided: sp.userProvided ?? false,
+      currentValue: userProvidedValues[sp.name]?.join(', ') || '',
+      hasValue: !!userProvidedValues[sp.name]?.length,
+    }));
+
+    return res.json({
+      success: true,
+      data: {
+        serverName,
+        startingPoints: formattedStartingPoints,
+        allRequired: startingPoints.filter((sp) => sp.required).length,
+        allProvided: formattedStartingPoints.filter((sp) => sp.required && sp.hasValue).length,
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get starting points');
+    return res.status(500).json({ error: 'Failed to get starting points' });
+  }
+});
+
+/**
+ * PUT /api/indexing-config/:serverName/starting-points
+ * Update user-provided starting point values
+ *
+ * Request body:
+ * {
+ *   values: {
+ *     [name: string]: string  // comma-separated values
+ *   }
+ * }
+ */
+router.put('/:serverName/starting-points', async (req, res) => {
+  try {
+    const { serverName } = req.params;
+    const { values } = req.body;
+
+    if (!values || typeof values !== 'object') {
+      return res.status(400).json({
+        error: 'values object is required',
+      });
+    }
+
+    const configDoc = await IndexingConfigModel.findOne({
+      serverName,
+      status: 'active',
+    });
+
+    if (!configDoc) {
+      return res.status(404).json({
+        error: `No active config found for ${serverName}`,
+      });
+    }
+
+    const startingPoints = configDoc.config.startingPoints || [];
+
+    // Parse and validate input
+    const parsedValues: Record<string, string[]> = {};
+    const errors: string[] = [];
+
+    for (const [name, value] of Object.entries(values)) {
+      const spConfig = startingPoints.find((sp) => sp.name === name);
+
+      if (!spConfig) {
+        errors.push(`Unknown starting point: ${name}`);
+        continue;
+      }
+
+      // Parse comma-separated values
+      const valueStr = typeof value === 'string' ? value : String(value);
+      const parsed = valueStr
+        .split(',')
+        .map((v: string) => v.trim())
+        .filter((v: string) => v.length > 0);
+
+      parsedValues[name] = parsed;
+
+      // Validate required fields
+      if ((spConfig.required ?? false) && parsed.length === 0) {
+        errors.push(`Required starting point '${name}' cannot be empty`);
+      }
+    }
+
+    // Check all required starting points are provided
+    for (const sp of startingPoints) {
+      if ((sp.required ?? false) && (sp.userProvided ?? false) && !parsedValues[sp.name]) {
+        errors.push(`Required starting point '${sp.name}' is missing`);
+      }
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: errors,
+      });
+    }
+
+    // Update document
+    await IndexingConfigModel.updateOne(
+      { serverName, status: 'active' },
+      {
+        $set: {
+          startingPointValues: parsedValues,
+          updatedAt: new Date(),
+        },
+      },
+    );
+
+    logger.info({ serverName, values: parsedValues }, 'Updated starting point values');
+
+    return res.json({
+      success: true,
+      data: {
+        serverName,
+        values: parsedValues,
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to update starting points');
+    return res.status(500).json({ error: 'Failed to update starting points' });
+  }
+});
+
+/**
+ * POST /api/indexing-config/:serverName/reload-from-marketplace
+ * Reload config from marketplace file and update the database
+ */
+router.post('/:serverName/reload-from-marketplace', async (req, res) => {
+  try {
+    const { serverName } = req.params;
+
+    // Load marketplace config from preset loader
+    const { presetLoader } = await import('../../services/presets/preset-loader.service.js');
+
+    const preset = presetLoader.getPreset(serverName);
+
+    if (!preset || !preset.indexingConfig) {
+      return res.status(404).json({
+        error: `No marketplace config found for ${serverName}`,
+      });
+    }
+
+    // Get existing config to preserve starting point values and status
+    const existingConfig = await IndexingConfigModel.findOne({ serverName });
+
+    const startingPointValues = existingConfig?.startingPointValues || {};
+    const status = existingConfig?.status || 'active';
+
+    // Update config in database
+    const configDoc = await IndexingConfigModel.findOneAndUpdate(
+      { serverName },
+      {
+        serverName,
+        config: preset.indexingConfig,
+        status,
+        startingPointValues,
+        updatedAt: new Date(),
+      },
+      { upsert: true, new: true },
+    );
+
+    logger.info({ serverName }, `Reloaded config from marketplace for ${serverName}`);
+
+    return res.json({
+      success: true,
+      data: configDoc,
+      message: 'Config successfully reloaded from marketplace',
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to reload config from marketplace');
+    return res.status(500).json({
+      error: 'Failed to reload config from marketplace',
+      message: err instanceof Error ? err.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * DELETE /api/indexing-config/:serverName
+ * Delete an IndexingConfig
+ */
+router.delete('/:serverName', async (req, res) => {
+  try {
+    const { serverName } = req.params;
+
+    const result = await IndexingConfigModel.deleteOne({ serverName });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: `No config found for ${serverName}` });
+    }
+
+    logger.info(`Deleted IndexingConfig for ${serverName}`);
+
+    return res.json({ data: { success: true } });
+  } catch (err) {
+    logger.error({ err }, 'Failed to delete config');
+    return res.status(500).json({ error: 'Failed to delete config' });
+  }
+});
+
+export default router;

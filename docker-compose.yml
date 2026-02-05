@@ -1,0 +1,125 @@
+services:
+  mongodb:
+    image: mongo:8.2.2
+    container_name: almanac_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./.data/mongodb:/data/db
+      - ./.data/mongodb-config:/data/configdb
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin123
+    restart: unless-stopped
+    networks:
+      - almanac-network
+
+  qdrant:
+    image: qdrant/qdrant:v1.16.0
+    container_name: almanac_qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ./.data/qdrant:/qdrant/storage
+    restart: unless-stopped
+    networks:
+      - almanac-network
+
+  memgraph:
+    image: memgraph/memgraph:3.7.0
+    container_name: almanac_memgraph
+    ports:
+      - "7687:7687"
+      - "7444:7444"
+    volumes:
+      - ./.data/memgraph:/var/lib/memgraph
+    environment:
+      - MEMGRAPH_LOG_LEVEL=WARNING
+    restart: unless-stopped
+    networks:
+      - almanac-network
+
+  redis:
+    image: redis:alpine3.22
+    container_name: almanac_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./.data/redis:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - almanac-network
+
+  server:
+    profiles: ["app"] # <-- only start when profile enabled
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile
+      target: development
+    container_name: almanac_server
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./packages/server/src:/app/packages/server/src
+      - ./packages/shared-util:/app/packages/shared-util
+      - ./packages/indexing-engine:/app/packages/indexing-engine
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+      - MONGO_USERNAME=admin
+      - MONGO_PASSWORD=admin123
+      - MONGO_DB_NAME=almanac
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - MEMGRAPH_HOST=memgraph
+      - MEMGRAPH_PORT=7687
+      - MEMGRAPH_USERNAME=
+      - MEMGRAPH_PASSWORD=
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_API_KEY=
+    env_file:
+      - packages/server/.env
+    depends_on:
+      - mongodb
+      - qdrant
+      - memgraph
+      - redis
+    restart: unless-stopped
+    networks:
+      - almanac-network
+
+  client:
+    profiles: ["app"] # <-- only start when profile enabled
+    build:
+      context: .
+      dockerfile: packages/client/Dockerfile
+      target: development
+    container_name: almanac_client
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./packages/client/src:/app/packages/client/src
+      - ./packages/client/index.html:/app/packages/client/index.html
+      - ./packages/client/vite.config.ts:/app/packages/client/vite.config.ts
+      - ./packages/client/tsconfig.json:/app/packages/client/tsconfig.json
+      - ./packages/client/postcss.config.js:/app/packages/client/postcss.config.js
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_TARGET=http://server:3000
+    depends_on:
+      - server
+    restart: unless-stopped
+    networks:
+      - almanac-network
+
+networks:
+  almanac-network:
+    driver: bridge

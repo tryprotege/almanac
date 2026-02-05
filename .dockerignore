@@ -1,0 +1,25 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+.env
+.env.local
+.env.*.local
+dist
+build
+.data
+*.log
+.DS_Store
+coverage
+.vscode
+.idea
+
+# Exclude packages we don't need in Docker builds
+packages/benchmark
+packages/benchmarking
+packages/clone-mcp-server
+
+# Exclude docs and scripts
+docs
+scripts

@@ -1,0 +1,502 @@
+{
+  "id": "notion",
+  "displayName": "Notion",
+  "description": "Connect to your Notion workspace to index pages, databases, blocks, and content for comprehensive knowledge management",
+  "icon": "notion",
+  "category": "knowledge-base",
+  "connection": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "@suekou/mcp-notion-server"]
+  },
+  "variables": [
+    {
+      "key": "NOTION_API_TOKEN",
+      "label": "Notion API Token",
+      "type": "password",
+      "required": true,
+      "helpText": "Your Notion integration token from https://www.notion.so/my-integrations"
+    }
+  ],
+  "indexingConfig": {
+    "source": "notion",
+    "version": "1.0",
+    "displayName": "Notion",
+    "icon": "notion",
+    "toolClassifications": {
+      "notion_retrieve_page": {
+        "toolName": "notion_retrieve_page",
+        "category": "read"
+      },
+      "notion_retrieve_block_children": {
+        "toolName": "notion_retrieve_block_children",
+        "category": "read"
+      },
+      "notion_retrieve_database": {
+        "toolName": "notion_retrieve_database",
+        "category": "read"
+      },
+      "notion_query_database": {
+        "toolName": "notion_query_database",
+        "category": "read"
+      },
+      "notion_search": {
+        "toolName": "notion_search",
+        "category": "search"
+      },
+      "notion_append_block_children": {
+        "toolName": "notion_append_block_children",
+        "category": "write"
+      },
+      "notion_update_page_properties": {
+        "toolName": "notion_update_page_properties",
+        "category": "write"
+      },
+      "notion_delete_block": {
+        "toolName": "notion_delete_block",
+        "category": "write"
+      },
+      "notion_update_block": {
+        "toolName": "notion_update_block",
+        "category": "write"
+      },
+      "notion_update_database": {
+        "toolName": "notion_update_database",
+        "category": "write"
+      },
+      "notion_create_database_item": {
+        "toolName": "notion_create_database_item",
+        "category": "write"
+      },
+      "notion_create_comment": {
+        "toolName": "notion_create_comment",
+        "category": "write"
+      },
+      "notion_create_database": {
+        "toolName": "notion_create_database",
+        "category": "write"
+      }
+    },
+    "startingPoints": [
+      {
+        "name": "teamWorkspaceId",
+        "description": "The ID of your root team workspace page in Notion (e.g., a team home page or documentation hub)",
+        "required": false,
+        "userProvided": true,
+        "examples": ["13d8a5b0-a4d3-4e8e-9a2f-1234567890ab"],
+        "discovery": {
+          "fetcher": "discoverRootPages",
+          "valuePath": "$[?(@.object == 'page' && @.parent && @.parent.type == 'workspace')].id",
+          "description": "Auto-discover root workspace pages via search"
+        }
+      }
+    ],
+    "syncOrder": [
+      "discoverRootPages",
+      "fetchPages",
+      "fetchPageBlocks",
+      "fetchChildPages",
+      "fetchDatabases",
+      "fetchDatabaseItems"
+    ],
+    "fetchers": {
+      "discoverRootPages": {
+        "tool": "notion_search",
+        "description": "Discover all accessible pages and databases for starting point discovery",
+        "params": {
+          "page_size": 100,
+          "format": "json"
+        },
+        "pagination": {
+          "type": "cursor",
+          "cursorParam": "start_cursor",
+          "cursorPath": "next_cursor",
+          "hasMorePath": "has_more"
+        },
+        "resultPath": "results"
+      },
+      "fetchPages": {
+        "tool": "notion_retrieve_page",
+        "description": "Fetch pages using the starting point",
+        "seedFrom": {
+          "startingPoint": "teamWorkspaceId",
+          "paramMapping": {
+            "page_id": "$",
+            "format": "json"
+          }
+        },
+        "pagination": {
+          "type": "none"
+        },
+        "resultPath": ".",
+        "aggregateContent": {
+          "blocks": {
+            "fetcher": "fetchBlocksForAggregation",
+            "required": false,
+            "mergeStrategy": "replace"
+          }
+        },
+        "extractFromAggregation": {
+          "blockCount": "blocks.length",
+          "hasContent": "blocks && blocks.length > `0`"
+        },
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.last_edited_time"
+        }
+      },
+      "fetchBlocksForAggregation": {
+        "tool": "notion_retrieve_block_children",
+        "description": "Fetch blocks for content aggregation (used by fetchRootPage)",
+        "params": {
+          "format": "json",
+          "page_size": 100
+        },
+        "paramsFromParent": {
+          "block_id": "$parent.id"
+        },
+        "pagination": {
+          "type": "cursor",
+          "cursorParam": "start_cursor",
+          "cursorPath": "next_cursor",
+          "hasMorePath": "has_more"
+        },
+        "resultPath": "results"
+      },
+      "fetchChildPages": {
+        "tool": "notion_retrieve_page",
+        "description": "Fetch child pages referenced in blocks",
+        "forEach": {
+          "source": "fetchPageBlocks",
+          "path": "$[?(@.type == 'child_page')]",
+          "paramMapping": {
+            "page_id": "$.id",
+            "format": "json"
+          },
+          "concurrency": 3,
+          "continueOnError": true,
+          "retries": 2
+        },
+        "pagination": {
+          "type": "none"
+        },
+        "resultPath": ".",
+        "aggregateContent": {
+          "blocks": {
+            "fetcher": "fetchBlocksForAggregation",
+            "required": false,
+            "mergeStrategy": "replace"
+          }
+        },
+        "extractFromAggregation": {
+          "blockCount": "blocks.length",
+          "contentPreview": "blocks[0:3]"
+        },
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.last_edited_time"
+        }
+      },
+      "fetchPageBlocks": {
+        "tool": "notion_retrieve_block_children",
+        "description": "Fetch blocks from all pages (root and children)",
+        "forEach": {
+          "source": "fetchPages",
+          "path": "$[*]",
+          "paramMapping": {
+            "block_id": "$.id",
+            "format": "json",
+            "page_size": 100
+          },
+          "concurrency": 5,
+          "continueOnError": true,
+          "retries": 2
+        },
+        "pagination": {
+          "type": "cursor",
+          "cursorParam": "start_cursor",
+          "cursorPath": "next_cursor",
+          "hasMorePath": "has_more"
+        },
+        "resultPath": "results"
+      },
+      "fetchDatabases": {
+        "tool": "notion_retrieve_database",
+        "description": "Fetch databases from blocks and root-level discoveries",
+        "forEach": {
+          "source": ["fetchPageBlocks", "discoverRootPages"],
+          "path": [
+            "$[?(@.type == 'child_database')]",
+            "$[?(@.object == 'database' && @.parent && @.parent.type == 'workspace')]"
+          ],
+          "paramMapping": {
+            "database_id": "$.id",
+            "format": "json"
+          },
+          "concurrency": 3,
+          "continueOnError": true,
+          "retries": 2
+        },
+        "pagination": {
+          "type": "none"
+        },
+        "resultPath": ".",
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.last_edited_time"
+        }
+      },
+      "fetchDatabaseItems": {
+        "tool": "notion_query_database",
+        "description": "Fetch items from databases",
+        "forEach": {
+          "source": "fetchDatabases",
+          "path": "$[*]",
+          "paramMapping": {
+            "database_id": "$.id",
+            "format": "json",
+            "page_size": 100
+          },
+          "concurrency": 3,
+          "continueOnError": true,
+          "retries": 2
+        },
+        "pagination": {
+          "type": "cursor",
+          "cursorParam": "start_cursor",
+          "cursorPath": "next_cursor",
+          "hasMorePath": "has_more"
+        },
+        "resultPath": "results",
+        "aggregateContent": {
+          "pageContent": {
+            "fetcher": "fetchBlocksForAggregation",
+            "required": false,
+            "mergeStrategy": "replace"
+          }
+        },
+        "extractFromAggregation": {
+          "contentLength": "pageContent.length",
+          "hasBlocks": "pageContent && pageContent.length > `0`"
+        },
+        "cutoffDate": {
+          "strategy": "post_fetch",
+          "dateFieldPath": "$.last_edited_time"
+        }
+      }
+    },
+    "recordTypes": {
+      "notionPage": {
+        "name": "notionPage",
+        "fetcher": "fetchPages",
+        "detection": {
+          "always": true
+        },
+        "fields": {
+          "title": {
+            "type": "path",
+            "path": "properties.title.title[0].plain_text"
+          },
+          "content": {
+            "type": "code",
+            "code": "const title = record.properties?.title?.title?.[0]?.plain_text || 'Untitled'; const blocks = record.blocks || []; const blockText = blocks.map(block => { const blockType = block.type; const blockData = block[blockType]; if (!blockData || !blockData.rich_text) return ''; return blockData.rich_text.map(rt => rt.plain_text).join(''); }).filter(text => text.length > 0).join('\\n\\n'); return title + (blockText ? '\\n\\n' + blockText : '');"
+          },
+          "people": {
+            "type": "paths",
+            "paths": ["created_by.id", "last_edited_by.id"]
+          },
+          "sourceCreatedAt": {
+            "type": "path",
+            "path": "created_time"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "last_edited_time"
+          },
+          "tags": {
+            "type": "code",
+            "code": "return [];"
+          },
+          "parentId": {
+            "type": "path",
+            "path": "parent.page_id"
+          }
+        },
+        "entities": [
+          {
+            "name": "created_by",
+            "type": "Person",
+            "idPath": "$.created_by.id",
+            "titlePath": "$.created_by.name"
+          },
+          {
+            "name": "last_edited_by",
+            "type": "Person",
+            "idPath": "$.last_edited_by.id",
+            "titlePath": "$.last_edited_by.name"
+          }
+        ],
+        "relationships": [
+          {
+            "name": "parent_page",
+            "type": "PARENT_OF",
+            "condition": "record.parent && record.parent.type === 'page_id'",
+            "targetType": "notionPage",
+            "targetIdPath": "$.parent.page_id",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "notionChildPage": {
+        "name": "notionPage",
+        "fetcher": "fetchChildPages",
+        "detection": {
+          "always": true
+        },
+        "fields": {
+          "title": {
+            "type": "path",
+            "path": "properties.title.title[0].plain_text"
+          },
+          "content": {
+            "type": "code",
+            "code": "const title = record.properties?.title?.title?.[0]?.plain_text || 'Untitled'; const blocks = record.blocks || []; const blockText = blocks.map(block => { const blockType = block.type; const blockData = block[blockType]; if (!blockData || !blockData.rich_text) return ''; return blockData.rich_text.map(rt => rt.plain_text).join(''); }).filter(text => text.length > 0).join('\\n\\n'); return title + (blockText ? '\\n\\n' + blockText : '');"
+          },
+          "people": {
+            "type": "paths",
+            "paths": ["created_by.id", "last_edited_by.id"]
+          },
+          "sourceCreatedAt": {
+            "type": "path",
+            "path": "created_time"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "last_edited_time"
+          },
+          "tags": {
+            "type": "code",
+            "code": "return [];"
+          },
+          "parentId": {
+            "type": "path",
+            "path": "parent.page_id"
+          }
+        },
+        "entities": [
+          {
+            "name": "created_by",
+            "type": "Person",
+            "idPath": "$.created_by.id",
+            "titlePath": "$.created_by.name"
+          },
+          {
+            "name": "last_edited_by",
+            "type": "Person",
+            "idPath": "$.last_edited_by.id",
+            "titlePath": "$.last_edited_by.name"
+          }
+        ],
+        "relationships": [
+          {
+            "name": "child_of_page",
+            "type": "CHILD_OF",
+            "condition": "record.parent && record.parent.type === 'page_id'",
+            "targetType": "notionPage",
+            "targetIdPath": "$.parent.page_id",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "notionDatabase": {
+        "name": "notionDatabase",
+        "fetcher": "fetchDatabases",
+        "detection": {
+          "always": true
+        },
+        "fields": {
+          "title": {
+            "type": "path",
+            "path": "title[0].plain_text"
+          },
+          "content": {
+            "type": "paths",
+            "paths": ["description[*].plain_text"],
+            "join": " "
+          },
+          "sourceCreatedAt": {
+            "type": "path",
+            "path": "created_time"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "last_edited_time"
+          },
+          "parentId": {
+            "type": "path",
+            "path": "parent.page_id"
+          }
+        },
+        "relationships": [
+          {
+            "name": "in_page",
+            "type": "IN_PAGE",
+            "condition": "record.parent && record.parent.type === 'page_id'",
+            "targetType": "notionPage",
+            "targetIdPath": "$.parent.page_id",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "notionDatabaseItem": {
+        "name": "notionDatabaseItem",
+        "fetcher": "fetchDatabaseItems",
+        "detection": {
+          "always": true
+        },
+        "fields": {
+          "title": {
+            "type": "code",
+            "code": "const props = record.properties; for (const key in props) { const prop = props[key]; if (prop.type === 'title' && prop.title && prop.title[0]) { return prop.title[0].plain_text; } } return 'Untitled';"
+          },
+          "content": {
+            "type": "code",
+            "code": "const props = record.properties; let content = []; let title = ''; for (const key in props) { const prop = props[key]; if (prop.type === 'title' && prop.title && prop.title[0]) { title = prop.title[0].plain_text; } else if (prop.type === 'rich_text' && prop.rich_text) { content.push(prop.rich_text.map(rt => rt.plain_text).join('')); } } const pageContent = record.pageContent || []; const blockText = pageContent.map(block => { const blockType = block.type; const blockData = block[blockType]; if (!blockData || !blockData.rich_text) return ''; return blockData.rich_text.map(rt => rt.plain_text).join(''); }).filter(text => text.length > 0).join('\\n\\n'); const propertyText = content.join(' '); const parts = [title]; if (propertyText) parts.push(propertyText); if (blockText) parts.push(blockText); return parts.join('\\n\\n');"
+          },
+          "sourceCreatedAt": {
+            "type": "path",
+            "path": "created_time"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "last_edited_time"
+          },
+          "parentId": {
+            "type": "path",
+            "path": "parent.database_id"
+          }
+        },
+        "relationships": [
+          {
+            "name": "in_database",
+            "type": "IN_DATABASE",
+            "condition": "record.parent && record.parent.type === 'database_id'",
+            "targetType": "notionDatabase",
+            "targetIdPath": "$.parent.database_id",
+            "confidence": 1.0
+          }
+        ]
+      }
+    },
+    "rateLimit": {
+      "maxRequests": 3,
+      "windowSeconds": 1
+    },
+    "postProcessing": {
+      "enabled": true,
+      "followRelationships": ["CHILD_OF", "PARENT_OF"],
+      "maxIterations": 10,
+      "description": "After initial indexing, follow page relationships to discover and fetch any referenced pages that weren't captured in the first pass"
+    }
+  }
+}

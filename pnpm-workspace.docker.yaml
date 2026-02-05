@@ -1,0 +1,7 @@
+packages:
+  - 'packages/server'
+  - 'packages/client'
+  - 'packages/shared-util'
+  - 'packages/indexing-engine'
+  - 'packages/fathom-mcp-server'
+  - 'packages/data-sources-config'

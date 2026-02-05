@@ -1,0 +1,73 @@
+{
+  "name": "@almanac/server",
+  "version": "0.1.0",
+  "description": "Almanac Server - Lightning fast data access for Agents",
+  "type": "module",
+  "main": "dist/server.js",
+  "exports": {
+    ".": "./dist/server.js",
+    "./types": "./dist/types/index.js",
+    "./types/*": "./dist/types/*.js"
+  },
+  "scripts": {
+    "dev": "tsx watch --watch --env-file=.env src/server.ts",
+    "dev:indexer": "tsx watch src/indexer-worker.ts",
+    "indexer": "tsx src/indexer-worker.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "start:indexer": "node dist/indexer-worker.js",
+    "type-check": "tsc --noEmit",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+    "test:integration": "NODE_OPTIONS=--experimental-vm-modules jest src/__tests__/integration",
+    "reindex-graph": "tsx scripts/reindex-graph.ts"
+  },
+  "dependencies": {
+    "@almanac/indexing-engine": "workspace:*",
+    "@almanac/shared-util": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.25.1",
+    "@neo4j/cypher-builder": "^2.11.0",
+    "@qdrant/js-client-rest": "^1.16.0",
+    "@slack/web-api": "^7.13.0",
+    "async-mutex": "^0.5.0",
+    "bullmq": "5.66.1",
+    "compromise": "^14.14.4",
+    "cron-parser": "4.9.0",
+    "csv-parse": "^6.1.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "ioredis": "^5.8.2",
+    "jmespath": "^0.16.0",
+    "json-schema-to-zod": "^2.7.0",
+    "jsonpath-plus": "^8.0.0",
+    "limiter": "^3.0.0",
+    "mongodb": "^7.0.0",
+    "mongoose": "^9.0.0",
+    "neo4j-driver": "^6.0.1",
+    "openai": "^6.9.1",
+    "p-limit": "^7.2.0",
+    "p-retry": "^7.1.1",
+    "p-throttle": "^8.1.0",
+    "pino": "^10.1.0",
+    "pino-pretty": "^13.1.3",
+    "yaml": "^2.8.2",
+    "zod": "3.25.76",
+    "zod-to-json-schema": "^3.25.1"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.2.0",
+    "@types/express": "^5.0.5",
+    "@types/jest": "^30.0.0",
+    "@types/jmespath": "^0.15.2",
+    "@types/node": "^24.10.1",
+    "jest": "^30.2.0",
+    "mongodb-memory-server": "^11.0.1",
+    "ts-jest": "^29.4.5",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

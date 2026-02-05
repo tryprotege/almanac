@@ -1,0 +1,147 @@
+name: 💡 Feature Request
+description: Suggest a new feature or enhancement for almanac
+title: '[Feature]: '
+labels: ['enhancement', 'needs-triage']
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please provide as much detail as possible to help us understand and evaluate your request.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Please confirm the following before submitting
+      options:
+        - label: I have searched existing issues to ensure this feature hasn't been requested
+          required: true
+        - label: I have read the documentation and this feature doesn't already exist
+          required: true
+        - label: This feature aligns with the project's goals and scope
+          required: false
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? Is your feature request related to a problem?
+      placeholder: "I'm always frustrated when... / Users need... / It would be better if..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see implemented
+      placeholder: A clear and concise description of what you want to happen...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which part of the system would this feature affect?
+      options:
+        - Server (packages/server)
+        - Client (packages/client)
+        - Indexing Engine (packages/indexing-engine)
+        - MCP Servers (clone-mcp-server, fathom-mcp-server)
+        - Benchmarking (packages/benchmark, packages/benchmarking)
+        - Data Sources Config
+        - Shared Utilities
+        - Documentation
+        - Docker/Deployment
+        - Multiple Components
+        - New Component
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Solutions
+      description: Describe alternative solutions or features you've considered
+      placeholder: Have you considered other approaches? What are the trade-offs?
+
+  - type: textarea
+    id: use-cases
+    attributes:
+      label: Use Cases
+      description: Describe specific use cases where this feature would be beneficial
+      placeholder: |
+        1. As a [user type], I want to [action] so that [benefit]
+        2. When [scenario], this feature would allow...
+      value: |
+        1. 
+        2.
+    validations:
+      required: true
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation Ideas
+      description: If you have ideas about how this could be implemented, share them here
+      placeholder: |
+        - Potential approach 1...
+        - Technologies that could be used...
+        - API design considerations...
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups/Examples
+      description: If applicable, add mockups, wireframes, or examples from other projects
+      placeholder: Drag and drop images here or paste URLs
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you/your use case?
+      options:
+        - Critical - Blocking current work
+        - High - Important for productivity
+        - Medium - Nice to have
+        - Low - Minor improvement
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: breaking
+    attributes:
+      label: Breaking Changes
+      description: Would this feature require breaking changes?
+      options:
+        - label: This feature may require breaking changes to existing APIs
+          required: false
+        - label: This feature can be implemented without breaking changes
+          required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context, links to related issues, or relevant information
+      placeholder: |
+        - Related issues: #123, #456
+        - Similar features in other projects: [link]
+        - Discussion thread: [link]
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Would you like to contribute this feature?
+      options:
+        - label: I would like to work on implementing this feature
+          required: false
+        - label: I can help with testing once implemented
+          required: false
+        - label: I can help with documentation
+          required: false

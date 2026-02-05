@@ -1,0 +1,41 @@
+{
+  "name": "@almanac/clone-mcp-server",
+  "version": "1.0.0",
+  "description": "Mock MCP server with GitHub, Fathom, Notion, and Slack tools",
+  "main": "dist/server.js",
+  "type": "module",
+  "bin": {
+    "clone-mcp-server": "./dist/server.js"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start-streamable": "tsx src/index.ts",
+    "start-stdio": "STDIO=true tsx src/index.ts",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "mcp",
+    "mock",
+    "github",
+    "fathom",
+    "notion",
+    "slack"
+  ],
+  "dependencies": {
+    "@almanac/shared-util": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.24.3 ",
+    "@slack/web-api": "^7.13.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "cors": "^2.8.5",
+    "csv-stringify": "^6.6.0",
+    "express": "^5.2.1",
+    "zod": "4.1.13"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

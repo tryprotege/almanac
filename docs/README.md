@@ -132,6 +132,8 @@ External APIs → MCP Servers → Almanac
 - **Issues**: Report bugs and request features
 - **Discussions**: Ask questions and share ideas
 
+LLM? Read [llms.txt](http://docs.tryprotege.com/llms.txt).
+
 ---
 
 _Built for developers, by developers. Open source and production-ready._

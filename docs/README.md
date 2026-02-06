@@ -18,7 +18,7 @@ layout:
 
 # Welcome to Almanac
 
-Almanac is a lightning-fast data access platform designed specifically for AI agents. It combines graph-enhanced retrieval (LightRAG) with zero-config indexing to make any data source instantly accessible to your AI applications.
+[Almanac](https://github.com/tryprotege/almanac) is a lightning-fast data access platform designed specifically for AI agents. It combines graph-enhanced retrieval (LightRAG) with zero-config indexing to make any data source instantly accessible to your AI applications.
 
 ## What Makes Almanac Different?
 

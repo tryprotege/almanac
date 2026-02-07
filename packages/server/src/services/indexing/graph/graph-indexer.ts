@@ -459,7 +459,7 @@ export const indexAllRecords = async (
         }
       });
 
-      // Log failed extractions
+      // Log failed extractions and mark them as indexed with status 'failed'
       if (failedExtractions.length > 0) {
         failedExtractions.forEach(({ recordId, recordTitle, error }) => {
           logger.error({
@@ -469,6 +469,19 @@ export const indexAllRecords = async (
             recordTitle,
           });
         });
+
+        // Mark failed records as indexed with status 'failed'
+        await Promise.all(
+          failedExtractions.map(({ recordId }) => {
+            const record = records.find((r) => r._id === recordId);
+            return recordStore.upsert({
+              _id: recordId,
+              lastGraphIndexAt: new Date(),
+              lastGraphIndexChecksum: record?.checksum,
+              lastGraphIndexStatus: 'failed',
+            });
+          }),
+        );
 
         stats.errors += failedExtractions.length;
         stats.failedRecords += failedExtractions.length;
@@ -493,6 +506,43 @@ export const indexAllRecords = async (
 
       stats.skippedToxic += toxicFiltered.length;
       stats.emptyExtractions += emptyExtractions.length;
+
+      // Mark toxic-filtered records as indexed with status 'toxic'
+      if (toxicFiltered.length > 0) {
+        await Promise.all(
+          toxicFiltered.map((result) => {
+            const record = records.find((r) => r._id === result.recordId);
+            return recordStore.upsert({
+              _id: result.recordId,
+              lastGraphIndexAt: new Date(),
+              lastGraphIndexChecksum: record?.checksum,
+              lastGraphIndexStatus: 'toxic',
+            });
+          }),
+        );
+      }
+
+      // Mark empty extraction records as indexed with status 'empty'
+      if (emptyExtractions.length > 0) {
+        // Log batch-level warning for empty extractions
+        logger.warn({
+          msg: '⚠️  Batch contains records with empty LLM extractions',
+          count: emptyExtractions.length,
+          sampleRecordIds: emptyExtractions.slice(0, 5).map((r) => r.recordId),
+        });
+
+        await Promise.all(
+          emptyExtractions.map((result) => {
+            const record = records.find((r) => r._id === result.recordId);
+            return recordStore.upsert({
+              _id: result.recordId,
+              lastGraphIndexAt: new Date(),
+              lastGraphIndexChecksum: record?.checksum,
+              lastGraphIndexStatus: 'empty',
+            });
+          }),
+        );
+      }
 
       // Filter out empty results
       const validResults = extractionResults.filter(
@@ -1039,6 +1089,7 @@ export const indexAllRecords = async (
             _id: result.recordId,
             lastGraphIndexAt: new Date(),
             lastGraphIndexChecksum: record?.checksum, // Store checksum at time of indexing
+            lastGraphIndexStatus: 'success',
           });
         }),
       );

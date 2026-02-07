@@ -18,6 +18,11 @@ import { llm } from '../llm/llm.js';
 const processor: Processor<IndexGraphJobData, IndexGraphJobResult, string> = async ({
   data: { source },
 }) => {
+  logger.info({
+    msg: `🚀 Graph index worker starting for source: ${source}`,
+    source,
+  });
+
   // Initialize services
   const { memgraph, qdrant } = await initializeServices();
 
@@ -25,6 +30,25 @@ const processor: Processor<IndexGraphJobData, IndexGraphJobResult, string> = asy
   const recordStore = new RecordStore();
   const graphStore = new GraphStore(memgraph);
   const vectorStore = new VectorStore(qdrant);
+
+  // Check how many records need indexing
+  const recordsNeedingIndex = await recordStore.countNeedingGraphIndex(source, '', {
+    includeDeleted: false,
+  });
+
+  if (recordsNeedingIndex === 0) {
+    logger.info({
+      msg: `✅ No records need graph indexing for ${source}`,
+      source,
+    });
+    return;
+  }
+
+  logger.info({
+    msg: `📊 Found ${recordsNeedingIndex} records needing graph indexing`,
+    source,
+    count: recordsNeedingIndex,
+  });
 
   // Use functional approach for indexing
   // Note: Removed adapter dependency - relationships now come from
@@ -57,7 +81,10 @@ const processor: Processor<IndexGraphJobData, IndexGraphJobResult, string> = asy
     });
   }
 
-  console.log('✅✅✅✅✅ done', source);
+  logger.info({
+    msg: `✅ Graph index worker completed for ${source}`,
+    source,
+  });
 };
 
 type IndexGraphJobData = {

@@ -14,11 +14,7 @@ import { processRecordsToGraph } from './processing/graph-builder.js';
 import { Entity, Relationship, ExtractionResult, IndexingOptions, IndexingStats } from './types.js';
 import { filterLowValueRelationships } from './schema/entity-deduplication.js';
 import { isToxicChunk, truncateEntities } from '../../../utils/toxic-chunk-detector.js';
-import {
-  entitiesToGraphNodes,
-  generateGlobalEntityId,
-  GraphRelationship,
-} from './graph-converter.js';
+import { entitiesToGraphNodes, GraphRelationship } from './graph-converter.js';
 import { normalizeEntityName } from './schema/entity-deduplication.js';
 import {
   discoverNewTypes,
@@ -33,7 +29,11 @@ import logger from '../../../utils/logger.js';
 import { env } from '../../../env.js';
 import { calculateEmbeddingChecksum } from '../../../utils/checksum.js';
 import { sanitizeRelationshipType } from '../../../utils/cypher-escape.js';
-import { generateRelationshipId } from '../../../utils/graph-id.js';
+import {
+  generateEntityId,
+  generateRelationshipId,
+  generateRelationshipLookupKey,
+} from '../../../utils/graph-id.js';
 
 // ============================================================================
 // Core Functions
@@ -328,9 +328,7 @@ export const indexAllRecords = async (
               // Log extraction details immediately after each document finishes
               if (result.entities.length > 0 && result.relationships.length > 0) {
                 // Get entity IDs from result
-                const entityIds = result.entities.map((e) =>
-                  generateGlobalEntityId(e.name, e.type),
-                );
+                const entityIds = result.entities.map((e) => generateEntityId(e.name, e.type));
 
                 // Query graph store to check which entities already exist
                 const existingEntityIds = await graphStore.getExistingEntityIds(entityIds);
@@ -340,7 +338,7 @@ export const indexAllRecords = async (
                 const existingEntities: Entity[] = [];
 
                 for (const entity of result.entities) {
-                  const entityId = generateGlobalEntityId(entity.name, entity.type);
+                  const entityId = generateEntityId(entity.name, entity.type);
                   if (existingEntityIds.has(entityId)) {
                     existingEntities.push(entity);
                   } else {
@@ -360,9 +358,11 @@ export const indexAllRecords = async (
                     entityNameToType.get(normalizeEntityName(r.source)) || 'Entity';
                   const targetType =
                     entityNameToType.get(normalizeEntityName(r.target)) || 'Entity';
+                  const sourceId = generateEntityId(r.source, sourceType);
+                  const targetId = generateEntityId(r.target, targetType);
                   return {
-                    sourceId: generateGlobalEntityId(r.source, sourceType),
-                    targetId: generateGlobalEntityId(r.target, targetType),
+                    sourceId,
+                    targetId,
                     type: r.type,
                   };
                 });
@@ -379,9 +379,9 @@ export const indexAllRecords = async (
                     entityNameToType.get(normalizeEntityName(rel.source)) || 'Entity';
                   const targetType =
                     entityNameToType.get(normalizeEntityName(rel.target)) || 'Entity';
-                  const sourceId = generateGlobalEntityId(rel.source, sourceType);
-                  const targetId = generateGlobalEntityId(rel.target, targetType);
-                  const key = `${sourceId}|${rel.type}|${targetId}`;
+                  const sourceId = generateEntityId(rel.source, sourceType);
+                  const targetId = generateEntityId(rel.target, targetType);
+                  const key = generateRelationshipLookupKey(sourceId, rel.type, targetId);
 
                   if (existingRelKeys.has(key)) {
                     existingRelationships.push(rel);
@@ -590,9 +590,7 @@ export const indexAllRecords = async (
       for (const result of validResults) {
         // Map relationships to documents
         for (const rel of result.relationships) {
-          const normalizedSource = normalizeEntityName(rel.source);
-          const normalizedTarget = normalizeEntityName(rel.target);
-          const key = `${normalizedSource}|${rel.type}|${normalizedTarget}`;
+          const key = generateRelationshipLookupKey(rel.source, rel.type, rel.target);
           const docs = relToDocuments.get(key) || [];
           docs.push(result.recordId);
           relToDocuments.set(key, docs);

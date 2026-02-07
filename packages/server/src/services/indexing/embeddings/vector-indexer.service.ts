@@ -45,15 +45,15 @@ export async function insertAllRecordsToVectorDB(
     concurrency: env.VECTOR_INDEXING_CONCURRENCY,
   });
 
-  let skip = 0;
   let hasMore = true;
   let batchNumber = 0;
 
   while (hasMore) {
     // Use new method to fetch only records needing embedding
+    // Skip is always 0 because processed records get lastEmbeddedAt set and disappear from query results
     const recordsToProcess = await recordStore.findNeedingEmbedding(source, undefined, {
       limit: 50,
-      skip,
+      skip: 0,
       includeDeleted: false,
     });
 
@@ -90,8 +90,6 @@ export async function insertAllRecordsToVectorDB(
     );
 
     await Promise.all(promises);
-
-    skip += recordsToProcess.length;
 
     // Log progress
     const progress = `  ✓ Batch ${batchNumber} complete - ${stats.processed} processed, ${stats.chunks} chunks, ${stats.errors} errors`;

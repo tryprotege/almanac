@@ -299,7 +299,7 @@ export const indexAllRecords = async (
         })
       : await recordStore.findNeedingGraphIndex(source, recordType, {
           limit: batchSize,
-          skip,
+          skip: 0, // Always 0 for moving query - processed records self-remove
           includeDeleted: false,
         });
 
@@ -550,7 +550,7 @@ export const indexAllRecords = async (
       );
 
       if (validResults.length === 0) {
-        skip += records.length;
+        // Don't increment skip here - will be done at end of loop for force mode
         continue;
       }
 
@@ -1161,7 +1161,11 @@ export const indexAllRecords = async (
       batchTimes.push(batchEndTime - batchStartTime);
     }
 
-    skip += records.length;
+    // Only increment skip in force mode (static query)
+    // Non-force mode: processed records self-remove from query results
+    if (force) {
+      skip += records.length;
+    }
   }
 
   // Calculate performance metrics

@@ -413,9 +413,6 @@ export async function* indexAll(
                 },
               };
             }
-
-            // Wait before continuing
-            await sleep(BACKPRESSURE_CONFIG.BACKPRESSURE_DELAY);
           }
         }
 

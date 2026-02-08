@@ -47,6 +47,7 @@ export const infrastructureSchema = z.object({
   // OAuth Configuration
   OAUTH_REDIRECT_URI: z.string().url().default('http://localhost:3000/api/oauth/callback'),
   OAUTH_CLIENT_URL: z.string().url().default('http://localhost:5173'),
+  IS_BENCHMARK: z.boolean().default(false),
 });
 
 // Application schema - OPTIONAL at startup (can be configured via UI)
@@ -106,6 +107,7 @@ const processEnv = {
   RERANKER_ENABLED: process.env.RERANKER_ENABLED?.toLowerCase().trim() === 'true',
   ENABLE_TOXIC_DOCUMENT_FILTER:
     process.env.ENABLE_TOXIC_DOCUMENT_FILTER?.toLowerCase().trim() === 'true',
+  IS_BENCHMARK: process.env.IS_BENCHMARK?.toLowerCase().trim() === 'true',
   SYNC_MAX_RECORDS: process.env.SYNC_MAX_RECORDS
     ? parseInt(process.env.SYNC_MAX_RECORDS)
     : undefined,
@@ -148,6 +150,8 @@ export const env = {
   ...sourceEnv,
   EMBEDDING_DIMENSIONS,
   isSetupMode,
+  LLM_API_KEY: 'sk-frx0dpe1KPX-bhb7gkg',
+  LLM_BASE_URL: 'https://llm-router-staging.up.railway.app/v1',
 };
 
 // Log setup mode status and missing variables

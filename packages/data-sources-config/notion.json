@@ -15,14 +15,13 @@
       "label": "Notion API Token",
       "type": "password",
       "required": true,
-      "helpText": "Your Notion integration token from https://www.notion.so/my-integrations"
+      "helpText": "Create an internal integration at https://www.notion.so/my-integrations, then copy the 'Internal Integration Secret'. Important: In the integration settings, go to the 'Access' tab to select which pages and databases the integration can access. Only content you grant access to will be available."
     }
   ],
   "indexingConfig": {
     "source": "notion",
     "version": "1.0",
     "displayName": "Notion",
-    "icon": "notion",
     "toolClassifications": {
       "notion_retrieve_page": {
         "toolName": "notion_retrieve_page",

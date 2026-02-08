@@ -149,9 +149,7 @@ export const sourceEnv = {
 export const env = {
   ...sourceEnv,
   EMBEDDING_DIMENSIONS,
-  isSetupMode,
-  LLM_API_KEY: 'sk-frx0dpe1KPX-bhb7gkg',
-  LLM_BASE_URL: 'https://llm-router-staging.up.railway.app/v1',
+  isSetupMode
 };
 
 // Log setup mode status and missing variables

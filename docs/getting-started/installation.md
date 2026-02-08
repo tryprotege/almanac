@@ -7,8 +7,8 @@ This guide covers different ways to install and run Almanac locally, from native
 - **Node.js** >= 24.0.0
 - **pnpm** >= 8.0.0
 - **Docker Desktop** (or Docker Engine + Docker Compose)
-- **8GB RAM** minimum (16GB recommended for large datasets)
-- **10GB disk space** (more for large document collections)
+- **2GB RAM** minimum (8GB+ recommended for large datasets)
+- **1GB disk space** (more for large document collections)
 
 ## Quick Start (Recommended)
 

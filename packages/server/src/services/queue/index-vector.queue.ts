@@ -11,6 +11,11 @@ import logger from '../../utils/logger.js';
 const processor: Processor<IndexVectorJobData, IndexVectorJobResult, string> = async ({
   data: { source },
 }) => {
+  logger.info({
+    msg: `🚀 Vector index worker starting for source: ${source}`,
+    source,
+  });
+
   // Initialize services
   const { qdrant } = await initializeServices();
 
@@ -18,9 +23,31 @@ const processor: Processor<IndexVectorJobData, IndexVectorJobResult, string> = a
   const recordStore = new RecordStore();
   const vectorStore = new VectorStore(qdrant);
 
+  // Check how many records need embedding
+  const recordsNeedingEmbedding = await recordStore.countNeedingEmbedding(source, '', {
+    includeDeleted: false,
+  });
+
+  if (recordsNeedingEmbedding === 0) {
+    logger.info({
+      msg: `✅ No records need embedding for ${source}`,
+      source,
+    });
+    return;
+  }
+
+  logger.info({
+    msg: `📊 Found ${recordsNeedingEmbedding} records needing embedding`,
+    source,
+    count: recordsNeedingEmbedding,
+  });
+
   await insertAllRecordsToVectorDB(recordStore, vectorStore, source);
 
-  console.log('✅ vector', source);
+  logger.info({
+    msg: `✅ Vector index worker completed for ${source}`,
+    source,
+  });
 };
 
 type IndexVectorJobData = {

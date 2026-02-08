@@ -48,7 +48,15 @@ const RecordSchema = new mongoose.Schema(
     // Indexing timestamps
     lastGraphIndexAt: { type: Date }, // Last indexed to graph DB
     lastGraphIndexChecksum: { type: String }, // Checksum at time of last graph indexing
+    lastGraphIndexStatus: {
+      type: String,
+      enum: ['success', 'empty', 'failed', 'toxic', 'skipped_no_content'],
+    }, // Status of last graph indexing attempt
     lastEmbeddedAt: { type: Date }, // Last embedded to vector DB
+    lastEmbeddingStatus: {
+      type: String,
+      enum: ['success', 'failed', 'skipped_no_content'],
+    }, // Status of last embedding attempt
     embeddingModelVersion: { type: String }, // Model used for embeddings (e.g., "text-embedding-3-large")
   },
   {

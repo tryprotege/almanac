@@ -22,6 +22,31 @@ cd almanac
 # Install dependencies
 pnpm install
 
+# Configure environment
+cd packages/server
+cp .env.example .env
+cd ../..
+```
+
+Edit `packages/server/.env` with your LLM API key and settings:
+
+```env
+LLM_API_KEY=
+LLM_BASE_URL=
+LLM_CHAT_MODEL=
+LLM_EXTRACTION_MODEL=
+LLM_EMBEDDING_MODEL=
+RERANKER_ENABLED=true
+RERANKER_API_KEY=
+RERANKER_BASE_URL=
+RERANKER_MODEL=
+LOG_LEVEL=error
+SYNC_CUTOFF_DATE="2026-01-01T00:00:00.000Z"
+```
+
+**Required**: Set your `LLM_API_KEY` and configure model settings based on your provider.
+
+```bash
 # Start all services
 pnpm start
 ```
@@ -82,12 +107,25 @@ cd packages/server
 cp .env.example .env
 ```
 
-Edit `.env` with your settings:
+Edit `.env` with your LLM API key and settings:
 
-- LLM API keys and models
-- Any other required API keys (GitHub, Notion, Slack, etc.)
+```env
+LLM_API_KEY=
+LLM_BASE_URL=
+LLM_CHAT_MODEL=
+LLM_EXTRACTION_MODEL=
+LLM_EMBEDDING_MODEL=
+RERANKER_ENABLED=true
+RERANKER_API_KEY=
+RERANKER_BASE_URL=
+RERANKER_MODEL=
+LOG_LEVEL=error
+SYNC_CUTOFF_DATE="2026-01-01T00:00:00.000Z"
+```
 
-The infrastructure services (MongoDB, Redis, etc.) are pre-configured in `docker-compose.yml`.
+**Required**: Set your `LLM_API_KEY` and configure model settings based on your provider.
+
+**Optional**: Configure reranker settings if needed. The infrastructure services (MongoDB, Redis, etc.) are pre-configured in `docker-compose.yml` with default settings.
 
 #### 4. Start Application
 

@@ -48,8 +48,17 @@ slackMcpServer.registerTool(
     let startIndex = 0;
     if (args.cursor) {
       startIndex = channels.findIndex((c) => c.id === args.cursor);
-      if (startIndex === -1) startIndex = 0;
-      else startIndex += 1; // Start after the cursor
+      if (startIndex === -1) {
+        // Cursor not found - return empty results to stop pagination
+        const csv = stringify([], {
+          header: true,
+          columns: ['ID', 'Name', 'Topic', 'Purpose', 'MemberCount', 'Cursor'],
+        });
+        return {
+          content: [{ type: 'text', text: csv }],
+        };
+      }
+      startIndex += 1; // Start after the cursor
     }
 
     // Get paginated slice
@@ -61,13 +70,13 @@ slackMcpServer.registerTool(
         : '';
 
     // Convert to CSV format with columns: ID, Name, Topic, Purpose, MemberCount, Cursor
-    const csvData = paginatedChannels.map((channel) => ({
+    const csvData = paginatedChannels.map((channel, index) => ({
       ID: channel.id || '',
       Name: channel.name || '',
       Topic: channel.topic?.value || '',
       Purpose: channel.purpose?.value || '',
       MemberCount: channel.num_members || 0,
-      Cursor: nextCursor,
+      Cursor: index === paginatedChannels.length - 1 ? nextCursor : '',
     }));
 
     const csv = stringify(csvData, {
@@ -172,15 +181,35 @@ slackMcpServer.registerTool(
     let messages = mockData.slack.messages.filter((m) => m.channel === args.channel_id);
 
     // Parse limit (treat numeric strings as count, otherwise default to 10)
-    const numericLimit = parseInt(args.limit || '10');
+    const numericLimit = 9999;
     const limit = isNaN(numericLimit) ? 10 : numericLimit;
 
     // Find starting index based on cursor
     let startIndex = 0;
     if (args.cursor) {
       startIndex = messages.findIndex((m) => m.ts === args.cursor);
-      if (startIndex === -1) startIndex = 0;
-      else startIndex += 1; // Start after the cursor
+      if (startIndex === -1) {
+        // Cursor not found - return empty results to stop pagination
+        const csv = stringify([], {
+          header: true,
+          columns: [
+            'MsgID',
+            'UserID',
+            'UserName',
+            'RealName',
+            'Channel',
+            'ThreadTs',
+            'Text',
+            'Time',
+            'Reactions',
+            'Cursor',
+          ],
+        });
+        return {
+          content: [{ type: 'text', text: csv }],
+        };
+      }
+      startIndex += 1; // Start after the cursor
     }
 
     // Get paginated slice
@@ -192,7 +221,7 @@ slackMcpServer.registerTool(
         : '';
 
     // Convert to CSV format with columns: MsgID, UserID, UserName, RealName, Channel, ThreadTs, Text, Time, Reactions, Cursor
-    const csvData = paginatedMessages.map((msg) => ({
+    const csvData = paginatedMessages.map((msg, index) => ({
       MsgID: msg.ts || '',
       UserID: msg.user || '',
       UserName: '', // Not available in mock data
@@ -200,9 +229,9 @@ slackMcpServer.registerTool(
       Channel: msg.channel || args.channel_id,
       ThreadTs: msg.thread_ts || '',
       Text: msg.text || '',
-      Time: msg.ts || '',
+      Time: new Date(parseFloat(msg.ts!) * 1000).toISOString(),
       Reactions: msg.reactions ? JSON.stringify(msg.reactions) : '',
-      Cursor: nextCursor,
+      Cursor: index === paginatedMessages.length - 1 ? nextCursor : '',
     }));
 
     const csv = stringify(csvData, {
@@ -272,15 +301,35 @@ slackMcpServer.registerTool(
     );
 
     // Parse limit (treat numeric strings as count, otherwise default to 10)
-    const numericLimit = parseInt(args.limit || '10');
+    const numericLimit = 9999;
     const limit = isNaN(numericLimit) ? 10 : numericLimit;
 
     // Find starting index based on cursor
     let startIndex = 0;
     if (args.cursor) {
       startIndex = replies.findIndex((m) => m.ts === args.cursor);
-      if (startIndex === -1) startIndex = 0;
-      else startIndex += 1; // Start after the cursor
+      if (startIndex === -1) {
+        // Cursor not found - return empty results to stop pagination
+        const csv = stringify([], {
+          header: true,
+          columns: [
+            'MsgID',
+            'UserID',
+            'UserName',
+            'RealName',
+            'Channel',
+            'ThreadTs',
+            'Text',
+            'Time',
+            'Reactions',
+            'Cursor',
+          ],
+        });
+        return {
+          content: [{ type: 'text', text: csv }],
+        };
+      }
+      startIndex += 1; // Start after the cursor
     }
 
     // Get paginated slice
@@ -292,7 +341,7 @@ slackMcpServer.registerTool(
         : '';
 
     // Convert to CSV format with columns: MsgID, UserID, UserName, RealName, Channel, ThreadTs, Text, Time, Reactions, Cursor
-    const csvData = paginatedReplies.map((msg) => ({
+    const csvData = paginatedReplies.map((msg, index) => ({
       MsgID: msg.ts || '',
       UserID: msg.user || '',
       UserName: '', // Not available in mock data
@@ -300,9 +349,9 @@ slackMcpServer.registerTool(
       Channel: msg.channel || args.channel_id,
       ThreadTs: msg.thread_ts || args.thread_ts,
       Text: msg.text || '',
-      Time: msg.ts || '',
+      Time: new Date(parseFloat(msg.ts!) * 1000).toISOString(),
       Reactions: msg.reactions ? JSON.stringify(msg.reactions) : '',
-      Cursor: nextCursor,
+      Cursor: index === paginatedReplies.length - 1 ? nextCursor : '',
     }));
 
     const csv = stringify(csvData, {

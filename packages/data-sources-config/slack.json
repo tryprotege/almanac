@@ -43,7 +43,6 @@
     "source": "slack",
     "version": "1.0",
     "displayName": "Slack",
-    "icon": "slack",
     "toolClassifications": {
       "channels_list": {
         "toolName": "channels_list",

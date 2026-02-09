@@ -39,7 +39,11 @@ export async function embed(texts: string[]): Promise<number[][]> {
       },
     );
 
-    const embeddings = response.data.map((item) => item.embedding);
+    // Sort by index to ensure embeddings match input text order
+    // The API may return results out of order, especially with parallel processing
+    const embeddings = response.data
+      .sort((a, b) => a.index - b.index)
+      .map((item) => item.embedding);
 
     return embeddings;
   } catch (err) {

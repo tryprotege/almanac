@@ -26,12 +26,12 @@ async function extractBothFromContent(
   content: string,
   existingEntityTypes: string[],
   existingRelationshipTypes: string[],
-  persona?: string,
-  maxRetries: number = 3,
-  recordContext?: {
+  recordContext: {
     recordId: string;
     recordTitle: string;
   },
+  persona?: string,
+  maxRetries: number = 3,
 ): Promise<{
   entities: Entity[];
   relationships: Relationship[];
@@ -44,6 +44,7 @@ async function extractBothFromContent(
         content,
         existingEntityTypes,
         existingRelationshipTypes,
+        recordContext,
         persona,
       );
 
@@ -336,12 +337,12 @@ export async function extractGraphFromContent(
   content: string,
   existingEntityTypes: string[],
   existingRelationshipTypes: string[],
-  persona?: string,
-  maxRetries: number = 3,
-  recordContext?: {
+  recordContext: {
     recordId: string;
     recordTitle: string;
   },
+  persona?: string,
+  maxRetries: number = 3,
 ): Promise<{
   entities: Entity[];
   relationships: Relationship[];
@@ -352,9 +353,9 @@ export async function extractGraphFromContent(
     content,
     existingEntityTypes,
     existingRelationshipTypes,
+    recordContext,
     persona,
     maxRetries,
-    recordContext,
   );
 
   // Build a set of valid entity names (normalized) for validation

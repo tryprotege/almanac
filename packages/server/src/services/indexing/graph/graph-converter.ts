@@ -4,8 +4,8 @@
  */
 
 import { Entity, Relationship, normalizeEntityName } from './schema/entity-deduplication.js';
-import { generateEntityId } from '../../../utils/graph-id.js';
 import logger from '../../../utils/logger.js';
+import { generateEntityId } from '../../../utils/graph-id.js';
 
 export interface GraphNode {
   id: string; // Global entity ID
@@ -26,17 +26,6 @@ export interface GraphRelationship {
 // ============================================================================
 
 /**
- * Generate a global entity ID from name and type
- * Uses deterministic UUID generation to ensure consistent IDs across documents
- * @example generateGlobalEntityId("John Smith", "Person") => "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
- */
-export const generateGlobalEntityId = (entityName: string, entityType: string): string => {
-  // Normalize the entity name first to ensure consistent IDs
-  const normalized = normalizeEntityName(entityName);
-  return generateEntityId(normalized, entityType);
-};
-
-/**
  * Convert entities to global graph nodes
  * Returns nodes and entity name to ID mapping
  * NOTE: No longer scoped to individual records - entities are global
@@ -49,7 +38,7 @@ export const entitiesToGraphNodes = (
 
   for (const entity of entities) {
     // Use global ID instead of record-scoped ID
-    const nodeId = generateGlobalEntityId(entity.name, entity.type);
+    const nodeId = generateEntityId(entity.name, entity.type);
 
     // Use normalized name as the key to ensure case-insensitive lookups
     const normalizedKey = normalizeEntityName(entity.name);

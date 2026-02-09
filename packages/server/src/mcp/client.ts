@@ -747,7 +747,7 @@ class MCPClientManager {
     };
 
     // Wrap with throttling if configured
-    const throttledCall = throttler ? throttler(makeToolCall) : makeToolCall;
+    const throttledCall = !env.IS_BENCHMARK && throttler ? throttler(makeToolCall) : makeToolCall;
 
     // Wrap the tool call with retry logic, including response body inspection
     const response = await retryWithBackoff(

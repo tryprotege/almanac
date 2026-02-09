@@ -5,6 +5,7 @@ import { GraphSchemaModel } from '../src/models/graph-schema.model.js';
 import { GraphEmbeddingMetadata } from '../src/models/graph-embedding-metadata.model.js';
 import { GraphStore } from '../src/stores/graph.store.js';
 import { VectorStore } from '../src/stores/vector.store.js';
+import { CacheStore } from '../src/stores/cache.store.js';
 import { cleanupOrphanedEmbeddings } from '../src/services/cleanup/embedding-cleanup.service.js';
 import * as readline from 'readline';
 import logger from '../src/utils/logger.js';
@@ -14,7 +15,7 @@ import { MCPSyncStateModel } from '../src/models/mcp-sync-state.model.js';
 import { OAuthTokenModel } from '../src/models/oauth-token.model.js';
 
 /**
- * Script to wipe all data from MongoDB, Memgraph, and Qdrant
+ * Script to wipe all data from MongoDB, Memgraph, Qdrant, and Redis
  *
  * Usage:
  *   pnpm tsx scripts/wipe-data.ts                    # Interactive mode with confirmation
@@ -22,6 +23,7 @@ import { OAuthTokenModel } from '../src/models/oauth-token.model.js';
  *   pnpm tsx scripts/wipe-data.ts --only=mongodb     # Wipe only MongoDB
  *   pnpm tsx scripts/wipe-data.ts --only=memgraph    # Wipe only Memgraph
  *   pnpm tsx scripts/wipe-data.ts --only=qdrant      # Wipe only Qdrant
+ *   pnpm tsx scripts/wipe-data.ts --only=redis       # Wipe only Redis
  *   pnpm tsx scripts/wipe-data.ts --source=linear    # Wipe only Linear data
  *   pnpm tsx scripts/wipe-data.ts --keep-mcp-config  # Keep MCP server configs
  *   pnpm tsx scripts/wipe-data.ts --only=memgraph --reset-schema  # Wipe Memgraph and reset schema
@@ -29,7 +31,7 @@ import { OAuthTokenModel } from '../src/models/oauth-token.model.js';
 
 interface WipeOptions {
   force: boolean;
-  only?: 'mongodb' | 'memgraph' | 'qdrant';
+  only?: 'mongodb' | 'memgraph' | 'qdrant' | 'redis';
   source?: string;
   keepMcpConfig: boolean;
   resetSchema: boolean;
@@ -47,10 +49,10 @@ function parseArgs(): WipeOptions {
     if (arg === '--force') {
       options.force = true;
     } else if (arg.startsWith('--only=')) {
-      const value = arg.split('=')[1] as 'mongodb' | 'memgraph' | 'qdrant';
-      if (!['mongodb', 'memgraph', 'qdrant'].includes(value)) {
+      const value = arg.split('=')[1] as 'mongodb' | 'memgraph' | 'qdrant' | 'redis';
+      if (!['mongodb', 'memgraph', 'qdrant', 'redis'].includes(value)) {
         logger.error(`❌ Invalid --only value: ${value}`);
-        logger.error('   Valid values: mongodb, memgraph, qdrant');
+        logger.error('   Valid values: mongodb, memgraph, qdrant, redis');
         process.exit(1);
       }
       options.only = value;
@@ -69,11 +71,13 @@ function parseArgs(): WipeOptions {
 async function getStatistics(
   memgraph: any,
   qdrant: any,
+  redis: any,
   source?: string,
 ): Promise<{
   mongodb: { records: number; schemas: number; mcpConfigs: number };
   memgraph: { nodes: number; relationships: number };
   qdrant: { collections: number; vectors: number };
+  redis: { keys: number };
 }> {
   // MongoDB stats
   const recordCount = await RecordModel.countDocuments(source ? { source } : {});
@@ -115,6 +119,16 @@ async function getStatistics(
     logger.warn({ err }, 'Could not get Qdrant stats');
   }
 
+  // Redis stats
+  let redisKeyCount = 0;
+  try {
+    const cacheStore = new CacheStore(redis);
+    const keys = await cacheStore.keys('*');
+    redisKeyCount = keys.length;
+  } catch (err) {
+    logger.warn({ err }, 'Could not get Redis stats');
+  }
+
   return {
     mongodb: {
       records: recordCount,
@@ -128,6 +142,9 @@ async function getStatistics(
     qdrant: {
       collections: collectionCount,
       vectors: vectorCount,
+    },
+    redis: {
+      keys: redisKeyCount,
     },
   };
 }
@@ -147,8 +164,11 @@ async function confirmWipe(options: WipeOptions): Promise<boolean> {
 
     if (options.only) {
       message += options.only.toUpperCase();
+      if (options.only === 'redis') {
+        message += ' (including job queues and cached data)';
+      }
     } else {
-      message += 'MongoDB, Memgraph, and Qdrant';
+      message += 'MongoDB, Memgraph, Qdrant, and Redis';
     }
 
     message += "!\n   Type 'yes' to confirm: ";
@@ -278,6 +298,38 @@ async function wipeMemgraph(
   }
 }
 
+async function wipeRedis(redis: any, source?: string): Promise<void> {
+  logger.info(
+    `\n🗑️  Wiping Redis${source ? ` (WARNING: Cannot filter by source, wiping ALL Redis data)` : ''}...`,
+  );
+
+  try {
+    const cacheStore = new CacheStore(redis);
+
+    // Get key count before deletion
+    const keysBefore = await cacheStore.keys('*');
+    const keyCount = keysBefore.length;
+
+    if (keyCount === 0) {
+      logger.info('   ⊘ No keys to delete');
+      return;
+    }
+
+    // Flush all Redis data (cache + BullMQ job queues)
+    await cacheStore.flushAll();
+    logger.info(`   ✓ Deleted ${keyCount} Redis keys (cache + job queues)`);
+
+    if (source) {
+      logger.warn(
+        '   ⚠️  Note: Redis does not support source-specific deletion. All data was wiped.',
+      );
+    }
+  } catch (err) {
+    logger.error({ err }, 'Error wiping Redis');
+    throw err;
+  }
+}
+
 async function wipeQdrant(qdrant: any, source?: string): Promise<void> {
   logger.info(`\n🗑️  Wiping Qdrant${source ? ` (source: ${source})` : ''}...`);
 
@@ -356,12 +408,12 @@ async function run() {
   logger.info('');
 
   // Initialize services
-  const { memgraph, qdrant, mongoose } = await initializeServices();
+  const { memgraph, qdrant, mongoose, redis } = await initializeServices();
 
   // Get current statistics
   logger.info('📊 Current Statistics:');
   logger.info('=====================');
-  const statsBefore = await getStatistics(memgraph, qdrant, options.source);
+  const statsBefore = await getStatistics(memgraph, qdrant, redis, options.source);
 
   logger.info('\nMongoDB:');
   logger.info(`  Records: ${statsBefore.mongodb.records}`);
@@ -375,6 +427,9 @@ async function run() {
   logger.info('\nQdrant:');
   logger.info(`  Collections: ${statsBefore.qdrant.collections}`);
   logger.info(`  Vectors: ${statsBefore.qdrant.vectors}`);
+
+  logger.info('\nRedis:');
+  logger.info(`  Keys: ${statsBefore.redis.keys}`);
   logger.info('');
 
   // Confirm deletion
@@ -401,10 +456,14 @@ async function run() {
       await wipeQdrant(qdrant, options.source);
     }
 
+    if (!options.only || options.only === 'redis') {
+      await wipeRedis(redis, options.source);
+    }
+
     // Get final statistics
     logger.info('\n📊 Final Statistics:');
     logger.info('===================');
-    const statsAfter = await getStatistics(memgraph, qdrant, options.source);
+    const statsAfter = await getStatistics(memgraph, qdrant, redis, options.source);
 
     logger.info('\nMongoDB:');
     logger.info(`  Records: ${statsAfter.mongodb.records}`);
@@ -418,6 +477,9 @@ async function run() {
     logger.info('\nQdrant:');
     logger.info(`  Collections: ${statsAfter.qdrant.collections}`);
     logger.info(`  Vectors: ${statsAfter.qdrant.vectors}`);
+
+    logger.info('\nRedis:');
+    logger.info(`  Keys: ${statsAfter.redis.keys}`);
 
     logger.info('\n✨ Wipe completed successfully!');
     logger.info('\nNext steps:');

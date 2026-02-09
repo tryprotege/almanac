@@ -6,8 +6,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { router } from './api/index.js';
 import { mcpClientManager } from './mcp/client.js';
 import { initializeServices, mcpServer, shutdownServices } from './mcp/initialization.js';
-import { DataSourceModel } from './models/data-source.model.js';
-import { syncMcpServerQueue, syncMcpServerWorker } from './services/queue/sync.queue.js';
+import { syncMcpServerWorker } from './services/queue/sync.queue.js';
 import { presetLoader } from './services/presets/preset-loader.service.js';
 import { syncScheduler } from './services/scheduler/sync-scheduler.service.js';
 import logger from './utils/logger.js';
@@ -41,8 +40,8 @@ const runServer = async () => {
     logger.warn('⚠️  Running in SETUP MODE - LLM features disabled until configured');
   }
 
-  // Initialize sync scheduler
-  if (!env.isSetupMode) {
+  // Initialize sync scheduler (skip if running benchmark)
+  if (!env.isSetupMode && !env.IS_BENCHMARK) {
     logger.info('Initializing sync scheduler...');
     try {
       await syncScheduler.initialize();
@@ -50,6 +49,8 @@ const runServer = async () => {
     } catch (error) {
       logger.error({ error }, 'Failed to initialize sync scheduler');
     }
+  } else if (env.IS_BENCHMARK) {
+    logger.info('⏭️  Skipping sync scheduler initialization (IS_BENCHMARK=true)');
   }
 
   const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;

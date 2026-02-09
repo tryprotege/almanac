@@ -1,16 +1,16 @@
 # Installation
 
-This guide covers different ways to install and deploy Almanac, from local development to production environments.
+This guide covers different ways to install and run Almanac locally, from native development to Docker containers.
 
 ## Prerequisites
 
 - **Node.js** >= 24.0.0
 - **pnpm** >= 8.0.0
 - **Docker Desktop** (or Docker Engine + Docker Compose)
-- **8GB RAM** minimum (16GB recommended for large datasets)
-- **10GB disk space** (more for large document collections)
+- **2GB RAM** minimum (8GB+ recommended for large datasets)
+- **1GB disk space** (more for large document collections)
 
-## Quick Install (Recommended)
+## Quick Start (Recommended)
 
 The fastest way to get started:
 
@@ -22,6 +22,31 @@ cd almanac
 # Install dependencies
 pnpm install
 
+# Configure environment
+cd packages/server
+cp .env.example .env
+cd ../..
+```
+
+Edit `packages/server/.env` with your LLM API key and settings:
+
+```env
+LLM_API_KEY=
+LLM_BASE_URL=
+LLM_CHAT_MODEL=
+LLM_EXTRACTION_MODEL=
+LLM_EMBEDDING_MODEL=
+RERANKER_ENABLED=true
+RERANKER_API_KEY=
+RERANKER_BASE_URL=
+RERANKER_MODEL=
+LOG_LEVEL=error
+SYNC_CUTOFF_DATE="2026-01-01T00:00:00.000Z"
+```
+
+**Required**: Set your `LLM_API_KEY` and configure model settings based on your provider.
+
+```bash
 # Start all services
 pnpm start
 ```
@@ -34,11 +59,13 @@ This will:
 
 Open http://localhost:5173 to access the UI.
 
-## Manual Installation
+## Installation Options
 
-For more control over the installation process:
+### Option 1: Local Development (Recommended)
 
-### 1. Install Dependencies
+Run databases in Docker, applications locally for fastest development:
+
+#### 1. Install Dependencies
 
 ```bash
 # Install pnpm if not already installed
@@ -50,7 +77,7 @@ cd almanac
 pnpm install
 ```
 
-### 2. Start Database Services
+#### 2. Start Database Services
 
 ```bash
 # Start Docker infrastructure services
@@ -73,241 +100,243 @@ almanac_qdrant      "./qdrant"               Up 2 minutes        0.0.0.0:6333->6
 almanac_memgraph    "/usr/lib/memgraph/m…"   Up 2 minutes        0.0.0.0:7687->7687/tcp, 0.0.0.0:7444->7444/tcp
 ```
 
-### 3. Configure Environment
+#### 3. Configure Environment
 
 ```bash
 cd packages/server
 cp .env.example .env
 ```
 
-Edit `.env` with your settings (see [Configuration Guide](configuration.md)).
+Edit `.env` with your LLM API key and settings:
 
-### 4. Start Backend Server
+```env
+LLM_API_KEY=
+LLM_BASE_URL=
+LLM_CHAT_MODEL=
+LLM_EXTRACTION_MODEL=
+LLM_EMBEDDING_MODEL=
+RERANKER_ENABLED=true
+RERANKER_API_KEY=
+RERANKER_BASE_URL=
+RERANKER_MODEL=
+LOG_LEVEL=error
+SYNC_CUTOFF_DATE="2026-01-01T00:00:00.000Z"
+```
+
+**Required**: Set your `LLM_API_KEY` and configure model settings based on your provider.
+
+**Optional**: Configure reranker settings if needed. The infrastructure services (MongoDB, Redis, etc.) are pre-configured in `docker-compose.yml` with default settings.
+
+#### 4. Start Application
 
 ```bash
-# From packages/server
+# From root
 pnpm dev
 ```
 
 Server will start on http://localhost:3000
-
-### 5. Start Frontend (Optional)
-
-```bash
-# From packages/client
-cd ../client
-pnpm dev
-```
-
 UI will start on http://localhost:5173
 
-## Docker-Only Installation
+### Option 2: Full Docker Setup
 
-You have two options for running in Docker:
-
-### Option 1: Development Mode (Hot Reload)
-
-Run both infrastructure and application in Docker with hot reloading:
+Run everything in Docker containers:
 
 ```bash
 # Clone repository
 git clone https://github.com/tryprotege/almanac.git
 cd almanac
 
-# Install dependencies (needed for initial setup)
-pnpm install
+# Configure environment
+cp packages/server/.env.example packages/server/.env
+# Edit packages/server/.env with your API keys
 
-# Build and start everything in Docker
-pnpm run docker:dev:build
+# Build and start all services
+pnpm run docker:prod
+
+# Or using docker compose directly
+docker compose -f docker-compose.prod.yml build && docker compose -f docker-compose.prod.yml up -d
 ```
 
 This starts:
 
 - All database services (MongoDB, Redis, Qdrant, Memgraph)
-- Backend server (containerized)
-- Frontend UI (containerized)
-
-Access at http://localhost:5173
-
-### Option 2: Production Mode
-
-Run production-optimized containers:
-
-```bash
-# Clone repository
-git clone https://github.com/tryprotege/almanac.git
-cd almanac
-
-# Build and start
-pnpm run docker:prod
-
-# Or using docker compose directly
-docker compose -f docker-compose.prod.yml up -d
-```
-
-This includes:
-
-- All database services
 - Backend server (production build)
-- Frontend UI (production build)
-- Nginx reverse proxy
+- Frontend UI (served by Nginx)
 
 Access at http://localhost (port 80)
 
-## Production Deployment
+**Note**: This uses production builds without hot reload. The setup is optimized for performance with smaller image sizes and production dependencies only.
 
-### Docker Compose (Recommended)
+## Docker Architecture
 
-For single-server deployments:
+The application consists of the following services:
 
-```bash
-# Clone on production server
-git clone https://github.com/tryprotege/almanac.git
-cd almanac
+### Infrastructure Services
 
-# Set production environment variables
-cp packages/server/.env.example packages/server/.env
-# Edit packages/server/.env with production settings
+- **MongoDB**: Document database (port 27017)
+- **Qdrant**: Vector database (ports 6333, 6334)
+- **Memgraph**: Graph database (ports 7687, 7444)
+- **Redis**: Cache and message queue (port 6379)
 
-# Start services
-pnpm run docker:prod
+### Application Services
 
-# Or using docker compose directly
-docker compose -f docker-compose.prod.yml up -d
+- **Server**: Node.js backend API (port 3000)
+- **Client**: React frontend (port 5173 dev / port 80 prod)
+
+All services communicate through a shared Docker network (`almanac-network`).
+
+### Network Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│            almanac-network (bridge)             │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
+│  │  Client  │──│  Server  │──│ MongoDB  │     │
+│  │  :5173   │  │  :3000   │  │ :27017   │     │
+│  └──────────┘  └──────────┘  └──────────┘     │
+│                      │                          │
+│       ┌──────────────┼──────────────┐          │
+│       │              │              │          │
+│  ┌────▼───┐    ┌────▼────┐    ┌───▼────┐     │
+│  │ Qdrant │    │Memgraph │    │ Redis  │     │
+│  │ :6333  │    │  :7687  │    │ :6379  │     │
+│  └────────┘    └─────────┘    └────────┘     │
+│                                                 │
+└─────────────────────────────────────────────────┘
 ```
 
-The production setup includes auto-restart by default (`restart: unless-stopped`).
+## Database Configuration
 
-## Database Setup
+All databases are pre-configured in Docker with sensible defaults:
 
 ### MongoDB
 
-**Development**: Docker container (included)
-
-The Docker setup uses MongoDB 8.2.2 with default credentials:
-
-- Username: `admin`
-- Password: `admin123`
+- Version: 8.2.2
 - Port: `27017`
-
-**Production Options**:
-
-1. **MongoDB Atlas** (Managed, Recommended)
-
-   ```bash
-   # In packages/server/.env
-   MONGO_HOST=cluster.mongodb.net
-   MONGO_PORT=27017
-   MONGO_USERNAME=your-user
-   MONGO_PASSWORD=your-password
-   MONGO_DB_NAME=almanac
-   # Add connection options as needed
-   ```
-
-2. **Self-Hosted**
-
-   ```bash
-   # Install MongoDB
-   # Ubuntu
-   sudo apt install mongodb-org
-
-   # macOS
-   brew install mongodb-community
-
-   # Start service
-   sudo systemctl start mongod
-   ```
+- Default credentials:
+  - Username: `admin`
+  - Password: `admin123`
+- Database: `almanac`
 
 ### Redis
 
-**Development**: Docker container (included)
-
-The Docker setup uses Redis Alpine 3.22 with persistence enabled:
-
+- Version: Alpine 3.22
 - Port: `6379`
 - Persistence: AOF (Append Only File) enabled
 
-**Production Options**:
-
-1. **Redis Cloud** (Managed)
-
-   ```bash
-   # In packages/server/.env
-   REDIS_HOST=redis-12345.cloud.redislabs.com
-   REDIS_PORT=12345
-   REDIS_PASSWORD=your-password
-   REDIS_DB=0
-   ```
-
-2. **AWS ElastiCache**
-   ```bash
-   # In packages/server/.env
-   REDIS_HOST=my-cluster.abcdef.0001.use1.cache.amazonaws.com
-   REDIS_PORT=6379
-   REDIS_PASSWORD=
-   REDIS_DB=0
-   ```
-
 ### Qdrant
 
-**Development**: Docker container (included)
-
-The Docker setup uses Qdrant 1.16.0:
-
+- Version: 1.16.0
 - HTTP Port: `6333`
 - gRPC Port: `6334`
 
-**Production Options**:
-
-1. **Qdrant Cloud** (Managed, Recommended)
-
-   ```bash
-   # In packages/server/.env
-   QDRANT_HOST=xyz.cloud.qdrant.io
-   QDRANT_PORT=6333
-   QDRANT_API_KEY=your-api-key
-   ```
-
-2. **Self-Hosted**
-
-   ```bash
-   # Docker
-   docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant:v1.16.0
-
-   # Or compile from source
-   git clone https://github.com/qdrant/qdrant.git
-   cd qdrant && cargo build --release
-   ```
-
 ### Memgraph
 
-**Development**: Docker container (included)
-
-The Docker setup uses Memgraph 3.7.0:
-
-- Bolt Port: `7687`
+- Version: 3.7.0
+- Bolt Port: `7687` (main connection)
 - HTTP Port: `7444`
-- Log Level: WARNING (reduce verbosity)
+- Log Level: WARNING
 
-**Production Options**:
+## Useful Docker Commands
 
-1. **Memgraph Cloud** (Managed)
+### Managing Services
 
-   ```bash
-   # In packages/server/.env
-   MEMGRAPH_HOST=cloud.memgraph.com
-   MEMGRAPH_PORT=7687
-   MEMGRAPH_USERNAME=your-user
-   MEMGRAPH_PASSWORD=your-password
-   ```
+```bash
+# View logs
+docker compose logs -f                    # All infrastructure services
+docker compose -f docker-compose.prod.yml logs -f  # All services including app
 
-2. **Self-Hosted**
-   ```bash
-   # Ubuntu
-   wget https://memgraph.com/download/memgraph-latest.deb
-   sudo dpkg -i memgraph-latest.deb
-   sudo systemctl start memgraph
-   ```
+# View logs for specific service
+docker compose logs -f mongodb
+docker compose logs -f server
+
+# Stop services
+pnpm run docker:down                      # Stop infrastructure
+docker compose down                       # Alternative
+
+pnpm run docker:prod:down                       # Stop everything (full Docker)
+docker compose -f docker-compose.prod.yml down  # Alternative
+
+# Restart services
+docker compose restart mongodb
+docker compose restart redis
+```
+
+### Rebuilding Containers
+
+```bash
+# Rebuild full Docker setup
+docker compose -f docker-compose.prod.yml build --no-cache
+docker compose -f docker-compose.prod.yml up -d --force-recreate
+
+# Rebuild specific service
+docker compose -f docker-compose.prod.yml build server
+docker compose -f docker-compose.prod.yml up -d server
+```
+
+### Accessing Containers
+
+```bash
+# Access server container
+docker compose -f docker-compose.prod.yml exec server sh
+
+# Run server scripts
+docker compose -f docker-compose.prod.yml exec server pnpm --filter server run <script-name>
+
+# Access databases directly
+docker compose exec mongodb mongosh -u admin -p admin123
+docker compose exec redis redis-cli
+docker compose exec memgraph mgconsole
+```
+
+### Data Management
+
+```bash
+# View resource usage
+docker stats
+
+# Remove containers and networks
+docker compose down
+docker compose -f docker-compose.prod.yml down
+
+# Remove containers, networks, and volumes (⚠️ deletes all data)
+docker compose down -v
+docker compose -f docker-compose.prod.yml down -v
+
+# Clean up unused images
+docker image prune -a
+```
+
+## Data Persistence
+
+When using the full Docker setup, data is stored in the `./data/` directory:
+
+- `./data/mongodb` - MongoDB data
+- `./data/qdrant` - Vector embeddings
+- `./data/memgraph` - Graph data
+- `./data/redis` - Redis cache
+
+**Important**: Backup this directory to preserve your data.
+
+## Port Configuration
+
+Default ports:
+
+| Service         | Port  | Purpose                |
+| --------------- | ----- | ---------------------- |
+| Frontend (dev)  | 5173  | Web UI (local dev)     |
+| Frontend (prod) | 80    | Web UI (Docker)        |
+| Backend         | 3000  | REST API               |
+| MongoDB         | 27017 | Document database      |
+| Redis           | 6379  | Cache                  |
+| Qdrant          | 6333  | Vector database (HTTP) |
+| Qdrant (gRPC)   | 6334  | Vector database (gRPC) |
+| Memgraph        | 7687  | Graph database (Bolt)  |
+| Memgraph HTTP   | 7444  | Graph database (HTTP)  |
+
+To change ports, edit `docker-compose.yml` or `docker-compose.prod.yml` and update the corresponding environment variables in `packages/server/.env`.
 
 ## System Requirements
 
@@ -345,30 +374,6 @@ The Docker setup uses Memgraph 3.7.0:
 - 64GB RAM
 - 500GB disk
 
-**Enterprise** (> 10M documents):
-
-- Multiple servers
-- Distributed Qdrant cluster
-- Memgraph Enterprise
-- Load balancer
-
-## Port Configuration
-
-Default ports:
-
-| Service       | Port  | Purpose                |
-| ------------- | ----- | ---------------------- |
-| Backend       | 3000  | REST API               |
-| Frontend      | 5173  | Web UI (dev)           |
-| MongoDB       | 27017 | Document database      |
-| Redis         | 6379  | Cache                  |
-| Qdrant        | 6333  | Vector database (HTTP) |
-| Qdrant (gRPC) | 6334  | Vector database (gRPC) |
-| Memgraph      | 7687  | Graph database (Bolt)  |
-| Memgraph HTTP | 7444  | Graph database (HTTP)  |
-
-To change ports, edit `docker-compose.yml` and update the corresponding environment variables in `packages/server/.env`.
-
 ## Verification
 
 After installation, verify everything works:
@@ -390,14 +395,14 @@ curl http://localhost:3000/health
 curl http://localhost:27017
 
 # Redis
-redis-cli ping
+docker compose exec redis redis-cli ping
 # Expected: PONG
 
 # Qdrant
 curl http://localhost:6333/collections
 
 # Memgraph
-echo "RETURN 'OK';" | docker exec -i almanac-memgraph mgconsole
+echo "RETURN 'OK';" | docker compose exec -i memgraph mgconsole
 ```
 
 ### 3. Run Test Query
@@ -421,16 +426,16 @@ docker ps
 # Check logs for infrastructure services
 docker compose logs
 
-# Check logs for app containers (if using docker:dev)
-pnpm run docker:logs
+# Check logs for all services (full Docker)
+docker compose -f docker-compose.prod.yml logs
 
 # Restart infrastructure services
 docker compose down
 docker compose up -d
 
-# Restart everything including app containers
-pnpm run docker:down
-pnpm run docker:dev
+# Restart everything (full Docker)
+docker compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### Port already in use
@@ -446,6 +451,17 @@ kill -9 <PID>
 PORT=3001 pnpm dev
 ```
 
+### Port Conflicts in Docker
+
+If ports are already in use, change them in `docker-compose.yml` or `docker-compose.prod.yml`:
+
+```yaml
+services:
+  client:
+    ports:
+      - '8080:80' # Change external port
+```
+
 ### Database connection failed
 
 ```bash
@@ -455,17 +471,17 @@ docker compose ps
 # Check credentials in .env
 cat packages/server/.env
 
-# Test MongoDB connection (with default credentials)
+# Test MongoDB connection
 mongosh mongodb://admin:admin123@localhost:27017/almanac
 
 # Test Redis connection
-redis-cli ping
+docker compose exec redis redis-cli ping
 
 # Check Qdrant
 curl http://localhost:6333/collections
 
-# Check Memgraph (if mgconsole is installed)
-echo "RETURN 1;" | mgconsole --host localhost --port 7687
+# Check Memgraph
+echo "RETURN 1;" | docker compose exec -i memgraph mgconsole
 ```
 
 ### Out of memory
@@ -476,6 +492,18 @@ echo "RETURN 1;" | mgconsole --host localhost --port 7687
 
 # Or reduce concurrency
 CONCURRENCY=16 pnpm start  # Default is 32
+```
+
+### Build Issues (Full Docker)
+
+```bash
+# Clean build (removes cache)
+docker compose -f docker-compose.prod.yml build --no-cache
+
+# Remove all containers and rebuild
+docker compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml build --no-cache
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ## Upgrading
@@ -490,14 +518,17 @@ git pull origin main
 pnpm install
 
 # Restart services
-pnpm start
+pnpm start  # For local development
+
+# Or rebuild Docker containers
+pnpm run docker:prod
 ```
 
 ### Major Updates
 
 ```bash
 # Backup databases first
-./scripts/backup.sh
+./scripts/backup.sh  # If available
 
 # Pull latest code
 git pull origin main
@@ -520,15 +551,12 @@ pnpm start
 # Stop and remove infrastructure containers
 docker compose down -v
 
-# Stop and remove all containers (including app)
-docker compose --profile app down -v
-
-# Stop production containers
-pnpm run docker:down:prod
+# Stop and remove all containers (full Docker setup)
+docker compose -f docker-compose.prod.yml down -v
 
 # Remove images
 docker compose down --rmi all
-docker compose --profile app down --rmi all
+docker compose -f docker-compose.prod.yml down --rmi all
 ```
 
 ### Remove Code
@@ -542,15 +570,36 @@ rm -rf almanac
 ### Remove Data
 
 ```bash
-# Remove local data directory (WARNING: deletes all data)
-rm -rf .data/
-
-# The new setup uses a local .data/ directory instead of Docker volumes
-# This makes data easier to backup and inspect
+# Remove local data directory (⚠️ deletes all data)
+rm -rf ./data/
 ```
+
+## Best Practices
+
+### Development Workflow
+
+1. Use `pnpm start` for the fastest development experience (databases in Docker, apps local)
+2. Use full Docker setup (`docker-compose.prod.yml`) when you need a production-like environment
+3. Never commit your `.env` file (use `.env.example` as a template)
+
+### Working with Docker
+
+1. Check logs regularly: `docker compose logs -f`
+2. Monitor resource usage: `docker stats`
+3. Back up your `./data/` directory regularly
+4. Use `docker compose down -v` carefully (it deletes all data)
 
 ## Next Steps
 
-- **[Configuration Guide](configuration.md)** - Configure LLM models, databases, etc.
+- **[Configuration Guide](configuration.md)** - Configure LLM models, API keys, etc.
 - **[Quick Start](quickstart.md)** - Connect your first data source
 - **[Data Sources](../custom-mcp-servers/README.md)** - Add more integrations
+- **[Architecture](../core-concepts/architecture.md)** - Learn how Almanac works
+
+## Support
+
+For issues or questions:
+
+1. Check service logs: `docker compose logs <service-name>`
+2. Verify environment configuration in `packages/server/.env`
+3. Review the main README.md for application-specific setup

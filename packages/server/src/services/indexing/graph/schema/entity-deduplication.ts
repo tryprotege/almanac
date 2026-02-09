@@ -4,6 +4,7 @@
  */
 
 import logger from '../../../../utils/logger.js';
+import { generateRelationshipLookupKey } from '../../../../utils/graph-id.js';
 
 export interface Entity {
   name: string;
@@ -124,7 +125,7 @@ export const filterLowValueRelationships = (relationships: Relationship[]): Rela
 
 export const mergeRelationships = (relationships: Relationship[]): Relationship[] => {
   const groups = relationships.reduce((map, rel) => {
-    const key = `${normalizeEntityName(rel.source)}|${rel.type}|${normalizeEntityName(rel.target)}`;
+    const key = generateRelationshipLookupKey(rel.source, rel.type, rel.target);
     const existing = map.get(key);
 
     if (!existing) {

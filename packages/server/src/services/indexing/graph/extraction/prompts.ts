@@ -13,6 +13,10 @@ export function buildCombinedExtractionPrompt(
   content: string,
   entityTypes: string[],
   relationshipTypes: string[],
+  recordContext: {
+    recordId: string;
+    recordTitle: string;
+  },
   persona?: string,
 ): string {
   const personaContext = persona ? `USER CONTEXT:\n${persona}\n\n` : '';
@@ -116,6 +120,7 @@ This graph complements a vector embedding system. Extract relationships that:
 
 ---Real Data---
 Text:
+${recordContext.recordTitle}
 ${content.substring(0, MAX_CONTENT_LENGTH)}
 
 ---Output---

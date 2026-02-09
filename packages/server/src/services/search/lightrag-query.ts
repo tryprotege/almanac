@@ -149,7 +149,7 @@ async function naiveMode(
 
   // Vector search
   const vectorResults = await deps.vectorStore.search(queryVector, {
-    limit: params.chunk_top_k || 20,
+    limit: params.chunk_top_k!,
     scoreThreshold: 0,
     filter: {
       must_not: [
@@ -165,7 +165,7 @@ async function naiveMode(
 
   // Convert to chunks
   const chunks = await resultsToChunks(vectorResults, deps.recordStore);
-  const limitedChunks = chunks.slice(0, params.chunk_top_k || 20);
+  const limitedChunks = chunks.slice(0, params.chunk_top_k!);
 
   return {
     chunks: limitedChunks,
@@ -186,10 +186,10 @@ async function localMode(
 
   // PARALLEL: Search entities and relationships simultaneously
   const [entities, entityRelationships] = await Promise.all([
-    searchEntitiesByKeywords(keywords.low_level, params.top_k || 60, deps, params.score_threshold),
+    searchEntitiesByKeywords(keywords.low_level, params.top_k!, deps, params.score_threshold),
     searchRelationshipsByKeywords(
       keywords.low_level,
-      (params.top_k || 60) / 2,
+      Math.floor(params.top_k! / 2),
       deps,
       params.score_threshold,
     ),
@@ -201,11 +201,23 @@ async function localMode(
     deps.graphStore,
   );
 
+  const entityIds = new Set<string>();
+  graphRelationships.forEach((r) => {
+    entityIds.add(r.source.id);
+    entityIds.add(r.target.id);
+  });
+
   // Combine relationships from both sources
   const allRelationships = [...entityRelationships, ...graphRelationships];
 
+  // Build score map from initial entity search scores and relationship confidences
+  const initialScores = new Map(entities.map((e) => [e.id.toString(), e.relevanceScore]));
+  const scoreMap = buildEntityScoreMap(allRelationships, initialScores);
+
+  const allEntities = await getEntitiesByIds(Array.from(entityIds), deps, scoreMap);
+
   // Get chunks
-  const records = await getRecordsForEntities(entities, params.chunk_top_k || 20);
+  const records = await getRecordsForEntities(allEntities, params.chunk_top_k!);
 
   return {
     records,
@@ -228,7 +240,7 @@ async function globalMode(
   // Use high-level keywords for relationship search
   const relationships = await searchRelationshipsByKeywords(
     keywords.high_level,
-    params.top_k || 60,
+    params.top_k!,
     deps,
     params.score_threshold,
   );
@@ -240,10 +252,13 @@ async function globalMode(
     entityIds.add(r.target.id);
   });
 
-  const entities = await getEntitiesByIds(Array.from(entityIds), deps);
+  // Build score map from relationship confidences
+  const scoreMap = buildEntityScoreMap(relationships);
+
+  const entities = await getEntitiesByIds(Array.from(entityIds), deps, scoreMap);
 
   // Get chunks
-  const records = await getRecordsForEntities(entities, params.chunk_top_k || 20);
+  const records = await getRecordsForEntities(entities, params.chunk_top_k!);
 
   return {
     records,
@@ -272,7 +287,7 @@ async function hybridMode(
   // Merge and deduplicate
   const chunks = deduplicateChunks([...localResult.records, ...globalResult.records]);
 
-  const limitedChunks = chunks.slice(0, params.chunk_top_k || 20);
+  const limitedChunks = chunks.slice(0, params.chunk_top_k!);
 
   return {
     chunks: limitedChunks,
@@ -481,6 +496,7 @@ async function searchRelationshipsByKeywords(
 async function getEntitiesByIds(
   ids: string[],
   deps: LightRAGDependencies,
+  scoreMap?: Map<string, number>,
 ): Promise<LightRAGEntity[]> {
   const records = await RecordModel.find({ _id: { $in: ids } }).lean();
 
@@ -490,6 +506,7 @@ async function getEntitiesByIds(
 
   const entities = records.map<LightRAGEntity>((record) => {
     const degree = degreeCounts.get(record._id) || 0;
+    const relevanceScore = scoreMap?.get(record._id.toString()) ?? 0;
 
     return {
       id: record._id,
@@ -501,7 +518,7 @@ async function getEntitiesByIds(
       source: record.source as import('../../types/index.js').SourceType,
       sourceId: record.sourceId,
       date: record.sourceCreatedAt?.toISOString(),
-      relevanceScore: 0,
+      relevanceScore,
     };
   });
 
@@ -660,6 +677,33 @@ async function enrichWithFullContent(
 // ============================================
 // Utility Functions
 // ============================================
+
+/**
+ * Build a score map for entities based on their relationships
+ * Uses the maximum score when an entity appears in multiple relationships
+ */
+function buildEntityScoreMap(
+  relationships: LightRAGRelationship[],
+  initialScores?: Map<string, number>,
+): Map<string, number> {
+  const scoreMap = new Map<string, number>(initialScores);
+
+  relationships.forEach((rel) => {
+    const sourceId = rel.source.id.toString();
+    const targetId = rel.target.id.toString();
+    const relationshipScore = rel.confidence;
+
+    // Use max score if entity appears in multiple relationships
+    if (!scoreMap.has(sourceId) || scoreMap.get(sourceId)! < relationshipScore) {
+      scoreMap.set(sourceId, relationshipScore);
+    }
+    if (!scoreMap.has(targetId) || scoreMap.get(targetId)! < relationshipScore) {
+      scoreMap.set(targetId, relationshipScore);
+    }
+  });
+
+  return scoreMap;
+}
 
 function calculateNodeRank(degree: number): number {
   return Math.min(Math.round((degree / 10) * 100), 100);

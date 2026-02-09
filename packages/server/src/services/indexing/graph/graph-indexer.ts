@@ -108,12 +108,12 @@ export const extractGraphFromRecord = async (
     record.content,
     existingEntityTypes,
     existingRelTypes,
-    undefined, // persona
-    3, // maxRetries
     {
       recordId: record._id,
       recordTitle: record.title,
     },
+    undefined, // persona
+    3, // maxRetries
   );
 
   // Filter out low-value relationships

@@ -105,7 +105,7 @@ export const syncMcpServer = async (dataSource: DataSource, _options?: { limit?:
     logger.info(`Processed ${recordsProcessed} records from ${dataSource.name}`);
   }
 
-  console.log('✅✅✅ sync completed');
+  console.log('✅✅✅ sync completed', dataSource.name);
   logger.info({
     msg: `✅ Sync completed for ${dataSource.name}`,
     recordsProcessed,

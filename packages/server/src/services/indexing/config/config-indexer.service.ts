@@ -122,8 +122,6 @@ export function applyCutoffDateToParams(
 const BACKPRESSURE_CONFIG = {
   // Maximum number of records in flight before applying backpressure
   MAX_QUEUE_SIZE: 100,
-  // Time to wait when backpressure is applied (ms)
-  BACKPRESSURE_DELAY: 1000,
   // Check backpressure every N records
   CHECK_INTERVAL: 10,
 };
@@ -831,13 +829,6 @@ function formatSinceValue(
     default:
       return date.toISOString();
   }
-}
-
-/**
- * Helper function for delays
- */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**

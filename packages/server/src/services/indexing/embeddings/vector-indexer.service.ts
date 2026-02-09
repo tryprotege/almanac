@@ -45,33 +45,25 @@ export async function insertAllRecordsToVectorDB(
     concurrency: env.VECTOR_INDEXING_CONCURRENCY,
   });
 
-  let skip = 0;
   let hasMore = true;
   let batchNumber = 0;
 
   while (hasMore) {
-    // Fetch batch of records
-    const records = await recordStore.findBySourceAndType(source, undefined, {
+    // Use new method to fetch only records needing embedding
+    // Skip is always 0 because processed records get lastEmbeddedAt set and disappear from query results
+    const recordsToProcess = await recordStore.findNeedingEmbedding(source, undefined, {
       limit: 50,
-      skip,
+      skip: 0,
       includeDeleted: false,
     });
 
-    if (records.length === 0) {
+    if (recordsToProcess.length === 0) {
       hasMore = false;
       break;
     }
 
-    // lastEmbeddedAt will be empty if never indexed, we will index it
-    // If source is updated and lastEmbeddedAt is older, we will re-index it
-    const recordsToProcess = records.filter((record) => {
-      if (!record.lastEmbeddedAt) return true;
-      if (!record.sourceUpdatedAt) return false; // if there's no updated at value, skip it
-      return record.sourceUpdatedAt.getTime() > record.lastEmbeddedAt.getTime();
-    });
-
     batchNumber++;
-    logger.info(`\n🔄 Processing batch ${batchNumber} (${records.length} records)...`);
+    logger.info(`\n🔄 Processing batch ${batchNumber} (${recordsToProcess.length} records)...`);
 
     // Process batch in parallel
     const promises = recordsToProcess.map((record) =>
@@ -83,6 +75,14 @@ export async function insertAllRecordsToVectorDB(
           return { success: true, chunks: vectorIds.length };
         } catch (err) {
           logger.error({ err, recordId: record._id }, `Error indexing record ${record._id}`);
+
+          // Mark failed record with status 'failed'
+          await recordStore.upsert({
+            _id: record._id,
+            lastEmbeddedAt: new Date(),
+            lastEmbeddingStatus: 'failed',
+          });
+
           stats.errors++;
           return { success: false, chunks: 0 };
         }
@@ -90,8 +90,6 @@ export async function insertAllRecordsToVectorDB(
     );
 
     await Promise.all(promises);
-
-    skip += records.length;
 
     // Log progress
     const progress = `  ✓ Batch ${batchNumber} complete - ${stats.processed} processed, ${stats.chunks} chunks, ${stats.errors} errors`;
@@ -122,6 +120,19 @@ export async function insertRecordToVectorDB(
 ): Promise<string[]> {
   // Skip if no content
   if (!record.content || record.content.trim().length === 0) {
+    logger.debug({
+      msg: '⏭️  Skipping record with no content',
+      recordId: record._id,
+      recordTitle: record.title,
+    });
+
+    // Mark as skipped with status
+    await recordStore.upsert({
+      _id: record._id,
+      lastEmbeddedAt: new Date(),
+      lastEmbeddingStatus: 'skipped_no_content',
+    });
+
     return [];
   }
 
@@ -169,10 +180,11 @@ export async function insertRecordToVectorDB(
   // Upsert to Qdrant
   await vectorStore.upsertPoints(points);
 
-  // Update record with vector IDs
+  // Update record with vector IDs and success status
   await recordStore.upsert({
     _id: record._id,
     lastEmbeddedAt: new Date(),
+    lastEmbeddingStatus: 'success',
   });
 
   return vectorIds;

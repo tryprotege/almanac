@@ -154,7 +154,12 @@ export class RecordStore {
         // Never been indexed
         { lastGraphIndexAt: null },
         // Content changed since last index (checksum-based detection)
-        { $expr: { $ne: ['$checksum', '$lastGraphIndexChecksum'] } },
+        {
+          $and: [
+            { lastGraphIndexAt: { $ne: null } },
+            { $expr: { $ne: ['$checksum', '$lastGraphIndexChecksum'] } },
+          ],
+        },
       ],
     };
 
@@ -189,7 +194,89 @@ export class RecordStore {
         // Never been indexed
         { lastGraphIndexAt: null },
         // Content changed since last index (checksum-based detection)
-        { $expr: { $ne: ['$checksum', '$lastGraphIndexChecksum'] } },
+        {
+          $and: [
+            { lastGraphIndexAt: { $ne: null } },
+            { $expr: { $ne: ['$checksum', '$lastGraphIndexChecksum'] } },
+          ],
+        },
+      ],
+    };
+
+    // Only add recordType to filter if it's provided and not empty
+    if (recordType) {
+      filter.recordType = recordType;
+    }
+
+    if (!options?.includeDeleted) {
+      filter.deletedAt = null;
+    }
+
+    return await RecordModel.countDocuments(filter);
+  }
+
+  /**
+   * Find records that need embedding (never embedded OR content changed since last embedding)
+   */
+  async findNeedingEmbedding(
+    source: SourceType,
+    recordType?: string,
+    options?: { limit?: number; skip?: number; includeDeleted?: boolean },
+  ): Promise<Record[]> {
+    const filter: QueryFilter<Record> = {
+      source,
+      $or: [
+        // Never been embedded
+        { lastEmbeddedAt: null },
+        // Source updated after last embedding
+        {
+          $and: [
+            { lastEmbeddedAt: { $ne: null } },
+            { sourceUpdatedAt: { $ne: null } },
+            { $expr: { $gt: ['$sourceUpdatedAt', '$lastEmbeddedAt'] } },
+          ],
+        },
+      ],
+    };
+
+    // Only add recordType to filter if it's provided and not empty
+    if (recordType) {
+      filter.recordType = recordType;
+    }
+
+    if (!options?.includeDeleted) {
+      filter.deletedAt = null;
+    }
+
+    let query = RecordModel.find(filter);
+
+    if (options?.skip) query = query.skip(options.skip);
+    if (options?.limit) query = query.limit(options.limit);
+
+    return await query.exec();
+  }
+
+  /**
+   * Count records that need embedding
+   */
+  async countNeedingEmbedding(
+    source: SourceType,
+    recordType?: string,
+    options?: { includeDeleted?: boolean },
+  ): Promise<number> {
+    const filter: QueryFilter<Record> = {
+      source,
+      $or: [
+        // Never been embedded
+        { lastEmbeddedAt: null },
+        // Source updated after last embedding
+        {
+          $and: [
+            { lastEmbeddedAt: { $ne: null } },
+            { sourceUpdatedAt: { $ne: null } },
+            { $expr: { $gt: ['$sourceUpdatedAt', '$lastEmbeddedAt'] } },
+          ],
+        },
       ],
     };
 

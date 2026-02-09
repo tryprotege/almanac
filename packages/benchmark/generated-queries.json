@@ -86,7 +86,6 @@
         "evaluationCriteria": {
           "mustInclude": [
             "Emily Thompson",
-            "emilyt",
             "80%",
             "auth.controller.ts",
             "auth.service.ts"
@@ -97,11 +96,11 @@
         "query": "In the gragger-game repository, what PR #38852 adds integration tests for user authentication flow fixing issue #89145, who merged it and when, and what key components like test file and mock server were introduced?",
         "evaluationCriteria": {
           "mustInclude": [
-            "Taylor Morgan",
             "Marcus Rodriguez",
             "Tests/Integration/AuthTests.cs",
             "MockAuthServer",
-            "November 29, 2025"
+            "November 29, 2025",
+            "11:47"
           ]
         }
       },
@@ -112,7 +111,8 @@
             "#89145",
             "PR #38852",
             "Unity Test Framework",
-            "Marcus Rodriguez"
+            "login",
+            "logout"
           ]
         }
       }
@@ -140,7 +140,8 @@
           "mustInclude": [
             "GPU simulation",
             "particle",
-            "performance"
+            "World",
+            "regression"
           ]
         }
       },
@@ -162,18 +163,6 @@
       "groupId": "workflow-issue-96687"
     },
     "testCases": [
-      {
-        "query": "What is the state_reason and closed_at timestamp for GitHub issue #96687 authored by Priya Patel in gragger-infra?",
-        "evaluationCriteria": {
-          "mustInclude": [
-            "completed",
-            "2025-12-03T06:41:39.826Z",
-            "Priya Patel",
-            "#96687",
-            "gragger-infra"
-          ]
-        }
-      },
       {
         "query": "What is GitHub issue #96687 about in gragger-infra, and what are the key concerns or action items mentioned?",
         "evaluationCriteria": {

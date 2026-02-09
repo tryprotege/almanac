@@ -99,7 +99,6 @@ export async function* fetchWithSeedFrom(
 
   const concurrency = seedFrom.concurrency ?? 3;
   const continueOnError = seedFrom.continueOnError ?? true;
-  const maxRetries = seedFrom.retries ?? 2;
 
   const allResults: any[] = [];
   const errors: Array<{ value: any; error: Error }> = [];
@@ -149,35 +148,19 @@ export async function* fetchWithSeedFrom(
         )}`,
       );
 
-      // Call with retries
-      let lastError: Error | null = null;
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-          // Create a minimal config for the tool call
-          const callConfig: FetcherConfig = {
-            tool: config.tool,
-            resultPath: config.resultPath,
-            params,
-            rateLimit: config.rateLimit,
-            arrayPath: config.arrayPath, // Include arrayPath if present
-            formatProcessor: (config as any).formatProcessor, // Include formatProcessor if present
-          };
-          const result = await fetchPage(serverName, callConfig, params);
+      // Create a minimal config for the tool call
+      const callConfig: FetcherConfig = {
+        tool: config.tool,
+        resultPath: config.resultPath,
+        params,
+        rateLimit: config.rateLimit,
+        arrayPath: config.arrayPath, // Include arrayPath if present
+        formatProcessor: (config as any).formatProcessor, // Include formatProcessor if present
+      };
+      const result = await fetchPage(serverName, callConfig, params);
 
-          logger.debug(`[seedFrom] Call succeeded, got ${result.records.length} records`);
-          return result.records;
-        } catch (err) {
-          lastError = err as Error;
-          if (attempt < maxRetries) {
-            logger.warn(
-              `[seedFrom] Call failed (attempt ${attempt + 1}/${maxRetries}), retrying...`,
-            );
-            await sleep(1000 * (attempt + 1)); // Exponential backoff
-          }
-        }
-      }
-
-      throw lastError;
+      logger.debug(`[seedFrom] Call succeeded, got ${result.records.length} records`);
+      return result.records;
     });
 
     const results = await Promise.allSettled(batchPromises);
@@ -423,7 +406,6 @@ export async function* fetchWithForEach(
 
   const concurrency = forEach.concurrency ?? 20;
   const continueOnError = forEach.continueOnError ?? true;
-  const maxRetries = forEach.retries ?? 2;
 
   // Process in batches for concurrency control
   const allResults: any[] = [];
@@ -439,26 +421,13 @@ export async function* fetchWithForEach(
       // Apply cutoff date parameters if configured
       applyCutoffDateToParams(params, config);
 
-      // Call with retries
-      let lastError: Error | null = null;
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-          // Fetch all pages for this iteration item
-          const records = await fetchAllPagesForItem(serverName, config, params);
+      // Fetch all pages for this iteration item
+      const records = await fetchAllPagesForItem(serverName, config, params);
 
-          // Apply cutoff date filtering if configured
-          const filtered = applyCutoffDateFiltering(records, config, `forEach[${config.tool}]`);
+      // Apply cutoff date filtering if configured
+      const filtered = applyCutoffDateFiltering(records, config, `forEach[${config.tool}]`);
 
-          return filtered;
-        } catch (err) {
-          lastError = err as Error;
-          if (attempt < maxRetries) {
-            await sleep(1000 * (attempt + 1)); // Exponential backoff
-          }
-        }
-      }
-
-      throw lastError;
+      return filtered;
     });
 
     const results = await Promise.allSettled(batchPromises);
@@ -545,7 +514,6 @@ async function* fetchWithBatchMode(
 
   const batchSize = forEach.batchMode.batchSize ?? 100;
   const continueOnError = forEach.continueOnError ?? true;
-  const maxRetries = forEach.retries ?? 2;
 
   const allResults: any[] = [];
   const errors: Array<{ batch: any[]; error: Error }> = [];
@@ -569,35 +537,23 @@ async function* fetchWithBatchMode(
     // Apply cutoff date parameters if configured
     applyCutoffDateToParams(params, config);
 
-    // Call with retries
-    let lastError: Error | null = null;
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        // Create a minimal config for the tool call
-        const callConfig: FetcherConfig = {
-          tool: config.tool,
-          resultPath: config.resultPath,
-          params,
-          rateLimit: config.rateLimit,
-          arrayPath: config.arrayPath, // Include arrayPath if present
-          formatProcessor: (config as any).formatProcessor, // Include formatProcessor if present
-        };
-        const result = await fetchPage(serverName, callConfig, params);
-        allResults.push(...result.records);
-        break; // Success
-      } catch (err) {
-        lastError = err as Error;
-        if (attempt < maxRetries) {
-          logger.warn(`Batch call failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying...`);
-          await sleep(1000 * (attempt + 1)); // Exponential backoff
-        }
-      }
-    }
-
-    if (lastError) {
-      errors.push({ batch, error: lastError });
+    try {
+      // Create a minimal config for the tool call
+      const callConfig: FetcherConfig = {
+        tool: config.tool,
+        resultPath: config.resultPath,
+        params,
+        rateLimit: config.rateLimit,
+        arrayPath: config.arrayPath, // Include arrayPath if present
+        formatProcessor: (config as any).formatProcessor, // Include formatProcessor if present
+      };
+      const result = await fetchPage(serverName, callConfig, params);
+      allResults.push(...result.records);
+    } catch (err) {
+      const error = err as Error;
+      errors.push({ batch, error });
       if (!continueOnError) {
-        throw lastError;
+        throw error;
       }
     }
   }
@@ -1001,11 +957,4 @@ function addPaginationParams(
     default:
       break;
   }
-}
-
-/**
- * Helper function for delays
- */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

@@ -27,13 +27,13 @@ syncStatusRouter.get('/', async (_req: Request, res: Response) => {
     const [
       syncActiveJobs,
       syncWaitingJobs,
-      syncDelayedJobs,
+      _syncDelayedJobs,
       vectorActiveJobs,
       vectorWaitingJobs,
-      vectorDelayedJobs,
+      _vectorDelayedJobs,
       graphActiveJobs,
       graphWaitingJobs,
-      graphDelayedJobs,
+      _graphDelayedJobs,
     ] = await Promise.all([
       syncMcpServerQueue.getActive(),
       syncMcpServerQueue.getWaiting(),
@@ -155,7 +155,7 @@ syncStatusRouter.get('/:serverName', async (req: Request, res: Response) => {
     const findJobStatus = (
       activeJobs: any[],
       waitingJobs: any[],
-      delayedJobs: any[],
+      _delayedJobs: any[],
       completedJobs: any[],
       failedJobs: any[],
       jobType: 'sync' | 'index-vector' | 'index-graph',

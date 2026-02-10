@@ -507,7 +507,7 @@ function extractSampleRecord(sampleData: any, fetcherConfig: any): any {
  * Simple JSONPath resolver (supports $.field and $.field.nested)
  */
 function resolvePath(obj: any, path: string): any {
-  if (!path || !obj) return undefined;
+  if (!path || !obj || typeof path !== 'string') return undefined;
 
   // Remove $ prefix if present
   const cleanPath = path.replace(/^\$\.?/, '');

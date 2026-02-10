@@ -130,18 +130,8 @@ export default function Dashboard() {
   const handleSyncAll = async () => {
     setIsSyncingAll(true);
 
-    // Filter data sources that have server IDs and are not currently syncing
-    const activeSources = dataSourcesList.filter(
-      (source) => source.serverId && !source.isSyncing && !source.isQueued,
-    );
-
-    if (activeSources.length === 0) {
-      setIsSyncingAll(false);
-      return;
-    }
-
     await Promise.all(
-      activeSources.map(async (source) => {
+      dataSourcesList.map(async (source) => {
         if (source.serverId) {
           await syncMutation.mutateAsync({
             configId: source.serverId,

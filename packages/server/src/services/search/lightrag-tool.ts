@@ -50,8 +50,8 @@ export async function registerLightRAGTool(
     async (args) => {
       try {
         // Apply defaults for optional parameters
-        args.score_threshold = args.score_threshold ?? 0.5;
-        args.chunk_top_k = 50;
+        // Use mix mode if reranker is enabled, otherwise hybrid
+        args.mode = env.RERANKER_ENABLED ? 'mix' : 'hybrid';
 
         const response = await lightragQuery(args, deps);
 

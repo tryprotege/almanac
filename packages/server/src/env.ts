@@ -92,6 +92,10 @@ export const applicationSchema = z.object({
   SYNC_MAX_RECORDS: z.coerce.number().optional(),
   SYNC_CRON_SCHEDULE: z.string().default('0 0 * * *'),
 
+  // Score Threshold Configuration
+  SCORE_THRESHOLD_VECTOR: z.coerce.number().default(0.3),
+  SCORE_THRESHOLD_RERANKER: z.coerce.number().default(0.2),
+
   // Encryption Configuration
   ENCRYPTION_KEY: z
     .string()
@@ -149,7 +153,7 @@ export const sourceEnv = {
 export const env = {
   ...sourceEnv,
   EMBEDDING_DIMENSIONS,
-  isSetupMode
+  isSetupMode,
 };
 
 // Log setup mode status and missing variables

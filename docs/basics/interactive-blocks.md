@@ -37,9 +37,10 @@ Add images, embedded content, code blocks, and more.
 
 ```javascript
 const handleFetchEvent = async (request, context) => {
-    return new Response({message: "Hello World"});
+  return new Response({ message: 'Hello World' });
 };
 ```
+
 {% endtab %}
 {% endtabs %}
 

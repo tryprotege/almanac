@@ -86,13 +86,11 @@ mcpClientManager
 **Phases**:
 
 1. **Sync Phase**
-
    - Fetch data from MCP servers
    - Store in MongoDB
    - Track sync state
 
 2. **Vector Indexing**
-
    - Generate embeddings
    - Store in Qdrant
    - Enable semantic search

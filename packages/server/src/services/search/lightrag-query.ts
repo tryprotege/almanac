@@ -150,7 +150,7 @@ async function naiveMode(
   // Vector search
   const vectorResults = await deps.vectorStore.search(queryVector, {
     limit: params.chunk_top_k!,
-    scoreThreshold: 0,
+    scoreThreshold: params.score_threshold ?? env.SCORE_THRESHOLD_VECTOR,
     filter: {
       must_not: [
         {
@@ -316,10 +316,16 @@ async function mixMode(
     logger.debug({ msg: `[LightRAG] Applying reranking...` });
     const rerankedChunks = await rerankChunks(params.query, hybridResult.chunks);
 
-    // Filter by score_threshold after reranking
-    const filteredChunks = rerankedChunks.filter(
-      (chunk) => chunk.score >= (params.score_threshold ?? 0),
-    );
+    // Filter reranked results by threshold
+    const threshold = params.score_threshold ?? env.SCORE_THRESHOLD_RERANKER;
+    const filteredChunks = rerankedChunks.filter((chunk) => chunk.score >= threshold);
+
+    logger.debug({
+      msg: `[LightRAG] Reranker threshold applied`,
+      threshold,
+      before: rerankedChunks.length,
+      after: filteredChunks.length,
+    });
 
     return { ...hybridResult, chunks: filteredChunks, reranked: true };
   }
@@ -361,7 +367,7 @@ async function searchEntitiesByKeywords(
   // Search entity embeddings in Qdrant
   const results = await deps.vectorStore.searchEntities(queryVector, {
     limit,
-    scoreThreshold: scoreThreshold || 0.3,
+    scoreThreshold: scoreThreshold ?? env.SCORE_THRESHOLD_VECTOR,
   });
 
   // With universal UUID system, entityId IS the entity _id
@@ -414,7 +420,7 @@ async function searchRelationshipsByKeywords(
   // Search relationship embeddings in Qdrant
   const results = await deps.vectorStore.searchRelationships(queryVector, {
     limit,
-    scoreThreshold: scoreThreshold || 0.3,
+    scoreThreshold: scoreThreshold ?? env.SCORE_THRESHOLD_VECTOR,
   });
 
   // With universal UUID system, sourceEntityId and targetEntityId
@@ -752,6 +758,7 @@ function applyDefaults(query: LightRAGQueryInput): LightRAGQueryInput {
     top_k: query.top_k ?? 60,
     chunk_top_k: query.chunk_top_k ?? 20,
     disable_rerank: query.disable_rerank ?? false,
-    score_threshold: query.score_threshold ?? 0,
+    // Leave score_threshold undefined if not provided - will use env defaults per stage
+    score_threshold: query.score_threshold,
   };
 }

@@ -47,6 +47,7 @@ export default function Dashboard() {
   const syncMutation = useSyncDataSource();
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
 
   // Fetch recent activity
   useEffect(() => {
@@ -126,6 +127,33 @@ export default function Dashboard() {
     });
   };
 
+  const handleSyncAll = async () => {
+    setIsSyncingAll(true);
+
+    // Filter data sources that have server IDs and are not currently syncing
+    const activeSources = dataSourcesList.filter(
+      (source) => source.serverId && !source.isSyncing && !source.isQueued,
+    );
+
+    if (activeSources.length === 0) {
+      setIsSyncingAll(false);
+      return;
+    }
+
+    await Promise.all(
+      activeSources.map(async (source) => {
+        if (source.serverId) {
+          await syncMutation.mutateAsync({
+            configId: source.serverId,
+            name: source.serverName,
+          });
+        }
+      }),
+    );
+
+    setIsSyncingAll(false);
+  };
+
   return (
     <div className="pb-8">
       <PageHeader
@@ -196,6 +224,8 @@ export default function Dashboard() {
           {/* Data Sources Table */}
           <DataTable
             title="Data Sources"
+            syncAll={!!dataSourcesList.length ? handleSyncAll : undefined}
+            syncing={isSyncingAll}
             columns={[
               {
                 key: 'name',

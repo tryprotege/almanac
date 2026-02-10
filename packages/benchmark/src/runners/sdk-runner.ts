@@ -444,6 +444,7 @@ export const executeAmpSDK = async (
         options: {
           mcpConfig: agent.mcpConfig,
           dangerouslyAllowAll: false,
+          mode: 'rush',
         },
       })) {
         if (verbose) {

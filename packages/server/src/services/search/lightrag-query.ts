@@ -316,12 +316,10 @@ async function mixMode(
     logger.debug({ msg: `[LightRAG] Applying reranking...` });
     const rerankedChunks = await rerankChunks(params.query, hybridResult.chunks);
 
-    // Filter by score_threshold after reranking
-    const filteredChunks = rerankedChunks.filter(
-      (chunk) => chunk.score >= (params.score_threshold ?? 0),
-    );
-
-    return { ...hybridResult, chunks: filteredChunks, reranked: true };
+    // Reranker scores are on a different scale than vector similarity scores
+    // (e.g., cosine similarity 0.3-0.9 vs reranker 0.01-0.1)
+    // Don't apply score_threshold to reranked results - the reranker's ranking is sufficient
+    return { ...hybridResult, chunks: rerankedChunks, reranked: true };
   }
 
   return { ...hybridResult, reranked: false };

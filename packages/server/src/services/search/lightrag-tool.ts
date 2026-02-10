@@ -50,8 +50,12 @@ export async function registerLightRAGTool(
     async (args) => {
       try {
         // Apply defaults for optional parameters
-        args.score_threshold = args.score_threshold ?? 0.5;
-        args.chunk_top_k = 50;
+        args.mode = 'mix';
+        // query.response_format = query.response_format ?? "compact";
+        // query.top_k = query.top_k ?? 60;
+        // query.chunk_top_k = query.chunk_top_k ?? 20;
+        // Don't override score_threshold - let applyDefaults in lightragQuery handle it
+        // (defaults to 0, which is appropriate since reranking handles quality filtering)
 
         const response = await lightragQuery(args, deps);
 

@@ -1,3 +1,4 @@
+import { Loader2, RefreshCw } from 'lucide-react';
 import { ReactNode } from 'react';
 
 interface Column<T> {
@@ -12,6 +13,8 @@ interface DataTableProps<T> {
   data: T[];
   loading?: boolean;
   showAll?: () => void;
+  syncAll?: () => void;
+  syncing?: boolean;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -20,6 +23,8 @@ export function DataTable<T extends Record<string, any>>({
   data,
   loading,
   showAll,
+  syncAll,
+  syncing,
 }: DataTableProps<T>) {
   if (loading) {
     return (
@@ -43,14 +48,35 @@ export function DataTable<T extends Record<string, any>>({
       {title && (
         <div className="table-header">
           <h3 className="text-base font-semibold text-text-primary">{title}</h3>
-          {showAll && (
-            <button
-              onClick={showAll}
-              className="text-sm text-text-tertiary hover:text-text-secondary transition-colors flex items-center gap-1"
-            >
-              Show All →
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {syncAll && (
+              <button
+                onClick={syncAll}
+                disabled={syncing}
+                className="btn btn-secondary flex items-center gap-2 text-sm"
+              >
+                {syncing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    Sync All
+                  </>
+                )}
+              </button>
+            )}
+            {showAll && (
+              <button
+                onClick={showAll}
+                className="text-sm text-text-tertiary hover:text-text-secondary transition-colors flex items-center gap-1"
+              >
+                Show All →
+              </button>
+            )}
+          </div>
         </div>
       )}
       <table className="table">

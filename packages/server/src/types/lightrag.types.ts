@@ -107,48 +107,75 @@ export type LightRAGResponse = {
 // Zod Input Schema
 // ============================================
 
+/**
+ * Build dynamic schema with descriptions that reflect current system settings
+ */
+export function buildLightragQueryInputSchema(settings: {
+  rerankerEnabled: boolean;
+  rerankerModel?: string;
+  scoreThresholdVector: number;
+  scoreThresholdReranker: number;
+}) {
+  const { rerankerEnabled, rerankerModel, scoreThresholdVector, scoreThresholdReranker } = settings;
+
+  return z.object({
+    query: z
+      .string()
+      .describe(
+        "Your search query in natural language. Can be a question (e.g., 'Who is working on authentication?') or keywords (e.g., 'API documentation updates'). The system will extract entities and concepts automatically.",
+      ),
+    mode: z
+      .enum(['naive', 'local', 'global', 'hybrid', 'mix'])
+      .optional()
+      .describe(
+        rerankerEnabled
+          ? "Retrieval strategy that determines how the knowledge graph and vector search are combined. 'naive': Pure vector similarity (fastest). 'local': Entity-focused with 1-hop graph expansion (best for who/what/where questions). 'global': Relationship-centric (best for how/why questions). 'hybrid': Combines local + global. 'mix': Parallel graph + vector with LLM reranking (most accurate, default)."
+          : "Retrieval strategy that determines how the knowledge graph and vector search are combined. 'naive': Pure vector similarity (fastest). 'local': Entity-focused with 1-hop graph expansion (best for who/what/where questions). 'global': Relationship-centric (best for how/why questions). 'hybrid': Combines local + global (default, reranker disabled). 'mix': Same as hybrid since reranker is disabled.",
+      ),
+    response_format: z
+      .enum(['compact', 'full'])
+      .optional()
+      .describe(
+        "Output format for retrieved chunks. 'compact': Returns document snippets (200-500 characters) with minimal metadata (faster, smaller payload). 'full': Includes complete document content plus rich metadata (tags, dates, raw data). Default: 'compact'",
+      ),
+    top_k: z
+      .number()
+      .optional()
+      .describe(
+        'Maximum number of entities and relationships to retrieve from the knowledge graph during the search phase (before final ranking). Higher values provide more comprehensive results but increase processing time. Range: 10-100. Recommended: 20-40 for quick answers, 60-80 for comprehensive coverage, 100+ for exhaustive search. Default: 60',
+      ),
+    chunk_top_k: z
+      .number()
+      .optional()
+      .describe(
+        "Maximum number of document chunks (text excerpts) to return in the final results. This is the actual number of results you'll receive. Range: 5-50. Recommended: 10-20 for focused context, 30-50 for broad context. Default: 20",
+      ),
+    disable_rerank: z
+      .boolean()
+      .optional()
+      .describe(
+        rerankerEnabled
+          ? `Reranker is ENABLED (model: ${rerankerModel || 'default'}). When false (default), reranking re-scores results using semantic understanding, significantly improving accuracy but adding ~200ms. Set to true to skip reranking for faster results. Only affects 'mix' mode.`
+          : `Reranker is DISABLED globally. This parameter has no effect.`,
+      ),
+    score_threshold: z
+      .number()
+      .optional()
+      .describe(
+        `Optional override for relevance score filtering (0.0 to 1.0). Current server defaults: vector search=${scoreThresholdVector}, reranker=${scoreThresholdReranker}. When provided, applies to all search stages. Lower values = higher recall, higher values = higher precision.`,
+      ),
+  });
+}
+
+// Static schema for backward compatibility and type inference
 export const lightragQueryInputSchema = z.object({
-  query: z
-    .string()
-    .describe(
-      "Your search query in natural language. Can be a question (e.g., 'Who is working on authentication?') or keywords (e.g., 'API documentation updates'). The system will extract entities and concepts automatically.",
-    ),
-  mode: z
-    .enum(['naive', 'local', 'global', 'hybrid', 'mix'])
-    .optional()
-    .describe(
-      "Retrieval strategy that determines how the knowledge graph and vector search are combined. 'naive': Pure vector similarity (fastest). 'local': Entity-focused with 1-hop graph expansion (best for who/what/where questions). 'global': Relationship-centric (best for how/why questions). 'hybrid': Combines local + global. 'mix': Parallel graph + vector with reranking (most accurate, default).",
-    ),
-  response_format: z
-    .enum(['compact', 'full'])
-    .optional()
-    .describe(
-      "Output format for retrieved chunks. 'compact': Returns document snippets (200-500 characters) with minimal metadata (faster, smaller payload). 'full': Includes complete document content plus rich metadata (tags, dates, raw data). Default: 'compact'",
-    ),
-  top_k: z
-    .number()
-    .optional()
-    .describe(
-      'Maximum number of entities and relationships to retrieve from the knowledge graph during the search phase (before final ranking). Higher values provide more comprehensive results but increase processing time. Range: 10-100. Recommended: 20-40 for quick answers, 60-80 for comprehensive coverage, 100+ for exhaustive search. Default: 60',
-    ),
-  chunk_top_k: z
-    .number()
-    .optional()
-    .describe(
-      "Maximum number of document chunks (text excerpts) to return in the final results. This is the actual number of results you'll receive. Range: 5-50. Recommended: 10-20 for focused context, 30-50 for broad context. Default: 20",
-    ),
-  disable_rerank: z
-    .boolean()
-    .optional()
-    .describe(
-      "Whether to disable LLM-based reranking. When false (default), reranking re-scores the initial results using semantic understanding, significantly improving accuracy but adding ~200ms processing time. Set to true to skip reranking for faster results. Only has effect when mode is 'mix'. Default: false",
-    ),
-  score_threshold: z
-    .number()
-    .optional()
-    .describe(
-      'Minimum relevance score (0.0 to 1.0) for results to be included. Lower values return more results but with lower confidence. Higher values return fewer but more relevant results. Range: 0.0-1.0. Recommended: 0.5 for high recall, 0.7 for balanced, 0.8+ for high precision. Default: 0.6',
-    ),
+  query: z.string(),
+  mode: z.enum(['naive', 'local', 'global', 'hybrid', 'mix']).optional(),
+  response_format: z.enum(['compact', 'full']).optional(),
+  top_k: z.number().optional(),
+  chunk_top_k: z.number().optional(),
+  disable_rerank: z.boolean().optional(),
+  score_threshold: z.number().optional(),
 });
 
 // Infer the type from the schema
@@ -160,6 +187,39 @@ export type LightRAGQueryInput = z.infer<typeof lightragQueryInputSchema>;
 
 export const lightragQueryTool = async () => {
   const validConfigs = await loadProxyConfig();
+  const { env } = await import('../env.js');
+
+  // Build reranker status info
+  const rerankerStatus = env.RERANKER_ENABLED
+    ? `✅ Reranker: ENABLED (model: ${env.RERANKER_MODEL || 'default'})`
+    : `⚠️ Reranker: DISABLED (mix mode behaves like hybrid)`;
+
+  // Build threshold info
+  const thresholdInfo = `Score thresholds: vector=${env.SCORE_THRESHOLD_VECTOR ?? 0.3}, reranker=${env.SCORE_THRESHOLD_RERANKER ?? 0.2}`;
+
+  // Build mode descriptions based on reranker state
+  const defaultMode = env.RERANKER_ENABLED ? 'mix' : 'hybrid';
+  const modeDescriptions = env.RERANKER_ENABLED
+    ? `Query Modes:
+- naive: Pure vector similarity search (⚡ FASTEST, best for simple keyword lookups)
+- local: Entity-focused with 1-hop graph expansion (best for "who/what/where" questions)
+- global: Relationship-centric (best for "how/why" and thematic queries)
+- hybrid: Combines local + global strategies
+- mix: Parallel graph + vector + LLM reranking (most accurate, default)`
+    : `Query Modes:
+- naive: Pure vector similarity search (⚡ FASTEST, best for simple keyword lookups)
+- local: Entity-focused with 1-hop graph expansion (best for "who/what/where" questions)
+- global: Relationship-centric (best for "how/why" and thematic queries)
+- hybrid: Combines local + global strategies (default, reranker disabled)
+- mix: Same as hybrid (reranker disabled)`;
+
+  // Build dynamic input schema
+  const dynamicInputSchema = buildLightragQueryInputSchema({
+    rerankerEnabled: env.RERANKER_ENABLED,
+    rerankerModel: env.RERANKER_MODEL,
+    scoreThresholdVector: env.SCORE_THRESHOLD_VECTOR ?? 0.3,
+    scoreThresholdReranker: env.SCORE_THRESHOLD_RERANKER ?? 0.2,
+  });
 
   return {
     name: 'almanac_search',
@@ -178,18 +238,18 @@ Only use those for EXTERNAL information not in Almanac or for WRITE operations (
 
 ⚡ PERFORMANCE: 10-100x faster than individual MCP calls due to unified graph+vector architecture.
 
+🔧 SYSTEM SETTINGS:
+${rerankerStatus}
+${thresholdInfo}
+Default mode: ${defaultMode}
+
 📚 INDEXED SOURCES:
 ${validConfigs.map((config) => `- ${config.name}`).join('\n')}
 
-Query Modes:
-- naive: Pure vector similarity search (⚡ FASTEST ~50ms, best for simple keyword lookups)
-- local: Entity-focused with 1-hop graph expansion (medium speed, best for "who/what/where" questions)
-- global: Relationship-centric using high-weight edges (medium speed, best for "how/why" and thematic queries)
-- hybrid: Combines local + global strategies (slower but comprehensive)
-- mix: Parallel graph + vector search with LLM reranking (most accurate, production default)
+${modeDescriptions}
 
 Returns structured JSON with relevant document chunks, each containing title, snippet, source, score, and metadata.`,
 
-    inputSchema: lightragQueryInputSchema,
+    inputSchema: dynamicInputSchema,
   };
 };

@@ -182,7 +182,7 @@ export class VectorStore {
 
     const results = await this.search(vector, {
       limit: options?.limit || 60,
-      scoreThreshold: options?.scoreThreshold || 0.6,
+      scoreThreshold: options?.scoreThreshold,
       filter,
     });
 
@@ -214,7 +214,7 @@ export class VectorStore {
 
     const results = await this.search(vector, {
       limit: options?.limit || 60,
-      scoreThreshold: options?.scoreThreshold || 0.6,
+      scoreThreshold: options?.scoreThreshold,
       filter,
     });
 

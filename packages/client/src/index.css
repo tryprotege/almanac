@@ -491,11 +491,7 @@
 
   /* Gradient Utilities */
   .gradient-lime {
-    background: linear-gradient(
-      135deg,
-      var(--color-brand-lime) 0%,
-      var(--color-brand-indigo) 100%
-    );
+    background: linear-gradient(135deg, var(--color-brand-lime) 0%, var(--color-brand-indigo) 100%);
   }
 
   .gradient-subtle {

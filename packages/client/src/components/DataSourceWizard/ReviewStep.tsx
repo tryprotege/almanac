@@ -78,9 +78,7 @@ export function ReviewStep({
           <h4 className="text-sm font-medium text-text-primary mb-3">
             Sync Configuration
             {isImported && <span className="ml-2 text-xs text-brand-blue">(Imported)</span>}
-            {!isImported && (
-              <span className="ml-2 text-xs text-brand-lime">(Auto-Generated)</span>
-            )}
+            {!isImported && <span className="ml-2 text-xs text-brand-lime">(Auto-Generated)</span>}
           </h4>
           <div className="space-y-2">
             {!isImported && generatedConfig && (

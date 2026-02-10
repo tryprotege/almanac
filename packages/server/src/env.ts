@@ -149,7 +149,7 @@ export const sourceEnv = {
 export const env = {
   ...sourceEnv,
   EMBEDDING_DIMENSIONS,
-  isSetupMode
+  isSetupMode,
 };
 
 // Log setup mode status and missing variables

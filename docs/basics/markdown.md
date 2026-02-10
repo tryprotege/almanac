@@ -30,9 +30,10 @@ Feel free to test it out and copy the Markdown below by hovering over the code b
 ```markdown
 # Heading
 
-This is some paragraph text, with a [link](https://docs.gitbook.com) to our docs. 
+This is some paragraph text, with a [link](https://docs.gitbook.com) to our docs.
 
 ## Heading 2
+
 - Point 1
 - Point 2
 - Point 3

@@ -67,9 +67,7 @@ export function PersonaEditor() {
             Define your role and context to help Almanac understand your data better
           </p>
         </div>
-        {(isUpdating || isDeleting) && (
-          <Loader2 className="w-5 h-5 animate-spin text-brand-lime" />
-        )}
+        {(isUpdating || isDeleting) && <Loader2 className="w-5 h-5 animate-spin text-brand-lime" />}
       </div>
 
       <div className="space-y-4">

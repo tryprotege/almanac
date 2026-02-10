@@ -226,18 +226,18 @@ Before starting:
 // Validate MCP server connection
 const connected = await mcpClient.ping();
 if (!connected) {
-  throw new Error("MCP server not connected");
+  throw new Error('MCP server not connected');
 }
 
 // Validate configuration
 if (!syncConfig.dataSource) {
-  throw new Error("Data source not specified");
+  throw new Error('Data source not specified');
 }
 
 // Check rate limits
 const rateLimit = await checkRateLimit(syncConfig.dataSource);
 if (rateLimit.remaining < 10) {
-  throw new Error("Rate limit too low, retry later");
+  throw new Error('Rate limit too low, retry later');
 }
 ```
 
@@ -288,10 +288,10 @@ const storeRecord = async (record: any, source: string) => {
         metadata: record.metadata,
         primaryDate: record.timestamp,
         lastSynced: new Date(),
-        indexStatus: "pending",
+        indexStatus: 'pending',
       },
     },
-    { upsert: true }
+    { upsert: true },
   );
 };
 ```
@@ -312,7 +312,7 @@ const processBatches = async (records: any[]) => {
     async (batch) => {
       await Promise.all(batch.map((r) => storeRecord(r)));
     },
-    { concurrency: CONCURRENCY }
+    { concurrency: CONCURRENCY },
   );
 };
 ```
@@ -326,16 +326,16 @@ try {
   await syncDataSource(config);
 } catch (error) {
   // Log error
-  logger.error("Sync failed", { error, dataSource: config.dataSource });
+  logger.error('Sync failed', { error, dataSource: config.dataSource });
 
   // Update sync status
   await SyncStatus.updateOne(
     { dataSource: config.dataSource },
     {
-      status: "failed",
+      status: 'failed',
       error: error.message,
       lastAttempt: new Date(),
-    }
+    },
   );
 
   // Retry if transient error
@@ -410,11 +410,11 @@ Cache frequently accessed data:
 ```typescript
 // Cache channel/user metadata (changes rarely)
 const channels = await cache.getOrFetch(
-  "slack:channels",
+  'slack:channels',
   async () => {
     return await fetchChannels();
   },
-  3600
+  3600,
 ); // Cache for 1 hour
 
 // Don't cache messages (changes frequently)
@@ -430,7 +430,7 @@ Track sync progress:
 ```typescript
 interface SyncStatus {
   dataSource: string;
-  status: "idle" | "running" | "completed" | "failed";
+  status: 'idle' | 'running' | 'completed' | 'failed';
   progress: {
     total: number;
     processed: number;
@@ -448,10 +448,10 @@ Monitor sync performance:
 
 ```typescript
 // Track metrics
-metrics.gauge("sync.records_processed", recordsProcessed);
-metrics.gauge("sync.duration_seconds", duration);
-metrics.gauge("sync.rate_limit_remaining", rateLimitRemaining);
-metrics.increment("sync.errors", errorCount);
+metrics.gauge('sync.records_processed', recordsProcessed);
+metrics.gauge('sync.duration_seconds', duration);
+metrics.gauge('sync.rate_limit_remaining', rateLimitRemaining);
+metrics.increment('sync.errors', errorCount);
 ```
 
 ### Alerts
@@ -461,16 +461,16 @@ Set up alerts for issues:
 ```typescript
 if (syncDuration > 60 * 60 * 1000) {
   // 1 hour
-  alert("Sync taking too long", { dataSource, duration: syncDuration });
+  alert('Sync taking too long', { dataSource, duration: syncDuration });
 }
 
 if (errorRate > 0.1) {
   // 10% errors
-  alert("High error rate during sync", { dataSource, errorRate });
+  alert('High error rate during sync', { dataSource, errorRate });
 }
 
 if (rateLimitRemaining < 10) {
-  alert("Rate limit nearly exhausted", { dataSource, remaining });
+  alert('Rate limit nearly exhausted', { dataSource, remaining });
 }
 ```
 
@@ -508,7 +508,7 @@ RATE_LIMIT_DELAY=2000  # 2 seconds between requests
 db.records.aggregate([
   {
     $group: {
-      _id: { source: "$source", sourceId: "$sourceId" },
+      _id: { source: '$source', sourceId: '$sourceId' },
       count: { $sum: 1 },
     },
   },
@@ -559,12 +559,15 @@ filters: {}  // Will sync all channels, all history
 
 ```typescript
 // Set up health checks
-setInterval(async () => {
-  const status = await getSyncStatus();
-  if (status.lastSync < Date.now() - 24 * 60 * 60 * 1000) {
-    alert("Sync hasn't run in 24 hours");
-  }
-}, 60 * 60 * 1000); // Check every hour
+setInterval(
+  async () => {
+    const status = await getSyncStatus();
+    if (status.lastSync < Date.now() - 24 * 60 * 60 * 1000) {
+      alert("Sync hasn't run in 24 hours");
+    }
+  },
+  60 * 60 * 1000,
+); // Check every hour
 ```
 
 ### 4. Handle Failures Gracefully

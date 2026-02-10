@@ -170,24 +170,24 @@ Building a custom MCP server is straightforward:
 ### Option 1: Use MCP SDK
 
 ```typescript
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
 const server = new Server({
-  name: "my-api",
-  version: "1.0.0",
+  name: 'my-api',
+  version: '1.0.0',
 });
 
 // Define a tool
 server.tool(
-  "list_items",
-  "Get all items",
+  'list_items',
+  'Get all items',
   {
-    limit: { type: "number", description: "Max items to return" },
+    limit: { type: 'number', description: 'Max items to return' },
   },
   async (args) => {
     const items = await fetchFromYourAPI(args.limit);
     return { items };
-  }
+  },
 );
 ```
 
@@ -196,7 +196,7 @@ server.tool(
 Expose tools via HTTP endpoints:
 
 ```typescript
-app.post("/mcp/tools/list_items", async (req, res) => {
+app.post('/mcp/tools/list_items', async (req, res) => {
   const { limit } = req.body;
   const items = await fetchFromYourAPI(limit);
   res.json({ items });
@@ -326,13 +326,13 @@ server.tool("list_items", {
 // Good
 return {
   items: [
-    { id: 1, title: "Item 1", description: "..." },
-    { id: 2, title: "Item 2", description: "..." },
+    { id: 1, title: 'Item 1', description: '...' },
+    { id: 2, title: 'Item 2', description: '...' },
   ],
 };
 
 // Bad
-return "Item 1: description\nItem 2: description";
+return 'Item 1: description\nItem 2: description';
 ```
 
 ### Security

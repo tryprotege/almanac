@@ -193,6 +193,7 @@ router.post('/start-remote/:mcpServerId', async (req, res) => {
             'oauth.authorizationUrl': discovery.oauthMetadata.authorizationEndpoint,
             'oauth.tokenUrl': discovery.oauthMetadata.tokenEndpoint,
             'oauth.scopes': discovery.oauthMetadata.scopesSupported || [],
+            'oauth.resource': discovery.oauthMetadata.resource,
             'oauth.usePKCE': true,
             'oauth.registrationStatus': 'dynamic',
           },
@@ -211,6 +212,53 @@ router.post('/start-remote/:mcpServerId', async (req, res) => {
       }
     }
 
+    // Handle servers without dynamic registration and no pre-configured credentials
+    if (!clientId && !discovery.oauthMetadata.registrationEndpoint) {
+      logger.warn(
+        { mcpServerId },
+        'OAuth server does not support dynamic client registration and no clientId configured',
+      );
+
+      // Save discovered endpoints so they're available for next attempt
+      await DataSourceModel.findByIdAndUpdate(mcpServerId, {
+        $set: {
+          'oauth.authorizationUrl': discovery.oauthMetadata.authorizationEndpoint,
+          'oauth.tokenUrl': discovery.oauthMetadata.tokenEndpoint,
+          'oauth.scopes': discovery.oauthMetadata.scopesSupported || [],
+          'oauth.resource': discovery.oauthMetadata.resource,
+          'oauth.usePKCE': true,
+        },
+      });
+
+      return res.status(400).json({
+        error: 'manual_registration_required',
+        message:
+          'This OAuth server does not support dynamic client registration. ' +
+          "Please provide Client ID and Client Secret from the provider's developer console.",
+        metadata: {
+          authorizationEndpoint: discovery.oauthMetadata.authorizationEndpoint,
+          tokenEndpoint: discovery.oauthMetadata.tokenEndpoint,
+          scopesSupported: discovery.oauthMetadata.scopesSupported,
+        },
+      });
+    }
+
+    // Always persist discovered endpoints before starting OAuth flow
+    // This ensures handleCallback can read them from DataSource even if they were overwritten
+    const redirectUri = dataSource.oauth?.redirectUri || env.OAUTH_REDIRECT_URI;
+    await DataSourceModel.findByIdAndUpdate(mcpServerId, {
+      $set: {
+        'oauth.authorizationUrl': discovery.oauthMetadata.authorizationEndpoint,
+        'oauth.tokenUrl': discovery.oauthMetadata.tokenEndpoint,
+        'oauth.scopes': discovery.oauthMetadata.scopesSupported || [],
+        'oauth.resource': discovery.oauthMetadata.resource,
+        'oauth.redirectUri': redirectUri,
+        'oauth.usePKCE': true,
+      },
+    });
+
+    logger.debug({ mcpServerId }, 'Persisted discovered OAuth endpoints to DataSource');
+
     // Start OAuth flow with discovered metadata and client credentials
     const { authorizationUrl, state } = await oauthFlowManager.startFlow(mcpServerId, {
       authorizationUrl: discovery.oauthMetadata.authorizationEndpoint,
@@ -219,6 +267,7 @@ router.post('/start-remote/:mcpServerId', async (req, res) => {
       clientSecret: clientSecret ?? undefined,
       redirectUri: dataSource.oauth?.redirectUri || env.OAUTH_REDIRECT_URI,
       scopes: discovery.oauthMetadata.scopesSupported || [],
+      resource: discovery.oauthMetadata.resource,
       usePKCE: true,
     });
 

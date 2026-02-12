@@ -58,6 +58,7 @@ export function useSaveSyncConfig() {
       config: any;
       status?: 'draft' | 'active' | 'disabled';
       startingPointValues?: Record<string, string[]>;
+      serverName?: string;
     }) => {
       const response = await syncConfigApi.save(params);
       return response.data.data;

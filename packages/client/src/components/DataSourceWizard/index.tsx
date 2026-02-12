@@ -330,6 +330,7 @@ export function DataSourceWizard({
           config: configToSave,
           status: 'active',
           startingPointValues: startingPointValues,
+          serverName: serverConfig.name,
         });
       }
 
@@ -369,7 +370,12 @@ export function DataSourceWizard({
       // Wait a moment for tool caching
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      setStep('review');
+      // Custom servers need config-choice step to set up indexing
+      if (selectedPreset?.id === 'custom') {
+        setStep('config-choice');
+      } else {
+        setStep('review');
+      }
     } catch (error) {
       console.error('Failed to connect after OAuth:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to connect', {

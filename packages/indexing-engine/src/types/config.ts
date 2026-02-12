@@ -328,7 +328,7 @@ export interface ForEachConfig {
  * RecordTypeConfig - Defines how to detect and transform a record type
  */
 export interface RecordTypeConfig {
-  name: string; // Record type name (e.g., "page", "task")
+  name: string; // Record type name (e.g., "page", "task"). Falls back to the key in recordTypes if not provided
   fetcher: string; // Reference to fetcher name
 
   /**

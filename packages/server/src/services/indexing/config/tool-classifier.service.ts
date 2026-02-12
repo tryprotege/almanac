@@ -148,7 +148,7 @@ async function callLLMForClassification(prompt: string): Promise<ToolClassificat
  */
 async function callLLM(prompt: string): Promise<string> {
   const response = await chat(llm, [{ role: 'user', content: prompt }], {
-    model: env.LLM_CHAT_MODEL,
+    model: env.LLM_INDEXING_CONFIG_MODEL,
     temperature: 0.2, // Lower temperature for more consistent classification
     maxTokens: 4000,
   });

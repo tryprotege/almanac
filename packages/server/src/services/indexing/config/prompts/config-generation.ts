@@ -163,7 +163,7 @@ These fetch additional details for discovered records:
         "cursorPath": "$.next_cursor"
       },
       "resultPath": "$.content[0].text",
-      "arrayPath": "$.results[*]"
+      "arrayPath": "$.results[*]"  // ✅ NEEDED: "results" extracted automatically, but this example shows explicit usage
     }
   },
   "recordTypes": {
@@ -202,7 +202,7 @@ These fetch additional details for discovered records:
       "tool": "list_issues",
       "params": {},
       "pagination": { "type": "cursor", "cursorParam": "after", "cursorPath": "$.pageInfo.endCursor" },
-      "resultPath": "$.data.issues.nodes"
+      "resultPath": "$.data.issues.nodes"  // ❌ NO arrayPath: resultPath already points to the array
     }
   },
   "recordTypes": {
@@ -246,7 +246,7 @@ These fetch additional details for discovered records:
     "list_channels": {
       "tool": "list_channels",
       "params": {},
-      "resultPath": "$.channels"
+      "resultPath": "$.channels"  // ❌ NO arrayPath: resultPath already points to the array
     },
     "list_messages": {
       "tool": "list_messages",
@@ -256,7 +256,7 @@ These fetch additional details for discovered records:
         "paramMapping": { "channel_id": "$.id" }
       },
       "pagination": { "type": "cursor", "cursorParam": "cursor", "cursorPath": "$.next_cursor" },
-      "resultPath": "$.messages"
+      "resultPath": "$.messages"  // ❌ NO arrayPath: resultPath already points to the array
     }
   },
   "recordTypes": {
@@ -296,7 +296,7 @@ These fetch additional details for discovered records:
       "params": {},
       "pagination": { "type": "cursor", "cursorParam": "cursor", "cursorPath": "$.next_cursor" },
       "resultPath": "$.content[0].text",
-      "arrayPath": "$.items[*]"
+      "arrayPath": "$.items[*]"  // ✅ NEEDED: "items" is non-standard, must extract with arrayPath
     },
     "get_transcripts": {
       "tool": "get_transcript",
@@ -512,6 +512,53 @@ When a tool needs parameters from a previous fetcher:
 }
 \`\`\`
 
+## arrayPath — Extracting Records from Wrapper Objects
+
+**When arrayPath is NOT provided**, the system automatically extracts arrays from MCP responses using these standard patterns (in order):
+1. Direct array: \`[{...}, {...}]\` → uses array directly
+2. Standard wrappers: \`{ "content": [...] }\`, \`{ "results": [...] }\`, \`{ "records": [...] }\`, \`{ "data": [...] }\` → extracts array automatically
+
+**When arrayPath IS provided**, it takes precedence and extracts records from the specified path:
+- \`{ "items": [...], "next_cursor": "..." }\` → **arrayPath: \`$.items[*]\`** ✅
+- \`{ "tickets": [...], "pageInfo": {...} }\` → **arrayPath: \`$.tickets[*]\`** ✅
+- \`{ "meetings": [...], "has_more": true }\` → **arrayPath: \`$.meetings[*]\`** ✅
+- \`{ "nodes": [...], "pageInfo": {...} }\` → **arrayPath: \`$.nodes[*]\`** ✅
+
+**IMPORTANT: Do NOT set arrayPath for standard keys** — it's redundant and wastes config space:
+- ❌ \`{ "data": [...] }\` with \`"arrayPath": "$.data[*]"\` — WRONG (auto-detected)
+- ❌ \`{ "results": [...] }\` with \`"arrayPath": "$.results[*]"\` — WRONG (auto-detected)
+- ❌ \`{ "records": [...] }\` with \`"arrayPath": "$.records[*]"\` — WRONG (auto-detected)
+- ❌ \`{ "content": [...] }\` with \`"arrayPath": "$.content[*]"\` — WRONG (auto-detected)
+
+**Why arrayPath matters for pagination:**
+When arrayPath is set, the system:
+1. Applies arrayPath to extract records from the wrapper object
+2. Preserves the **wrapper object** as \`paginationSource\` for cursor extraction
+3. Allows pagination paths (e.g., \`$.next_cursor\`) to access pagination metadata at the same level as the records array
+
+**Example with pagination:**
+\`\`\`json
+{
+  "tool": "list_meetings",
+  "resultPath": "$.content[0].text",  // MCP text content contains JSON
+  "arrayPath": "$.items[*]",          // Extract records from wrapper.items
+  "pagination": {
+    "type": "cursor",
+    "cursorParam": "cursor",
+    "cursorPath": "$.next_cursor"     // Extract cursor from wrapper.next_cursor (same level as items)
+  }
+}
+\`\`\`
+
+Response structure this handles:
+\`\`\`json
+{
+  "items": [{...}, {...}, {...}],
+  "next_cursor": "abc123",
+  "has_more": true
+}
+\`\`\`
+
 ## Entities & Relationships
 
 Extract embedded objects as graph entities:
@@ -555,7 +602,11 @@ Example: \`["list_users", "list_projects", "list_issues", "get_issue_comments"]\
 
 # CRITICAL RULES
 
-1. **arrayPath is REQUIRED** when resultPath returns \`{"items": [...]}\` or similar array-wrapped responses
+1. **arrayPath**: Only needed when the MCP response contains a wrapper object with a NON-STANDARD array key.
+   - The system auto-extracts arrays from standard keys: \`results\`, \`records\`, \`data\`, \`content\`
+   - **DO NOT set arrayPath** if the response is already a flat array or uses one of the standard keys above
+   - **SET arrayPath** (e.g., \`$.items[*]\`, \`$.tickets[*]\`, \`$.meetings[*]\`) when the response wraps records in a non-standard key
+   - arrayPath is also important for pagination: it tells the system which part is records vs. which part is pagination metadata (e.g., \`next_cursor\`)
 2. **DO NOT create record types** for enrichment-only tools (tools with ID parameters)
 3. **NO placeholder values** in params (no "example", "your-", "test-123")
 4. **Pagination MUST be included** for discovery tools that support it

@@ -623,8 +623,10 @@ export async function* fetchAll(
 async function extractRecordsFromMCPResponse(
   response: any,
   formatProcessor?: { name: string; options?: any },
+  arrayPath?: string,
 ): Promise<{
   records: any[];
+  paginationSource?: any;
   error?: string;
 }> {
   // Check for pagination wrapper format first (e.g., Linear)
@@ -700,25 +702,55 @@ async function extractRecordsFromMCPResponse(
           return { records: parsed };
         }
 
+        // If arrayPath is provided, use it explicitly (before auto-detection)
+        if (arrayPath) {
+          logger.debug(`[extractRecords] Applying explicit arrayPath: ${arrayPath}`);
+          try {
+            const extractedRecords = JSONPath({
+              path: arrayPath,
+              json: parsed,
+            });
+
+            if (Array.isArray(extractedRecords)) {
+              logger.debug(
+                `[extractRecords] Extracted ${extractedRecords.length} records using arrayPath`,
+              );
+              // Return both records and the wrapper object for pagination
+              return {
+                records: extractedRecords,
+                paginationSource: parsed,
+              };
+            } else {
+              logger.warn(
+                `[extractRecords] arrayPath "${arrayPath}" returned non-array: ${typeof extractedRecords}`,
+              );
+            }
+          } catch (err) {
+            logger.error({ err }, `[extractRecords] Failed to apply arrayPath "${arrayPath}"`);
+          }
+        }
+
+        // Auto-detection fallback (only if arrayPath not provided or failed)
         // Check for common nested array patterns
         if (parsed.content && Array.isArray(parsed.content)) {
           // Linear MCP format: {content: [...], pageInfo: {...}}
-          return { records: parsed.content };
+          return { records: parsed.content, paginationSource: parsed };
         }
         if (parsed.results && Array.isArray(parsed.results)) {
-          return { records: parsed.results };
+          return { records: parsed.results, paginationSource: parsed };
         }
         if (parsed.records && Array.isArray(parsed.records)) {
-          return { records: parsed.records };
+          return { records: parsed.records, paginationSource: parsed };
         }
         if (parsed.data) {
           return {
             records: Array.isArray(parsed.data) ? parsed.data : [parsed.data],
+            paginationSource: parsed,
           };
         }
 
         // Single object - return as array
-        return { records: [parsed] };
+        return { records: [parsed], paginationSource: parsed };
       } catch (err) {
         // If parsing fails, return empty array
         logger.warn({ err }, 'Failed to parse MCP response text as JSON');
@@ -782,13 +814,14 @@ export async function fetchPage(
     });
   }
 
-  // Extract records from MCP response format
+  // Extract records from MCP response format (now handles arrayPath internally)
   const parseResult = await extractRecordsFromMCPResponse(
     response,
     (config as any).formatProcessor,
+    config.arrayPath,
   );
 
-  logger.debug(`[fetchPage] Extracted ${parseResult.records.length} records before arrayPath`);
+  logger.debug(`[fetchPage] Extracted ${parseResult.records.length} records`);
 
   // Check if MCP returned an error
   if (parseResult.error) {
@@ -812,69 +845,9 @@ export async function fetchPage(
     };
   }
 
-  let finalRecords = parseResult.records;
-  let paginationSource = finalRecords;
-
-  // Apply arrayPath if configured to extract nested records
-  if (config.arrayPath) {
-    logger.debug(`[fetchPage] Applying arrayPath: ${config.arrayPath} to extract nested records`);
-    logger.debug(
-      `[fetchPage] Records before arrayPath: ${JSON.stringify(finalRecords, null, 2).substring(
-        0,
-        300,
-      )}`,
-    );
-
-    try {
-      // If we have a single wrapper object in an array, apply arrayPath to that object
-      // This handles cases like [{items: [...], next_cursor: "..."}] from extractRecordsFromMCPResponse
-      let target = finalRecords;
-      if (
-        finalRecords.length === 1 &&
-        typeof finalRecords[0] === 'object' &&
-        finalRecords[0] !== null &&
-        !Array.isArray(finalRecords[0])
-      ) {
-        logger.debug(
-          `[fetchPage] Detected single wrapper object, applying arrayPath to object directly`,
-        );
-        target = finalRecords[0];
-        paginationSource = target; // Use the wrapper object for pagination info
-      }
-
-      const extractedRecords = JSONPath({
-        path: config.arrayPath,
-        json: target,
-      });
-
-      if (Array.isArray(extractedRecords)) {
-        finalRecords = extractedRecords;
-        if (extractedRecords.length > 0) {
-          logger.debug(
-            `[fetchPage] Successfully extracted ${finalRecords.length} records using arrayPath`,
-          );
-          logger.debug(
-            `[fetchPage] First record after arrayPath: ${JSON.stringify(
-              finalRecords[0],
-              null,
-              2,
-            ).substring(0, 300)}`,
-          );
-        } else {
-          logger.debug(
-            `[fetchPage] arrayPath "${config.arrayPath}" extracted 0 records (empty array)`,
-          );
-        }
-      } else {
-        logger.warn(
-          { extractedRecords },
-          `[fetchPage] arrayPath "${config.arrayPath}" returned non-array`,
-        );
-      }
-    } catch (err) {
-      logger.error({ err }, `[fetchPage] Error applying arrayPath`);
-    }
-  }
+  const finalRecords = parseResult.records;
+  // Use paginationSource from parseResult, or fall back to records array
+  const paginationSource = parseResult.paginationSource || finalRecords;
 
   // Extract pagination info from the appropriate source
   let nextCursor: string | undefined;

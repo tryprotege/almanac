@@ -97,6 +97,7 @@ export async function transformRecord(
         record.recordId ||
         record.uuid ||
         record.guid ||
+        record.gid ||
         (idKey ? record[idKey] : undefined) ||
         record.url ||
         record.uri;

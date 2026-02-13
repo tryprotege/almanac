@@ -303,7 +303,7 @@ async function callLLM(prompt: string): Promise<string> {
   try {
     // Call LLM with the prompt
     const response = await chat(llm, [{ role: 'user', content: prompt }], {
-      model: env.LLM_CHAT_MODEL,
+      model: env.LLM_INDEXING_CONFIG_MODEL,
       temperature: 0.15, // Lower temperature for structured output
       maxTokens: 16000, // Allow large configs (increased for complex servers)
       reasoningEffort: 'high',

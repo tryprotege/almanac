@@ -1,0 +1,426 @@
+{
+  "id": "trello",
+  "displayName": "Trello",
+  "description": "Visual collaboration tool for organizing work into boards",
+  "icon": "trello",
+  "category": "productivity",
+  "connection": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["@delorenj/mcp-server-trello"]
+  },
+  "variables": [
+    {
+      "key": "TRELLO_API_KEY",
+      "label": "Trello API Key",
+      "type": "password",
+      "required": true,
+      "helpText": "Create an app at https://trello.com/power-ups/admin/ and copy the API key from your app's settings."
+    },
+    {
+      "key": "TRELLO_TOKEN",
+      "label": "Trello Token",
+      "type": "password",
+      "required": true,
+      "helpText": "Generate a token by visiting: https://trello.com/1/authorize?expiration=never&name=YOUR_APP_NAME&scope=read,write&response_type=token&key=YOUR_API_KEY (Replace YOUR_APP_NAME with your app name and YOUR_API_KEY with the API key from the previous step)"
+    }
+  ],
+  "indexingConfig": {
+    "version": "1.0",
+    "source": "trello",
+    "displayName": "Trello",
+    "syncOrder": ["list_boards", "list_lists", "list_cards"],
+    "fetchers": {
+      "list_boards": {
+        "tool": "list_boards",
+        "params": {},
+        "resultPath": "$.content[0].text",
+        "detection": {
+          "always": true
+        }
+      },
+      "list_lists": {
+        "tool": "get_lists",
+        "forEach": {
+          "source": "list_boards",
+          "path": "$[*]",
+          "paramMapping": {
+            "boardId": "$.id"
+          },
+          "concurrency": 3
+        },
+        "resultPath": "$.content[0].text",
+        "detection": {
+          "always": true
+        }
+      },
+      "list_cards": {
+        "tool": "get_cards_by_list_id",
+        "forEach": {
+          "source": "list_lists",
+          "path": "$[*]",
+          "paramMapping": {
+            "listId": "$.id"
+          },
+          "concurrency": 3
+        },
+        "resultPath": "$.content[0].text",
+        "detection": {
+          "always": true
+        }
+      }
+    },
+    "recordTypes": {
+      "board": {
+        "fetcher": "list_boards",
+        "detection": {
+          "always": true
+        },
+        "fields": {
+          "title": {
+            "type": "path",
+            "path": "$.name"
+          },
+          "content": {
+            "type": "path",
+            "path": "$.desc"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "$.dateLastActivity"
+          },
+          "tags": {
+            "type": "code",
+            "code": "const labels = record.labelNames ? Object.entries(record.labelNames).filter(([k, v]) => v && v.length > 0).map(([k, v]) => v) : []; return labels;"
+          }
+        },
+        "entities": [
+          {
+            "name": "workspace",
+            "type": "Workspace",
+            "idPath": "$.idOrganization",
+            "titlePath": "$.idOrganization",
+            "condition": "record.idOrganization"
+          }
+        ],
+        "relationships": [
+          {
+            "name": "belongs_to_workspace",
+            "type": "BELONGS_TO",
+            "targetType": "Workspace",
+            "targetIdPath": "$.idOrganization",
+            "condition": "record.idOrganization"
+          }
+        ]
+      },
+      "list": {
+        "fetcher": "list_lists",
+        "detection": {
+          "always": true
+        },
+        "fields": {
+          "title": {
+            "type": "path",
+            "path": "$.name"
+          },
+          "content": {
+            "type": "template",
+            "template": "Trello list: ${record.name}"
+          }
+        },
+        "entities": [
+          {
+            "name": "board",
+            "type": "Board",
+            "idPath": "$.idBoard",
+            "titlePath": "$.idBoard",
+            "condition": "record.idBoard"
+          }
+        ],
+        "relationships": [
+          {
+            "name": "on_board",
+            "type": "BELONGS_TO",
+            "targetType": "board",
+            "targetIdPath": "$.idBoard",
+            "condition": "record.idBoard"
+          }
+        ]
+      },
+      "card": {
+        "fetcher": "list_cards",
+        "detection": {
+          "always": true
+        },
+        "enrichments": [
+          {
+            "name": "details",
+            "tool": "get_card",
+            "paramMapping": {
+              "cardId": "$.id"
+            },
+            "params": {
+              "includeMarkdown": true
+            },
+            "resultPath": "$.content[0].text"
+          },
+          {
+            "name": "comments",
+            "tool": "get_card_comments",
+            "paramMapping": {
+              "cardId": "$.id"
+            },
+            "params": {
+              "limit": 100
+            },
+            "resultPath": "$.content[0].text"
+          }
+        ],
+        "fields": {
+          "title": {
+            "type": "path",
+            "path": "$.name"
+          },
+          "content": {
+            "type": "code",
+            "code": "let parts = []; const desc = (enrichments && enrichments.details && enrichments.details.desc) ? enrichments.details.desc : record.desc; if (desc) parts.push(desc); if (enrichments && enrichments.comments && Array.isArray(enrichments.comments)) { const commentTexts = enrichments.comments.map(c => { const author = (c.memberCreator && c.memberCreator.fullName) ? c.memberCreator.fullName : 'Unknown'; const text = (c.data && c.data.text) ? c.data.text : ''; return author + ': ' + text; }).filter(t => t.length > 2); if (commentTexts.length > 0) { parts.push('\\n\\n--- Comments ---\\n' + commentTexts.join('\\n\\n')); } } return parts.join('\\n\\n');"
+          },
+          "people": {
+            "type": "code",
+            "code": "const people = []; if (record.idMembers && Array.isArray(record.idMembers)) { record.idMembers.forEach(m => people.push(m)); } if (enrichments && enrichments.comments && Array.isArray(enrichments.comments)) { enrichments.comments.forEach(c => { if (c.memberCreator && c.memberCreator.fullName) people.push(c.memberCreator.fullName); }); } return [...new Set(people)];"
+          },
+          "tags": {
+            "type": "code",
+            "code": "const tags = []; if (record.labels && Array.isArray(record.labels)) { record.labels.forEach(l => { if (l.name) tags.push(l.name); else if (l.color) tags.push(l.color); }); } if (record.closed) tags.push('closed'); if (record.due) tags.push('has-due-date'); return tags;"
+          },
+          "sourceCreatedAt": {
+            "type": "code",
+            "code": "if (record.id && record.id.length >= 8) { const ts = parseInt(record.id.substring(0, 8), 16) * 1000; return new Date(ts).toISOString(); } return null;"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "$.dateLastActivity"
+          },
+          "parentId": {
+            "type": "path",
+            "path": "$.idList"
+          }
+        },
+        "entities": [
+          {
+            "name": "list",
+            "type": "List",
+            "idPath": "$.idList",
+            "titlePath": "$.idList",
+            "condition": "record.idList"
+          },
+          {
+            "name": "board",
+            "type": "Board",
+            "idPath": "$.idBoard",
+            "titlePath": "$.idBoard",
+            "condition": "record.idBoard"
+          }
+        ],
+        "relationships": [
+          {
+            "name": "in_list",
+            "type": "IN_LIST",
+            "targetType": "list",
+            "targetIdPath": "$.idList",
+            "condition": "record.idList"
+          },
+          {
+            "name": "on_board",
+            "type": "BELONGS_TO",
+            "targetType": "board",
+            "targetIdPath": "$.idBoard",
+            "condition": "record.idBoard"
+          }
+        ]
+      }
+    },
+    "toolClassifications": {
+      "get_cards_by_list_id": {
+        "toolName": "get_cards_by_list_id",
+        "category": "read"
+      },
+      "get_lists": {
+        "toolName": "get_lists",
+        "category": "read"
+      },
+      "get_recent_activity": {
+        "toolName": "get_recent_activity",
+        "category": "read"
+      },
+      "add_card_to_list": {
+        "toolName": "add_card_to_list",
+        "category": "write"
+      },
+      "update_card_details": {
+        "toolName": "update_card_details",
+        "category": "write"
+      },
+      "archive_card": {
+        "toolName": "archive_card",
+        "category": "write"
+      },
+      "move_card": {
+        "toolName": "move_card",
+        "category": "write"
+      },
+      "add_list_to_board": {
+        "toolName": "add_list_to_board",
+        "category": "write"
+      },
+      "archive_list": {
+        "toolName": "archive_list",
+        "category": "write"
+      },
+      "get_my_cards": {
+        "toolName": "get_my_cards",
+        "category": "read"
+      },
+      "attach_image_to_card": {
+        "toolName": "attach_image_to_card",
+        "category": "write"
+      },
+      "attach_file_to_card": {
+        "toolName": "attach_file_to_card",
+        "category": "write"
+      },
+      "attach_image_data_to_card": {
+        "toolName": "attach_image_data_to_card",
+        "category": "write"
+      },
+      "list_boards": {
+        "toolName": "list_boards",
+        "category": "read"
+      },
+      "set_active_board": {
+        "toolName": "set_active_board",
+        "category": "write"
+      },
+      "list_workspaces": {
+        "toolName": "list_workspaces",
+        "category": "read"
+      },
+      "create_board": {
+        "toolName": "create_board",
+        "category": "write"
+      },
+      "set_active_workspace": {
+        "toolName": "set_active_workspace",
+        "category": "write"
+      },
+      "list_boards_in_workspace": {
+        "toolName": "list_boards_in_workspace",
+        "category": "read"
+      },
+      "get_active_board_info": {
+        "toolName": "get_active_board_info",
+        "category": "read"
+      },
+      "get_card": {
+        "toolName": "get_card",
+        "category": "read"
+      },
+      "add_comment": {
+        "toolName": "add_comment",
+        "category": "write"
+      },
+      "update_comment": {
+        "toolName": "update_comment",
+        "category": "write"
+      },
+      "delete_comment": {
+        "toolName": "delete_comment",
+        "category": "write"
+      },
+      "get_card_comments": {
+        "toolName": "get_card_comments",
+        "category": "read"
+      },
+      "create_checklist": {
+        "toolName": "create_checklist",
+        "category": "write"
+      },
+      "get_checklist_items": {
+        "toolName": "get_checklist_items",
+        "category": "read"
+      },
+      "add_checklist_item": {
+        "toolName": "add_checklist_item",
+        "category": "write"
+      },
+      "find_checklist_items_by_description": {
+        "toolName": "find_checklist_items_by_description",
+        "category": "search"
+      },
+      "get_acceptance_criteria": {
+        "toolName": "get_acceptance_criteria",
+        "category": "read"
+      },
+      "get_checklist_by_name": {
+        "toolName": "get_checklist_by_name",
+        "category": "read"
+      },
+      "update_checklist_item": {
+        "toolName": "update_checklist_item",
+        "category": "write"
+      },
+      "get_board_members": {
+        "toolName": "get_board_members",
+        "category": "read"
+      },
+      "assign_member_to_card": {
+        "toolName": "assign_member_to_card",
+        "category": "write"
+      },
+      "remove_member_from_card": {
+        "toolName": "remove_member_from_card",
+        "category": "write"
+      },
+      "get_board_labels": {
+        "toolName": "get_board_labels",
+        "category": "read"
+      },
+      "create_label": {
+        "toolName": "create_label",
+        "category": "write"
+      },
+      "update_label": {
+        "toolName": "update_label",
+        "category": "write"
+      },
+      "delete_label": {
+        "toolName": "delete_label",
+        "category": "write"
+      },
+      "get_card_history": {
+        "toolName": "get_card_history",
+        "category": "read"
+      },
+      "get_health": {
+        "toolName": "get_health",
+        "category": "read"
+      },
+      "get_health_detailed": {
+        "toolName": "get_health_detailed",
+        "category": "read"
+      },
+      "get_health_metadata": {
+        "toolName": "get_health_metadata",
+        "category": "read"
+      },
+      "get_health_performance": {
+        "toolName": "get_health_performance",
+        "category": "read"
+      },
+      "perform_system_repair": {
+        "toolName": "perform_system_repair",
+        "category": "write"
+      }
+    }
+  }
+}

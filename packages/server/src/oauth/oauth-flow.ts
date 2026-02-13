@@ -14,6 +14,7 @@ export interface OAuthConfig {
   clientSecret?: string; // Optional for public clients
   redirectUri: string;
   scopes: string[];
+  resource?: string; // RFC 8707: OAuth 2.0 Resource Indicators
   usePKCE: boolean; // Default true for OAuth 2.1
 }
 
@@ -82,6 +83,11 @@ export class OAuthFlowManager {
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('scope', config.scopes.join(' '));
 
+    // Add resource parameter if specified (RFC 8707)
+    if (config.resource) {
+      authUrl.searchParams.set('resource', config.resource);
+    }
+
     if (config.usePKCE) {
       authUrl.searchParams.set('code_challenge', codeChallenge);
       authUrl.searchParams.set('code_challenge_method', 'S256');
@@ -123,6 +129,13 @@ export class OAuthFlowManager {
       'Found OAuth config in DataSourceModel',
     );
 
+    // Validate required OAuth config
+    if (!oauthConfig.tokenUrl) {
+      throw new Error(
+        'OAuth tokenUrl not configured - discovery endpoints may have been lost. Please reconnect the data source.',
+      );
+    }
+
     // Prepare token exchange request
     const tokenRequestBody = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -139,6 +152,11 @@ export class OAuthFlowManager {
     // Add PKCE code verifier if PKCE is enabled
     if (oauthConfig.usePKCE && tokenRecord.codeVerifier) {
       tokenRequestBody.set('code_verifier', tokenRecord.codeVerifier);
+    }
+
+    // Add resource parameter if specified (RFC 8707)
+    if (oauthConfig.resource) {
+      tokenRequestBody.set('resource', oauthConfig.resource);
     }
 
     // Exchange code for tokens
@@ -244,6 +262,11 @@ export class OAuthFlowManager {
     // Add client secret if available
     if (oauthConfig.clientSecret) {
       tokenRequestBody.set('client_secret', oauthConfig.clientSecret);
+    }
+
+    // Add resource parameter if specified (RFC 8707)
+    if (oauthConfig.resource) {
+      tokenRequestBody.set('resource', oauthConfig.resource);
     }
 
     // Request new tokens

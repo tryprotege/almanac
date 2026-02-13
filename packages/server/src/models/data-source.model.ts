@@ -69,6 +69,9 @@ const DataSourceSchema = new mongoose.Schema(
       authorizationUrl: { type: String },
       tokenUrl: { type: String },
 
+      // RFC 8707: OAuth 2.0 Resource Indicators
+      resource: { type: String },
+
       // Dynamic client registration
       clientMetadataUrl: { type: String },
       clientMetadata: {

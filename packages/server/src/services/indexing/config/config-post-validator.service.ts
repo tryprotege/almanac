@@ -263,7 +263,7 @@ function validateRecordIdFields(
   const issues: PostValidationIssue[] = [];
 
   // Common ID field names to check for
-  const commonIdFields = ['id', '_id', 'sourceId', 'recordId', 'uuid', 'guid'];
+  const commonIdFields = ['id', '_id', 'sourceId', 'recordId', 'uuid', 'guid', 'gid'];
 
   for (const [recordTypeName, recordType] of Object.entries(config.recordTypes || {})) {
     const fetcherName = recordType.fetcher;

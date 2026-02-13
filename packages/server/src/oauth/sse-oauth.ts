@@ -24,6 +24,8 @@ export interface SseOAuthDiscoveryResult {
     tokenEndpoint: string;
     registrationEndpoint?: string;
     scopesSupported?: string[];
+    resource?: string; // RFC 8707: OAuth 2.0 Resource Indicators
+    tokenEndpointAuthMethodsSupported?: string[];
   };
   error?: string;
 }
@@ -134,6 +136,8 @@ async function fetchSseOAuthMetadata(sseUrl: string): Promise<{
   tokenEndpoint: string;
   registrationEndpoint?: string;
   scopesSupported?: string[];
+  resource?: string;
+  tokenEndpointAuthMethodsSupported?: string[];
 } | null> {
   try {
     logger.info({ sseUrl }, 'Starting RFC 8707 OAuth discovery');
@@ -244,6 +248,13 @@ async function fetchSseOAuthMetadata(sseUrl: string): Promise<{
             : undefined,
         scopesSupported: Array.isArray(resourceMetadata.scopes_supported)
           ? (resourceMetadata.scopes_supported as string[])
+          : undefined,
+        resource:
+          typeof resourceMetadata.resource === 'string' ? resourceMetadata.resource : undefined,
+        tokenEndpointAuthMethodsSupported: Array.isArray(
+          authServerMetadata.token_endpoint_auth_methods_supported,
+        )
+          ? (authServerMetadata.token_endpoint_auth_methods_supported as string[])
           : undefined,
       };
     } else {

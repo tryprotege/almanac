@@ -34,9 +34,27 @@ Your API → MCP Server → Almanac
 
 **Security**: Built-in OAuth support
 
-- Standard OAuth 2.0 flows
+- Standard OAuth 2.0 and 2.1 flows
 - Secure credential storage
 - Token refresh handling
+
+### OAuth Flow Notes
+
+**OAuth 2.0**:
+
+- Requires both **client ID** and **client secret** to be manually entered
+- Client secret must be kept confidential
+- Suitable for server-to-server authentication
+
+**OAuth 2.1**:
+
+- Streamlined authentication flow
+- Uses PKCE (Proof Key for Code Exchange) by default
+- Does not require client secret for public clients
+- Enhanced security for mobile and single-page applications
+- Recommended for new implementations
+
+Almanac supports both OAuth 2.0 and 2.1, allowing you to choose the appropriate flow based on your security requirements and application type.
 
 ## Two Ways to Configure
 

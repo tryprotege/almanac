@@ -159,6 +159,13 @@ export async function* indexAll(
   records: TransformedRecord[];
   progress: IndexProgress;
 }> {
+  // Normalize recordTypes: ensure name falls back to key if not provided
+  for (const [key, recordType] of Object.entries(config.recordTypes)) {
+    if (!recordType.name) {
+      recordType.name = key;
+    }
+  }
+
   // Ensure MCP client is connected before indexing
   if (!mcpClientManager.isConnected(serverName)) {
     logger.info({ serverName }, 'MCP client not connected, attempting to connect before indexing');
@@ -647,6 +654,13 @@ export async function* runIncrementalSync(
   records: TransformedRecord[];
   progress: IndexProgress;
 }> {
+  // Normalize recordTypes: ensure name falls back to key if not provided
+  for (const [key, recordType] of Object.entries(config.recordTypes)) {
+    if (!recordType.name) {
+      recordType.name = key;
+    }
+  }
+
   // Load tool classifications if available
   if (config.toolClassifications) {
     mcpClientManager.setToolClassifications(serverName, config.toolClassifications);

@@ -168,16 +168,25 @@ router.post('/preview', async (req, res) => {
  */
 router.post('/save', async (req, res) => {
   try {
-    const { config, status = 'active', startingPointValues } = req.body;
+    const { config, status = 'active', startingPointValues, serverName } = req.body;
 
     if (!config || !config.source) {
       return res.status(400).json({ error: 'Valid config is required' });
     }
 
+    // Use provided serverName if available, otherwise fall back to config.source
+    const actualServerName = serverName || config.source;
+
+    // Update config.source to match the server name for consistency
+    const updatedConfig = {
+      ...config,
+      source: actualServerName,
+    };
+
     // Validate required starting points if values are provided
-    if (startingPointValues && config.startingPoints) {
+    if (startingPointValues && updatedConfig.startingPoints) {
       const errors: string[] = [];
-      for (const sp of config.startingPoints) {
+      for (const sp of updatedConfig.startingPoints) {
         if (sp.required && sp.userProvided) {
           const values = startingPointValues[sp.name];
           if (!values || values.length === 0 || !values.some((v: string) => v.trim().length > 0)) {
@@ -196,10 +205,10 @@ router.post('/save', async (req, res) => {
 
     // Upsert config
     const configDoc = await IndexingConfigModel.findOneAndUpdate(
-      { serverName: config.source },
+      { serverName: actualServerName },
       {
-        serverName: config.source,
-        config,
+        serverName: actualServerName,
+        config: updatedConfig,
         status,
         startingPointValues: startingPointValues || {},
         updatedAt: new Date(),
@@ -208,8 +217,8 @@ router.post('/save', async (req, res) => {
     );
 
     logger.info(
-      { serverName: config.source, startingPointValues },
-      `Saved IndexingConfig for ${config.source}`,
+      { serverName: actualServerName, startingPointValues },
+      `Saved IndexingConfig for ${actualServerName}`,
     );
 
     return res.json({

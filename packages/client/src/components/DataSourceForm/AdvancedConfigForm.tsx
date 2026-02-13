@@ -41,6 +41,8 @@ interface FormData {
   url: string;
   headers: Array<{ key: string; value: string; showValue: boolean }>;
   authType: 'none' | 'api-key' | 'oauth';
+  oauthClientId: string;
+  oauthClientSecret: string;
   isDisabled: boolean;
 }
 
@@ -60,6 +62,8 @@ export function AdvancedConfigForm({
     url: '',
     headers: [],
     authType: 'none',
+    oauthClientId: '',
+    oauthClientSecret: '',
     isDisabled: false,
   });
 
@@ -93,6 +97,8 @@ export function AdvancedConfigForm({
             }))
           : [],
         authType: server.authType || 'none',
+        oauthClientId: server.oauth?.clientId || '',
+        oauthClientSecret: server.oauth?.clientSecret || '',
         isDisabled: server.isDisabled || false,
       });
     } else if (preset && preset.id !== 'custom') {
@@ -113,6 +119,8 @@ export function AdvancedConfigForm({
         url: conn.url || '',
         headers: [],
         authType: conn.auth?.type || 'none',
+        oauthClientId: '',
+        oauthClientSecret: '',
         isDisabled: false,
       });
     } else {
@@ -126,6 +134,8 @@ export function AdvancedConfigForm({
         url: '',
         headers: [],
         authType: 'none',
+        oauthClientId: '',
+        oauthClientSecret: '',
         isDisabled: false,
       });
     }
@@ -194,6 +204,17 @@ export function AdvancedConfigForm({
 
       // Add authType
       config.authType = formData.authType;
+
+      // Add OAuth credentials if provided
+      if (formData.authType === 'oauth') {
+        config.oauth = {};
+        if (formData.oauthClientId.trim()) {
+          config.oauth.clientId = formData.oauthClientId.trim();
+        }
+        if (formData.oauthClientSecret.trim()) {
+          config.oauth.clientSecret = formData.oauthClientSecret.trim();
+        }
+      }
 
       // Add headers if not using OAuth
       if (formData.authType !== 'oauth' && formData.headers.length > 0) {
@@ -549,7 +570,7 @@ export function AdvancedConfigForm({
               >
                 <option value="none">None</option>
                 <option value="api-key">API Key (via headers)</option>
-                <option value="oauth">OAuth 2.1</option>
+                <option value="oauth">OAuth 2.0/2.1</option>
               </select>
               {isPreset && preset?.connection.auth && (
                 <Lock className="absolute right-10 top-1/2 -translate-y-1/2 w-4 h-4 text-text-quaternary pointer-events-none" />
@@ -631,22 +652,71 @@ export function AdvancedConfigForm({
             </div>
           )}
 
-          {/* OAuth Configuration - Simplified */}
+          {/* OAuth Configuration */}
           {formData.authType === 'oauth' && (
-            <div className="border border-brand-lime/30 rounded-lg p-4 bg-brand-lime/10">
+            <div className="border border-brand-lime/30 rounded-lg p-4 bg-brand-lime/10 space-y-4">
               <div className="flex items-start gap-3">
                 <div className="text-brand-lime text-xl">🔐</div>
-                <div>
+                <div className="flex-1">
                   <h4 className="text-sm font-semibold text-text-primary mb-1">
-                    OAuth 2.1 Authentication
+                    OAuth 2.0/2.1 Authentication
                   </h4>
                   <p className="text-sm text-text-secondary mb-2">
                     OAuth will be configured automatically when you connect. The server will
                     discover OAuth endpoints and handle authentication for you.
                   </p>
-                  <p className="text-xs text-text-quaternary">
+                  <p className="text-xs text-text-quaternary mb-3">
                     After creating this server, click "Connect" to start the OAuth flow. You'll be
                     redirected to authorize access.
+                  </p>
+                </div>
+              </div>
+
+              {/* Optional Client Credentials */}
+              <div className="border-t border-brand-lime/20 pt-4 space-y-3">
+                <p className="text-xs font-semibold text-text-primary">
+                  Optional: Pre-configure Client Credentials
+                </p>
+                <p className="text-xs text-text-secondary mb-3">
+                  Some providers (e.g., Asana) don't support automatic registration. If required,
+                  provide your client credentials from the provider's developer console.
+                </p>
+
+                <div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">
+                    Client ID
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.oauthClientId}
+                    onChange={(e) => setFormData({ ...formData, oauthClientId: e.target.value })}
+                    disabled={isLoading}
+                    className="input"
+                    placeholder="your-client-id"
+                  />
+                  <p className="mt-1 text-xs text-text-quaternary">
+                    Leave empty if the server supports automatic registration
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">
+                    Client Secret
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      value={formData.oauthClientSecret}
+                      onChange={(e) =>
+                        setFormData({ ...formData, oauthClientSecret: e.target.value })
+                      }
+                      disabled={isLoading}
+                      className="input pr-10"
+                      placeholder="your-client-secret"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-text-quaternary">
+                    Leave empty if not required or using PKCE-only flow
                   </p>
                 </div>
               </div>

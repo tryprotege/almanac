@@ -1,0 +1,305 @@
+{
+  "id": "asana",
+  "displayName": "Asana",
+  "description": "Project management and team collaboration platform",
+  "icon": "asana",
+  "category": "productivity",
+  "connection": {
+    "type": "streamable-http",
+    "url": "https://mcp.asana.com/v2/mcp"
+  },
+  "indexingConfig": {
+    "version": "1.0",
+    "source": "asana",
+    "displayName": "Asana",
+    "syncOrder": ["list_projects", "list_tasks", "get_task_details"],
+    "fetchers": {
+      "list_projects": {
+        "tool": "get_projects",
+        "params": {
+          "opt_fields": "name,notes,owner,owner.name,created_at,modified_at,archived,current_status,current_status.title,current_status.color,members,members.name,team,team.name"
+        },
+        "pagination": {
+          "type": "cursor",
+          "cursorParam": "offset",
+          "cursorPath": "$.next_page.offset",
+          "limitParam": "limit"
+        },
+        "resultPath": "$.content[0].text",
+        "detection": {
+          "always": true
+        }
+      },
+      "list_tasks": {
+        "tool": "get_tasks",
+        "forEach": {
+          "source": "list_projects",
+          "path": "$[*]",
+          "paramMapping": {
+            "project": "$.gid"
+          },
+          "concurrency": 3
+        },
+        "params": {
+          "opt_fields": "name,gid,resource_type,completed"
+        },
+        "pagination": {
+          "type": "cursor",
+          "cursorParam": "offset",
+          "cursorPath": "$.next_page.offset",
+          "limitParam": "limit"
+        },
+        "resultPath": "$.content[0].text",
+        "detection": {
+          "always": true
+        }
+      },
+      "get_task_details": {
+        "tool": "get_task",
+        "forEach": {
+          "source": "list_tasks",
+          "path": "$[*]",
+          "paramMapping": {
+            "task_id": "$.gid"
+          },
+          "concurrency": 5
+        },
+        "params": {
+          "opt_fields": "name,notes,html_notes,assignee,assignee.name,assignee.email,created_at,modified_at,completed,completed_at,due_on,due_at,start_on,start_at,projects,projects.name,tags,tags.name,custom_fields,custom_fields.name,custom_fields.display_value,memberships,memberships.section,memberships.section.name,parent,parent.name,followers,followers.name,created_by,created_by.name"
+        },
+        "resultPath": "$.content[0].text",
+        "detection": {
+          "always": true
+        }
+      }
+    },
+    "recordTypes": {
+      "project": {
+        "fetcher": "list_projects",
+        "fields": {
+          "title": {
+            "type": "path",
+            "path": "$.name"
+          },
+          "content": {
+            "type": "path",
+            "path": "$.notes"
+          },
+          "people": {
+            "type": "paths",
+            "paths": ["$.owner.name", "$.members[*].name"]
+          },
+          "tags": {
+            "type": "paths",
+            "paths": ["$.current_status.color", "$.current_status.title"]
+          },
+          "sourceCreatedAt": {
+            "type": "path",
+            "path": "$.created_at"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "$.modified_at"
+          }
+        },
+        "entities": [
+          {
+            "name": "owner",
+            "type": "User",
+            "idPath": "$.owner.gid",
+            "titlePath": "$.owner.name",
+            "condition": "record.owner && record.owner.gid"
+          },
+          {
+            "name": "team",
+            "type": "Team",
+            "idPath": "$.team.gid",
+            "titlePath": "$.team.name",
+            "condition": "record.team && record.team.gid"
+          }
+        ],
+        "relationships": [
+          {
+            "name": "owned_by",
+            "type": "OWNED_BY",
+            "targetType": "User",
+            "targetIdPath": "$.owner.gid",
+            "condition": "record.owner && record.owner.gid"
+          },
+          {
+            "name": "belongs_to_team",
+            "type": "BELONGS_TO",
+            "targetType": "Team",
+            "targetIdPath": "$.team.gid",
+            "condition": "record.team && record.team.gid"
+          }
+        ]
+      },
+      "task_summary": {
+        "fetcher": "list_tasks",
+        "fields": {
+          "title": {
+            "type": "path",
+            "path": "$.name"
+          },
+          "content": {
+            "type": "path",
+            "path": "$.name"
+          },
+          "tags": {
+            "type": "code",
+            "code": "const tags = []; if (record.completed) tags.push('completed'); else tags.push('incomplete'); if (record.resource_type) tags.push(record.resource_type); return tags;"
+          }
+        }
+      },
+      "task": {
+        "fetcher": "get_task_details",
+        "fields": {
+          "title": {
+            "type": "path",
+            "path": "$.name"
+          },
+          "content": {
+            "type": "code",
+            "code": "const notes = record.notes || ''; const customFields = (record.custom_fields || []).filter(f => f.display_value).map(f => `${f.name}: ${f.display_value}`).join('\\n'); const section = (record.memberships || []).map(m => m.section && m.section.name).filter(Boolean).join(', '); const parts = []; if (notes) parts.push(notes); if (section) parts.push(`Section: ${section}`); if (customFields) parts.push(customFields); return parts.join('\\n\\n');"
+          },
+          "people": {
+            "type": "paths",
+            "paths": ["$.assignee.name", "$.created_by.name", "$.followers[*].name"]
+          },
+          "tags": {
+            "type": "code",
+            "code": "const tags = []; if (record.completed) tags.push('completed'); else tags.push('incomplete'); if (record.tags) record.tags.forEach(t => tags.push(t.name)); (record.custom_fields || []).forEach(f => { if (f.display_value) tags.push(f.display_value); }); return tags;"
+          },
+          "sourceCreatedAt": {
+            "type": "path",
+            "path": "$.created_at"
+          },
+          "sourceUpdatedAt": {
+            "type": "path",
+            "path": "$.modified_at"
+          },
+          "parentId": {
+            "type": "path",
+            "path": "$.parent.gid"
+          }
+        },
+        "entities": [
+          {
+            "name": "assignee",
+            "type": "User",
+            "idPath": "$.assignee.gid",
+            "titlePath": "$.assignee.name",
+            "condition": "record.assignee && record.assignee.gid"
+          },
+          {
+            "name": "creator",
+            "type": "User",
+            "idPath": "$.created_by.gid",
+            "titlePath": "$.created_by.name",
+            "condition": "record.created_by && record.created_by.gid"
+          },
+          {
+            "name": "project",
+            "type": "Project",
+            "idPath": "$.projects[0].gid",
+            "titlePath": "$.projects[0].name",
+            "condition": "record.projects && record.projects.length > 0"
+          }
+        ],
+        "relationships": [
+          {
+            "name": "assigned_to",
+            "type": "ASSIGNED_TO",
+            "targetType": "User",
+            "targetIdPath": "$.assignee.gid",
+            "condition": "record.assignee && record.assignee.gid"
+          },
+          {
+            "name": "created_by",
+            "type": "CREATED_BY",
+            "targetType": "User",
+            "targetIdPath": "$.created_by.gid",
+            "condition": "record.created_by && record.created_by.gid"
+          },
+          {
+            "name": "in_project",
+            "type": "BELONGS_TO",
+            "targetType": "project",
+            "targetIdPath": "$.projects[0].gid",
+            "condition": "record.projects && record.projects.length > 0"
+          },
+          {
+            "name": "subtask_of",
+            "type": "CHILD_OF",
+            "targetType": "task",
+            "targetIdPath": "$.parent.gid",
+            "condition": "record.parent && record.parent.gid"
+          }
+        ]
+      }
+    },
+    "toolClassifications": {
+      "get_portfolio": {
+        "toolName": "get_portfolio",
+        "category": "read"
+      },
+      "get_portfolios": {
+        "toolName": "get_portfolios",
+        "category": "read"
+      },
+      "get_items_for_portfolio": {
+        "toolName": "get_items_for_portfolio",
+        "category": "read"
+      },
+      "get_project": {
+        "toolName": "get_project",
+        "category": "read"
+      },
+      "get_projects": {
+        "toolName": "get_projects",
+        "category": "read"
+      },
+      "create_project": {
+        "toolName": "create_project",
+        "category": "write"
+      },
+      "get_status_overview": {
+        "toolName": "get_status_overview",
+        "category": "search"
+      },
+      "search_tasks": {
+        "toolName": "search_tasks",
+        "category": "search"
+      },
+      "get_task": {
+        "toolName": "get_task",
+        "category": "read"
+      },
+      "create_task": {
+        "toolName": "create_task",
+        "category": "write"
+      },
+      "update_task": {
+        "toolName": "update_task",
+        "category": "write"
+      },
+      "get_tasks": {
+        "toolName": "get_tasks",
+        "category": "read"
+      },
+      "search_objects": {
+        "toolName": "search_objects",
+        "category": "search"
+      },
+      "get_user": {
+        "toolName": "get_user",
+        "category": "read"
+      },
+      "get_workspace_users": {
+        "toolName": "get_workspace_users",
+        "category": "read"
+      }
+    }
+  }
+}

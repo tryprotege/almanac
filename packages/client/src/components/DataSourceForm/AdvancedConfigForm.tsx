@@ -570,7 +570,7 @@ export function AdvancedConfigForm({
               >
                 <option value="none">None</option>
                 <option value="api-key">API Key (via headers)</option>
-                <option value="oauth">OAuth 2.1</option>
+                <option value="oauth">OAuth 2.0/2.1</option>
               </select>
               {isPreset && preset?.connection.auth && (
                 <Lock className="absolute right-10 top-1/2 -translate-y-1/2 w-4 h-4 text-text-quaternary pointer-events-none" />
@@ -659,7 +659,7 @@ export function AdvancedConfigForm({
                 <div className="text-brand-lime text-xl">🔐</div>
                 <div className="flex-1">
                   <h4 className="text-sm font-semibold text-text-primary mb-1">
-                    OAuth 2.1 Authentication
+                    OAuth 2.0/2.1 Authentication
                   </h4>
                   <p className="text-sm text-text-secondary mb-2">
                     OAuth will be configured automatically when you connect. The server will

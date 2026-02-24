@@ -10,7 +10,7 @@
     "./types/*": "./dist/types/*.js"
   },
   "scripts": {
-    "dev": "tsx watch --watch --env-file=.env src/server.ts",
+    "dev": "tsx watch src/server.ts",
     "dev:indexer": "tsx watch src/indexer-worker.ts",
     "indexer": "tsx src/indexer-worker.ts",
     "build": "tsc",
